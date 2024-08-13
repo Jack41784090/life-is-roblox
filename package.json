@@ -6,13 +6,6 @@
   "devDependencies": {
     "@rbxts/compiler-types": "^2.3.0-types.1",
     "@rbxts/types": "^1.0.798",
-    "@typescript-eslint/eslint-plugin": "^8.0.1",
-    "@typescript-eslint/parser": "^8.0.1",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "eslint-plugin-roblox-ts": "^0.0.36",
-    "prettier": "^3.3.3",
     "roblox-ts": "^2.3.0",
     "typescript": "^5.5.4"
   },
@@ -22,5 +15,10 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@rbxts/roact": "^1.4.4-ts.0",
+    "@rbxts/services": "^1.5.4",
+    "ansi-colors": "^4.1.3"
+  }
 }

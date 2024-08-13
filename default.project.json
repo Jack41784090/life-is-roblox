@@ -36,6 +36,12 @@
 				}
 			}
 		},
+		"StarterGui": {
+			"$className": "StarterGui",
+			"TS": {
+				"$path": "out/gui"
+			}
+		},
 		"Workspace": {
 			"$properties": {
 				"FilteringEnabled": true
