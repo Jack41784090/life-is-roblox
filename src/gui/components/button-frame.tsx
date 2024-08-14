@@ -1,20 +1,13 @@
 import Roact from "@rbxts/roact";
-import { getPlayer } from "shared/func";
 
-const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
-
-interface MenuFrameElementProps { }
-interface MenuFrameElementState { }
-export default class ButtonFrameElement extends Roact.Component<MenuFrameElementProps, MenuFrameElementState> {
-    constructor(props: MenuFrameElementProps) {
+interface ButtonFrameElementProps { }
+interface ButtonFrameElementState { }
+export default class ButtonFrameElement extends Roact.Component<ButtonFrameElementProps, ButtonFrameElementState> {
+    constructor(props: ButtonFrameElementProps) {
         super(props);
     }
 
     render() {
-        if (!playerGUI) {
-            return undefined;
-        }
-
         return (
             <frame
                 Key={"ButtonFrame"}

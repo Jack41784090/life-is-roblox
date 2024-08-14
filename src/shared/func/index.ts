@@ -24,6 +24,35 @@ export function getTween(object: Instance, info: TweenInfo, goal: { [key: string
     return service_Tween.Create(object, info, goal);
 }
 
+export function enableCharacter(character: Model) {
+    for (const descendant of character.GetDescendants()) {
+        if (descendant.IsA("BasePart")) {
+            descendant.CanCollide = true;  // Enable collisions
+            descendant.Anchored = false;   // Unanchor parts to re-enable physics
+            if (descendant.Name !== "HumanoidRootPart")
+                descendant.Transparency = 0;   // Make the part visible
+        } else if (descendant.IsA("Humanoid")) {
+            descendant.PlatformStand = false; // Re-enable humanoid physics interactions
+        } else if (descendant.IsA("Decal") || descendant.IsA("Texture")) {
+            descendant.Transparency = 0;   // Make decals and textures visible
+        }
+    }
+}
+
+export function disableCharacter(character: Model) {
+    for (const descendant of character.GetDescendants()) {
+        if (descendant.IsA("BasePart")) {
+            descendant.CanCollide = false; // Disable collisions
+            descendant.Anchored = true;    // Optionally anchor parts to disable physics
+            descendant.Transparency = 1;   // Make the part invisible
+        } else if (descendant.IsA("Humanoid")) {
+            descendant.PlatformStand = true; // Prevent humanoid physics interactions
+        } else if (descendant.IsA("Decal") || descendant.IsA("Texture")) {
+            descendant.Transparency = 1;   // Make decals and textures invisible
+        }
+    }
+}
+
 // export function attack(
 //     attacker: Entity | iEntity,
 //     target: Entity | iEntity,
