@@ -1,36 +1,71 @@
-// import { BotType, EntityConstance, EntityInitRequirements, iEntity, Location } from "shared/types";
+import { ReplicatedStorage } from "@rbxts/services";
+import { getDummyCharacterModel } from "shared/func";
+import { BotType, EntityInitRequirements, EntityStats, iEntity } from "shared/types/battle-types";
+import Cell from "./Cell";
 
-// export default class Entity implements iEntity {
-//     readonly base: Readonly<EntityConstance>;
-//     team: string;
-//     name: string = '[?]';
+export default class Entity implements iEntity {
+    cell: Cell | undefined;
 
-//     warSupport: number;
-//     stamina: number;
-//     hp: number;
-//     org: number;
-//     pos: number;
+    readonly stats: Readonly<EntityStats>;
+    team: string;
+    name: string;
 
-//     loc: Location = 'front';
-//     botType: BotType = BotType.Enemy;
-//     isPlayer: boolean = false;
-//     isPvp: boolean = false;
+    sta: number;
+    hip: number;
+    org: number;
+    pos: number;
 
-//     constructor(options: EntityInitRequirements) {
-//         this.base = options.base;
-//         this.team = options.team;
-//         this.name = options.name ?? this.name;
-//         this.loc = options.loc ?? this.loc;
-//         this.botType = options.botType ?? this.botType;
+    botType: BotType = BotType.Enemy;
 
-//         this.warSupport = options.warSupport ?? maxHP(this.base);
-//         this.stamina = options.stamina ?? maxStamina(this.base);
-//         this.hp = options.hp ?? maxHP(this.base);
-//         this.org = options.org ?? maxOrganisation(this.base);
-//         this.pos = options.pos ?? maxPosture(this.base);
-//     }
+    instance?: Instance;
 
-//     getFullName() {
-//         return `${this.name} <@${this.base.id}>`
-//     }
-// }
+    constructor(options: EntityInitRequirements) {
+        this.team = options.team;
+        this.stats = { ...options.stats, id: options.stats.id };
+        this.sta = options.sta ?? 0;
+        this.hip = options.hip ?? 0;
+        this.org = options.org ?? 0;
+        this.pos = options.pos ?? 0;
+        this.name = options.name ?? options.stats.id;
+        this.botType = options.botType || BotType.Enemy;
+
+        this.instance = getDummyCharacterModel()
+        this.instance.Name = this.name;
+    }
+
+    setCell(cell: Cell) {
+        this.cell = cell;
+    }
+
+    materialise() {
+        if (this.cell === undefined) {
+            throw "Coordinates not set";
+        }
+
+        const id = this.stats.id;
+        const template = ReplicatedStorage.WaitForChild("entity_" + id) as BasePart | Model;
+        const entity = template.Clone();
+
+        if (entity.IsA("BasePart")) {
+            entity.Position = this.cell.part.Position.add(new Vector3(0, this.cell.height * this.cell.size, 0));
+        }
+        else if (entity.IsA("Model")) {
+            const primaryPart = entity.PrimaryPart;
+            if (!primaryPart) {
+                throw `PrimaryPart is not set for the model entity_${id}`;
+            }
+            const position = this.cell.part.Position.add(new Vector3(0, this.cell.height * this.cell.size, 0));
+            entity.PivotTo(new CFrame(position));
+        }
+        else {
+            throw `Unsupported entity type for entity_${id}`;
+        }
+
+        // Parent the entity to the cell part
+        entity.Parent = this.cell.part;
+
+        // Store the instance
+        this.instance = entity;
+    }
+
+}

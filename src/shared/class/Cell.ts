@@ -23,9 +23,9 @@ export default class Cell {
             height * this.size,
             this.size);
         part.Position = new Vector3(
-            (position.X - grid.center.X) * (this.size),
+            (position.X + grid.center.X - math.floor(grid.widthheight.X / 2)) * (this.size),
             this.size / 2,
-            (position.Y - grid.center.Y) * (this.size));
+            (position.Y + grid.center.Y - math.floor(grid.widthheight.Y / 2)) * (this.size));
         part.Anchored = true;
         part.Material = Enum.Material.Pebble;
         part.Parent = game.Workspace;

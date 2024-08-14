@@ -1,3 +1,5 @@
+import { ReplicatedStorage, Workspace } from "@rbxts/services";
+import { EntityStats } from "shared/types/battle-types";
 
 const service_Players = game.GetService("Players");
 const serivce_DataStore = game.GetService("DataStoreService");
@@ -51,6 +53,45 @@ export function disableCharacter(character: Model) {
             descendant.Transparency = 1;   // Make decals and textures invisible
         }
     }
+}
+
+export function getCharacterModel(name: string, position: Vector3) {
+    const humanoidTemplate = ReplicatedStorage.WaitForChild(name) as Model;
+    if (humanoidTemplate) {
+        const humanoidClone = humanoidTemplate.Clone();
+        const humanoidRootPart = humanoidClone.WaitForChild("HumanoidRootPart") as BasePart;
+        humanoidRootPart.CFrame = new CFrame(position);
+        humanoidClone.Parent = Workspace;
+        return humanoidClone;
+    }
+    else {
+        warn("PresetHumanoid model not found in ReplicatedStorage.");
+    }
+}
+
+export function getDummyStats(): EntityStats {
+    return {
+        id: "joanmadej",
+        str: 0,
+        dex: 0,
+        acr: 0,
+        spd: 0,
+        siz: 0,
+        int: 0,
+        spr: 0,
+        fai: 0,
+        cha: 0,
+        beu: 0,
+        wil: 0,
+        end: 0,
+    }
+}
+
+export function getDummyCharacterModel(): Model {
+    const humanoid = new Instance("Model");
+    humanoid.Name = "Dummy";
+    humanoid.Parent = game.Workspace;
+    return humanoid;
 }
 
 // export function attack(

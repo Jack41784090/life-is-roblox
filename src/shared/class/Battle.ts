@@ -1,6 +1,7 @@
-// import { findDifference } from 'shared/func';
-// import { BattleConfig, BattleField, BeforeAfter, BotType, FightingEntity, iBattleResult, iEntity, Location, ProfileInteractionType, ProfileType, UserData } from "../types";
-// import Entity from "./Entity";
+import { getDummyStats } from "shared/func";
+import { BattleConfig, BotType } from "shared/types/battle-types";
+import Entity from "./Entity";
+import Grid from "./Grid";
 
 // /**
 //  * Represents the result of a battle.
@@ -43,102 +44,88 @@
 //         this.target = d.target;
 //     }
 // }
-// export class Team {
-//     name: string;
-//     members: Entity[];
-//     constructor(name: string, members: Entity[]) {
-//         this.members = members;
-//         this.name = name;
-//     }
-//     push(...members: Entity[]) {
-//         for (const member of members) {
-//             const exist = this.members.find(m => m.base.playerID === member.base.playerID);
-//             if (!exist) {
-//                 this.members.push(member);
-//             }
-//         }
-//     }
-// }
+
+export class BattleTeam {
+    name: string;
+    members: Entity[];
+    constructor(name: string, members: Entity[]) {
+        this.members = members;
+        this.name = name;
+    }
+    push(...members: Entity[]) {
+        for (const member of members) {
+            const exist = this.members.find(m => m.stats.id === member.stats.id);
+            if (!exist) {
+                this.members.push(member);
+            }
+        }
+    }
+}
 
 export class Battle {
+    camera: Camera;
+    grid: Grid;
+
     // Entity-Related Information
-    teams: Team[] = [];
+    teams: BattleTeam[] = [];
     totalEnemyCount: number = 0;
     enemyCount: number = 0;
     playerCount: number = 0;
-    // battlefield: BattleField = new Map<Location, Entity[]>();
 
     // Timeslotting
     time: number = -1;
 
-    private constructor() {
+    constructor(config: BattleConfig) {
+        const { width, height, camera, center, size } = config;
+
+        // Set up the camera
+        this.camera = camera;
+        const camera_x = math.floor(center.X) * size;
+        const camera_y = math.floor(center.Y) * size;
+        this.setCameraCFrame(
+            new Vector3(camera_x, size * 5, camera_y),
+            new Vector3(camera_x, 0, camera_y));
+
+        // Set up the grid
+        this.grid = new Grid(new Vector2(width, height), center, size);
+        this.grid.materialise()
+
+        // Set up the teams
+        for (const [teamName, playerList] of pairs(config.teamMap)) {
+            const members = playerList.map(player => {
+                const entity = new Entity({
+                    stats: getDummyStats(),
+                    pos: 0,
+                    org: 0,
+                    hip: 0,
+                    name: player.Name,
+                    team: teamName,
+                    botType: player.UserId === 0 ? BotType.Enemy : undefined,
+                });
+                return entity;
+            });
+            this.teams.push(new BattleTeam(teamName, members));
+        }
     }
 
-    /**
-     * Creates a new Battle instance with the given configuration.
-     * @param c The BattleConfig object containing the configuration for the battle.
-     * @returns A Promise that resolves to a Battle instance.
-     */
-    // static async Create(c: BattleConfig): Promise<Battle> {
-    //     // 1. Get from Database the UserData of each player
-    //     const party = await Promise.all(c.robloxPlayers.map(p => ))
-    //         .then(c => c.filter(x => x !== null)) as UserData[];
+    private setCameraCFrame(pos: Vector3, lookAt: Vector3, camera?: Camera) {
+        (camera ?? this.camera).CameraType = Enum.CameraType.Scriptable;
+        (camera ?? this.camera).CFrame = new CFrame(pos, lookAt);
+    }
 
-    //     // 2. Create a new Battle instance and inject the players into the party argument
-    //     const battle = new Battle(c, await Promise.all(party).then(c => c.filter(x => x !== null) as UserData[]));
+    spawn() {
+        for (const team of this.teams) {
+            for (const entity of team.members) {
+                entity.setCell(entity.cell ??
+                    this.grid.cellsXY.get(math.random(0, this.grid.widthheight.X - 1), math.random(0, this.grid.widthheight.Y - 1))!
+                );
+                print(`Spawning ${entity.name} at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
 
-    //     // 3. Get from Database the CombatCharacter of each player
-    //     const fighters = await Promise.all(
-    //         party.map(async p => {
-    //             const characterAccess =
-    //                 await ProfileManager.Register(ProfileType.CombatCharacter, p.combatCharacters[0], ProfileInteractionType.Default);
-    //             if (characterAccess instanceof Error) return null;
+                entity.materialise();
+            }
+        }
+    }
 
-    //             const characterBase = characterAccess.profile.data as FightingEntity;
-    //             return characterBase ?
-    //                 new Entity({
-    //                     base: Object.assign({
-    //                         name: characterBase.id,
-    //                         ...characterBase
-    //                     }, p),
-    //                     team: c.teamMapping[p.id],
-    //                     name: characterBase.id,
-    //                     botType: BotType.Player,
-    //                     isPlayer: true,
-    //                     isPvp: true
-    //                 }) :
-    //                 null;
-    //         })
-    //     ).then(c => c.filter(x => x !== null) as Entity[]);
-    //     // print(fighters)
-
-    //     // 4. Populate userCache
-    //     for (const user of c.robloxPlayers) {
-    //         battle.userCache.set(user.id, user);
-    //     }
-
-    //     // 5. Assigning teams
-    //     fighters.forEach(f => battle.teamAssign(c.teamMapping[f.base.id!], [f]));
-
-    //     // 6. Queue the fighters to be spawned
-    //     battle.spawnAtLocation('front', ...fighters.filter(f => f.botType === BotType.Player));
-
-    //     return battle;
-    // }
-
-    //#region Team Management
-    // teamAssign(name: string, members: Entity[] = []) {
-    //     const exist = this.teams.find(t => t.name === name);
-    //     if (exist) {
-    //         exist.push(...members);
-    //     }
-    //     else {
-    //         this.teams.push(new Team(name, members));
-    //     }
-    // }
-    //#endregion
-
-    //#region Round Management
     public begin() {
         print('【Begin】')
         if (this.time === -1) this.round();
@@ -147,6 +134,12 @@ export class Battle {
     private advanceTime() {
         this.time++;
         print(`【Time】 ${this.time}`)
+    }
+
+    private async round() {
+        this.advanceTime();
+        wait(1);
+        this.round();
     }
 
     // private dealWithClash(attacker: Entity, target: Entity): BattleResult {
@@ -191,11 +184,4 @@ export class Battle {
     //         target,
     //     })
     // }
-
-    private async round() {
-        this.advanceTime();
-        wait(1);
-        this.round();
-    }
-    //#endregion
 }

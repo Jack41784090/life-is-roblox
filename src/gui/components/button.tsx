@@ -4,6 +4,7 @@ import { TweenService } from "@rbxts/services";
 export interface ButtonElementProps {
     text: string;
     size: number;
+    position: number;
     onclick: () => void;
 }
 
@@ -31,7 +32,7 @@ export default class ButtonElement extends Roact.Component<ButtonElementProps, B
             <textbutton
                 Ref={this.buttonRef}
                 Text={this.props.text}
-                Position={new UDim2(0, 0, 0, 0)}
+                Position={new UDim2(0, 0, this.props.position, 0)}
                 Size={new UDim2(1, 0, this.props.size, 0)}
                 BackgroundTransparency={0}
                 TextScaled={true}

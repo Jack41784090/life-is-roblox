@@ -6,21 +6,21 @@ export default class Grid {
     cells: Cell[] = [];
     cellsXY: XY<Cell>;
 
-    constructor(public xy: Vector2, public center: Vector2, public size: number) {
-        this.cellsXY = new XY<Cell>(xy.X, xy.Y);
+    constructor(public widthheight: Vector2, public center: Vector2, public size: number, public name = "Grid") {
+        this.cellsXY = new XY<Cell>(widthheight.X, widthheight.Y);
     }
 
     area() {
-        return this.xy.X * this.xy.Y;
+        return this.widthheight.X * this.widthheight.Y;
     }
 
     materialise() {
         const grid = new Instance("Model");
-        grid.Name = "Grid";
+        grid.Name = this.name
         grid.Parent = game.Workspace;
 
-        for (let x = 0; x < this.xy.X; x++) {
-            for (let y = 0; y < this.xy.Y; y++) {
+        for (let x = 0; x < this.widthheight.X; x++) {
+            for (let y = 0; y < this.widthheight.Y; y++) {
                 const cell = new Cell({
                     position: new Vector2(x, y),
                     size: this.size,

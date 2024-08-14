@@ -30,26 +30,52 @@
 // // wil: number,    // Willpower: mental strength
 // // cha: number,    // Charisma: ability to influence others
 // // beu: number,    // Beauty: physical appearance
-// export interface EntityConstance extends PureCombatCharacter {
-//     username?: string,
-//     iconURL?: string,
-//     playerID: number,
-// }
-// export type EntityInitRequirements = Partial<iEntity> & { base: Omit<EntityConstance, 'id'>, team: string }
-// export interface iEntityStats {
-//     warSupport: number,
-//     stamina: number,
-//     hp: number,
-//     org: number,
-//     pos: number,
-// }
-// export interface iEntity extends iEntityStats {
-//     team: string,
-//     base: EntityConstance,
-//     name: string,
-//     loc: Location,
-//     botType?: BotType,
-// }
+export enum BotType {
+    Player = 'player',
+    Enemy = 'enemy',
+}
+export type ClashResultFate = "Miss" | "Hit" | "CRIT"
+export enum Reality {
+    Force = 'force',
+    Mana = 'mana',
+    Spirituality = 'spirituality',
+    Divinity = 'divinity',
+    Precision = 'precision',
+    Maneuver = 'maneuver',
+    Convince = 'convince',
+    Bravery = 'bravery',
+}
+export type EntityStats = {
+    id: string;
+    str: number;
+    dex: number;
+    acr: number;
+    spd: number;
+    siz: number;
+    int: number;
+    spr: number;
+    fai: number;
+    cha: number;
+    beu: number;
+    wil: number;
+    end: number;
+};
+export type EntityInitRequirements =
+    Partial<iEntity> &
+    { stats: Omit<EntityStats, 'id'>, team: string } // requirements: everything is optional exceot stats + team
+export interface iEntity {
+    stats: EntityStats,
+    team: string,
+    name: string,
+
+    sta: number,
+    hip: number,
+    org: number,
+    pos: number,
+
+    botType?: BotType,
+    instance?: Instance,
+}
 
 // export enum StatusEffectApplyType {
 //     persistent = 'persistent',
@@ -95,45 +121,14 @@
 //     targetDiff: BeforeAfter,
 // }
 export interface BattleConfig {
-    robloxPlayers: Player[];
+    size: number;
+    camera: Camera,
+    center: Vector2,
+    width: number;
+    height: number;
+    teamMap: Record<string, Player[]>;
 }
 // export type BattleField = Map<Location, Entity[]>;
-// export type Location = 'front' | 'back' | 'front-support' | 'back-support'
-// export enum BotType {
-//     Player = 'player',
-//     Enemy = 'enemy',
-// }
-// export type FightingEntity = {
-//     authorised: string[];
-//     characterName: string;
-//     str: number;
-//     dex: number;
-//     acr: number;
-//     spd: number;
-//     siz: number;
-//     int: number;
-//     spr: number;
-//     fai: number;
-//     cha: number;
-//     beu: number;
-//     wil: number;
-//     end: number;
-//     description: string;
-// };
-
-// export type PureCombatCharacter = Omit<FightingEntity, 'description' | 'authorised'>
-// export type ClashResultFate = "Miss" | "Hit" | "CRIT"
-// export type EntityStats = keyof Omit<EntityConstance, 'username' | 'id' | 'iconURL'>;
-// export enum Reality {
-//     Force = 'force',
-//     Mana = 'mana',
-//     Spirituality = 'spirituality',
-//     Divinity = 'divinity',
-//     Precision = 'precision',
-//     Maneuver = 'maneuver',
-//     Convince = 'convince',
-//     Bravery = 'bravery',
-// }
 
 // export type ClashStringParams =
 //     { entity: Entity, type: keyof iEntityStats }
