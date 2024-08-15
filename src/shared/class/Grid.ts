@@ -7,16 +7,20 @@ export default class Grid {
     cellsXY: XY<Cell>;
 
     constructor(public widthheight: Vector2, public center: Vector2, public size: number, public name = "Grid") {
+        if (widthheight.X <= 0 || widthheight.Y <= 0) {
+            throw ("Grid dimensions must be positive numbers.");
+        }
         this.cellsXY = new XY<Cell>(widthheight.X, widthheight.Y);
     }
+
 
     area() {
         return this.widthheight.X * this.widthheight.Y;
     }
 
-    materialise() {
+    async materialise() {
         const grid = new Instance("Model");
-        grid.Name = this.name
+        grid.Name = this.name;
         grid.Parent = game.Workspace;
 
         for (let x = 0; x < this.widthheight.X; x++) {
@@ -28,10 +32,12 @@ export default class Grid {
                     terrain: CellTerrain.plains,
                     grid: this
                 });
+
                 cell.part.Parent = grid;
                 this.cellsXY.set(x, y, cell);
                 this.cells.push(cell);
             }
         }
     }
+
 }

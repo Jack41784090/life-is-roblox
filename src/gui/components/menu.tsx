@@ -3,7 +3,10 @@ import { getPlayer } from "shared/func";
 
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
-interface MenuFrameElementProps { }
+interface MenuFrameElementProps {
+    transparency?: number;
+    zIndex?: number;
+}
 interface MenuFrameElementState {
     colour: Color3;
 }
@@ -27,7 +30,8 @@ class MenuFrameElement extends Roact.Component<MenuFrameElementProps, MenuFrameE
                     <frame
                         Key={"MenuFrame"}
                         Size={new UDim2(1, 0, 1, 0)}
-                        BackgroundTransparency={1}
+                        BackgroundTransparency={this.props.transparency || 0.5}
+                        ZIndex={this.props.zIndex || 1}
                     >
                         {this.props[Roact.Children]}
                     </frame>

@@ -1,5 +1,4 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { getDummyCharacterModel } from "shared/func";
 import { BotType, EntityInitRequirements, EntityStats, iEntity } from "shared/types/battle-types";
 import Cell from "./Cell";
 
@@ -28,44 +27,45 @@ export default class Entity implements iEntity {
         this.pos = options.pos ?? 0;
         this.name = options.name ?? options.stats.id;
         this.botType = options.botType || BotType.Enemy;
-
-        this.instance = getDummyCharacterModel()
-        this.instance.Name = this.name;
     }
+
 
     setCell(cell: Cell) {
         this.cell = cell;
     }
 
     materialise() {
-        if (this.cell === undefined) {
-            throw "Coordinates not set";
+        if (!this.cell) {
+            warn("Coordinates not set");
+            return;
         }
 
         const id = this.stats.id;
-        const template = ReplicatedStorage.WaitForChild("entity_" + id) as BasePart | Model;
+        const template = ReplicatedStorage.WaitForChild(`entity_${id}`) as BasePart | Model;
         const entity = template.Clone();
 
         if (entity.IsA("BasePart")) {
-            entity.Position = this.cell.part.Position.add(new Vector3(0, this.cell.height * this.cell.size, 0));
-        }
-        else if (entity.IsA("Model")) {
-            const primaryPart = entity.PrimaryPart;
-            if (!primaryPart) {
-                throw `PrimaryPart is not set for the model entity_${id}`;
-            }
-            const position = this.cell.part.Position.add(new Vector3(0, this.cell.height * this.cell.size, 0));
-            entity.PivotTo(new CFrame(position));
-        }
-        else {
+            this.positionBasePart(entity);
+        } else if (entity.IsA("Model")) {
+            this.positionModel(entity);
+        } else {
             throw `Unsupported entity type for entity_${id}`;
         }
 
-        // Parent the entity to the cell part
         entity.Parent = this.cell.part;
-
-        // Store the instance
         this.instance = entity;
     }
 
+    private positionBasePart(entity: BasePart) {
+        entity.Position = this.cell!.part.Position.add(new Vector3(0, this.cell!.height * this.cell!.size, 0));
+    }
+
+    private positionModel(entity: Model) {
+        const primaryPart = entity.PrimaryPart;
+        if (!primaryPart) {
+            throw `PrimaryPart is not set for the model entity_${this.stats.id}`;
+        }
+        const position = this.cell!.part.Position.add(new Vector3(0, this.cell!.height * this.cell!.size, 0));
+        entity.PivotTo(new CFrame(position));
+    }
 }

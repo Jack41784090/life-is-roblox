@@ -1,49 +1,8 @@
-import { getDummyStats } from "shared/func";
+import { RunService, UserInputService, Workspace } from "@rbxts/services";
+import { getDummyStats, getTween } from "shared/func";
 import { BattleConfig, BotType } from "shared/types/battle-types";
 import Entity from "./Entity";
 import Grid from "./Grid";
-
-// /**
-//  * Represents the result of a battle.
-//  * @implements iBattleResult
-//  * @class
-//  * @classdesc Represents the result of a battle.
-//  * @param {Partial<iBattleResult>} d - The partial battle result data along with the required entities.
-//  * @returns {BattleResult} A new instance of the BattleResult class.
-//  * @example
-//  * const result = new BattleResult({
-//  *      desc: 'None',
-//  *      attackerDiff: [findDifference(attacker, vattacker)],
-//  *      targetDiff: [findDifference(target, vTarget)],
-//  *      vattacker: attacker.applyCurrentStatus(),
-//  *      vTarget: target.applyCurrentStatus(),
-//  *      attacker: attacker,
-//  *      target: target,
-//  * });
-//  */
-// class BattleResult implements iBattleResult {
-//     desc: string;
-//     attackerDiff: BeforeAfter;
-//     targetDiff: BeforeAfter;
-//     vattacker: iEntity;
-//     vTarget: iEntity;
-//     attacker: Entity;
-//     target: Entity;
-
-//     /**
-//      * Constructs a new instance of the BattleResult class.
-//      * @param d - The partial battle result data along with the required entities.
-//      */
-//     constructor(d: Partial<iBattleResult> & { vattacker: iEntity, vTarget: iEntity, target: Entity, attacker: Entity }) {
-//         this.desc = d.desc ?? 'None';
-//         this.attackerDiff = d.attackerDiff ?? [findDifference(d.attacker, d.vattacker)];
-//         this.targetDiff = d.targetDiff ?? [findDifference(d.target, d.vTarget)];
-//         this.vattacker = d.vattacker;
-//         this.vTarget = d.vTarget;
-//         this.attacker = d.attacker;
-//         this.target = d.target;
-//     }
-// }
 
 export class BattleTeam {
     name: string;
@@ -64,6 +23,7 @@ export class BattleTeam {
 
 export class Battle {
     camera: Camera;
+    panService: RBXScriptConnection | undefined;
     grid: Grid;
 
     // Entity-Related Information
@@ -72,6 +32,10 @@ export class Battle {
     enemyCount: number = 0;
     playerCount: number = 0;
 
+    gridMin: Vector2;
+    gridMax: Vector2;
+    panSpeed = 0.6;
+
     // Timeslotting
     time: number = -1;
 
@@ -79,12 +43,17 @@ export class Battle {
         const { width, height, camera, center, size } = config;
 
         // Set up the camera
+        const camera_centerx = math.floor(center.X) * size;
+        const camera_centery = math.floor(center.Y) * size;
+        this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
+        this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
+        print(`Grid Min: ${this.gridMin}, Grid Max: ${this.gridMax}`);
         this.camera = camera;
-        const camera_x = math.floor(center.X) * size;
-        const camera_y = math.floor(center.Y) * size;
         this.setCameraCFrame(
-            new Vector3(camera_x, size * 5, camera_y),
-            new Vector3(camera_x, 0, camera_y));
+            new Vector3(camera_centerx, size * 5, camera_centery),
+            new Vector3(camera_centerx, 0, camera_centery)).then(() => {
+                this.setUpCameraPan();
+            });
 
         // Set up the grid
         this.grid = new Grid(new Vector2(width, height), center, size);
@@ -108,17 +77,78 @@ export class Battle {
         }
     }
 
+    static readonly EDGE_BUFFER = 0.15;
+    private setUpCameraPan() {
+        this.panService = RunService.RenderStepped.Connect(() => {
+            const mousePosition = UserInputService.GetMouseLocation();
+            const screenSize = this.camera.ViewportSize;
+
+            let gridDelta = new Vector2(0, 0);
+
+            const edgeBuffer_x = screenSize.X * Battle.EDGE_BUFFER;
+            // Check if the mouse is near the left or right edge of the screen
+            if (mousePosition.X < edgeBuffer_x) {
+                gridDelta = gridDelta.add(new Vector2(-1, 0));
+            } else if (mousePosition.X > screenSize.X - edgeBuffer_x) {
+                gridDelta = gridDelta.add(new Vector2(1, 0));
+            }
+
+            const edgeBuffer_y = screenSize.Y * Battle.EDGE_BUFFER;
+            // Check if the mouse is near the top or bottom edge of the screen
+            if (mousePosition.Y < edgeBuffer_y) {
+                gridDelta = gridDelta.add(new Vector2(0, 1));
+            } else if (mousePosition.Y > screenSize.Y - edgeBuffer_y) {
+                gridDelta = gridDelta.add(new Vector2(0, -1));
+            }
+
+            print(gridDelta);
+
+            // Update the camera position based on the calculated delta
+            this.updateCameraPosition(gridDelta);
+        });
+    }
+
+    private updateCameraPosition(gridDelta: Vector2) {
+        // WARNING: grid x = camera z, grid y = camera x
+        const camera = Workspace.CurrentCamera;
+        if (!camera) {
+            warn("Camera not found!");
+            return;
+        }
+
+        const cameraCFrame = camera.CFrame;
+        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * this.panSpeed, 0, gridDelta.X * this.panSpeed));
+
+        // Ensure the camera stays within the grid bounds
+        const clampedX = math.clamp(cameraPosition.X, this.gridMin.Y, this.gridMax.Y);
+        const clampedZ = math.clamp(cameraPosition.Z, this.gridMin.X, this.gridMax.X);
+
+        camera.CFrame = new CFrame(
+            new Vector3(clampedX, cameraPosition.Y, clampedZ),
+            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ)));
+    }
+
     private setCameraCFrame(pos: Vector3, lookAt: Vector3, camera?: Camera) {
-        (camera ?? this.camera).CameraType = Enum.CameraType.Scriptable;
-        (camera ?? this.camera).CFrame = new CFrame(pos, lookAt);
+        const cam = camera ?? this.camera;
+        const lookAT = new CFrame(pos, lookAt);
+        cam.CameraType = Enum.CameraType.Scriptable;
+        const tween = getTween(
+            cam,
+            new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { CFrame: lookAT });
+        return new Promise((resolve) => {
+            tween.Play();
+            tween.Completed.Connect(() => {
+                resolve(void 0)
+            });
+        });
     }
 
     spawn() {
         for (const team of this.teams) {
             for (const entity of team.members) {
-                entity.setCell(entity.cell ??
-                    this.grid.cellsXY.get(math.random(0, this.grid.widthheight.X - 1), math.random(0, this.grid.widthheight.Y - 1))!
-                );
+                const cell = entity.cell ?? this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+                entity.setCell(cell);
                 print(`Spawning ${entity.name} at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
 
                 entity.materialise();
@@ -141,47 +171,4 @@ export class Battle {
         wait(1);
         this.round();
     }
-
-    // private dealWithClash(attacker: Entity, target: Entity): BattleResult {
-    //     print(`【Clash】 ${attacker.name} clashes with ${target.name}`)
-
-    //     // SET UP CONSTANTS
-    //     const ability = attacker.getAction();
-    //     const targetAbility = target.getAction();
-    //     if (!ability) return new BattleResult({ desc: 'No ability found', attacker: attacker, target, vattacker: attacker.virtual(), vTarget: target.virtual() });
-
-    //     const atk_an = "Attack Ability"
-    //     const tgt_an = "Target Ability"
-
-    //     const {
-    //         attackerDiff,
-    //         targetDiff,
-    //         vattacker,
-    //         vTarget,
-    //         value,
-    //     } = attack(attacker, target, (dr: { forceDamage: number; pierceDamage: number; }) => {
-    //         const postureDamage = (dr.forceDamage * 0.65 + dr.pierceDamage * 0.35) * uniformRandom(0.95, 1.05);
-    //         return postureDamage;
-    //     }, 'pos', true);
-
-    //     print(`Clash-Before-NOPOS:`)
-    //     print(target, attacker)
-    //     print(`Clash-After-NOPOS:`)
-    //     print(vTarget, vattacker)
-    //     print(`【Damage】${attacker.name} hits ${target.name} with ${atk_an}!`,
-    //         `${target.pos} - ${value} = ${vTarget.pos}`)
-
-    //     const desc = `${attacker.name + (attacker.base.username ? `/${attacker.base.username}` : '')} [${atk_an}]` +
-    //         " clashes with " +
-    //         `${target.name + (target.base.username ? `/${target.base.username}` : '')} [${tgt_an}]!`;
-    //     return new BattleResult({
-    //         desc,
-    //         attackerDiff,
-    //         targetDiff,
-    //         vattacker,
-    //         vTarget,
-    //         attacker,
-    //         target,
-    //     })
-    // }
 }
