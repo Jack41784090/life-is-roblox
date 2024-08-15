@@ -1,4 +1,4 @@
-import { RunService, UserInputService, Workspace } from "@rbxts/services";
+import { ReplicatedStorage, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { getDummyStats, getTween } from "shared/func";
 import { BattleConfig, BotType } from "shared/types/battle-types";
 import Entity from "./Entity";
@@ -22,6 +22,9 @@ export class BattleTeam {
 }
 
 export class Battle {
+    openBattleGUIEvent: BindableEvent = ReplicatedStorage.WaitForChild("OpenBattleGUI") as BindableEvent;
+
+    // Camera-Related Information
     camera: Camera;
     panService: RBXScriptConnection | undefined;
     grid: Grid;
@@ -51,9 +54,9 @@ export class Battle {
         this.camera = camera;
         this.setCameraCFrame(
             new Vector3(camera_centerx, size * 5, camera_centery),
-            new Vector3(camera_centerx, 0, camera_centery)).then(() => {
-                this.setUpCameraPan();
-            });
+            new Vector3(camera_centerx, 0, camera_centery))
+            .await();
+        this.setUpCameraPan();
 
         // Set up the grid
         this.grid = new Grid(new Vector2(width, height), center, size);
@@ -75,10 +78,15 @@ export class Battle {
             });
             this.teams.push(new BattleTeam(teamName, members));
         }
+
+        // set up readiness gui
+        this.openBattleGUIEvent.Fire();
     }
 
+    //#region Camera Work
     static readonly EDGE_BUFFER = 0.15;
     private setUpCameraPan() {
+        print('Setting up camera pan');
         this.panService = RunService.RenderStepped.Connect(() => {
             const mousePosition = UserInputService.GetMouseLocation();
             const screenSize = this.camera.ViewportSize;
@@ -107,7 +115,6 @@ export class Battle {
             this.updateCameraPosition(gridDelta);
         });
     }
-
     private updateCameraPosition(gridDelta: Vector2) {
         // WARNING: grid x = camera z, grid y = camera x
         const camera = Workspace.CurrentCamera;
@@ -127,8 +134,8 @@ export class Battle {
             new Vector3(clampedX, cameraPosition.Y, clampedZ),
             cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ)));
     }
-
     private setCameraCFrame(pos: Vector3, lookAt: Vector3, camera?: Camera) {
+        print(`Setting camera CFrame to ${pos}, looking at ${lookAt}`);
         const cam = camera ?? this.camera;
         const lookAT = new CFrame(pos, lookAt);
         cam.CameraType = Enum.CameraType.Scriptable;
@@ -143,8 +150,9 @@ export class Battle {
             });
         });
     }
+    //#endregion
 
-    spawn() {
+    private spawn() {
         for (const team of this.teams) {
             for (const entity of team.members) {
                 const cell = entity.cell ?? this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
@@ -171,4 +179,11 @@ export class Battle {
         wait(1);
         this.round();
     }
+
+    //#region Readiness Management
+    public readinessPlay() {
+
+    }
+
+    //#endregion
 }

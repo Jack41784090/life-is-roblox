@@ -1,13 +1,15 @@
 import Roact from "@rbxts/roact";
-import { ContentProvider, Players, ReplicatedStorage, Workspace } from "@rbxts/services";
+import { ContentProvider, Players, ReplicatedFirst, ReplicatedStorage, Workspace } from "@rbxts/services";
 import { Battle } from "shared/class/Battle";
 import ButtonElement, { ButtonElementProps } from "./components/button";
 import ButtonFrameElement from "./components/button-frame";
 import MenuFrameElement from "./components/menu";
 import TitleElement from "./components/title";
 
+//#region 1. LOADING
 // Wait for the game to load
-while (!game.IsLoaded()) wait();
+ReplicatedFirst.RemoveDefaultLoadingScreen();
+// while (!game.IsLoaded()) wait();
 
 const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui");
 const assets = game.GetDescendants();
@@ -27,23 +29,32 @@ function updateLoadingScreen(loadedAssets: number) {
 
 // Initial loading screen mount
 const loadingScreen = Roact.mount(
-    <MenuFrameElement transparency={0} zIndex={5}>
+    <MenuFrameElement transparency={0}>
         <TitleElement text={`Loading 0/${numberOfAssets} Assets...`} />
     </MenuFrameElement>,
     playerGui // Mounting the UI in PlayerGui
 );
 
 // Preload assets and update the loading screen title
+print("Preloading assets");
 for (let i = 0; i < numberOfAssets; i++) {
-    const asset = assets[i];
-    ContentProvider.PreloadAsync([asset]);
-    loadedAssets += 1;
-    updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
+    const thread = task.spawn(() => {
+        const asset = assets[i];
+        ContentProvider.PreloadAsync([asset]);
+        loadedAssets += 1; print(loadedAssets)
+        updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
+    })
 }
+
+// Wait for all assets to be preloaded
+while (loadedAssets < numberOfAssets) wait();
+print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
 Roact.unmount(loadingScreen);
+//#endregion
 
+//#region 2. MAIN MENU
 const loadCharacterEvent = ReplicatedStorage.WaitForChild("LoadCharacterEvent") as RemoteEvent;
 
 // Setup the camera
@@ -87,7 +98,6 @@ function mainMenuSetup() {
                         '1': [Players.LocalPlayer]
                     }
                 })
-                battle.spawn()
             }
         }
     ];
@@ -119,4 +129,6 @@ function mainMenuSetup() {
 print("Initializing main menu");
 mainMenuCameraSetup();
 mainMenuSetup();
+//#endregion
+
 

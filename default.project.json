@@ -12,8 +12,8 @@
 				"$path": "out/server"
 			}
 		},
-		"ReplicatedStorage": {
-			"$className": "ReplicatedStorage",
+		"ReplicatedFirst": {
+			"$className": "ReplicatedFirst",
 			"rbxts_include": {
 				"$path": "include",
 				"node_modules": {
@@ -23,6 +23,12 @@
 					}
 				}
 			},
+			"TS": {
+				"$path": "out/gui_sharedfirst"
+			}
+		},
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
 			"TS": {
 				"$path": "out/shared"
 			}
@@ -34,12 +40,6 @@
 				"TS": {
 					"$path": "out/client"
 				}
-			}
-		},
-		"StarterGui": {
-			"$className": "StarterGui",
-			"TS": {
-				"$path": "out/gui"
 			}
 		},
 		"Workspace": {

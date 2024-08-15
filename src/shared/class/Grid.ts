@@ -19,6 +19,7 @@ export default class Grid {
     }
 
     async materialise() {
+        print("Materialising grid");
         const grid = new Instance("Model");
         grid.Name = this.name;
         grid.Parent = game.Workspace;

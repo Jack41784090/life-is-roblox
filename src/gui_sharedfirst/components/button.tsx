@@ -7,7 +7,6 @@ export interface ButtonElementProps {
     position: number;
     onclick: () => void;
 }
-
 interface ButtonElementState { }
 
 export default class ButtonElement extends Roact.Component<ButtonElementProps, ButtonElementState> {

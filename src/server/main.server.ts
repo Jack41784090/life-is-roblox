@@ -18,6 +18,7 @@ Players.PlayerAdded.Connect((player) => {
 });
 
 // find all cells and change height
+wait(3)
 const grid = new Grid(new Vector2(10, 10), new Vector2(0, 0), 10, "FunGrid");
 grid.materialise()
 function iterate() {
@@ -33,6 +34,4 @@ function iterate() {
             print("Error: " + err);
         });
 }
-
-wait(3)
 iterate();
