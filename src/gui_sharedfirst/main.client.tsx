@@ -41,7 +41,7 @@ for (let i = 0; i < numberOfAssets; i++) {
     const thread = task.spawn(() => {
         const asset = assets[i];
         ContentProvider.PreloadAsync([asset]);
-        loadedAssets += 1; print(loadedAssets)
+        loadedAssets += 1;
         updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
     })
 }
@@ -71,38 +71,47 @@ function mainMenuCameraSetup() {
 }
 
 // Setup the main menu
+function enterPlayground() {
+    if (Workspace.CurrentCamera) {
+        Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom;
+    }
+    loadCharacterEvent.FireServer();
+}
+function enterBattle() {
+    const battle = Battle.Create({
+        size: 4,
+        width: 15,
+        height: 15,
+        camera: game.Workspace.CurrentCamera!,
+        center: new Vector2(100, 100),
+        teamMap: {
+            '1': [Players.LocalPlayer],
+            '2': [Players.LocalPlayer],
+            '3': [Players.LocalPlayer],
+        }
+    });
+}
 function mainMenuSetup() {
     const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui") as PlayerGui;
     const mainMenuButtons: Omit<ButtonElementProps, "size" | "position">[] = [
         {
             text: "Play",
             onclick: () => {
-                if (Workspace.CurrentCamera) {
-                    Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom;
-                }
                 Roact.unmount(mainMenu);
-                loadCharacterEvent.FireServer();
+                enterPlayground();
             },
         },
         {
             text: "Battle",
             onclick: () => {
                 Roact.unmount(mainMenu);
-                const battle = new Battle({
-                    size: 4,
-                    width: 15,
-                    height: 15,
-                    camera: game.Workspace.CurrentCamera!,
-                    center: new Vector2(100, 100),
-                    teamMap: {
-                        '1': [Players.LocalPlayer]
-                    }
-                })
+                enterBattle();
             }
         }
     ];
     if (mainMenuButtons.size() === 0) {
-        throw "No buttons provided";
+        warn("No buttons provided");
+        return;
     }
 
     const mainMenu = Roact.mount(

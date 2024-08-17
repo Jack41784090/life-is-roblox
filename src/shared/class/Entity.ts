@@ -1,12 +1,14 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { BotType, EntityInitRequirements, EntityStats, iEntity } from "shared/types/battle-types";
+import { BotType, EntityInitRequirements, EntityStats, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import Cell from "./Cell";
 
 export default class Entity implements iEntity {
+    playerID: number;
+    iconURL?: ReadinessIcon;
     cell: Cell | undefined;
 
     readonly stats: Readonly<EntityStats>;
-    team: string;
+    team?: string;
     name: string;
 
     sta: number;
@@ -19,6 +21,7 @@ export default class Entity implements iEntity {
     instance?: Instance;
 
     constructor(options: EntityInitRequirements) {
+        this.playerID = options.playerID;
         this.team = options.team;
         this.stats = { ...options.stats, id: options.stats.id };
         this.sta = options.sta ?? 0;

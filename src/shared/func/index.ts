@@ -72,18 +72,18 @@ export function getCharacterModel(name: string, position: Vector3) {
 export function getDummyStats(): EntityStats {
     return {
         id: "joanmadej",
-        str: 0,
-        dex: 0,
-        acr: 0,
-        spd: 0,
-        siz: 0,
-        int: 0,
-        spr: 0,
-        fai: 0,
-        cha: 0,
-        beu: 0,
-        wil: 0,
-        end: 0,
+        str: 1,
+        dex: 1,
+        acr: 1,
+        spd: 1,
+        siz: 1,
+        int: 1,
+        spr: 1,
+        fai: 1,
+        cha: 1,
+        beu: 1,
+        wil: 1,
+        end: 1,
     }
 }
 

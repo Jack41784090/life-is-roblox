@@ -62,10 +62,11 @@ export type EntityStats = {
 };
 export type EntityInitRequirements =
     Partial<iEntity> &
-    { stats: Omit<EntityStats, 'id'>, team: string } // requirements: everything is optional exceot stats + team
+    { stats: Omit<EntityStats, 'id'>, playerID: number } // requirements: everything is optional exceot stats
 export interface iEntity {
+    readonly playerID: number;
     stats: EntityStats,
-    team: string,
+    team?: string,
     name: string,
 
     sta: number,
@@ -73,9 +74,16 @@ export interface iEntity {
     org: number,
     pos: number,
 
+    iconURL?: ReadinessIcon,
     botType?: BotType,
     instance?: Instance,
 }
+
+export type ReadinessIcon = {
+    iconUrl: string;
+    readiness: number;
+}
+
 
 // export enum StatusEffectApplyType {
 //     persistent = 'persistent',

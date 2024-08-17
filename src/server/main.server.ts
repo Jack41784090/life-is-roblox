@@ -26,10 +26,7 @@ function iterate() {
         return cell.raiseHeight(math.random(1, 10))
     })
     Promise.all(mappedCells)
-        .then(() => {
-            print("All cells raised");
-            iterate();
-        })
+        .then(() => iterate())
         .catch((err: unknown) => {
             print("Error: " + err);
         });
