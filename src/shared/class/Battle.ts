@@ -54,11 +54,8 @@ export class Battle {
         // Set up the grid
         b.initializeGrid();
 
-        // init players
-        const entities: Entity[] = b.initializeEntities(config);
-
-        // Set up the teams
-        b.initializeTeams(entities, config.teamMap);
+        // init players and teams
+        b.initializeTeams(config.teamMap);
 
         // set up gui
         b.gui = BattleGUI.Start(b.getReadinessIcons());
@@ -97,14 +94,6 @@ export class Battle {
         this.setUpCameraPan();
     }
 
-    private initializeEntities(config: BattleConfig) {
-        const entities: Entity[] = [];
-        for (const [_, players] of pairs(config.teamMap)) {
-            players.map(p => this.initializePlayer(p)).forEach(e => entities.push(e));
-        }
-        return entities;
-    }
-
     private initializePlayer(player: Player) {
         const entity = new Entity({
             playerID: player.UserId,
@@ -115,23 +104,26 @@ export class Battle {
             name: player.Name,
             botType: BotType.Player,
         });
+        print(`Initialized ${entity.name}`);
         return entity;
     }
 
-    private initializeTeams(entities: Entity[], teamMap: Record<string, Player[]>) {
-        let e = entities.pop();
-        while (e) {
-            for (const [teamName, players] of pairs(teamMap)) {
-                if (players.find(p => p.UserId === e!.playerID)) {
-                    const team = this.teams.find(t => t.name === teamName);
-                    if (team) {
-                        team.push(e);
-                    } else {
-                        this.teams.push(new BattleTeam(teamName, [e]));
-                    }
-                }
-            }
-            e = entities.pop();
+    private initializeTeams(teamMap: Record<string, Player[]>) {
+        for (const [teamName, playerList] of pairs(teamMap)) {
+            const members = playerList.map(player => {
+                const entity = new Entity({
+                    playerID: player.UserId,
+                    stats: getDummyStats(),
+                    pos: 0,
+                    org: 0,
+                    hip: 0,
+                    name: player.Name,
+                    team: teamName,
+                    botType: player.UserId === 0 ? BotType.Enemy : undefined,
+                });
+                return entity;
+            });
+            this.teams.push(new BattleTeam(teamName, members));
         }
     }
     //#endregion
@@ -211,8 +203,7 @@ export class Battle {
             for (const entity of team.members) {
                 const cell = entity.cell ?? this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
                 entity.setCell(cell);
-                print(`Spawning ${entity.name} at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
-
+                print(`Spawning ${entity.name}[${team.name}] at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
                 entity.materialise();
             }
         }
