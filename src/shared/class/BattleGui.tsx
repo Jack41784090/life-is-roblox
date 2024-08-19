@@ -31,9 +31,10 @@ export default class BattleGUI {
             const icon = this.readinessIcons[i];
             const val = icon.getValue();
             if (!val) continue;
+
             const t = TweenService.Create(
                 val,
-                new TweenInfo(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+                new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
                 {
                     Position: UDim2.fromScale(0, newReadinessIcons[i].readiness),
                 });

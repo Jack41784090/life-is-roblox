@@ -238,7 +238,7 @@ export class Battle {
                 // if (!entity.iconURL) continue;
                 // characterIcons.push(entity.iconURL);
                 characterIcons.push({
-                    iconUrl: "rbxassetid://183747117",
+                    iconUrl: "rbxassetid://18915919565",
                     readiness: entity.pos / 100
                 });
             }
@@ -246,8 +246,10 @@ export class Battle {
         return characterIcons;
     }
     calculateReadinessIncrement(entity: Entity) {
-        const y = entity.stats.spd;
-        return y - math.random() * 0.1 * y + math.random() * 0.1 * y;
+        // const y = entity.stats.spd;
+        const y = math.random(0, 10);
+        const r = - math.random() * 0.1 * y + math.random() * 0.1 * y;
+        return y + r;
     }
     runReadinessGauntlet() {
         print('【Run Readiness Gauntlet】');

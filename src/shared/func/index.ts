@@ -94,6 +94,34 @@ export function getDummyCharacterModel(): Model {
     return humanoid;
 }
 
+export function getCharacterStats(id: string): EntityStats | undefined {
+    const ds = getDatastore("characterStats");
+    const [success, data] = pcall(() => ds.GetAsync(id));
+    if (success) return data as EntityStats;
+    else {
+        warn(data);
+        return undefined;
+    }
+}
+
+export function saveCharacterStats(character: EntityStats, overwrite = false) {
+    const [success, fail] = pcall(() => {
+        const ds = getDatastore("characterStats");
+        if (overwrite) ds.SetAsync(character.id, character);
+        else {
+            const data = getCharacterStats(character.id);
+            if (data) {
+                warn(`Character [${character.id}] already exists.`);
+                warn(data);
+            } else {
+                ds.SetAsync(character.id, character);
+                warn(`Character [${character.id}] saved.`);
+            }
+        }
+    })
+    if (!success) warn(fail);
+}
+
 // export function attack(
 //     attacker: Entity | iEntity,
 //     target: Entity | iEntity,
