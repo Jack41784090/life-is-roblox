@@ -1,6 +1,7 @@
+import Roact from "@rbxts/roact";
 import { ReplicatedStorage, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { getDummyStats, getTween } from "shared/func";
-import { BattleConfig, BotType, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, BattleConfig, BotType, EntityActionOptions, ReadinessIcon } from "shared/types/battle-types";
 import BattleGUI from "./BattleGui";
 import Entity from "./Entity";
 import Grid from "./Grid";
@@ -269,13 +270,38 @@ export class Battle {
         this.advanceTime();
         const w = await this.runReadinessGauntlet();
         const model = w?.model;
-        if (model) {
-            await this.setCameraToLookAtModel(model);
-        }
+
+        await new Promise((resolve) => {
+            if (model) {
+                this.setCameraToLookAtModel(model)
+                    .then(() => {
+                        this.gui?.showEntityActionOptions(w, (op: EntityActionOptions) => {
+                            const action = op.type;
+                            switch (action) {
+                                case ActionType.Move:
+                                    print("move in battle");
+                                    break;
+                                default:
+                                    break;
+                            }
+                            Roact.unmount(op.ui);
+                            this.setCameraToHOI4();
+                            resolve(void 0);
+                        })
+                    });
+            }
+            else {
+                this.setCameraToHOI4();
+                resolve(void 0);
+            }
+        })
+
+        if (w) w.pos /= 2;
+        await this.gui?.tweenToUpdateReadiness(this.getReadinessIcons());
 
         print('【Round Finish】');
-        // wait(1);
-        // this.round();
+        wait(1);
+        this.round();
     }
     //#endregion
 

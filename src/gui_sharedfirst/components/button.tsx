@@ -5,6 +5,7 @@ export interface ButtonElementProps {
     text: string;
     size: number;
     position: number;
+    transparency?: number;
     onclick: () => void;
 }
 interface ButtonElementState { }
@@ -33,7 +34,7 @@ export default class ButtonElement extends Roact.Component<ButtonElementProps, B
                 Text={this.props.text}
                 Position={new UDim2(0, 0, this.props.position, 0)}
                 Size={new UDim2(1, 0, this.props.size, 0)}
-                BackgroundTransparency={0}
+                BackgroundTransparency={this.props.transparency || 0}
                 TextScaled={true}
                 TextColor3={new Color3(0, 0, 0)}
                 BackgroundColor3={new Color3(1, 1, 1)}

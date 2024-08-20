@@ -1,5 +1,5 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { BotType, EntityInitRequirements, EntityStats, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, BotType, EntityInitRequirements, EntityStats, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import Cell from "./Cell";
 
 export default class Entity implements iEntity {
@@ -70,5 +70,14 @@ export default class Entity implements iEntity {
         }
         const position = this.cell!.part.Position.add(new Vector3(0, this.cell!.height * this.cell!.size, 0));
         entity.PivotTo(new CFrame(position));
+    }
+
+    getActions(): { type: ActionType, action: () => void }[] {
+        return [
+            { type: ActionType.Attack, action: () => print("Attack") },
+            { type: ActionType.Defend, action: () => print("Defend") },
+            { type: ActionType.Move, action: () => print("Move") },
+            { type: ActionType.Wait, action: () => print("Wait") },
+        ]
     }
 }

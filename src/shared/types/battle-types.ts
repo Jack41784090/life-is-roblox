@@ -1,27 +1,11 @@
-// import Entity from '../class/Entity';
-
-// export type WeaponType = 'physical' | 'magical'
-// export type WeaponMultiplierAction = 'add' | 'multiply';
-// export type WeaponMultiplier = [Reality, WeaponMultiplierAction, WeaponMultiplier | number];
-// export interface Weapon {
-//     type: WeaponType,
-//     name: string,
-//     pierce: number,
-//     force: number,
-//     multipliers: WeaponMultiplier[],
-// }
-// export interface Armour {
-//     name: string,
-//     armour: number,
-//     defence: number,
-// }
-
 // // // Physical attributes
 // // str: number,    // Strength: muscle density
 // // dex: number,    // Dexterity: precision, skill with physical items and tools
 // // spd: number,    // Speed: quickness
 // // siz: number,    // Size: body mass
 // // end: number,    // Endurance: stamina, resistance to fatigue
+
+import Roact from "@rbxts/roact";
 
 // // // Mental attributes
 // // int: number,    // Intelligence: knowledge of pragmatic magic
@@ -34,7 +18,9 @@ export enum BotType {
     Player = 'player',
     Enemy = 'enemy',
 }
+
 export type ClashResultFate = "Miss" | "Hit" | "CRIT"
+
 export enum Reality {
     Force = 'force',
     Mana = 'mana',
@@ -45,6 +31,7 @@ export enum Reality {
     Convince = 'convince',
     Bravery = 'bravery',
 }
+
 export type EntityStats = {
     id: string;
     str: number;
@@ -60,9 +47,11 @@ export type EntityStats = {
     wil: number;
     end: number;
 };
+
 export type EntityInitRequirements =
     Partial<iEntity> &
     { stats: Omit<EntityStats, 'id'>, playerID: number } // requirements: everything is optional exceot stats
+
 export interface iEntity {
     readonly playerID: number;
     stats: EntityStats,
@@ -83,51 +72,6 @@ export type ReadinessIcon = {
     iconUrl: string;
     readiness: number;
 }
-
-
-// export enum StatusEffectApplyType {
-//     persistent = 'persistent',
-//     stackable = 'stackable',
-// }
-// export interface StatusEffectSource {
-//     id: string,
-//     from: Entity | Ability,
-// }
-// export type iStatusEffect = {
-//     emoji?: string,
-//     source: StatusEffectSource,
-//     type: StatusEffectType,
-//     applyType: StatusEffectApplyType,
-//     name?: EntityStats,
-//     value: number,
-//     duration: number,
-// }
-// export enum StatusEffectType {
-//     None = 'none',
-//     IncreaseStat = 'Buff',
-//     DecreaseStat = 'Debuff',
-//     MultiplyStat = 'S. Buff',
-//     Bleed = 'Bleed',
-// }
-// export enum TimeSlotState {
-//     Past = 'past',
-//     Windup = 'windup',
-//     Swing = 'swing',
-//     Recovery = 'recovery',
-//     Idle = 'idle',
-// }
-
-// export type ToStringTuple = [{ toString: () => string }, { toString: () => string }]
-// export type BeforeAfter = Record<keyof iEntity, ToStringTuple>[]
-// export interface iBattleResult {
-//     desc: string,
-//     attacker: Entity
-//     target: Entity
-//     vattacker: iEntity,
-//     vTarget: iEntity,
-//     attackerDiff: BeforeAfter,
-//     targetDiff: BeforeAfter,
-// }
 export interface BattleConfig {
     size: number;
     camera: Camera,
@@ -136,22 +80,15 @@ export interface BattleConfig {
     height: number;
     teamMap: Record<string, Player[]>;
 }
-// export type BattleField = Map<Location, Entity[]>;
 
-// export type ClashStringParams =
-//     { entity: Entity, type: keyof iEntityStats }
-//     &
-//     ({ type: keyof iEntity, damage: number, } |
-//     { before: number, after: number, });
+export enum ActionType {
+    Attack = 'attack',
+    Defend = 'defend',
+    Move = 'move',
+    Wait = 'wait',
+}
 
-// export interface DamageReport {
-//     weaponPierce: number;
-//     weaponForce: number;
-//     armourArmour: number;
-//     armourDefence: number;
-
-//     weaponDamage: number;
-//     pierceDamage: number;
-//     forceDamage: number;
-//     totalDamage: number;
-// }
+export type EntityActionOptions = {
+    type: ActionType,
+    ui: Roact.Tree
+}
