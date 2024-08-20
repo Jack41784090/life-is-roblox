@@ -26,7 +26,8 @@ export default class BattleGUI {
         this.ui = ui;
     }
 
-    tweenToUpdate(newReadinessIcons: ReadinessIcon[]) {
+    tweenToUpdateReadiness(newReadinessIcons: ReadinessIcon[]) {
+        const promiseAll: Promise<unknown>[] = [];
         for (let i = 0; i < this.readinessIcons.size(); i++) {
             const icon = this.readinessIcons[i];
             const val = icon.getValue();
@@ -39,6 +40,8 @@ export default class BattleGUI {
                     Position: UDim2.fromScale(0, newReadinessIcons[i].readiness),
                 });
             t.Play();
+            promiseAll.push(new Promise((resolve) => t.Completed.Connect(resolve)));
         }
+        return Promise.all(promiseAll);
     }
 }

@@ -28,6 +28,8 @@ export class Battle {
     gui: BattleGUI | undefined;
 
     // Camera-Related Information
+    center: Vector2;
+    size: number;
     camera: Camera;
     panService: RBXScriptConnection | undefined;
     grid: Grid;
@@ -49,7 +51,7 @@ export class Battle {
         const b = new Battle(config.center, config.size, config.width, config.height, config.camera);
 
         // Set up the camera
-        b.initializeCamera(config.camera, config.center.X, config.size, config.center.Y);
+        b.initializeCamera();
 
         // Set up the grid
         b.initializeGrid();
@@ -70,6 +72,8 @@ export class Battle {
     private constructor(center: Vector2, size: number, width: number, height: number, camera: Camera) {
         const camera_centerx = math.floor(center.X) * size;
         const camera_centery = math.floor(center.Y) * size;
+        this.center = center;
+        this.size = size;
         this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
         this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
         this.camera = camera;
@@ -82,30 +86,8 @@ export class Battle {
         this.grid.materialise();
     }
 
-    private initializeCamera(camera: Camera, centerx: number, size: number, centery: number) {
-        print(`Grid Min: ${this.gridMin}, Grid Max: ${this.gridMax}`);
-        const camera_centerx = math.floor(centerx) * size;
-        const camera_centery = math.floor(centery) * size;
-        this.camera = camera;
-        this.setCameraCFrame(
-            new Vector3(camera_centerx, size * 5, camera_centery),
-            new Vector3(camera_centerx, 0, camera_centery))
-            .await();
-        this.setUpCameraPan();
-    }
-
-    private initializePlayer(player: Player) {
-        const entity = new Entity({
-            playerID: player.UserId,
-            stats: getDummyStats(),
-            pos: 0,
-            org: 0,
-            hip: 0,
-            name: player.Name,
-            botType: BotType.Player,
-        });
-        print(`Initialized ${entity.name}`);
-        return entity;
+    private initializeCamera(camera?: Camera) {
+        this.setCameraToHOI4(camera);
     }
 
     private initializeTeams(teamMap: Record<string, Player[]>) {
@@ -131,37 +113,86 @@ export class Battle {
 
     //#region Camera Work
     static readonly EDGE_BUFFER = 0.15;
-    private setUpCameraPan() {
-        print('Setting up camera pan');
+
+    private detectEdgeMovement(): Vector2 {
+        const mousePosition = UserInputService.GetMouseLocation();
+        const screenSize = this.camera.ViewportSize;
+
+        let gridDelta = new Vector2(0, 0);
+
+        const edgeBuffer_x = screenSize.X * Battle.EDGE_BUFFER;
+        // Check if the mouse is near the left or right edge of the screen
+        if (mousePosition.X < edgeBuffer_x) {
+            gridDelta = gridDelta.add(new Vector2(-1, 0));
+        } else if (mousePosition.X > screenSize.X - edgeBuffer_x) {
+            gridDelta = gridDelta.add(new Vector2(1, 0));
+        }
+
+        const edgeBuffer_y = screenSize.Y * Battle.EDGE_BUFFER;
+        // Check if the mouse is near the top or bottom edge of the screen
+        if (mousePosition.Y < edgeBuffer_y) {
+            gridDelta = gridDelta.add(new Vector2(0, 1));
+        } else if (mousePosition.Y > screenSize.Y - edgeBuffer_y) {
+            gridDelta = gridDelta.add(new Vector2(0, -1));
+        }
+        return gridDelta;
+
+    }
+
+    private setCameraToHOI4(camera?: Camera) {
+        print(`Grid Min: ${this.gridMin}, Grid Max: ${this.gridMax}`);
+        const camera_centerx = math.floor(this.center.X) * this.size;
+        const camera_centery = math.floor(this.center.Y) * this.size;
+        if (camera) this.camera = camera;
+        this.setCameraCFrame(
+            new Vector3(camera_centerx, this.size * 5, camera_centery),
+            new Vector3(camera_centerx, 0, camera_centery))
+            .await();
+        this.setUpHOI4CameraPan();
+    }
+    private setUpHOI4CameraPan() {
+        print('Setting up HOI4 Camera Pan');
+        this.panService?.Disconnect();
         this.panService = RunService.RenderStepped.Connect(() => {
-            const mousePosition = UserInputService.GetMouseLocation();
-            const screenSize = this.camera.ViewportSize;
-
-            let gridDelta = new Vector2(0, 0);
-
-            const edgeBuffer_x = screenSize.X * Battle.EDGE_BUFFER;
-            // Check if the mouse is near the left or right edge of the screen
-            if (mousePosition.X < edgeBuffer_x) {
-                gridDelta = gridDelta.add(new Vector2(-1, 0));
-            } else if (mousePosition.X > screenSize.X - edgeBuffer_x) {
-                gridDelta = gridDelta.add(new Vector2(1, 0));
-            }
-
-            const edgeBuffer_y = screenSize.Y * Battle.EDGE_BUFFER;
-            // Check if the mouse is near the top or bottom edge of the screen
-            if (mousePosition.Y < edgeBuffer_y) {
-                gridDelta = gridDelta.add(new Vector2(0, 1));
-            } else if (mousePosition.Y > screenSize.Y - edgeBuffer_y) {
-                gridDelta = gridDelta.add(new Vector2(0, -1));
-            }
-
-            // print(gridDelta);
-
             // Update the camera position based on the calculated delta
-            this.updateCameraPosition(gridDelta);
+            this.updateHOI4CameraPosition(this.detectEdgeMovement());
         });
     }
-    private updateCameraPosition(gridDelta: Vector2) {
+    private setCameraToLookAtModel(model: Model) {
+        this.panService?.Disconnect();
+        return this.goToModelCam(model).then(() => {
+            // this.setUpCharCenterCameraPan(model);
+        });
+    }
+    private setUpCharCenterCameraPan(model: Model) {
+        print('Setting up Character Center Camera Pan');
+        this.panService?.Disconnect();
+        const distance = 20;
+
+        // Define the rotation speed in radians per second
+        const rotationSpeed = math.rad(30); // 30 degrees per second
+        const camera = this.camera ?? Workspace.CurrentCamera;
+        if (!camera) {
+            warn("Camera not found!");
+            return;
+        }
+        const camOriPart = model.WaitForChild("cam-ori") as BasePart;
+
+        this.panService = RunService.RenderStepped.Connect((deltaTime) => {
+            // Calculate the current angle based on time
+            const angle = tick() * rotationSpeed;
+
+            // Calculate the rotation around the Y-axis
+            const rotation = CFrame.Angles(0, angle, 0);
+
+            // Apply the rotation to the cam-ori's CFrame, offset by the desired distance
+            const cameraCFrame = camOriPart.CFrame.mul(rotation);
+
+            // Set the camera's CFrame to the calculated position, looking at cam-ori's position
+            camera.CFrame = CFrame.lookAt(cameraCFrame.Position, camOriPart.Position);
+        });
+    }
+    private updateHOI4CameraPosition(gridDelta: Vector2) {
         // WARNING: grid x = camera z, grid y = camera x
         const camera = Workspace.CurrentCamera;
         if (!camera) {
@@ -196,8 +227,23 @@ export class Battle {
             });
         });
     }
+    private goToModelCam(model: Model) {
+        const cam_ori = model.WaitForChild("cam-ori") as BasePart;
+        const tween = getTween(
+            this.camera,
+            new TweenInfo(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { CFrame: cam_ori.CFrame });
+        tween.Play();
+        return new Promise((resolve) => {
+            tween.Completed.Connect(() => {
+                resolve(void 0)
+            });
+        });
+    }
     //#endregion
 
+
+    //#region 
     private spawn() {
         for (const team of this.teams) {
             for (const entity of team.members) {
@@ -221,14 +267,18 @@ export class Battle {
 
     private async round() {
         this.advanceTime();
-        const w = this.runReadinessGauntlet();
-        print(`Winner: ${w?.name}`);
-        print(w);
+        const w = await this.runReadinessGauntlet();
+        const model = w?.model;
+        if (model) {
+            await this.setCameraToLookAtModel(model);
+        }
 
         print('【Round Finish】');
         // wait(1);
         // this.round();
     }
+    //#endregion
+
 
     //#region Readiness Management
     private getReadinessIcons() {
@@ -258,8 +308,6 @@ export class Battle {
 
         print(entities);
         if (entities.size() === 0) return;
-        if (entities.size() === 1) return entities[0];
-
 
         let i = 0
         while (entities.sort((a, b) => a.pos - b.pos > 0)[0].pos < 100) {
@@ -268,10 +316,9 @@ export class Battle {
             if (i++ > 10000) break;
         }
 
-        this.gui?.tweenToUpdate(this.getReadinessIcons());
-
         const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
-        return winner;
+        const newIcons = this.getReadinessIcons(); print(newIcons)
+        return this.gui?.tweenToUpdateReadiness(newIcons)?.then(() => winner);
     }
     private _gauntletIterate(entities: Entity[]) {
         for (const entity of entities) {

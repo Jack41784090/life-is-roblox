@@ -76,7 +76,7 @@ export interface iEntity {
 
     iconURL?: ReadinessIcon,
     botType?: BotType,
-    instance?: Instance,
+    model?: Instance,
 }
 
 export type ReadinessIcon = {

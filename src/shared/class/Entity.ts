@@ -18,7 +18,7 @@ export default class Entity implements iEntity {
 
     botType: BotType = BotType.Enemy;
 
-    instance?: Instance;
+    model?: Model;
 
     constructor(options: EntityInitRequirements) {
         this.playerID = options.playerID;
@@ -44,7 +44,7 @@ export default class Entity implements iEntity {
         }
 
         const id = this.stats.id;
-        const template = ReplicatedStorage.WaitForChild(`entity_${id}`) as BasePart | Model;
+        const template = ReplicatedStorage.WaitForChild(`entity_${id}`) as Model;
         const entity = template.Clone();
 
         if (entity.IsA("BasePart")) {
@@ -56,7 +56,7 @@ export default class Entity implements iEntity {
         }
 
         entity.Parent = this.cell.part;
-        this.instance = entity;
+        this.model = entity;
     }
 
     private positionBasePart(entity: BasePart) {
