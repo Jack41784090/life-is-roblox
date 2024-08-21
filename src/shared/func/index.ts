@@ -1,4 +1,5 @@
 import { ReplicatedStorage, Workspace } from "@rbxts/services";
+import Grid from "shared/class/Grid";
 import { EntityStats } from "shared/types/battle-types";
 
 const service_Players = game.GetService("Players");
@@ -120,6 +121,13 @@ export function saveCharacterStats(character: EntityStats, overwrite = false) {
         }
     })
     if (!success) warn(fail);
+}
+
+export function gridXYToWorldXY(position: Vector2, grid: Grid) {
+    return new Vector3(
+        (position.X + grid.center.X - math.floor(grid.widthheight.X / 2)) * (grid.size),
+        grid.size / 2,
+        (position.Y + grid.center.Y - math.floor(grid.widthheight.Y / 2)) * (grid.size))
 }
 
 // export function attack(

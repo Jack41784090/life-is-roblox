@@ -45,7 +45,7 @@ export default class BattleGUI {
                         <CellSurfaceElement
                             cell={c}
                             onEnter={() => {
-                                print(`Clicked on cell ${c.xy.X}, ${c.xy.Y}`);
+                                // print(`Clicked on cell ${c.xy.X}, ${c.xy.Y}`);
                                 if (!battle.currentRoundEntity) return;
 
                                 const pf = Pathfinding.Start({
@@ -137,7 +137,10 @@ export default class BattleGUI {
         });
         const ui = Roact.mount(
             <MenuFrameElement transparency={1}>
-                <ButtonFrameElement>
+                <ButtonFrameElement
+                    position={new UDim2(0.7, 0, 0.35, 0)}
+                    size={new UDim2(0.2, 0, 0.6, 0)}
+                >
                     {actionOptions}
                 </ButtonFrameElement>
             </MenuFrameElement>

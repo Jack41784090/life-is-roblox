@@ -1,4 +1,4 @@
-import { getTween } from "shared/func";
+import { getTween, gridXYToWorldXY } from "shared/func";
 import { CellInitOptions, CellTerrain } from "shared/types";
 import Entity from "./Entity";
 
@@ -26,10 +26,7 @@ export default class Cell {
             this.size,
             height * this.size,
             this.size);
-        part.Position = new Vector3(
-            (position.X + grid.center.X - math.floor(grid.widthheight.X / 2)) * (this.size),
-            this.size / 2,
-            (position.Y + grid.center.Y - math.floor(grid.widthheight.Y / 2)) * (this.size));
+        part.Position = gridXYToWorldXY(position, grid);
         part.Anchored = true;
         part.Material = Enum.Material.Pebble;
         part.Parent = game.Workspace;

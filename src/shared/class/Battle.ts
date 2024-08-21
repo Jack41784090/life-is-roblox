@@ -1,6 +1,6 @@
 import Roact from "@rbxts/roact";
 import { ReplicatedStorage, RunService, UserInputService, Workspace } from "@rbxts/services";
-import { getDummyStats, getTween } from "shared/func";
+import { getDummyStats, getTween, gridXYToWorldXY } from "shared/func";
 import { ActionType, BattleConfig, BotType, EntityActionOptions, ReadinessIcon } from "shared/types/battle-types";
 import BattleGUI from "./BattleGui";
 import Entity from "./Entity";
@@ -143,15 +143,16 @@ export class Battle {
 
     }
 
-    private setCameraToHOI4(camera?: Camera) {
+    private setCameraToHOI4(camera?: Camera, gridFocal?: Vector2) {
         print(`Grid Min: ${this.gridMin}, Grid Max: ${this.gridMax}`);
-        const camera_centerx = math.floor(this.center.X) * this.size;
-        const camera_centery = math.floor(this.center.Y) * this.size;
+        const center = gridFocal ?
+            new Vector2(gridXYToWorldXY(gridFocal, this.grid).X, gridXYToWorldXY(gridFocal, this.grid).Z) :
+            new Vector2(math.floor(this.center.X) * this.size, math.floor(this.center.Y) * this.size);
         if (camera) this.camera = camera;
         this.setUpHOI4CameraPan();
         return this.setCameraCFrame(
-            new Vector3(camera_centerx, this.size * 5, camera_centery),
-            new Vector3(camera_centerx, 0, camera_centery))
+            new Vector3(center.X, this.size * 5, center.Y),
+            new Vector3(center.X, 0, center.Y))
     }
     private setUpHOI4CameraPan() {
         print('Setting up HOI4 Camera Pan');
@@ -292,7 +293,7 @@ export class Battle {
                         break;
                 }
                 Roact.unmount(op.ui);
-                this.setCameraToHOI4();
+                this.setCameraToHOI4(this.camera, w.cell?.xy);
                 // this.setCameraToHOI4().then(resolve);
             })
         })
