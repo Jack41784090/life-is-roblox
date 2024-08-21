@@ -28,6 +28,9 @@ export class Battle {
     updateBattleGUIEvent: BindableEvent = ReplicatedStorage.WaitForChild("UpdateBattleGUI") as BindableEvent;
     gui: BattleGUI | undefined;
 
+    //
+    currentRoundEntity: Entity | undefined;
+
     // Camera-Related Information
     center: Vector2;
     size: number;
@@ -61,7 +64,7 @@ export class Battle {
         b.initializeTeams(config.teamMap);
 
         // set up gui
-        b.gui = BattleGUI.Start(b.getReadinessIcons());
+        b.gui = BattleGUI.Start(b);
 
         // Spawn the entities
         b.spawn();
@@ -268,6 +271,7 @@ export class Battle {
     private async round() {
         const time = this.advanceTime();
         const w = await this.runReadinessGauntlet();
+        this.currentRoundEntity = w;
         const model = w?.model;
         if (!model) {
             await this.setCameraToHOI4();
@@ -282,19 +286,21 @@ export class Battle {
                 const action = op.type;
                 switch (action) {
                     case ActionType.Move:
-                        print("move in battle");
+                        // this.gui
                         break;
                     default:
                         break;
                 }
                 Roact.unmount(op.ui);
-                this.setCameraToHOI4().then(resolve);
+                this.setCameraToHOI4();
+                // this.setCameraToHOI4().then(resolve);
             })
         })
 
         if (w) w.pos /= 2;
-        await this.gui?.tweenToUpdateReadiness(this.getReadinessIcons());
+        await this.gui?.tweenToUpdateReadiness();
 
+        this.currentRoundEntity = undefined;
         print('【Round Finish】');
         wait(1);
         this.round();
@@ -303,7 +309,7 @@ export class Battle {
 
 
     //#region Readiness Management
-    private getReadinessIcons() {
+    getReadinessIcons() {
         const characterIcons: ReadinessIcon[] = [];
         for (const team of this.teams) {
             for (const entity of team.members) {
@@ -339,8 +345,7 @@ export class Battle {
         }
 
         const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
-        const newIcons = this.getReadinessIcons(); print(newIcons)
-        return this.gui?.tweenToUpdateReadiness(newIcons)?.then(() => winner);
+        return this.gui?.tweenToUpdateReadiness()?.then(() => winner);
     }
     private _gauntletIterate(entities: Entity[]) {
         for (const entity of entities) {

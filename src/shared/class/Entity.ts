@@ -35,6 +35,7 @@ export default class Entity implements iEntity {
 
     setCell(cell: Cell) {
         this.cell = cell;
+        cell.entity = this;
     }
 
     materialise() {

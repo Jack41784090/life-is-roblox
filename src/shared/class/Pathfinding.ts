@@ -77,7 +77,7 @@ export default class Pathfinding {
                         destination: dest,
                         distanceTravelled: math.huge,
                     });
-                    print(`New set @${(coord)}`)
+                    if (verbose) print(`New set @${(coord)}`)
                     nodeXY.set(coord, node);
                     AINodePriorQueue.push(node);
                 }
@@ -168,7 +168,7 @@ export default class Pathfinding {
 
             // updates
             AINodePriorQueue.sort((_1, _2) => (_1.totalCost - _2.totalCost < 0));
-            print("sorted as such", AINodePriorQueue[0]?.totalCost, AINodePriorQueue[1]?.totalCost, AINodePriorQueue[2]?.totalCost);
+            if (verbose) print("sorted as such", AINodePriorQueue[0]?.totalCost, AINodePriorQueue[1]?.totalCost, AINodePriorQueue[2]?.totalCost);
         }
 
         if (verbose) {

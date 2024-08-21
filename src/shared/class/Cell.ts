@@ -3,7 +3,9 @@ import { CellInitOptions, CellTerrain } from "shared/types";
 import Entity from "./Entity";
 
 export default class Cell {
+    static SELECTED_COLOUR = new Color3(255 / 255, 58 / 255, 58 / 255)
     static TWEEN_TIME = 0.5;
+    glow: boolean = false;
     part: Part;
     size = 4;
     xy: Vector2;
