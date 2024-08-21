@@ -71,7 +71,7 @@ export function getCharacterModel(name: string, position: Vector3) {
 
 export function getDummyStats(): EntityStats {
     return {
-        id: "joanmadej",
+        id: "adalbrecht",
         str: 1,
         dex: 1,
         acr: 1,

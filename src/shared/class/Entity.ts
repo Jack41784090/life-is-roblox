@@ -3,6 +3,9 @@ import { ActionType, BotType, EntityInitRequirements, EntityStats, iEntity, Read
 import Cell from "./Cell";
 
 export default class Entity implements iEntity {
+    idleAnimationTrack?: AnimationTrack;
+    idleAnimation?: Animation;
+
     playerID: number;
     iconURL?: ReadinessIcon;
     cell: Cell | undefined;
@@ -30,6 +33,8 @@ export default class Entity implements iEntity {
         this.pos = options.pos ?? 0;
         this.name = options.name ?? options.stats.id;
         this.botType = options.botType || BotType.Enemy;
+
+        this.idleAnimation = ReplicatedStorage.WaitForChild(`animation_${this.stats.id}_idle`) as Animation; print(this.idleAnimation);
     }
 
 
@@ -58,6 +63,15 @@ export default class Entity implements iEntity {
 
         entity.Parent = this.cell.part;
         this.model = entity;
+
+        if (this.idleAnimation) {
+            const humanoid = entity.WaitForChild("Humanoid") as Humanoid;
+            const animator = humanoid?.WaitForChild("Animator") as Animator
+            if (humanoid && animator) {
+                this.idleAnimationTrack = animator.LoadAnimation(this.idleAnimation);
+                this.idleAnimationTrack.Play();
+            }
+        }
     }
 
     private positionBasePart(entity: BasePart) {
