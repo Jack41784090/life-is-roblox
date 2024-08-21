@@ -145,11 +145,10 @@ export class Battle {
         const camera_centerx = math.floor(this.center.X) * this.size;
         const camera_centery = math.floor(this.center.Y) * this.size;
         if (camera) this.camera = camera;
-        this.setCameraCFrame(
+        this.setUpHOI4CameraPan();
+        return this.setCameraCFrame(
             new Vector3(camera_centerx, this.size * 5, camera_centery),
             new Vector3(camera_centerx, 0, camera_centery))
-            .await();
-        this.setUpHOI4CameraPan();
     }
     private setUpHOI4CameraPan() {
         print('Setting up HOI4 Camera Pan');
@@ -195,7 +194,7 @@ export class Battle {
     }
     private updateHOI4CameraPosition(gridDelta: Vector2) {
         // WARNING: grid x = camera z, grid y = camera x
-        const camera = Workspace.CurrentCamera;
+        const camera = this.camera ?? Workspace.CurrentCamera;
         if (!camera) {
             warn("Camera not found!");
             return;
@@ -262,38 +261,35 @@ export class Battle {
     }
 
     private advanceTime() {
-        this.time++;
-        print(`【Time】 ${this.time}`)
+        print(`【Time】 ${this.time + 1}`)
+        return this.time++;
     }
 
     private async round() {
-        this.advanceTime();
+        const time = this.advanceTime();
         const w = await this.runReadinessGauntlet();
         const model = w?.model;
+        if (!model) {
+            await this.setCameraToHOI4();
+            this.round();
+            return;
+        }
+
+        await this.setCameraToLookAtModel(model)
 
         await new Promise((resolve) => {
-            if (model) {
-                this.setCameraToLookAtModel(model)
-                    .then(() => {
-                        this.gui?.showEntityActionOptions(w, (op: EntityActionOptions) => {
-                            const action = op.type;
-                            switch (action) {
-                                case ActionType.Move:
-                                    print("move in battle");
-                                    break;
-                                default:
-                                    break;
-                            }
-                            Roact.unmount(op.ui);
-                            this.setCameraToHOI4();
-                            resolve(void 0);
-                        })
-                    });
-            }
-            else {
-                this.setCameraToHOI4();
-                resolve(void 0);
-            }
+            this.gui?.showEntityActionOptions(w, (op: EntityActionOptions) => {
+                const action = op.type;
+                switch (action) {
+                    case ActionType.Move:
+                        print("move in battle");
+                        break;
+                    default:
+                        break;
+                }
+                Roact.unmount(op.ui);
+                this.setCameraToHOI4().then(resolve);
+            })
         })
 
         if (w) w.pos /= 2;
