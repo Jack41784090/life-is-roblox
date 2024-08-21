@@ -1,5 +1,6 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
 import Grid from "shared/class/Grid";
+import Pathfinding from "shared/class/Pathfinding";
 import { disableCharacter, enableCharacter } from "shared/func";
 
 const loadCharacterEvent = ReplicatedStorage.WaitForChild("LoadCharacterEvent") as RemoteEvent;
@@ -32,3 +33,10 @@ function iterate() {
         });
 }
 iterate();
+
+Pathfinding.Start({
+    grid: grid,
+    start: new Vector2(0, 0),
+    dest: new Vector2(9, 9),
+    verbose: true,
+})

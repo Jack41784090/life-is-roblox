@@ -13,17 +13,29 @@ export default class XY<T> {
         }
     }
 
-    set(x: number, y: number, value: T) {
-        if (this.isValidCoordinate(x, y)) {
+    set(x: number, y: number, value: T): void
+    set(vec: Vector2, value: T): void
+    set(x: number | Vector2, y: number | T, value?: T) {
+        if (typeIs(x, "Vector2")) {
+            const vec = x as Vector2;
+            value = y as T;
+            if (this.isValidCoordinate(vec.X, vec.Y)) {
+                this.dictionary[`${vec.X},${vec.Y}`] = value
+            };
+        } else if (this.isValidCoordinate(x as number, y as number)) {
             this.dictionary[`${x},${y}`] = value;
         }
     }
 
-    get(x: number, y: number) {
-        if (this.isValidCoordinate(x, y)) {
+    get(vec: Vector2): T | undefined
+    get(x: number, y: number): T | undefined
+    get(x: number | Vector2, y?: number) {
+        if (typeIs(x, "Vector2")) {
+            const vec = x as Vector2;
+            return this.dictionary[`${vec.X},${vec.Y}`];
+        } else {
             return this.dictionary[`${x},${y}`];
         }
-        return undefined; // or a default value
     }
 
     isValidCoordinate(x: number, y: number) {

@@ -1,5 +1,6 @@
 import { getTween } from "shared/func";
 import { CellInitOptions, CellTerrain } from "shared/types";
+import Entity from "./Entity";
 
 export default class Cell {
     static TWEEN_TIME = 0.5;
@@ -8,6 +9,7 @@ export default class Cell {
     xy: Vector2;
     terrain: CellTerrain;
     height: number;
+    entity: Entity | undefined = undefined;
 
     constructor(initOptions: CellInitOptions) {
         const { position, size, height, terrain, grid } = initOptions;
@@ -93,5 +95,9 @@ export default class Cell {
                 resolve(void 0);
             });
         })
+    }
+
+    isVacant() {
+        return this.entity === undefined;
     }
 }

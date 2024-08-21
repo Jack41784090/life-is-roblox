@@ -41,4 +41,18 @@ export default class Grid {
         }
     }
 
+    getCell(x: number, y: number) {
+        return this.cellsXY.get(x, y);
+    }
+    getCellIsVacant(x: number, y: number) {
+        return this.cellsXY.get(x, y)?.entity === undefined;
+    }
+
+    getWidth() {
+        return this.widthheight.X;
+    }
+
+    getHeight() {
+        return this.widthheight.Y;
+    }
 }
