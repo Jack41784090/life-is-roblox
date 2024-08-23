@@ -29,7 +29,10 @@ export class Battle {
     gui: BattleGUI | undefined;
 
     //
-    currentRoundEntity: Entity | undefined;
+    currentRound: {
+        entity: Entity,
+        resolve: (value: unknown) => void,
+    } | undefined;
 
     // Camera-Related Information
     center: Vector2;
@@ -271,41 +274,72 @@ export class Battle {
 
     private async round() {
         const time = this.advanceTime();
+
+        // Run the readiness gauntlet and get the next model to act
         const w = await this.runReadinessGauntlet();
-        this.currentRoundEntity = w;
         const model = w?.model;
+
+        // If no model is returned, reset the camera and restart the round
         if (!model) {
-            await this.setCameraToHOI4();
-            this.round();
+            await this.resetCameraAndRestartRound();
             return;
         }
 
-        await this.setCameraToLookAtModel(model)
+        // Focus the camera on the model
+        await this.setCameraToLookAtModel(model);
 
-        await new Promise((resolve) => {
-            this.gui?.showEntityActionOptions(w, (op: EntityActionOptions) => {
-                const action = op.type;
-                switch (action) {
-                    case ActionType.Move:
-                        // this.gui
-                        break;
-                    default:
-                        break;
-                }
-                Roact.unmount(op.ui);
-                this.setCameraToHOI4(this.camera, w.cell?.xy);
-                // this.setCameraToHOI4().then(resolve);
-            })
-        })
+        // Handle the current round's actions
+        await this.handleRoundActions(w);
 
-        if (w) w.pos /= 2;
+        // Update readiness and finalize the round
+        if (w) {
+            w.pos /= 2;
+        }
+
         await this.gui?.tweenToUpdateReadiness();
 
-        this.currentRoundEntity = undefined;
+        this.finalizeRound();
+        this.round(); // Start the next round
+    }
+
+    private async resetCameraAndRestartRound() {
+        await this.setCameraToHOI4();
+        this.round(); // Restart the round
+    }
+
+    private async handleRoundActions(w: Entity) {
+        return new Promise((resolve) => {
+            this.currentRound = {
+                entity: w,
+                resolve: resolve
+            };
+
+            // Show action options in the GUI and handle the chosen action
+            this.gui?.showEntityActionOptions(w, (op: EntityActionOptions) => {
+                this.handleAction(op);
+                Roact.unmount(op.ui);
+                this.setCameraToHOI4(this.camera, w.cell?.xy);
+            });
+        });
+    }
+
+    private handleAction(op: EntityActionOptions) {
+        const action = op.type;
+        switch (action) {
+            case ActionType.Move:
+                this.gui?.enterMovement();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private finalizeRound() {
+        this.currentRound = undefined;
         print('【Round Finish】');
         wait(1);
-        this.round();
     }
+
     //#endregion
 
 
