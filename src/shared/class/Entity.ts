@@ -94,10 +94,7 @@ export default class Entity implements iEntity {
 
     getActions(): { type: ActionType, action: () => void }[] {
         return [
-            { type: ActionType.Attack, action: () => print("Attack") },
-            { type: ActionType.Defend, action: () => print("Defend") },
             { type: ActionType.Move, action: () => print("Move") },
-            { type: ActionType.Wait, action: () => print("Wait") },
         ]
     }
 

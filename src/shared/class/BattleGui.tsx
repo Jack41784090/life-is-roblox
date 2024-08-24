@@ -1,22 +1,24 @@
 import Roact from "@rbxts/roact";
-import { TweenService } from "@rbxts/services";
+import { TweenService, UserInputService } from "@rbxts/services";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
 import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readinessBar";
+import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { ActionType, EntityActionOptions } from "shared/types/battle-types";
 import { Battle } from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
 import Pathfinding from "./Pathfinding";
 
-
 export default class BattleGUI {
+    private actionMenuCallback: ((action: EntityActionOptions) => void) | undefined;
+    private escapeScript: RBXScriptConnection | undefined;
     private ui: Roact.Tree;
     private glowPath: Roact.Tree | undefined;
-    private readinessIcons: Roact.Ref<ImageLabel>[];
+    private readinessIconMap: Map<number, Roact.Ref<Frame>>;
     private static battleInstance: Battle;
     private static instance: BattleGUI;
 
@@ -24,8 +26,14 @@ export default class BattleGUI {
     static getBattle() {
         return BattleGUI.battleInstance;
     }
+    igetBattle() {
+        return BattleGUI.battleInstance
+    }
 
     static getInstance() {
+        return BattleGUI.instance;
+    }
+    igetInstance() {
         return BattleGUI.instance;
     }
 
@@ -40,155 +48,51 @@ export default class BattleGUI {
     // Private constructor to prevent direct instantiation
     private constructor(battle: Battle) {
         BattleGUI.battleInstance = battle;
-        this.readinessIcons = this.initializeReadinessIcons(battle);
+        this.readinessIconMap = this.initializeReadinessIcons(battle);
         this.ui = this.mountInitialUI();
     }
 
+    //#region UI Methods
     // Initialize readiness icons with references
-    private initializeReadinessIcons(battle: Battle): Roact.Ref<ImageLabel>[] {
+    private initializeReadinessIcons(battle: Battle): Map<number, Roact.Ref<Frame>> {
         const readinessIcons = battle.getReadinessIcons();
-        return readinessIcons.map(() => Roact.createRef<ImageLabel>());
+        return new Map(readinessIcons.map((icon) => {
+            const ref = Roact.createRef<Frame>();
+            return [icon.iconID, ref];
+        }));
     }
 
     // Mount the initial UI with readiness bar
     private mountInitialUI(): Roact.Tree {
         return Roact.mount(
             <MenuFrameElement transparency={1}>
-                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIcons} />
+                <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
             </MenuFrameElement>
         );
     }
 
-    // Enter movement mode and display sensitive cells
-    enterMovement() {
-        const sens = this.generateSensitiveCells();
-        if (!sens || !BattleGUI.battleInstance) return;
-
-        Roact.update(this.ui, this.renderWithSensitiveCells(sens));
-    }
-
-    // Exit movement mode and reset UI
-    exitMovement() {
-        if (!BattleGUI.battleInstance) return;
-        Roact.update(this.ui, this.renderWithReadinessBar());
-    }
-
-    // Render the UI with readiness bar and sensitive cells
-    private renderWithSensitiveCells(sens: Roact.Element) {
-        return (
-            <MenuFrameElement transparency={1}>
-                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIcons} />
-                {sens}
-            </MenuFrameElement>
-        );
-    }
-
-    // Render the UI with only the readiness bar
-    private renderWithReadinessBar() {
-        return (
-            <MenuFrameElement transparency={1}>
-                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIcons} />
-            </MenuFrameElement>
-        );
-    }
-
-    // Generate sensitive cells for movement
-    private generateSensitiveCells() {
-        const battle = BattleGUI.battleInstance;
-        if (!battle) return;
-
-        let currentPath: Vector2[] | undefined;
-        return <>
-            {battle.grid.cells.map((c) => (
-                <CellSurfaceElement
-                    cell={c}
-                    onEnter={() => currentPath = this.handleCellEnter(c)}
-                    onclick={() => {
-                        if (currentPath) this.handleCellClick(c, currentPath);
-                    }}
-                />
-            ))}
-        </>;
-    }
-
-    // Handle cell hover (enter) event
-    private handleCellEnter(cell: Cell) {
-        const battle = BattleGUI.battleInstance;
-        if (!battle?.currentRound) return;
-
-        const path = Pathfinding.Start({
-            grid: battle.grid,
-            start: battle.currentRound.entity.cell!.xy,
-            dest: cell.xy,
-        });
-
-        return this.glowAlongPath(path.fullPath);
-    }
-
-    // Handle cell click event
-    private handleCellClick(cell: Cell, path: Vector2[]) {
-        const battle = BattleGUI.battleInstance;
-        if (!(battle?.currentRound)) return;
-
-        const cr = battle.currentRound!;
-        const entity = cr.entity;
-        this.exitMovement();
-        entity.moveToCell(cell, path).then(() => {
-            if (this.glowPath) Roact.unmount(this.glowPath);
-
-            this.tweenToUpdateReadiness();
-            cr.resolve(entity);
-        });
-    }
-
-    // Animate the readiness bar update
-    tweenToUpdateReadiness() {
-        const newReadinessIcons = BattleGUI.battleInstance.getReadinessIcons();
-        const promises = this.readinessIcons.map((iconRef, i) => {
-            const icon = iconRef.getValue();
-            if (!icon) return Promise.resolve();
-
-            const tween = TweenService.Create(
-                icon,
-                new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-                { Position: UDim2.fromScale(0, newReadinessIcons[i].readiness) }
-            );
-
-            tween.Play();
-            return new Promise((resolve) => tween.Completed.Connect(resolve));
-        });
-
-        return Promise.all(promises);
-    }
-
-    // Highlight the cells along a path
-    glowAlongPath(path: Vector2[]) {
-        const elements = path.mapFiltered((xy) => {
-            const cell = BattleGUI.battleInstance.grid.getCell(xy.X, xy.Y);
-            if (!cell) return;
-
-            cell.glow = true;
-            return <CellGlowSurfaceElement cell={cell} />;
-        });
-
-        if (this.glowPath) {
-            Roact.update(this.glowPath, <>{elements}</>);
-        } else {
-            this.glowPath = Roact.mount(<>{elements}</>);
+    private returnToSelections() {
+        const b = this.igetBattle();
+        if (!b.currentRound?.entity.model) {
+            warn("No entity model found");
+            return;
         }
-
-        return path;
+        this.exitMovement();
+        b.setCameraToLookAtModel(b.currentRound.entity.model);
+        this.showEntityActionOptions(b.currentRound.entity);
     }
 
     // Display entity action options and handle the chosen action
     showEntityActionOptions(entity: Entity, callback?: (action: EntityActionOptions) => void) {
+        this.actionMenuCallback = callback ?? this.actionMenuCallback;
+
         const actions = entity.getActions();
         const actionOptions = actions.map((action, index) => (
             <ButtonElement
                 Key={index}
                 position={index / actions.size()}
                 size={1 / actions.size()}
-                onclick={() => this.handleActionClick(action.action, action.type, actionsUI, callback)}
+                onclick={() => this.handleActionClick(action.action, action.type, actionsUI, this.actionMenuCallback)}
                 text={action.type}
                 transparency={0.9}
             />
@@ -213,5 +117,175 @@ export default class BattleGUI {
             });
         }
     }
-}
 
+    // Enter movement mode and display sensitive cells
+    enterMovement() {
+        if (!BattleGUI.battleInstance) return;
+        this.escapeScript = UserInputService.InputBegan.Connect((i, gpe) => {
+            // print(i, gpe)
+            if (i.KeyCode === Enum.KeyCode.X && !gpe) {
+                this.returnToSelections();
+            }
+        })
+        Roact.update(this.ui, this.renderWithSensitiveCells());
+    }
+
+    // Exit movement mode and reset UI
+    exitMovement() {
+        if (!BattleGUI.battleInstance || !BattleGUI.battleInstance.currentRound) {
+            warn("No battle or current round");
+            return;
+        }
+        if (this.glowPath) Roact.unmount(this.glowPath);
+        if (this.escapeScript) this.escapeScript.Disconnect();
+        Roact.update(this.ui, this.renderWithReadinessBar());
+    }
+    //#endregion
+
+    //#region Render Methods
+    // Render the UI with readiness bar and sensitive cells
+    private renderWithSensitiveCells() {
+        const sens = this.generateSensitiveCells();
+        return (
+            <MenuFrameElement transparency={1}>
+                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIconMap} />
+                {sens}
+            </MenuFrameElement>
+        );
+    }
+
+    // Render the UI with only the readiness bar
+    private renderWithReadinessBar() {
+        return (
+            <MenuFrameElement transparency={1}>
+                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIconMap} />
+            </MenuFrameElement>
+        );
+    }
+    //#endregion
+
+    //#region Cell Methods
+    // Generate sensitive cells for movement
+    private generateSensitiveCells() {
+        const battle = BattleGUI.battleInstance;
+        if (!battle) return;
+
+        let currentPath: Vector2[] | undefined;
+        return <>
+            {battle.grid.cells.map((c) => (
+                <CellSurfaceElement
+                    cell={c}
+                    onEnter={() => currentPath = this.handleCellEnter(c)}
+                    onclick={() => {
+                        if (currentPath) this.handleCellClick(c, currentPath);
+                    }}
+                />
+            ))}
+        </>;
+    }
+
+    // Handle cell hover (enter) event
+    private handleCellEnter(cell: Cell) {
+        const battle = BattleGUI.battleInstance;
+        if (!battle?.currentRound) return;
+
+        const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
+        const path = Pathfinding.Start({
+            grid: battle.grid,
+            start: battle.currentRound.entity.cell!.xy,
+            dest: cell.xy,
+            limit: lim,
+        });
+
+        const entity = battle.currentRound.entity;
+        const readinessAfterMove = (entity.pos - path.fullPath.size() * MOVEMENT_COST) / MAX_READINESS;
+        this.updateSpecificReadinessIcon(entity.playerID, readinessAfterMove);
+
+        return this.glowAlongPath(path.fullPath);
+    }
+
+    // Handle cell click event
+    private handleCellClick(cell: Cell, path: Vector2[]) {
+        const battle = BattleGUI.battleInstance;
+        if (!(battle?.currentRound)) return;
+
+        const cr = battle.currentRound!;
+        const entity = cr.entity;
+        this.exitMovement();
+        entity.moveToCell(cell, path).then(() => {
+            if (this.glowPath) Roact.unmount(this.glowPath);
+
+            // this.tweenToUpdateReadiness();
+            cr.resolve(entity);
+        });
+    }
+
+    // Highlight the cells along a path
+    glowAlongPath(path: Vector2[]) {
+        const elements = path.mapFiltered((xy) => {
+            const cell = BattleGUI.battleInstance.grid.getCell(xy.X, xy.Y);
+            if (!cell) return;
+
+            cell.glow = true;
+            return <CellGlowSurfaceElement cell={cell} />;
+        });
+
+        if (this.glowPath) {
+            Roact.update(this.glowPath, <frame>{elements}</frame>);
+        } else {
+            this.glowPath = Roact.mount(<frame>{elements}</frame>);
+        }
+
+        return path;
+    }
+    //#endregion
+
+    //#region Readiness Bar Methods
+    private getAllIcons() {
+        const icons: Roact.Ref<Frame>[] = [];
+        this.readinessIconMap.forEach((ref) => icons.push(ref));
+        return icons;
+    }
+
+    updateSpecificReadinessIcon(iconID: number, readiness: number) {
+        const icon = this.readinessIconMap.get(iconID)?.getValue();
+        if (!icon) return;
+
+        const clampedReadiness = math.clamp(readiness, 0, 1);
+        const tween = TweenService.Create(
+            icon,
+            new TweenInfo(math.abs(icon.Position.Y.Scale - clampedReadiness), Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { Position: UDim2.fromScale(0, clampedReadiness) }
+        );
+        tween.Play();
+    }
+
+    // Animate the readiness bar update
+    tweenToUpdateReadiness() {
+        const newReadinessIcons = this.igetBattle().getReadinessIcons();
+        const promises: Promise<void>[] = [];
+
+        for (const icon of newReadinessIcons) {
+            const ref = this.readinessIconMap.get(icon.iconID);
+            if (!ref) continue;
+            const iconRef = ref.getValue();
+            if (!iconRef) continue;
+
+            const readiness = icon.readiness;
+            const positionTween = TweenService.Create(
+                iconRef,
+                new TweenInfo(math.abs(iconRef.Position.Y.Scale - readiness), Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+                { Position: UDim2.fromScale(0, readiness) }
+            );
+
+
+            promises.push(new Promise((resolve) => {
+                positionTween.Completed.Connect(() => resolve());
+                positionTween.Play();
+            }));
+        }
+
+        return Promise.all(promises);
+    }
+    //#endregion
+}

@@ -64,3 +64,6 @@ export enum iEntityKeyEmoji {
     org = Emoji.MORALE,
     pos = Emoji.POSTURE,
 }
+
+export const MOVEMENT_COST = 10;
+export const MAX_READINESS = 100;

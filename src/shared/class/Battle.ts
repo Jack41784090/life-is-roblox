@@ -101,7 +101,7 @@ export class Battle {
         for (const [teamName, playerList] of pairs(teamMap)) {
             const members = playerList.map(player => {
                 const entity = new Entity({
-                    playerID: player.UserId,
+                    playerID: player.UserId + math.random(0, 1000),
                     stats: getDummyStats(),
                     pos: 0,
                     org: 0,
@@ -146,7 +146,7 @@ export class Battle {
 
     }
 
-    private setCameraToHOI4(camera?: Camera, gridFocal?: Vector2) {
+    setCameraToHOI4(camera?: Camera, gridFocal?: Vector2) {
         print(`Grid Min: ${this.gridMin}, Grid Max: ${this.gridMax}`);
         const center = gridFocal ?
             new Vector2(gridXYToWorldXY(gridFocal, this.grid).X, gridXYToWorldXY(gridFocal, this.grid).Z) :
@@ -165,7 +165,7 @@ export class Battle {
             this.updateHOI4CameraPosition(this.detectEdgeMovement());
         });
     }
-    private setCameraToLookAtModel(model: Model) {
+    setCameraToLookAtModel(model: Model) {
         this.panService?.Disconnect();
         return this.goToModelCam(model).then(() => {
             // this.setUpCharCenterCameraPan(model);
@@ -250,7 +250,11 @@ export class Battle {
     //#endregion
 
 
-    //#region 
+    //#region
+    getAllEntities() {
+        return this.teams.map(team => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
+    }
+
     private spawn() {
         for (const team of this.teams) {
             for (const entity of team.members) {
@@ -296,7 +300,7 @@ export class Battle {
             w.pos /= 2;
         }
 
-        await this.gui?.tweenToUpdateReadiness();
+        // await this.gui?.tweenToUpdateReadiness();
 
         this.finalizeRound();
         this.round(); // Start the next round
@@ -344,18 +348,19 @@ export class Battle {
 
 
     //#region Readiness Management
-    getReadinessIcons() {
+    static readonly MOVEMENT_COST = 10;
+
+    getReadinessIcons(): ReadinessIcon[] {
         const characterIcons: ReadinessIcon[] = [];
-        for (const team of this.teams) {
-            for (const entity of team.members) {
-                // if (!entity.iconURL) continue;
-                // characterIcons.push(entity.iconURL);
-                characterIcons.push({
-                    iconUrl: "rbxassetid://18915919565",
-                    readiness: entity.pos / 100
-                });
-            }
+
+        for (const e of this.getAllEntities()) {
+            characterIcons.push({
+                iconID: e.playerID,
+                iconUrl: "rbxassetid://18915919565",
+                readiness: e.pos / 100
+            });
         }
+
         return characterIcons;
     }
     calculateReadinessIncrement(entity: Entity) {
@@ -369,7 +374,7 @@ export class Battle {
         const entities = this.teams.map(team => team.members).reduce<Entity[]>(
             (acc, val) => [...acc, ...val], []);
 
-        print(entities);
+        // print(entities);
         if (entities.size() === 0) return;
 
         let i = 0
@@ -380,6 +385,7 @@ export class Battle {
         }
 
         const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
+        // return winner;
         return this.gui?.tweenToUpdateReadiness()?.then(() => winner);
     }
     private _gauntletIterate(entities: Entity[]) {

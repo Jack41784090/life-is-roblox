@@ -69,6 +69,7 @@ export interface iEntity {
 }
 
 export type ReadinessIcon = {
+    iconID: number,
     iconUrl: string;
     readiness: number;
 }
