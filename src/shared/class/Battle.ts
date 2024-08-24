@@ -391,6 +391,7 @@ export class Battle {
         const action = op.type;
         switch (action) {
             case ActionType.Move:
+                print('【Move Selected】');
                 this.gui?.enterMovement();
                 break;
             default:

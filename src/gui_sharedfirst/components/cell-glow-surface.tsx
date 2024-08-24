@@ -1,4 +1,4 @@
-import Roact, { Portal } from "@rbxts/roact";
+import Roact from "@rbxts/roact";
 import { RunService, TweenService } from "@rbxts/services";
 import Cell from "shared/class/Cell";
 import { getPlayer } from "shared/func";
@@ -75,18 +75,16 @@ export default class CellGlowSurfaceElement extends Roact.Component<CellGlowSurf
             return undefined;
         }
         return (
-            <Portal target={playerGUI}>
-                <surfacegui Adornee={this.props.cell.part} Face={"Top"}>
-                    <textbutton
-                        Ref={this.buttonRef}
-                        BackgroundTransparency={this.state.transparency}
-                        BackgroundColor3={Cell.SELECTED_COLOUR}
-                        Position={new UDim2(0.5, 0, 0.5, 0)}
-                        AnchorPoint={new Vector2(0.5, 0.5)}
-                        Size={this.state.size}
-                    />
-                </surfacegui>
-            </Portal>
+            <surfacegui Adornee={this.props.cell.part} Face={"Top"}>
+                <textbutton
+                    Ref={this.buttonRef}
+                    BackgroundTransparency={this.state.transparency}
+                    BackgroundColor3={Cell.SELECTED_COLOUR}
+                    Position={new UDim2(0.5, 0, 0.5, 0)}
+                    AnchorPoint={new Vector2(0.5, 0.5)}
+                    Size={this.state.size}
+                />
+            </surfacegui>
         );
     }
 }

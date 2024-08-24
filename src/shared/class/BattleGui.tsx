@@ -1,4 +1,4 @@
-import Roact from "@rbxts/roact";
+import Roact, { Portal } from "@rbxts/roact";
 import { TweenService, UserInputService } from "@rbxts/services";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
@@ -7,6 +7,7 @@ import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
+import { getPlayer } from "shared/func";
 import { ActionType, EntityActionOptions } from "shared/types/battle-types";
 import { Battle } from "./Battle";
 import Cell from "./Cell";
@@ -121,7 +122,8 @@ export default class BattleGUI {
 
     // Enter movement mode and display sensitive cells
     enterMovement() {
-        if (!BattleGUI.battleInstance) return;
+        if (!this.igetBattle()) return;
+        this.escapeScript?.Disconnect();
         this.escapeScript = UserInputService.InputBegan.Connect((i, gpe) => {
             // print(i, gpe)
             if (i.KeyCode === Enum.KeyCode.X && !gpe) {
@@ -133,12 +135,15 @@ export default class BattleGUI {
 
     // Exit movement mode and reset UI
     exitMovement() {
-        if (!BattleGUI.battleInstance || !BattleGUI.battleInstance.currentRound) {
+        if (!this.igetBattle() || !this.igetBattle().currentRound) {
             warn("No battle or current round");
             return;
         }
-        if (this.glowPath) Roact.unmount(this.glowPath);
-        if (this.escapeScript) this.escapeScript.Disconnect();
+        if (this.glowPath) {
+            Roact.unmount(this.glowPath)
+            this.glowPath = undefined
+        };
+        this.escapeScript?.Disconnect();
         Roact.update(this.ui, this.renderWithReadinessBar());
     }
     //#endregion
@@ -146,11 +151,11 @@ export default class BattleGUI {
     //#region Render Methods
     // Render the UI with readiness bar and sensitive cells
     private renderWithSensitiveCells() {
-        const sens = this.generateSensitiveCells();
+        print("Rendering with sensitive cells");
         return (
-            <MenuFrameElement transparency={1}>
-                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIconMap} />
-                {sens}
+            <MenuFrameElement transparency={1} Key={`BattleUI`}>
+                <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+                {this.generateSensitiveCells()}
             </MenuFrameElement>
         );
     }
@@ -158,8 +163,8 @@ export default class BattleGUI {
     // Render the UI with only the readiness bar
     private renderWithReadinessBar() {
         return (
-            <MenuFrameElement transparency={1}>
-                <ReadinessBarElement icons={BattleGUI.battleInstance.getReadinessIcons()} ref={this.readinessIconMap} />
+            <MenuFrameElement transparency={1} Key={`BattleUI`}>
+                <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
             </MenuFrameElement>
         );
     }
@@ -168,11 +173,11 @@ export default class BattleGUI {
     //#region Cell Methods
     // Generate sensitive cells for movement
     private generateSensitiveCells() {
-        const battle = BattleGUI.battleInstance;
+        const battle = this.igetBattle();
         if (!battle) return;
 
         let currentPath: Vector2[] | undefined;
-        return <>
+        return <frame>
             {battle.grid.cells.map((c) => (
                 <CellSurfaceElement
                     cell={c}
@@ -182,12 +187,12 @@ export default class BattleGUI {
                     }}
                 />
             ))}
-        </>;
+        </frame>;
     }
 
     // Handle cell hover (enter) event
     private handleCellEnter(cell: Cell) {
-        const battle = BattleGUI.battleInstance;
+        const battle = this.igetBattle();
         if (!battle?.currentRound) return;
 
         const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
@@ -207,7 +212,7 @@ export default class BattleGUI {
 
     // Handle cell click event
     private handleCellClick(cell: Cell, path: Vector2[]) {
-        const battle = BattleGUI.battleInstance;
+        const battle = this.igetBattle();
         if (!(battle?.currentRound)) return;
 
         const cr = battle.currentRound!;
@@ -224,17 +229,29 @@ export default class BattleGUI {
     // Highlight the cells along a path
     glowAlongPath(path: Vector2[]) {
         const elements = path.mapFiltered((xy) => {
-            const cell = BattleGUI.battleInstance.grid.getCell(xy.X, xy.Y);
+            const cell = this.igetBattle().grid.getCell(xy.X, xy.Y);
             if (!cell) return;
 
             cell.glow = true;
             return <CellGlowSurfaceElement cell={cell} />;
         });
 
+        const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
+        if (!playerGUI) {
+            warn("No player GUI found");
+            return;
+        }
         if (this.glowPath) {
-            Roact.update(this.glowPath, <frame>{elements}</frame>);
+            Roact.update(this.glowPath,
+                <Portal target={playerGUI}>
+                    <frame>{elements}</frame>
+                </Portal>
+            );
         } else {
-            this.glowPath = Roact.mount(<frame>{elements}</frame>);
+            this.glowPath = Roact.mount(
+                <Portal target={playerGUI}>
+                    <frame>{elements}</frame>
+                </Portal>);
         }
 
         return path;

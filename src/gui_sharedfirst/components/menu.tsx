@@ -7,6 +7,8 @@ interface MenuFrameElementProps {
     transparency?: number;
     zIndex?: number;
     backgroundColour?: Color3;
+    screenUIKey?: string;
+    frameKey?: string;
 }
 interface MenuFrameElementState {
     colour: Color3;
@@ -24,13 +26,13 @@ class MenuFrameElement extends Roact.Component<MenuFrameElementProps, MenuFrameE
         return (
             <Roact.Portal target={playerGUI}>
                 <screengui
-                    Key={"Menu"}
+                    Key={this.props.screenUIKey || "MenuScreenGui"}
                     ResetOnSpawn={false}
                     ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
                     IgnoreGuiInset={true}
                 >
                     <frame
-                        Key={"MenuFrame"}
+                        Key={this.props.frameKey || "MenuFrame"}
                         Size={new UDim2(1, 0, 1, 0)}
                         BackgroundColor3={this.props.backgroundColour ?? Color3.fromRGB(0, 0, 0)}
                         BackgroundTransparency={this.props.transparency === undefined ? 0.5 : this.props.transparency}

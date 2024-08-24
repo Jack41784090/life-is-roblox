@@ -1,4 +1,4 @@
-import Roact, { Portal } from "@rbxts/roact";
+import Roact from "@rbxts/roact";
 import { TweenService } from "@rbxts/services";
 import Cell from "shared/class/Cell";
 import { getPlayer } from "shared/func";
@@ -38,22 +38,25 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
             return undefined;
         }
         return (
-            <Portal target={playerGUI}>
-                <surfacegui Adornee={this.props.cell.part} Face={"Top"}>
-                    <textbutton
-                        Ref={this.buttonRef}
-                        Position={new UDim2(0.5, 0, 0.5, 0)}
-                        AnchorPoint={new Vector2(0.5, 0.5)}
-                        Size={new UDim2(1, 0, 1, 0)}
-                        BackgroundTransparency={1}
-                        Event={{
-                            MouseButton1Click: this.props.onclick,
-                            MouseEnter: this.props.onEnter,
-                            MouseLeave: this.props.onLeave,
-                        }}
-                    />
-                </surfacegui>
-            </Portal>
+            <surfacegui
+                Key={this.props.cell.part.Name}
+                Adornee={this.props.cell.part}
+                Face={"Top"}
+                AlwaysOnTop={true}
+            >
+                <textbutton
+                    Ref={this.buttonRef}
+                    Position={new UDim2(0.5, 0, 0.5, 0)}
+                    AnchorPoint={new Vector2(0.5, 0.5)}
+                    Size={new UDim2(1, 0, 1, 0)}
+                    BackgroundTransparency={1}
+                    Event={{
+                        MouseButton1Click: this.props.onclick,
+                        MouseEnter: this.props.onEnter,
+                        MouseLeave: this.props.onLeave,
+                    }}
+                />
+            </surfacegui>
         );
     }
 }
