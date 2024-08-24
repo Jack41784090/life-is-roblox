@@ -374,7 +374,6 @@ export class Battle {
         const entities = this.teams.map(team => team.members).reduce<Entity[]>(
             (acc, val) => [...acc, ...val], []);
 
-        // print(entities);
         if (entities.size() === 0) return;
 
         let i = 0
@@ -385,7 +384,6 @@ export class Battle {
         }
 
         const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
-        // return winner;
         return this.gui?.tweenToUpdateReadiness()?.then(() => winner);
     }
     private _gauntletIterate(entities: Entity[]) {

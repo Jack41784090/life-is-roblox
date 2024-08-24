@@ -5,7 +5,7 @@ import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
 import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
-import ReadinessBarElement from "gui_sharedfirst/components/readinessBar";
+import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { ActionType, EntityActionOptions } from "shared/types/battle-types";
 import { Battle } from "./Battle";
@@ -198,7 +198,7 @@ export default class BattleGUI {
         });
 
         const entity = battle.currentRound.entity;
-        const readinessAfterMove = (entity.pos - path.fullPath.size() * MOVEMENT_COST) / MAX_READINESS;
+        const readinessAfterMove = (entity.pos - (path.fullPath.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
         this.updateSpecificReadinessIcon(entity.playerID, readinessAfterMove);
 
         return this.glowAlongPath(path.fullPath);
@@ -252,12 +252,7 @@ export default class BattleGUI {
         if (!icon) return;
 
         const clampedReadiness = math.clamp(readiness, 0, 1);
-        const tween = TweenService.Create(
-            icon,
-            new TweenInfo(math.abs(icon.Position.Y.Scale - clampedReadiness), Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-            { Position: UDim2.fromScale(0, clampedReadiness) }
-        );
-        tween.Play();
+        icon.TweenPosition(UDim2.fromScale(0, clampedReadiness), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, math.abs(icon.Position.Y.Scale - clampedReadiness), true);
     }
 
     // Animate the readiness bar update
