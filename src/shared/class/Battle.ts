@@ -49,7 +49,8 @@ export class Battle {
 
     gridMin: Vector2;
     gridMax: Vector2;
-    panSpeed = 0.6;
+    HOI4PanSpeed = 0.6;
+    angle = 0;
 
     // Timeslotting
     time: number = -1;
@@ -128,19 +129,21 @@ export class Battle {
         let gridDelta = new Vector2(0, 0);
 
         const edgeBuffer_x = screenSize.X * Battle.EDGE_BUFFER;
-        // Check if the mouse is near the left or right edge of the screen
         if (mousePosition.X < edgeBuffer_x) {
-            gridDelta = gridDelta.add(new Vector2(-1, 0));
+            const percentage = 1 - math.clamp(mousePosition.X / edgeBuffer_x, 0, 1);
+            gridDelta = gridDelta.add(new Vector2(-percentage, 0));
         } else if (mousePosition.X > screenSize.X - edgeBuffer_x) {
-            gridDelta = gridDelta.add(new Vector2(1, 0));
+            const percentage = 1 - math.clamp((screenSize.X - mousePosition.X) / edgeBuffer_x, 0, 1);
+            gridDelta = gridDelta.add(new Vector2(percentage, 0));
         }
 
         const edgeBuffer_y = screenSize.Y * Battle.EDGE_BUFFER;
-        // Check if the mouse is near the top or bottom edge of the screen
         if (mousePosition.Y < edgeBuffer_y) {
-            gridDelta = gridDelta.add(new Vector2(0, 1));
+            const percentage = 1 - math.clamp(mousePosition.Y / edgeBuffer_y, 0, 1);
+            gridDelta = gridDelta.add(new Vector2(0, percentage));
         } else if (mousePosition.Y > screenSize.Y - edgeBuffer_y) {
-            gridDelta = gridDelta.add(new Vector2(0, -1));
+            const percentage = 1 - math.clamp((screenSize.Y - mousePosition.Y) / edgeBuffer_y, 0, 1);
+            gridDelta = gridDelta.add(new Vector2(0, -percentage));
         }
         return gridDelta;
 
@@ -168,36 +171,81 @@ export class Battle {
     setCameraToLookAtModel(model: Model) {
         this.panService?.Disconnect();
         return this.goToModelCam(model).then(() => {
-            // this.setUpCharCenterCameraPan(model);
+            this.setUpCharCenterCameraPan(model);
         });
     }
     private setUpCharCenterCameraPan(model: Model) {
         print('Setting up Character Center Camera Pan');
         this.panService?.Disconnect();
-        const distance = 20;
 
-        // Define the rotation speed in radians per second
-        const rotationSpeed = math.rad(30); // 30 degrees per second
+        const camOriPart = model.WaitForChild("cam-ori") as BasePart | undefined;
+        if (!model.PrimaryPart) {
+            warn("Model has no PrimaryPart!");
+            return;
+        }
+        else if (!camOriPart) {
+            warn("Model has no cam-ori part!");
+            return;
+        }
+
         const camera = this.camera ?? Workspace.CurrentCamera;
         if (!camera) {
             warn("Camera not found!");
             return;
         }
-        const camOriPart = model.WaitForChild("cam-ori") as BasePart;
 
+        const mX = model.PrimaryPart.Position.X;
+        const mZ = model.PrimaryPart.Position.Z;
+        const cX = camOriPart.Position.X;
+        const cZ = camOriPart.Position.Z;
+        const xDiff = cX - mX;
+        const zDiff = cZ - mZ;
+        const initAngle = math.atan2(zDiff, xDiff);
+        this.angle = initAngle;
         this.panService = RunService.RenderStepped.Connect((deltaTime) => {
-            // Calculate the current angle based on time
-            const angle = tick() * rotationSpeed;
-
-            // Calculate the rotation around the Y-axis
-            const rotation = CFrame.Angles(0, angle, 0);
-
-            // Apply the rotation to the cam-ori's CFrame, offset by the desired distance
-            const cameraCFrame = camOriPart.CFrame.mul(rotation);
-
-            // Set the camera's CFrame to the calculated position, looking at cam-ori's position
-            camera.CFrame = CFrame.lookAt(cameraCFrame.Position, camOriPart.Position);
+            this.updateCharCenterCameraPosition(model, this.detectEdgeMovement(), deltaTime);
         });
+    }
+    private updateCharCenterCameraPosition(model: Model, gridDelta: Vector2, deltaTime: number) {
+        const camOriPart = model.WaitForChild("cam-ori") as BasePart | undefined;
+        if (!model.PrimaryPart) {
+            warn("Model has no PrimaryPart!");
+            return;
+        }
+        else if (!camOriPart) {
+            warn("Model has no cam-ori part!");
+            return;
+        }
+
+        const mX = model.PrimaryPart.Position.X;
+        const mZ = model.PrimaryPart.Position.Z;
+        const mY = model.PrimaryPart.Position.Y;
+        const cX = camOriPart.Position.X;
+        const cZ = camOriPart.Position.Z;
+        const cY = camOriPart.Position.Y;
+
+        const xDiff = cX - mX;
+        const yDiff = math.abs(mY - cY);
+        const zDiff = cZ - mZ;
+        const camera = this.camera ?? Workspace.CurrentCamera;
+        if (!camera) {
+            warn("Camera not found!");
+            return;
+        }
+
+        // Calculate the current angle based on time for horizontal rotation
+        const radius = math.sqrt((xDiff * xDiff) + (zDiff * zDiff));
+        const rotationSpeed = math.rad(60 * math.sign(gridDelta.X) * (gridDelta.X ** 2) * deltaTime); // 30 degrees per second
+        this.angle += rotationSpeed;
+
+        // Calculate the new camera position
+        const offsetX = math.cos(this.angle) * radius;
+        const offsetZ = math.sin(this.angle) * radius;
+
+        const cameraPosition = model.PrimaryPart.Position.add(new Vector3(offsetX, yDiff, offsetZ));
+
+        // Set the camera's CFrame to look at the model
+        camera.CFrame = CFrame.lookAt(cameraPosition, model.PrimaryPart.Position)
     }
     private updateHOI4CameraPosition(gridDelta: Vector2) {
         // WARNING: grid x = camera z, grid y = camera x
@@ -208,7 +256,7 @@ export class Battle {
         }
 
         const cameraCFrame = camera.CFrame;
-        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * this.panSpeed, 0, gridDelta.X * this.panSpeed));
+        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * this.HOI4PanSpeed, 0, gridDelta.X * this.HOI4PanSpeed));
 
         // Ensure the camera stays within the grid bounds
         const clampedX = math.clamp(cameraPosition.X, this.gridMin.Y, this.gridMax.Y);
@@ -243,6 +291,18 @@ export class Battle {
         tween.Play();
         return new Promise((resolve) => {
             tween.Completed.Connect(() => {
+                const mX = model.PrimaryPart!.CFrame.X;
+                const mZ = model.PrimaryPart!.CFrame.Z;
+                const mY = model.PrimaryPart!.CFrame.Y;
+                const cX = this.camera.CFrame.X;
+                const cZ = this.camera.CFrame.Z;
+                const cY = this.camera.CFrame.Y;
+
+                const xDiff = mX - cX;
+                const zDiff = mZ - cZ;
+
+                const radius = math.sqrt(xDiff ^ 2 + zDiff ^ 2); // Distance from the model's position
+                print(`Distance between: ${radius}`);
                 resolve(void 0)
             });
         });

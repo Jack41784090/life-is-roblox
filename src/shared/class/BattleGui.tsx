@@ -49,6 +49,7 @@ export default class BattleGUI {
     private constructor(battle: Battle) {
         BattleGUI.battleInstance = battle;
         this.readinessIconMap = this.initializeReadinessIcons(battle);
+        print(this.readinessIconMap);
         this.ui = this.mountInitialUI();
     }
 
@@ -249,7 +250,10 @@ export default class BattleGUI {
 
     updateSpecificReadinessIcon(iconID: number, readiness: number) {
         const icon = this.readinessIconMap.get(iconID)?.getValue();
-        if (!icon) return;
+        if (!icon) {
+            warn("No icon found for readiness update");
+            return;
+        }
 
         const clampedReadiness = math.clamp(readiness, 0, 1);
         icon.TweenPosition(UDim2.fromScale(0, clampedReadiness), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, math.abs(icon.Position.Y.Scale - clampedReadiness), true);
@@ -257,6 +261,7 @@ export default class BattleGUI {
 
     // Animate the readiness bar update
     tweenToUpdateReadiness() {
+        print("Tweening to update readiness");
         const newReadinessIcons = this.igetBattle().getReadinessIcons();
         const promises: Promise<void>[] = [];
 
@@ -272,7 +277,6 @@ export default class BattleGUI {
                 new TweenInfo(math.abs(iconRef.Position.Y.Scale - readiness), Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
                 { Position: UDim2.fromScale(0, readiness) }
             );
-
 
             promises.push(new Promise((resolve) => {
                 positionTween.Completed.Connect(() => resolve());
