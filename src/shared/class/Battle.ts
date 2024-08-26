@@ -405,6 +405,10 @@ export class Battle {
         wait(1);
     }
 
+    getEntityFromModel(model: Model) {
+        return this.getAllEntities().find(e => e.model === model);
+    }
+
     //#endregion
 
 

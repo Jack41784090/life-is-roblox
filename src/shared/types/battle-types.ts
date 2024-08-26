@@ -6,6 +6,7 @@
 // // end: number,    // Endurance: stamina, resistance to fatigue
 
 import Roact from "@rbxts/roact";
+import Entity from "shared/class/Entity";
 
 // // // Mental attributes
 // // int: number,    // Intelligence: knowledge of pragmatic magic
@@ -31,22 +32,6 @@ export enum Reality {
     Convince = 'convince',
     Bravery = 'bravery',
 }
-
-export type EntityStats = {
-    id: string;
-    str: number;
-    dex: number;
-    acr: number;
-    spd: number;
-    siz: number;
-    int: number;
-    spr: number;
-    fai: number;
-    cha: number;
-    beu: number;
-    wil: number;
-    end: number;
-};
 
 export type EntityInitRequirements =
     Partial<iEntity> &
@@ -92,4 +77,106 @@ export enum ActionType {
 export type EntityActionOptions = {
     type: ActionType,
     ui: Roact.Tree
+}
+
+export type EntityStats = {
+    id: string;
+    str: number;
+    dex: number;
+    acr: number;
+    spd: number;
+    siz: number;
+    int: number;
+    spr: number;
+    fai: number;
+    cha: number;
+    beu: number;
+    wil: number;
+    end: number;
+};
+
+export enum Potency {
+    Light = 'light',
+    Dark = 'dark',
+    Arcane = 'arcane',
+    Elemental = 'elemental',
+    Occult = 'occult',
+    Spiritual = 'spiritual',
+    TheWay = 'theWay',
+}
+
+export interface iAbility {
+    name: string;
+    description: string;
+
+    using?: Entity;
+    target?: Entity;
+
+    acc: number;
+    potencies: Map<Potency, number>;
+    damageType: Map<DamageType, number>;
+
+    cost: {
+        pos: number,
+        mana: number,
+    }
+
+    // effects: Effect[];
+}
+
+export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
+    [Potency.TheWay]: [
+        ['fai', 1.1]
+    ],
+    [Potency.Light]: [
+        ['fai', .4],
+        ['wil', .6],
+    ],
+    [Potency.Dark]: [
+        ['cha', .25],
+        ['wil', .75],
+    ],
+    [Potency.Arcane]: [
+        ['int', .85],
+        ['wil', .15],
+    ],
+    [Potency.Elemental]: [
+        ['int', .65],
+        ['spr', .35],
+    ],
+    [Potency.Occult]: [
+        ['wil', .1],
+        ['spr', .4],
+        ['cha', .5],
+    ],
+    [Potency.Spiritual]: [
+        ['spr', .9],
+        ['wil', .1],
+    ],
+}
+
+export enum DamageType {
+    Blunt = 'blunt',
+    Pierce = 'pierce',
+    Slash = 'slash',
+    Poison = 'poison',
+    Fire = 'fire',
+    Frost = 'frost',
+    Electric = 'electric',
+    Psychic = 'psychic',
+    Spiritual = 'spiritual',
+    Divine = 'divine',
+    Necrotic = 'necrotic',
+    Arcane = 'arcane',
+}
+
+export type AbilityInitOptions = {
+    name: string;
+    description: string;
+    acc: number;
+    cost: { pos: number; mana: number; };
+    potencies: Map<Potency, number>;
+    damageType: Map<DamageType, number>;
+    using: Entity;
+    target: Entity;
 }

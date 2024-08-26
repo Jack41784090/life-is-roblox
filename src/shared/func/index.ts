@@ -1,6 +1,6 @@
 import { ReplicatedStorage, Workspace } from "@rbxts/services";
 import Grid from "shared/class/Grid";
-import { EntityStats } from "shared/types/battle-types";
+import { EntityStats, iAbility } from "shared/types/battle-types";
 
 const service_Players = game.GetService("Players");
 const serivce_DataStore = game.GetService("DataStoreService");
@@ -93,6 +93,26 @@ export function getDummyCharacterModel(): Model {
     humanoid.Name = "Dummy";
     humanoid.Parent = game.Workspace;
     return humanoid;
+}
+
+export function getAbility(name: string): iAbility | undefined {
+    const ds = getDatastore("abilities");
+    const [success, data] = pcall(() => ds.GetAsync(name));
+    if (success) return data as iAbility;
+    else {
+        warn(data);
+        return undefined;
+    }
+}
+
+export function saveAbility(...ability: iAbility[]) {
+    const [success, fail] = pcall(() => {
+        const ds = getDatastore("abilities");
+        ability.forEach((a) => {
+            ds.SetAsync(a.name, a);
+        });
+    })
+    if (!success) warn(fail);
 }
 
 export function getCharacterStats(id: string): EntityStats | undefined {

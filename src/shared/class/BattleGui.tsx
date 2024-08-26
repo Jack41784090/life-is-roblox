@@ -1,5 +1,5 @@
 import Roact, { Portal } from "@rbxts/roact";
-import { TweenService, UserInputService } from "@rbxts/services";
+import { Players, TweenService, UserInputService } from "@rbxts/services";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
@@ -50,8 +50,19 @@ export default class BattleGUI {
     private constructor(battle: Battle) {
         BattleGUI.battleInstance = battle;
         this.readinessIconMap = this.initializeReadinessIcons(battle);
-        print(this.readinessIconMap);
         this.ui = this.mountInitialUI();
+
+        const mouse = Players.LocalPlayer.GetMouse();
+        mouse.Button1Down.Connect(() => {
+            const target = mouse.Target;
+            const ancestor = target?.FindFirstAncestorOfClass('Model');
+            if (ancestor) {
+                const entity = battle.getEntityFromModel(ancestor);
+                if (entity?.cell) {
+                    this.showActionDropdown(entity.cell);
+                }
+            }
+        })
     }
 
     //#region UI Methods
@@ -181,10 +192,8 @@ export default class BattleGUI {
             {battle.grid.cells.map((c) => (
                 <CellSurfaceElement
                     cell={c}
-                    onEnter={() => currentPath = this.handleCellEnter(c)}
-                    onclick={() => {
-                        if (currentPath) this.handleCellClick(c, currentPath);
-                    }}
+                    onEnter={() => this.handleCellEnter(c)}
+                    onclick={() => this.handleCellClick(c)}
                 />
             ))}
         </frame>;
@@ -193,37 +202,63 @@ export default class BattleGUI {
     // Handle cell hover (enter) event
     private handleCellEnter(cell: Cell) {
         const battle = this.igetBattle();
-        if (!battle?.currentRound) return;
+        if (!battle?.currentRound?.entity.cell) return;
 
         const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
-        const path = Pathfinding.Start({
+        const pf = Pathfinding.Start({
             grid: battle.grid,
-            start: battle.currentRound.entity.cell!.xy,
+            start: battle.currentRound.entity.cell.xy,
             dest: cell.xy,
             limit: lim,
         });
+        const path = pf.fullPath;
 
-        const entity = battle.currentRound.entity;
-        const readinessAfterMove = (entity.pos - (path.fullPath.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
-        this.updateSpecificReadinessIcon(entity.playerID, readinessAfterMove);
-
-        return this.glowAlongPath(path.fullPath);
+        if (!cell.entity) {
+            const currentEntity = battle.currentRound.entity;
+            const readinessAfterMove = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
+            this.updateSpecificReadinessIcon(currentEntity.playerID, readinessAfterMove);
+        }
+        return this.glowAlongPath(path);
     }
 
     // Handle cell click event
-    private handleCellClick(cell: Cell, path: Vector2[]) {
+    private handleCellClick(cell: Cell) {
+        this.exitMovement();
+        if (cell.isVacant()) {
+            this.clickedOnEmptyCell(cell);
+        }
+        else {
+            this.showActionDropdown(cell);
+        }
+    }
+
+    private clickedOnEmptyCell(cell: Cell) {
         const battle = this.igetBattle();
-        if (!(battle?.currentRound)) return;
+        if (!battle?.currentRound?.entity.cell) return;
+
+        const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
+        const pf = Pathfinding.Start({
+            grid: battle.grid,
+            start: battle.currentRound.entity.cell.xy,
+            dest: cell.xy,
+            limit: lim,
+        });
+        const path = pf.fullPath;
 
         const cr = battle.currentRound!;
-        const entity = cr.entity;
-        this.exitMovement();
-        entity.moveToCell(cell, path).then(() => {
+        const currentEntity = cr.entity;
+        currentEntity.moveToCell(cell, path).then(() => {
             if (this.glowPath) Roact.unmount(this.glowPath);
-
-            // this.tweenToUpdateReadiness();
-            cr.resolve(entity);
+            cr.resolve(currentEntity);
         });
+    }
+
+
+    // Show action dropdown for the entity
+    private showActionDropdown(cell: Cell) {
+        const targetEntity = cell.entity;
+        if (!targetEntity) return;
+        print("Showing action dropdown for entity", targetEntity);
     }
 
     // Highlight the cells along a path

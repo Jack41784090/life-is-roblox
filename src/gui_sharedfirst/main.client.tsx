@@ -80,8 +80,8 @@ function enterPlayground() {
 function enterBattle() {
     const battle = Battle.Create({
         size: 4,
-        width: 15,
-        height: 15,
+        width: 5,
+        height: 5,
         camera: game.Workspace.CurrentCamera!,
         center: new Vector2(100, 100),
         teamMap: {

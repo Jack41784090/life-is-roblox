@@ -1,5 +1,4 @@
 import Roact from "@rbxts/roact";
-import { TweenService } from "@rbxts/services";
 import Cell from "shared/class/Cell";
 import { getPlayer } from "shared/func";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
@@ -20,19 +19,6 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
         this.buttonRef = Roact.createRef<TextButton>();
     }
 
-    private tweenColor(targetColor: Color3, transparency: number, size: UDim2 = new UDim2(1, 0, 1, 0)) {
-        const button = this.buttonRef.getValue();
-        if (button) {
-            const tweenInfo = new TweenInfo(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
-            const tween = TweenService.Create(button, tweenInfo, {
-                BackgroundColor3: targetColor,
-                BackgroundTransparency: transparency,
-                Size: size,
-            });
-            tween.Play();
-        }
-    }
-
     render() {
         if (!playerGUI) {
             return undefined;
@@ -42,7 +28,7 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
                 Key={this.props.cell.part.Name}
                 Adornee={this.props.cell.part}
                 Face={"Top"}
-                AlwaysOnTop={true}
+                AlwaysOnTop={this.props.cell.isVacant()}
             >
                 <textbutton
                     Ref={this.buttonRef}
