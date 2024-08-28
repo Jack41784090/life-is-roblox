@@ -18,24 +18,27 @@ const numberOfAssets = assets.size();
 let loadedAssets = 0;  // Track the number of assets loaded
 
 // Function to update the loading screen
+let loadingScreen: Roact.Tree | undefined;
 function updateLoadingScreen(loadedAssets: number) {
-    Roact.update(
-        loadingScreen,
-        <MenuFrameElement transparency={0} zIndex={5}>
-            <TitleElement text={`Loading ${loadedAssets}/${numberOfAssets} Assets...`} />
-        </MenuFrameElement>
-    );
+    if (loadingScreen) {
+        Roact.update(
+            loadingScreen,
+            <MenuFrameElement transparency={0} zIndex={5}>
+                <TitleElement text={`Loading ${loadedAssets}/${numberOfAssets} Assets...`} />
+            </MenuFrameElement>
+        );
+    }
+    else {
+        loadingScreen = Roact.mount(
+            <MenuFrameElement transparency={0}>
+                <TitleElement text={`Loading 0/${numberOfAssets} Assets...`} />
+            </MenuFrameElement>
+        );
+    }
 }
 
-// Initial loading screen mount
-const loadingScreen = Roact.mount(
-    <MenuFrameElement transparency={0}>
-        <TitleElement text={`Loading 0/${numberOfAssets} Assets...`} />
-    </MenuFrameElement>,
-    playerGui // Mounting the UI in PlayerGui
-);
-
 // Preload assets and update the loading screen title
+const threads: thread[] = [];
 print("Preloading assets");
 for (let i = 0; i < numberOfAssets; i++) {
     const thread = task.spawn(() => {
@@ -44,6 +47,7 @@ for (let i = 0; i < numberOfAssets; i++) {
         loadedAssets += 1;
         updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
     })
+    threads.push(thread);
 }
 
 // Wait for all assets to be preloaded
@@ -51,7 +55,7 @@ while (loadedAssets < numberOfAssets) wait();
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
-Roact.unmount(loadingScreen);
+Roact.unmount(loadingScreen!);
 //#endregion
 
 //#region 2. MAIN MENU
