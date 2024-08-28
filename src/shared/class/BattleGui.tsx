@@ -91,21 +91,26 @@ export default class BattleGUI {
             return;
         }
         this.exitMovement();
-        b.setCameraToLookAtModel(b.currentRound.entity.model);
+        b.camera.setCameraToLookAtModel(b.currentRound.entity.model);
         this.showEntityActionOptions(b.currentRound.entity);
     }
 
     // Display entity action options and handle the chosen action
-    showEntityActionOptions(entity: Entity, callback?: (action: EntityActionOptions) => void) {
-        this.actionMenuCallback = callback ?? this.actionMenuCallback;
-
-        const actions = entity.getActions();
+    showEntityActionOptions(entity: Entity) {
+        const actions = [
+            {
+                type: ActionType.Move,
+                action: () => {
+                    this.enterMovement();
+                },
+            },
+        ]
         const actionOptions = actions.map((action, index) => (
             <ButtonElement
                 Key={index}
                 position={index / actions.size()}
                 size={1 / actions.size()}
-                onclick={() => this.handleActionClick(action.action, action.type, actionsUI, this.actionMenuCallback)}
+                onclick={() => this.handleActionClick(action.action, action.type, actionsUI)}
                 text={action.type}
                 transparency={0.9}
             />
@@ -121,22 +126,18 @@ export default class BattleGUI {
     }
 
     // Handle click on an action button
-    private handleActionClick(action: () => void, t: ActionType, ui: Roact.Tree, callback?: (action: EntityActionOptions) => void) {
+    private handleActionClick(
+        action: () => void, actionType: ActionType, actionsUI: Roact.Tree,
+    ) {
         action();
-        if (callback) {
-            callback({
-                type: t,
-                ui: ui,
-            });
-        }
     }
 
     // Enter movement mode and display sensitive cells
     enterMovement() {
         if (!this.igetBattle()) return;
+        this.igetBattle().camera.setCameraToHOI4();
         this.escapeScript?.Disconnect();
         this.escapeScript = UserInputService.InputBegan.Connect((i, gpe) => {
-            // print(i, gpe)
             if (i.KeyCode === Enum.KeyCode.X && !gpe) {
                 this.returnToSelections();
             }
