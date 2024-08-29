@@ -1,10 +1,10 @@
 import Roact, { Portal } from "@rbxts/roact";
-import { Players, RunService } from "@rbxts/services";
+import { Players, RunService, UserInputService } from "@rbxts/services";
 import BattleCamera from "shared/class/BattleCamera";
 import { getMouseWorldPosition } from "shared/func";
 
 export interface BattleDDProps {
-    options: string[];
+    options: ReadonlyArray<string>;
     battleCamera: BattleCamera;
 }
 
@@ -18,6 +18,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     private worldPosition?: Vector3;
     private dropDownFrame: Roact.Ref<Frame>;
     private panScript?: RBXScriptConnection;
+    private debounce = false;
 
     constructor(props: BattleDDProps) {
         super(props);
@@ -49,6 +50,14 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
 
     protected willUnmount(): void {
         this.panScript?.Disconnect();
+        UserInputService.InputBegan.Disconnect();
+    }
+
+    private debounceToggleDropdown() {
+        if (this.debounce) return;
+        this.debounce = true;
+        this.toggleDropdown();
+        task.delay(0.3, () => (this.debounce = false)); // Debounce delay of 0.3 seconds
     }
 
     private toggleDropdown() {
@@ -65,7 +74,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
                 true,
                 () => {
                     if (!isAlreadyOpen) {
-                        this.setState({ isOpen: true });
+                        this.setState({ isOpen: true }, () => this.setupOutsideClickListener());
                     } else {
                         this.setState({ isOpen: false });
                     }
@@ -74,15 +83,24 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
         }
     }
 
+    private setupOutsideClickListener() {
+        UserInputService.InputBegan.Connect((input) => {
+            const ddFrame = this.dropDownFrame.getValue();
+            if (ddFrame && !ddFrame.IsAncestorOf(input.UserInputState === Enum.UserInputState.Begin)) {
+                this.setState({ isOpen: false });
+            }
+        });
+    }
+
     private handleOptionClick(option: string) {
         this.setState({
             selectedOption: option,
         });
-        this.toggleDropdown();
+        this.debounceToggleDropdown();
     }
 
     private handleToggleClick() {
-        this.toggleDropdown();
+        this.debounceToggleDropdown();
     }
 
     render() {
