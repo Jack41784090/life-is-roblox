@@ -6,8 +6,9 @@ export default class BattleCamera {
     battle: Battle;
 
     // Camera-Related Information
-    HOI4PanSpeed = 0.6;
-    angle = 0;
+    static HOI4_PAN_SPEED = 0.6;
+    static CHAR_ANGLE = 0;
+
     center: Vector2;
     size: number;
     camera: Camera;
@@ -20,10 +21,9 @@ export default class BattleCamera {
         this.battle = battle;
     }
 
-    //#region Camera Work
     static readonly EDGE_BUFFER = 0.15;
 
-    private detectEdgeMovement(): Vector2 {
+    detectEdgeMovement(): Vector2 {
         const mousePosition = UserInputService.GetMouseLocation();
         const screenSize = this.camera.ViewportSize;
 
@@ -47,7 +47,6 @@ export default class BattleCamera {
             gridDelta = gridDelta.add(new Vector2(0, -percentage));
         }
         return gridDelta;
-
     }
 
     setCameraToHOI4(camera?: Camera, gridFocal?: Vector2) {
@@ -68,6 +67,25 @@ export default class BattleCamera {
             // Update the camera position based on the calculated delta
             this.updateHOI4CameraPosition(this.detectEdgeMovement());
         });
+    }
+    private updateHOI4CameraPosition(gridDelta: Vector2) {
+        // WARNING: grid x = camera z, grid y = camera x
+        const camera = this.camera ?? Workspace.CurrentCamera;
+        if (!camera) {
+            warn("Camera not found!");
+            return;
+        }
+
+        const cameraCFrame = camera.CFrame;
+        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * BattleCamera.HOI4_PAN_SPEED, 0, gridDelta.X * BattleCamera.HOI4_PAN_SPEED));
+
+        // Ensure the camera stays within the grid bounds
+        const clampedX = math.clamp(cameraPosition.X, this.battle.gridMin.Y, this.battle.gridMax.Y);
+        const clampedZ = math.clamp(cameraPosition.Z, this.battle.gridMin.X, this.battle.gridMax.X);
+
+        camera.CFrame = new CFrame(
+            new Vector3(clampedX, cameraPosition.Y, clampedZ),
+            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ)));
     }
     setCameraToLookAtModel(model: Model) {
         this.panService?.Disconnect();
@@ -102,7 +120,7 @@ export default class BattleCamera {
         const xDiff = cX - mX;
         const zDiff = cZ - mZ;
         const initAngle = math.atan2(zDiff, xDiff);
-        this.angle = initAngle;
+        BattleCamera.CHAR_ANGLE = initAngle;
         this.panService = RunService.RenderStepped.Connect((deltaTime) => {
             this.updateCharCenterCameraPosition(model, this.detectEdgeMovement(), deltaTime);
         });
@@ -137,36 +155,18 @@ export default class BattleCamera {
         // Calculate the current angle based on time for horizontal rotation
         const radius = math.sqrt((xDiff * xDiff) + (zDiff * zDiff));
         const rotationSpeed = math.rad(60 * math.sign(gridDelta.X) * (gridDelta.X ** 2) * deltaTime); // 30 degrees per second
-        this.angle += rotationSpeed;
+        BattleCamera.CHAR_ANGLE += rotationSpeed;
 
         // Calculate the new camera position
-        const offsetX = math.cos(this.angle) * radius;
-        const offsetZ = math.sin(this.angle) * radius;
+        const offsetX = math.cos(BattleCamera.CHAR_ANGLE) * radius;
+        const offsetZ = math.sin(BattleCamera.CHAR_ANGLE) * radius;
 
         const cameraPosition = model.PrimaryPart.Position.add(new Vector3(offsetX, yDiff, offsetZ));
 
         // Set the camera's CFrame to look at the model
         camera.CFrame = CFrame.lookAt(cameraPosition, model.PrimaryPart.Position)
     }
-    private updateHOI4CameraPosition(gridDelta: Vector2) {
-        // WARNING: grid x = camera z, grid y = camera x
-        const camera = this.camera ?? Workspace.CurrentCamera;
-        if (!camera) {
-            warn("Camera not found!");
-            return;
-        }
 
-        const cameraCFrame = camera.CFrame;
-        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * this.HOI4PanSpeed, 0, gridDelta.X * this.HOI4PanSpeed));
-
-        // Ensure the camera stays within the grid bounds
-        const clampedX = math.clamp(cameraPosition.X, this.battle.gridMin.Y, this.battle.gridMax.Y);
-        const clampedZ = math.clamp(cameraPosition.Z, this.battle.gridMin.X, this.battle.gridMax.X);
-
-        camera.CFrame = new CFrame(
-            new Vector3(clampedX, cameraPosition.Y, clampedZ),
-            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ)));
-    }
     private setCameraCFrame(pos: Vector3, lookAt: Vector3, camera?: Camera) {
         print(`Setting camera CFrame to ${pos}, looking at ${lookAt}`);
         const cam = camera ?? this.camera;
@@ -208,6 +208,4 @@ export default class BattleCamera {
             });
         });
     }
-    //#endregion
-
 }

@@ -150,6 +150,18 @@ export function gridXYToWorldXY(position: Vector2, grid: Grid) {
         (position.Y + grid.center.Y - math.floor(grid.widthheight.Y / 2)) * (grid.size))
 }
 
+// Function to get the world position from the mouse position
+export function getMouseWorldPosition(camera: Camera, mouse: Mouse): Vector3 | undefined {
+    const mousePosition = new Vector2(mouse.X, mouse.Y);
+    const ray = camera.ScreenPointToRay(mousePosition.X, mousePosition.Y);
+
+    // Optional: Use Raycast to find the exact intersection with the world
+    const raycastResult = Workspace.Raycast(ray.Origin, ray.Direction.mul(1000));
+    if (raycastResult) {
+        return raycastResult.Position; // Return the world position where the ray intersects an object
+    }
+}
+
 // export function attack(
 //     attacker: Entity | iEntity,
 //     target: Entity | iEntity,

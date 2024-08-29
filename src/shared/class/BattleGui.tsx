@@ -1,5 +1,6 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, TweenService, UserInputService } from "@rbxts/services";
+import BattleDD from "gui_sharedfirst/components/battle-dropdown";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
@@ -8,14 +9,14 @@ import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { getPlayer } from "shared/func";
-import { ActionType, EntityActionOptions } from "shared/types/battle-types";
 import { Battle } from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
 import Pathfinding from "./Pathfinding";
 
 export default class BattleGUI {
-    private actionMenuCallback: ((action: EntityActionOptions) => void) | undefined;
+    private dropDownMenuGui: Roact.Tree | undefined;
+    private mouseClickDDEvent: RBXScriptConnection | undefined;
     private escapeScript: RBXScriptConnection | undefined;
     private ui: Roact.Tree;
     private glowPath: Roact.Tree | undefined;
@@ -51,18 +52,6 @@ export default class BattleGUI {
         BattleGUI.battleInstance = battle;
         this.readinessIconMap = this.initializeReadinessIcons(battle);
         this.ui = this.mountInitialUI();
-
-        const mouse = Players.LocalPlayer.GetMouse();
-        mouse.Button1Down.Connect(() => {
-            const target = mouse.Target;
-            const ancestor = target?.FindFirstAncestorOfClass('Model');
-            if (ancestor) {
-                const entity = battle.getEntityFromModel(ancestor);
-                if (entity?.cell) {
-                    this.showActionDropdown(entity.cell);
-                }
-            }
-        })
     }
 
     //#region UI Methods
@@ -91,26 +80,21 @@ export default class BattleGUI {
             return;
         }
         this.exitMovement();
-        b.camera.setCameraToLookAtModel(b.currentRound.entity.model);
+        b.bcamera.setCameraToLookAtModel(b.currentRound.entity.model);
         this.showEntityActionOptions(b.currentRound.entity);
     }
 
     // Display entity action options and handle the chosen action
     showEntityActionOptions(entity: Entity) {
-        const actions = [
-            {
-                type: ActionType.Move,
-                action: () => {
-                    this.enterMovement();
-                },
-            },
-        ]
+        const actions = this.igetBattle().getActions();
         const actionOptions = actions.map((action, index) => (
             <ButtonElement
                 Key={index}
                 position={index / actions.size()}
                 size={1 / actions.size()}
-                onclick={() => this.handleActionClick(action.action, action.type, actionsUI)}
+                onclick={() => {
+                    action.run(actionsUI)
+                }}
                 text={action.type}
                 transparency={0.9}
             />
@@ -125,29 +109,39 @@ export default class BattleGUI {
         );
     }
 
-    // Handle click on an action button
-    private handleActionClick(
-        action: () => void, actionType: ActionType, actionsUI: Roact.Tree,
-    ) {
-        action();
-    }
-
     // Enter movement mode and display sensitive cells
     enterMovement() {
-        if (!this.igetBattle()) return;
-        this.igetBattle().camera.setCameraToHOI4();
+        print("Entering movement mode");
+        const b = this.igetBattle();
+        if (!b) return;
+        b.bcamera.setCameraToHOI4();
         this.escapeScript?.Disconnect();
         this.escapeScript = UserInputService.InputBegan.Connect((i, gpe) => {
             if (i.KeyCode === Enum.KeyCode.X && !gpe) {
                 this.returnToSelections();
             }
         })
+
+        const mouse = Players.LocalPlayer.GetMouse();
+        this.mouseClickDDEvent?.Disconnect();
+        this.mouseClickDDEvent = mouse.Button1Down.Connect(() => {
+            const target = mouse.Target;
+            const ancestor = target?.FindFirstAncestorOfClass('Model');
+            if (ancestor) {
+                const entity = this.igetBattle().getEntityFromModel(ancestor);
+                if (entity?.cell) {
+                    this.showActionDropdown(entity.cell);
+                }
+            }
+        })
+
         Roact.update(this.ui, this.renderWithSensitiveCells());
     }
 
     // Exit movement mode and reset UI
     exitMovement() {
-        if (!this.igetBattle() || !this.igetBattle().currentRound) {
+        print("Exiting movement mode");
+        if (!this.igetBattle()?.currentRound) {
             warn("No battle or current round");
             return;
         }
@@ -156,6 +150,11 @@ export default class BattleGUI {
             this.glowPath = undefined
         };
         this.escapeScript?.Disconnect();
+        this.mouseClickDDEvent?.Disconnect();
+        if (this.dropDownMenuGui) {
+            Roact.unmount(this.dropDownMenuGui);
+            this.dropDownMenuGui = undefined
+        }
         Roact.update(this.ui, this.renderWithReadinessBar());
     }
     //#endregion
@@ -187,8 +186,6 @@ export default class BattleGUI {
     private generateSensitiveCells() {
         const battle = this.igetBattle();
         if (!battle) return;
-
-        let currentPath: Vector2[] | undefined;
         return <frame>
             {battle.grid.cells.map((c) => (
                 <CellSurfaceElement
@@ -214,11 +211,9 @@ export default class BattleGUI {
         });
         const path = pf.fullPath;
 
-        if (!cell.entity) {
-            const currentEntity = battle.currentRound.entity;
-            const readinessAfterMove = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
-            this.updateSpecificReadinessIcon(currentEntity.playerID, readinessAfterMove);
-        }
+        const currentEntity = battle.currentRound.entity;
+        const readinessAfterMove = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
+        this.updateSpecificReadinessIcon(currentEntity.playerID, readinessAfterMove);
         return this.glowAlongPath(path);
     }
 
@@ -254,12 +249,33 @@ export default class BattleGUI {
         });
     }
 
-
     // Show action dropdown for the entity
     private showActionDropdown(cell: Cell) {
+        print("Showing action dropdown");
         const targetEntity = cell.entity;
-        if (!targetEntity) return;
-        print("Showing action dropdown for entity", targetEntity);
+        if (!targetEntity) {
+            warn("No target entity found");
+            return;
+        }
+        if (this.dropDownMenuGui) {
+            Roact.update(
+                this.dropDownMenuGui,
+                <BattleDD
+                    battleCamera={this.igetBattle().bcamera}
+                    options={["Attack", "Defend", "Move"]}
+                // mousePosition={UserInputService.GetMouseLocation()}
+                />
+            )
+        }
+        else {
+            this.dropDownMenuGui = Roact.mount(
+                <BattleDD
+                    battleCamera={this.igetBattle().bcamera}
+                    options={["Attack", "Defend", "Move"]}
+                // mousePosition={UserInputService.GetMouseLocation()}
+                />,
+            )
+        }
     }
 
     // Highlight the cells along a path

@@ -1,8 +1,10 @@
+import Roact from "@rbxts/roact";
 import { ReplicatedStorage } from "@rbxts/services";
 import { getDummyStats } from "shared/func";
-import { BattleConfig, BotType, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, BattleConfig, BotType, ReadinessIcon } from "shared/types/battle-types";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
+import Cell from "./Cell";
 import Entity from "./Entity";
 import Grid from "./Grid";
 
@@ -24,7 +26,7 @@ export class BattleTeam {
 }
 
 export class Battle {
-    camera: BattleCamera;
+    bcamera: BattleCamera;
 
     openBattleGUIEvent: BindableEvent = ReplicatedStorage.WaitForChild("OpenBattleGUI") as BindableEvent;
     updateBattleGUIEvent: BindableEvent = ReplicatedStorage.WaitForChild("UpdateBattleGUI") as BindableEvent;
@@ -75,7 +77,7 @@ export class Battle {
         const camera_centery = math.floor(center.Y) * size;
         this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
         this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
-        this.camera = new BattleCamera(center, size, camera, this);
+        this.bcamera = new BattleCamera(center, size, camera, this);
         this.grid = new Grid(new Vector2(width, height), center, size);
     }
 
@@ -85,7 +87,7 @@ export class Battle {
     }
 
     private initializeCamera(camera?: Camera) {
-        this.camera.setCameraToHOI4(camera);
+        this.bcamera.setCameraToHOI4(camera);
     }
 
     private initializeTeams(teamMap: Record<string, Player[]>) {
@@ -117,10 +119,15 @@ export class Battle {
     private spawn() {
         for (const team of this.teams) {
             for (const entity of team.members) {
-                const cell = entity.cell ?? this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-                entity.setCell(cell);
-                print(`Spawning ${entity.name}[${team.name}] at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
+                let randomCell: Cell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+                while (randomCell.entity) randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+
+                if (!entity.cell) {
+                    entity.setCell(randomCell);
+                }
                 entity.materialise();
+
+                print(`Spawning ${entity.name}[${team.name}] at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
             }
         }
     }
@@ -152,7 +159,7 @@ export class Battle {
         }
 
         // Focus the camera on the model
-        await this.camera.setCameraToLookAtModel(model);
+        await this.bcamera.setCameraToLookAtModel(model);
 
         // Handle the current round's actions
         const chosenActions = await this.handleRoundActions(w);
@@ -169,7 +176,7 @@ export class Battle {
     }
 
     private async resetCameraAndRestartRound() {
-        await this.camera.setCameraToHOI4();
+        await this.bcamera.setCameraToHOI4();
         this.round(); // Restart the round
     }
 
@@ -181,6 +188,18 @@ export class Battle {
             };
             this.gui?.showEntityActionOptions(w);
         });
+    }
+
+    getActions() {
+        return [
+            {
+                type: ActionType.Move,
+                run: (tree: Roact.Tree) => {
+                    Roact.unmount(tree);
+                    this.gui?.enterMovement();
+                },
+            },
+        ];
     }
 
     private finalizeRound() {
