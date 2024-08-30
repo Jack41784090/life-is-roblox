@@ -16,11 +16,14 @@ import Pathfinding from "./Pathfinding";
 
 export default class BattleGUI {
     private dropDownMenuGui: Roact.Tree | undefined;
+    private mainGui: Roact.Tree;
+    private glowPathGui: Roact.Tree | undefined;
+
     private mouseClickDDEvent: RBXScriptConnection | undefined;
     private escapeScript: RBXScriptConnection | undefined;
-    private ui: Roact.Tree;
-    private glowPath: Roact.Tree | undefined;
+
     private readinessIconMap: Map<number, Roact.Ref<Frame>>;
+
     private static battleInstance: Battle;
     private static instance: BattleGUI;
 
@@ -50,13 +53,13 @@ export default class BattleGUI {
     // Private constructor to prevent direct instantiation
     private constructor(battle: Battle) {
         BattleGUI.battleInstance = battle;
-        this.readinessIconMap = this.initializeReadinessIcons(battle);
-        this.ui = this.mountInitialUI();
+        this.readinessIconMap = this.initializeReadinessIconFrameRefs(battle);
+        this.mainGui = this.mountInitialUI();
     }
 
     //#region UI Methods
     // Initialize readiness icons with references
-    private initializeReadinessIcons(battle: Battle): Map<number, Roact.Ref<Frame>> {
+    private initializeReadinessIconFrameRefs(battle: Battle): Map<number, Roact.Ref<Frame>> {
         const readinessIcons = battle.getReadinessIcons();
         return new Map(readinessIcons.map((icon) => {
             const ref = Roact.createRef<Frame>();
@@ -67,7 +70,7 @@ export default class BattleGUI {
     // Mount the initial UI with readiness bar
     private mountInitialUI(): Roact.Tree {
         return Roact.mount(
-            <MenuFrameElement transparency={1}>
+            <MenuFrameElement Key={`BattleUI`} transparency={1}>
                 <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
             </MenuFrameElement>
         );
@@ -75,21 +78,22 @@ export default class BattleGUI {
 
     private returnToSelections() {
         const b = this.igetBattle();
-        if (!b.currentRound?.entity.model) {
-            warn("No entity model found");
-            return;
-        }
-        this.exitMovement();
-        b.bcamera.setCameraToLookAtModel(b.currentRound.entity.model);
-        this.showEntityActionOptions(b.currentRound.entity);
+        this.exitMovementUI();
+        b.bcamera.enterCharacterCenterMode().then(() => {
+            if (!b.currentRound?.entity?.model) {
+                warn("No entity model found");
+                return;
+            }
+            this.showEntityActionOptions(b.currentRound.entity);
+        })
     }
 
     // Display entity action options and handle the chosen action
     showEntityActionOptions(entity: Entity) {
-        const actions = this.igetBattle().getActions();
+        const actions = this.igetBattle().getActions(entity);
         const actionOptions = actions.map((action, index) => (
             <ButtonElement
-                Key={index}
+                Key={action.type}
                 position={index / actions.size()}
                 size={1 / actions.size()}
                 onclick={() => {
@@ -109,22 +113,21 @@ export default class BattleGUI {
         );
     }
 
-    // Enter movement mode and display sensitive cells
-    enterMovement() {
-        print("Entering movement mode");
-        const b = this.igetBattle();
-        if (!b) return;
-        b.bcamera.setCameraToHOI4();
+    // Handle the escape key press
+    setUpEscapeScript() {
         this.escapeScript?.Disconnect();
-        this.escapeScript = UserInputService.InputBegan.Connect((i, gpe) => {
+        return UserInputService.InputBegan.Connect((i, gpe) => {
             if (i.KeyCode === Enum.KeyCode.X && !gpe) {
                 this.returnToSelections();
             }
         })
+    }
 
+    // Set up the mouse click handler
+    private setupMouseClickHandler() {
         const mouse = Players.LocalPlayer.GetMouse();
         this.mouseClickDDEvent?.Disconnect();
-        this.mouseClickDDEvent = mouse.Button1Down.Connect(() => {
+        return mouse.Button1Down.Connect(() => {
             const target = mouse.Target;
             const ancestor = target?.FindFirstAncestorOfClass('Model');
             if (ancestor) {
@@ -133,29 +136,48 @@ export default class BattleGUI {
                     this.showActionDropdown(entity.cell);
                 }
             }
-        })
+        });
+    }
 
-        Roact.update(this.ui, this.renderWithSensitiveCells());
+    // Enter movement mode and display sensitive cells
+    enterMovement() {
+        print("Entering movement mode");
+        const b = this.igetBattle();
+        if (!b) return;
+
+        b.bcamera.enterHOI4Mode().then(() => {
+            this.escapeScript = this.setUpEscapeScript();
+            this.mouseClickDDEvent = this.setupMouseClickHandler();
+            Roact.update(this.mainGui, this.renderWithSensitiveCells());
+        });
     }
 
     // Exit movement mode and reset UI
-    exitMovement() {
+    exitMovementUI() {
         print("Exiting movement mode");
         if (!this.igetBattle()?.currentRound) {
             warn("No battle or current round");
             return;
         }
-        if (this.glowPath) {
-            Roact.unmount(this.glowPath)
-            this.glowPath = undefined
+
+        // 1. Remove the glow path
+        if (this.glowPathGui) {
+            Roact.unmount(this.glowPathGui)
+            this.glowPathGui = undefined
         };
+
+        // 2. Disconnect the escape script and mouse click event
         this.escapeScript?.Disconnect();
         this.mouseClickDDEvent?.Disconnect();
+
+        // 3. Remove the dropdown menu
         if (this.dropDownMenuGui) {
             Roact.unmount(this.dropDownMenuGui);
             this.dropDownMenuGui = undefined
         }
-        Roact.update(this.ui, this.renderWithReadinessBar());
+
+        // 4. Update the UI without the sensitive cells
+        Roact.update(this.mainGui, this.renderWithReadinessBar());
     }
     //#endregion
 
@@ -200,7 +222,7 @@ export default class BattleGUI {
     // Handle cell hover (enter) event
     private handleCellEnter(cell: Cell) {
         const battle = this.igetBattle();
-        if (!battle?.currentRound?.entity.cell) return;
+        if (!battle?.currentRound?.entity?.cell) return;
 
         const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
         const pf = Pathfinding.Start({
@@ -219,7 +241,7 @@ export default class BattleGUI {
 
     // Handle cell click event
     private handleCellClick(cell: Cell) {
-        this.exitMovement();
+        this.exitMovementUI();
         if (cell.isVacant()) {
             this.clickedOnEmptyCell(cell);
         }
@@ -230,7 +252,7 @@ export default class BattleGUI {
 
     private clickedOnEmptyCell(cell: Cell) {
         const battle = this.igetBattle();
-        if (!battle?.currentRound?.entity.cell) return;
+        if (!battle?.currentRound?.entity?.cell) return;
 
         const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
         const pf = Pathfinding.Start({
@@ -243,9 +265,9 @@ export default class BattleGUI {
 
         const cr = battle.currentRound!;
         const currentEntity = cr.entity;
-        currentEntity.moveToCell(cell, path).then(() => {
-            if (this.glowPath) Roact.unmount(this.glowPath);
-            cr.resolve(currentEntity);
+        currentEntity?.moveToCell(cell, path).then(() => {
+            if (this.glowPathGui) Roact.unmount(this.glowPathGui);
+            cr.endRoundResolve?.(currentEntity);
         });
     }
 
@@ -291,14 +313,14 @@ export default class BattleGUI {
             warn("No player GUI found");
             return;
         }
-        if (this.glowPath) {
-            Roact.update(this.glowPath,
+        if (this.glowPathGui) {
+            Roact.update(this.glowPathGui,
                 <Portal target={playerGUI}>
                     <frame>{elements}</frame>
                 </Portal>
             );
         } else {
-            this.glowPath = Roact.mount(
+            this.glowPathGui = Roact.mount(
                 <Portal target={playerGUI}>
                     <frame>{elements}</frame>
                 </Portal>);

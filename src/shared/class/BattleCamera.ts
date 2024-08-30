@@ -12,6 +12,8 @@ export default class BattleCamera {
     center: Vector2;
     size: number;
     camera: Camera;
+    mode: "HOI4" | "CHAR_CENTER" = "HOI4";
+    panningEnabled: boolean = true;
     panService: RBXScriptConnection | undefined;
 
     constructor(center: Vector2, size: number, camera: Camera, battle: Battle) {
@@ -19,9 +21,20 @@ export default class BattleCamera {
         this.size = size;
         this.camera = camera;
         this.battle = battle;
+        this.setupRenderStepped();
     }
 
     static readonly EDGE_BUFFER = 0.15;
+
+    private setupRenderStepped() {
+        // Manage a single RenderStepped connection for all camera panning
+        this.panService = RunService.RenderStepped.Connect((deltaTime) => {
+            if (this.panningEnabled) {
+                const gridDelta = this.detectEdgeMovement();
+                this.updateCameraPosition(gridDelta, deltaTime);
+            }
+        });
+    }
 
     detectEdgeMovement(): Vector2 {
         const mousePosition = UserInputService.GetMouseLocation();
@@ -46,30 +59,71 @@ export default class BattleCamera {
             const percentage = 1 - math.clamp((screenSize.Y - mousePosition.Y) / edgeBuffer_y, 0, 1);
             gridDelta = gridDelta.add(new Vector2(0, -percentage));
         }
+
         return gridDelta;
+
     }
 
-    setCameraToHOI4(camera?: Camera, gridFocal?: Vector2) {
-        print(`Grid Min: ${this.battle.gridMin}, Grid Max: ${this.battle.gridMax}`);
+    resetAngle(primPart: BasePart, camOriPart: BasePart) {
+        const mX = primPart.Position.X;
+        const mZ = primPart.Position.Z;
+        const cX = camOriPart.Position.X;
+        const cZ = camOriPart.Position.Z;
+        const xDiff = cX - mX;
+        const zDiff = cZ - mZ;
+        const initAngle = math.atan2(zDiff, xDiff);
+        BattleCamera.CHAR_ANGLE = initAngle;
+    }
+
+    async enterHOI4Mode(gridFocal?: Vector2) {
+        print('Setting up HOI4 Camera Pan');
+        this.panningEnabled = false;
         const center = gridFocal ?
             new Vector2(gridXYToWorldXY(gridFocal, this.battle.grid).X, gridXYToWorldXY(gridFocal, this.battle.grid).Z) :
             new Vector2(math.floor(this.center.X) * this.size, math.floor(this.center.Y) * this.size);
-        if (camera) this.camera = camera;
-        this.setUpHOI4CameraPan();
-        return this.setCameraCFrame(
-            new Vector3(center.X, this.size * 5, center.Y),
-            new Vector3(center.X, 0, center.Y))
-    }
-    private setUpHOI4CameraPan() {
-        print('Setting up HOI4 Camera Pan');
-        this.panService?.Disconnect();
-        this.panService = RunService.RenderStepped.Connect(() => {
-            // Update the camera position based on the calculated delta
-            this.updateHOI4CameraPosition(this.detectEdgeMovement());
+
+        const x1 = new Vector3(center.X, this.size * 5, center.Y);
+        const x2 = new Vector3(center.X, 0, center.Y);
+        const lookAtCframe = new CFrame(x1, x2);
+        return this.setCameraCFrame(lookAtCframe).then(() => {
+            this.mode = "HOI4";
+            this.panningEnabled = true
         });
     }
+
+    async enterCharacterCenterMode() {
+        print('Setting up Character Center Camera Pan');
+        this.panningEnabled = false;
+        const model = this.battle.currentRound?.entity?.model;
+        const primPart = model?.PrimaryPart;
+        const camOriPart = this.battle.currentRound?.entity?.model?.FindFirstChild("cam-ori") as BasePart;
+        if (!primPart || !camOriPart) {
+            warn("Primary Part or Camera Orientation Part not found!", primPart, camOriPart);
+            return;
+        }
+
+        this.resetAngle(primPart, camOriPart);
+        return model ?
+            this.goToModelCam(model).then(() => {
+                this.mode = "CHAR_CENTER";
+                this.panningEnabled = true;
+            }) :
+            Promise.resolve();
+    }
+
+    private updateCameraPosition(gridDelta: Vector2, deltaTime: number) {
+        // Determine which camera mode is active and update accordingly
+        switch (this.mode) {
+            case "HOI4":
+                this.updateHOI4CameraPosition(gridDelta);
+                break;
+            case "CHAR_CENTER":
+                this.updateCharCenterCameraPosition(gridDelta, deltaTime);
+                break;
+        }
+    }
+
     private updateHOI4CameraPosition(gridDelta: Vector2) {
-        // WARNING: grid x = camera z, grid y = camera x
         const camera = this.camera ?? Workspace.CurrentCamera;
         if (!camera) {
             warn("Camera not found!");
@@ -85,60 +139,24 @@ export default class BattleCamera {
 
         camera.CFrame = new CFrame(
             new Vector3(clampedX, cameraPosition.Y, clampedZ),
-            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ)));
+            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ))
+        );
     }
-    setCameraToLookAtModel(model: Model) {
-        this.panService?.Disconnect();
-        return this.goToModelCam(model).then(() => {
-            this.setUpCharCenterCameraPan(model);
-        });
-    }
-    private setUpCharCenterCameraPan(model: Model) {
-        print('Setting up Character Center Camera Pan');
-        this.panService?.Disconnect();
 
-        const camOriPart = model.WaitForChild("cam-ori") as BasePart | undefined;
-        if (!model.PrimaryPart) {
-            warn("Model has no PrimaryPart!");
-            return;
-        }
-        else if (!camOriPart) {
-            warn("Model has no cam-ori part!");
+    private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
+        // Assume model is available and valid (add proper checks in production code)
+        const model = this.battle.currentRound?.entity?.model;
+        if (model?.PrimaryPart === undefined) {
+            warn("Model not found!");
             return;
         }
 
-        const camera = this.camera ?? Workspace.CurrentCamera;
-        if (!camera) {
-            warn("Camera not found!");
-            return;
-        }
+        const camOriPart = model.WaitForChild("cam-ori") as BasePart;
+        const primaryPart = model.PrimaryPart;
 
-        const mX = model.PrimaryPart.Position.X;
-        const mZ = model.PrimaryPart.Position.Z;
-        const cX = camOriPart.Position.X;
-        const cZ = camOriPart.Position.Z;
-        const xDiff = cX - mX;
-        const zDiff = cZ - mZ;
-        const initAngle = math.atan2(zDiff, xDiff);
-        BattleCamera.CHAR_ANGLE = initAngle;
-        this.panService = RunService.RenderStepped.Connect((deltaTime) => {
-            this.updateCharCenterCameraPosition(model, this.detectEdgeMovement(), deltaTime);
-        });
-    }
-    private updateCharCenterCameraPosition(model: Model, gridDelta: Vector2, deltaTime: number) {
-        const camOriPart = model.WaitForChild("cam-ori") as BasePart | undefined;
-        if (!model.PrimaryPart) {
-            warn("Model has no PrimaryPart!");
-            return;
-        }
-        else if (!camOriPart) {
-            warn("Model has no cam-ori part!");
-            return;
-        }
-
-        const mX = model.PrimaryPart.Position.X;
-        const mZ = model.PrimaryPart.Position.Z;
-        const mY = model.PrimaryPart.Position.Y;
+        const mX = primaryPart.Position.X;
+        const mZ = primaryPart.Position.Z;
+        const mY = primaryPart.Position.Y;
         const cX = camOriPart.Position.X;
         const cZ = camOriPart.Position.Z;
         const cY = camOriPart.Position.Y;
@@ -152,60 +170,35 @@ export default class BattleCamera {
             return;
         }
 
-        // Calculate the current angle based on time for horizontal rotation
         const radius = math.sqrt((xDiff * xDiff) + (zDiff * zDiff));
         const rotationSpeed = math.rad(60 * math.sign(gridDelta.X) * (gridDelta.X ** 2) * deltaTime); // 30 degrees per second
         BattleCamera.CHAR_ANGLE += rotationSpeed;
 
-        // Calculate the new camera position
         const offsetX = math.cos(BattleCamera.CHAR_ANGLE) * radius;
         const offsetZ = math.sin(BattleCamera.CHAR_ANGLE) * radius;
 
         const cameraPosition = model.PrimaryPart.Position.add(new Vector3(offsetX, yDiff, offsetZ));
 
-        // Set the camera's CFrame to look at the model
-        camera.CFrame = CFrame.lookAt(cameraPosition, model.PrimaryPart.Position)
+        camera.CFrame = CFrame.lookAt(cameraPosition, model.PrimaryPart.Position);
     }
 
-    private setCameraCFrame(pos: Vector3, lookAt: Vector3, camera?: Camera) {
-        print(`Setting camera CFrame to ${pos}, looking at ${lookAt}`);
-        const cam = camera ?? this.camera;
-        const lookAT = new CFrame(pos, lookAt);
+    private setCameraCFrame(cFrame: CFrame, tweenInfo?: TweenInfo) {
+        const cam = this.camera;
         cam.CameraType = Enum.CameraType.Scriptable;
         const tween = getTween(
             cam,
-            new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-            { CFrame: lookAT });
-        return new Promise((resolve) => {
+            tweenInfo ?? new TweenInfo(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
+            { CFrame: cFrame }
+        );
+        return new Promise<void>((resolve) => {
             tween.Play();
-            tween.Completed.Connect(() => {
-                resolve(void 0)
-            });
+            tween.Completed.Wait();
+            resolve();
         });
     }
+
     private goToModelCam(model: Model) {
         const cam_ori = model.WaitForChild("cam-ori") as BasePart;
-        const tween = getTween(
-            this.camera,
-            new TweenInfo(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-            { CFrame: cam_ori.CFrame });
-        tween.Play();
-        return new Promise((resolve) => {
-            tween.Completed.Connect(() => {
-                const mX = model.PrimaryPart!.CFrame.X;
-                const mZ = model.PrimaryPart!.CFrame.Z;
-                const mY = model.PrimaryPart!.CFrame.Y;
-                const cX = this.camera.CFrame.X;
-                const cZ = this.camera.CFrame.Z;
-                const cY = this.camera.CFrame.Y;
-
-                const xDiff = mX - cX;
-                const zDiff = mZ - cZ;
-
-                const radius = math.sqrt(xDiff ^ 2 + zDiff ^ 2); // Distance from the model's position
-                print(`Distance between: ${radius}`);
-                resolve(void 0)
-            });
-        });
+        return this.setCameraCFrame(cam_ori.CFrame);
     }
 }

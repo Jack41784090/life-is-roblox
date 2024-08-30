@@ -34,8 +34,8 @@ export class Battle {
 
     //
     currentRound: {
-        entity: Entity,
-        resolve: (value: unknown) => void,
+        entity?: Entity,
+        endRoundResolve?: (value: unknown) => void,
     } | undefined;
 
     // Entity-Related Information
@@ -86,8 +86,8 @@ export class Battle {
         this.grid.materialise();
     }
 
-    private initializeCamera(camera?: Camera) {
-        this.bcamera.setCameraToHOI4(camera);
+    private initializeCamera() {
+        this.bcamera.enterHOI4Mode();
     }
 
     private initializeTeams(teamMap: Record<string, Player[]>) {
@@ -150,16 +150,18 @@ export class Battle {
 
         // Run the readiness gauntlet and get the next model to act
         const w = await this.runReadinessGauntlet();
-        const model = w?.model;
-
-        // If no model is returned, reset the camera and restart the round
-        if (!model) {
-            await this.resetCameraAndRestartRound();
+        if (!w) {
+            this.resetCameraAndRestartRound();
             return;
         }
 
+        this.currentRound = {
+            entity: w,
+            endRoundResolve: () => { },
+        };
+
         // Focus the camera on the model
-        await this.bcamera.setCameraToLookAtModel(model);
+        await this.bcamera.enterCharacterCenterMode();
 
         // Handle the current round's actions
         const chosenActions = await this.handleRoundActions(w);
@@ -176,21 +178,18 @@ export class Battle {
     }
 
     private async resetCameraAndRestartRound() {
-        await this.bcamera.setCameraToHOI4();
+        await this.bcamera.enterHOI4Mode();
         this.round(); // Restart the round
     }
 
     private async handleRoundActions(w: Entity) {
         return new Promise((resolve) => {
-            this.currentRound = {
-                entity: w,
-                resolve: resolve
-            };
+            (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
             this.gui?.showEntityActionOptions(w);
         });
     }
 
-    getActions() {
+    getActions(e: Entity) {
         return [
             {
                 type: ActionType.Move,
