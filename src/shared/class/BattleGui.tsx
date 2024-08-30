@@ -8,7 +8,7 @@ import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
-import { getPlayer } from "shared/func";
+import { getMouseWorldPosition, getPlayer } from "shared/func";
 import { Battle } from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
@@ -258,13 +258,13 @@ export default class BattleGUI {
             return;
         }
         if (this.dropDownMenuGui) {
-            Roact.update(
-                this.dropDownMenuGui,
+            Roact.unmount(this.dropDownMenuGui);
+            this.dropDownMenuGui = Roact.mount(
                 <BattleDD
                     battleCamera={this.igetBattle().bcamera}
                     options={["Attack", "Defend", "Move"]}
-                // mousePosition={UserInputService.GetMouseLocation()}
-                />
+                    raycast={getMouseWorldPosition(this.igetBattle().bcamera.camera, Players.LocalPlayer.GetMouse())}
+                />,
             )
         }
         else {
@@ -272,7 +272,6 @@ export default class BattleGUI {
                 <BattleDD
                     battleCamera={this.igetBattle().bcamera}
                     options={["Attack", "Defend", "Move"]}
-                // mousePosition={UserInputService.GetMouseLocation()}
                 />,
             )
         }
