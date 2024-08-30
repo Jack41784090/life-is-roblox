@@ -6,7 +6,6 @@ import { getMouseWorldPosition } from "shared/func";
 export interface BattleDDProps {
     options: ReadonlyArray<string>;
     battleCamera: BattleCamera;
-    raycast?: Vector3;
 }
 
 interface BattleDDState {
@@ -38,10 +37,9 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     }
 
     private initializeWorldPosition() {
-        const rayCastVector = this.props.raycast ?? getMouseWorldPosition(this.props.battleCamera.camera, Players.LocalPlayer.GetMouse());
+        const rayCastVector = getMouseWorldPosition(this.props.battleCamera.camera, Players.LocalPlayer.GetMouse());
         if (!rayCastVector) return;
         this.setState({ worldPosition: rayCastVector });
-        print(this.state.worldPosition);
     }
 
     private connectPanScript() {
