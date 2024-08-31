@@ -1,11 +1,16 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, RunService, UserInputService } from "@rbxts/services";
 import BattleCamera from "shared/class/BattleCamera";
+import BattleGUI from "shared/class/BattleGui";
+import Cell from "shared/class/Cell";
 import { getMouseWorldPosition } from "shared/func";
+import { DropmenuAction } from "shared/types/battle-types";
 
 export interface BattleDDProps {
-    options: ReadonlyArray<string>;
+    options: ReadonlyArray<DropmenuAction>;
     battleCamera: BattleCamera;
+    cell: Cell
+    gui: BattleGUI
 }
 
 interface BattleDDState {
@@ -17,6 +22,7 @@ interface BattleDDState {
 }
 
 export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDState> {
+    private isWithinFrame = false;
     private dropDownFrame: Roact.Ref<Frame>;
     private panScript?: RBXScriptConnection;
     private outsideClickConnection?: RBXScriptConnection;
@@ -34,6 +40,11 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
         };
         this.initializeWorldPosition();
         this.connectPanScript();
+        this.setupOutsideClickListener();
+
+        const gui = this.props.gui;
+        gui.unmountAndClear('glowPathGui')
+        gui.renderWithOnlyReadinessBar();
     }
 
     private initializeWorldPosition() {
@@ -59,6 +70,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     protected willUnmount(): void {
         this.panScript?.Disconnect();
         this.outsideClickConnection?.Disconnect();
+        this.props.gui.renderWithSensitiveCells();
     }
 
     private debounceToggleDropdown() {
@@ -123,7 +135,6 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
                     if (isAlreadyOpen) {
                         this.outsideClickConnection?.Disconnect();
                     } else {
-                        this.setupOutsideClickListener();
                         this.setState({
                             isOpen: true,
                         });
@@ -134,17 +145,10 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     }
 
     private setupOutsideClickListener() {
+        wait(0.1);
         this.outsideClickConnection = UserInputService.InputBegan.Connect((input) => {
-            const ddFrame = this.dropDownFrame.getValue();
-
-            // Ensure the input is a mouse click
-            if (input.UserInputType === Enum.UserInputType.MouseButton1 && ddFrame) {
-                const mouse = Players.LocalPlayer.GetMouse();
-                // Check if the target of the input is not a descendant of the dropdown frame;
-                if (!mouse.Target?.IsDescendantOf(ddFrame)) {
-                    this.close();
-                    this.outsideClickConnection?.Disconnect();
-                }
+            if (input.UserInputType === Enum.UserInputType.MouseButton1 && this.isWithinFrame === false) {
+                this.props.gui.unmountAndClear('dropDownMenuGui');
             }
         });
     }
@@ -154,6 +158,8 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
             selectedOption: option,
         });
         this.debounceToggleDropdown();
+        const selectedAction = this.props.options.find((action) => action.name === option);
+        if (selectedAction) selectedAction.run(this.props.cell);
     }
 
     private handleToggleClick() {
@@ -171,6 +177,10 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
                         Size={new UDim2(0, 200, 0, 36)}
                         Ref={this.dropDownFrame}
                         Position={new UDim2(0, this.state.screenPosition.X, 0, this.state.screenPosition.Y)}
+                        Event={{
+                            MouseEnter: () => this.isWithinFrame = true,
+                            MouseLeave: () => this.isWithinFrame = false,
+                        }}
                     >
                         <textbutton
                             Key="dropdown-toggle"
@@ -188,13 +198,13 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
                             >
                                 {this.props.options.map((option, index) => (
                                     <textbutton
-                                        Key={option}
+                                        Key={option.name}
                                         Size={new UDim2(1, 0, 0, 36)}
                                         Position={new UDim2(0, 0, 0, 36 * index)}
                                         Event={{
-                                            MouseButton1Click: () => this.handleOptionClick(option),
+                                            MouseButton1Click: () => this.handleOptionClick(option.name),
                                         }}
-                                        Text={option}
+                                        Text={option.name}
                                     />
                                 ))}
                             </frame>

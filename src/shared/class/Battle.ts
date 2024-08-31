@@ -1,5 +1,6 @@
 import Roact from "@rbxts/roact";
 import { ReplicatedStorage } from "@rbxts/services";
+import { MOVEMENT_COST } from "shared/const";
 import { getDummyStats } from "shared/func";
 import { ActionType, BattleConfig, BotType, ReadinessIcon } from "shared/types/battle-types";
 import BattleCamera from "./BattleCamera";
@@ -7,6 +8,7 @@ import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
 import Entity from "./Entity";
 import Grid from "./Grid";
+import Pathfinding from "./Pathfinding";
 
 export class BattleTeam {
     name: string;
@@ -164,14 +166,12 @@ export class Battle {
         await this.bcamera.enterCharacterCenterMode();
 
         // Handle the current round's actions
-        const chosenActions = await this.handleRoundActions(w);
+        const chosenActions = await this.waitForRoundActions(w);
 
         // Update readiness and finalize the round
         if (w) {
             w.pos /= 2;
         }
-
-        // await this.gui?.tweenToUpdateReadiness();
 
         this.finalizeRound();
         this.round(); // Start the next round
@@ -182,7 +182,7 @@ export class Battle {
         this.round(); // Restart the round
     }
 
-    private async handleRoundActions(w: Entity) {
+    private async waitForRoundActions(w: Entity) {
         return new Promise((resolve) => {
             (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
             this.gui?.showEntityActionOptions(w);
@@ -199,6 +199,36 @@ export class Battle {
                 },
             },
         ];
+    }
+
+    async moveEntity(entity: Entity, cell: Cell, _path?: Vector2[]) {
+        const lim = math.floor(entity.pos / MOVEMENT_COST);
+        const path = _path ?? Pathfinding.Start({
+            grid: this.grid,
+            start: entity.cell?.xy ?? new Vector2(0, 0),
+            dest: cell.xy,
+            limit: lim,
+        }).fullPath;
+        if (path.size() === 0) {
+            warn(`No path found from ${entity.cell?.xy.X}, ${entity.cell?.xy.Y} to ${cell.xy.X}, ${cell.xy.Y}`);
+            return;
+        }
+
+        const adjacentCell = this.grid.getCell(path[path.size() - 1]);
+        let destination: Cell = cell;
+        if (cell.isVacant() === false) {
+            warn(`Cell ${cell.xy.X}, ${cell.xy.Y} is not vacant`);
+            if (adjacentCell.isVacant()) {
+                destination = adjacentCell;
+            }
+            else {
+                warn(`Adjacent cell ${adjacentCell.xy.X}, ${adjacentCell.xy.Y} is not vacant`);
+                return;
+            }
+        }
+
+        this.gui?.glowAlongPath(path);
+        return entity.moveToCell(destination, path)
     }
 
     private finalizeRound() {

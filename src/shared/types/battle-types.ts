@@ -6,6 +6,7 @@
 // // end: number,    // Endurance: stamina, resistance to fatigue
 
 import Roact from "@rbxts/roact";
+import Cell from "shared/class/Cell";
 import Entity from "shared/class/Entity";
 
 // // // Mental attributes
@@ -179,4 +180,19 @@ export type AbilityInitOptions = {
     damageType: Map<DamageType, number>;
     using: Entity;
     target: Entity;
+}
+
+export interface Action {
+    type: ActionType,
+    run: (ui: Roact.Tree) => void;
+}
+
+export enum DropmenuActionType {
+    Attack = 'Attack',
+    MoveTo = 'Move To',
+}
+
+export interface DropmenuAction {
+    name: DropmenuActionType,
+    run: (contextCell: Cell) => void;
 }

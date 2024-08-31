@@ -9,15 +9,17 @@ import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { getPlayer } from "shared/func";
+import { Action, DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
 import { Battle } from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
 import Pathfinding from "./Pathfinding";
 
 export default class BattleGUI {
-    private dropDownMenuGui: Roact.Tree | undefined;
+    actionsUI: Roact.Tree | undefined;
+    dropDownMenuGui: Roact.Tree | undefined;
+    glowPathGui: Roact.Tree | undefined;
     private mainGui: Roact.Tree;
-    private glowPathGui: Roact.Tree | undefined;
 
     private mouseClickDDEvent: RBXScriptConnection | undefined;
     private escapeScript: RBXScriptConnection | undefined;
@@ -91,30 +93,11 @@ export default class BattleGUI {
     // Display entity action options and handle the chosen action
     showEntityActionOptions(entity: Entity) {
         const actions = this.igetBattle().getActions(entity);
-        const actionOptions = actions.map((action, index) => (
-            <ButtonElement
-                Key={action.type}
-                position={index / actions.size()}
-                size={1 / actions.size()}
-                onclick={() => {
-                    action.run(actionsUI)
-                }}
-                text={action.type}
-                transparency={0.9}
-            />
-        ));
-
-        const actionsUI = Roact.mount(
-            <MenuFrameElement transparency={1}>
-                <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)}>
-                    {actionOptions}
-                </ButtonFrameElement>
-            </MenuFrameElement>
-        );
+        this.actionsUI = this.renderActionMenu(actions);
     }
 
     // Handle the escape key press
-    setUpEscapeScript() {
+    setUpCancelCurrentActionScript() {
         this.escapeScript?.Disconnect();
         return UserInputService.InputBegan.Connect((i, gpe) => {
             if (i.KeyCode === Enum.KeyCode.X && !gpe) {
@@ -146,9 +129,9 @@ export default class BattleGUI {
         if (!b) return;
 
         b.bcamera.enterHOI4Mode().then(() => {
-            this.escapeScript = this.setUpEscapeScript();
+            this.escapeScript = this.setUpCancelCurrentActionScript();
             this.mouseClickDDEvent = this.setupMouseClickHandler();
-            Roact.update(this.mainGui, this.renderWithSensitiveCells());
+            this.renderWithSensitiveCells();
         });
     }
 
@@ -162,8 +145,7 @@ export default class BattleGUI {
 
         // 1. Remove the glow path
         if (this.glowPathGui) {
-            Roact.unmount(this.glowPathGui)
-            this.glowPathGui = undefined
+            this.unmountAndClear('glowPathGui');
         };
 
         // 2. Disconnect the escape script and mouse click event
@@ -172,34 +154,55 @@ export default class BattleGUI {
 
         // 3. Remove the dropdown menu
         if (this.dropDownMenuGui) {
-            Roact.unmount(this.dropDownMenuGui);
-            this.dropDownMenuGui = undefined
+            this.unmountAndClear('dropDownMenuGui');
         }
 
         // 4. Update the UI without the sensitive cells
-        Roact.update(this.mainGui, this.renderWithReadinessBar());
+        this.mainGui = this.renderWithOnlyReadinessBar()
     }
     //#endregion
 
     //#region Render Methods
     // Render the UI with readiness bar and sensitive cells
-    private renderWithSensitiveCells() {
+    renderWithSensitiveCells() {
         print("Rendering with sensitive cells");
-        return (
+        return Roact.update(this.mainGui,
             <MenuFrameElement transparency={1} Key={`BattleUI`}>
                 <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
                 {this.generateSensitiveCells()}
-            </MenuFrameElement>
-        );
+            </MenuFrameElement>);
+    }
+
+    private renderActionMenu(actions: Action[]) {
+        print("Rendering action menu");
+        this.unmountAndClear('actionsUI');
+        const actionOptions = actions.map((action, index) => (
+            <ButtonElement
+                Key={action.type}
+                position={index / actions.size()}
+                size={1 / actions.size()}
+                onclick={() => {
+                    if (this.actionsUI) action.run(this.actionsUI)
+                }}
+                text={action.type}
+                transparency={0.9}
+            />
+        ));
+        return Roact.mount(
+            <MenuFrameElement transparency={1}>
+                <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)}>
+                    {actionOptions}
+                </ButtonFrameElement>
+            </MenuFrameElement>);
     }
 
     // Render the UI with only the readiness bar
-    private renderWithReadinessBar() {
-        return (
+    renderWithOnlyReadinessBar() {
+        print("Rendering with readiness bar");
+        return Roact.update(this.mainGui,
             <MenuFrameElement transparency={1} Key={`BattleUI`}>
                 <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
-            </MenuFrameElement>
-        );
+            </MenuFrameElement>);
     }
     //#endregion
 
@@ -266,40 +269,13 @@ export default class BattleGUI {
         const cr = battle.currentRound!;
         const currentEntity = cr.entity;
         currentEntity?.moveToCell(cell, path).then(() => {
-            if (this.glowPathGui) Roact.unmount(this.glowPathGui);
-            cr.endRoundResolve?.(currentEntity);
+            this.doneRound();
         });
-    }
-
-    // Show action dropdown for the entity
-    private showActionDropdown(cell: Cell) {
-        print("Showing action dropdown");
-        const targetEntity = cell.entity;
-        if (!targetEntity) {
-            warn("No target entity found");
-            return;
-        }
-        if (this.dropDownMenuGui) {
-            Roact.unmount(this.dropDownMenuGui);
-            this.dropDownMenuGui = Roact.mount(
-                <BattleDD
-                    battleCamera={this.igetBattle().bcamera}
-                    options={["Attack", "Defend", "Move"]}
-                />,
-            )
-        }
-        else {
-            this.dropDownMenuGui = Roact.mount(
-                <BattleDD
-                    battleCamera={this.igetBattle().bcamera}
-                    options={["Attack", "Defend", "Move"]}
-                />,
-            )
-        }
     }
 
     // Highlight the cells along a path
     glowAlongPath(path: Vector2[]) {
+        print(`Glowing along path: ${path}`);
         const elements = path.mapFiltered((xy) => {
             const cell = this.igetBattle().grid.getCell(xy.X, xy.Y);
             if (!cell) return;
@@ -327,6 +303,75 @@ export default class BattleGUI {
         }
 
         return path;
+    }
+    //#endregion
+
+    //#region Dropmenu
+    private showActionDropdown(cell: Cell) {
+        print("Showing action dropdown");
+        const targetEntity = cell.entity;
+        if (!targetEntity) {
+            warn("No target entity found");
+            return;
+        }
+        if (this.dropDownMenuGui) {
+            Roact.unmount(this.dropDownMenuGui);
+            this.dropDownMenuGui = Roact.mount(
+                <BattleDD
+                    gui={this}
+                    battleCamera={this.igetBattle().bcamera}
+                    options={this.getDropMenuActions()}
+                    cell={cell}
+                />,
+            )
+        }
+        else {
+            this.dropDownMenuGui = Roact.mount(
+                <BattleDD
+                    gui={this}
+                    battleCamera={this.igetBattle().bcamera}
+                    options={this.getDropMenuActions()}
+                    cell={cell}
+                />,
+            )
+        }
+    }
+
+    handleDropmenuMoveTo() {
+        return {
+            name: DropmenuActionType.MoveTo,
+            run: async (contextCell: Cell) => {
+                print("Moving to");
+                const battle = this.igetBattle();
+                const crEntity = battle.currentRound?.entity;
+                if (crEntity?.cell === undefined) {
+                    warn(`Dropdown MoveTo action: No current round entity or cell found`);
+                    return;
+                }
+                battle.moveEntity(crEntity, contextCell).then(() => {
+                    this.doneRound();
+                });
+            }
+        }
+    }
+
+    private dropMenuAction(action: DropmenuActionType): DropmenuAction | undefined {
+        switch (action) {
+            case DropmenuActionType.Attack:
+                return;
+            case DropmenuActionType.MoveTo:
+                return this.handleDropmenuMoveTo();
+        }
+    }
+
+    private getDropMenuActions(): DropmenuAction[] {
+        const actions: DropmenuAction[] = [];
+        for (const [k, v] of pairs(DropmenuActionType)) {
+            const action = this.dropMenuAction(v);
+            if (action)
+                actions.push(action);
+        }
+        return actions;
     }
     //#endregion
 
@@ -376,4 +421,39 @@ export default class BattleGUI {
         return Promise.all(promises);
     }
     //#endregion
+
+    //#region UI Unmount Methods
+
+    unmountAndClear(propertyName: keyof this): void {
+        const property = this[propertyName];
+        if (property !== undefined && typeOf(property) === 'table') {
+            print(`Unmounting and clearing: ${propertyName as string}`);
+            const [s, f] = pcall(() => {
+                Roact.unmount(property as Roact.Tree);
+                this[propertyName] = undefined as unknown as this[typeof propertyName];
+            });
+            if (!s) {
+                warn(`Failed to unmount: ${f}`);
+            }
+        }
+    }
+
+    //#endregion
+
+    doneRound() {
+        print("【Gui done round】");
+        this.escapeScript?.Disconnect();
+        this.mouseClickDDEvent?.Disconnect();
+        if (this.actionsUI) {
+            this.unmountAndClear('actionsUI');
+        }
+        if (this.dropDownMenuGui) {
+            this.unmountAndClear('dropDownMenuGui');
+        }
+        if (this.glowPathGui) {
+            this.unmountAndClear('glowPathGui');
+        }
+        this.igetBattle().currentRound?.endRoundResolve?.(void 0);
+        this.mainGui = this.renderWithOnlyReadinessBar()
+    }
 }
