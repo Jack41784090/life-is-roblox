@@ -41,8 +41,16 @@ export default class Grid {
         }
     }
 
-    getCell(x: number, y: number) {
-        return this.cellsXY.get(x, y);
+    getCell(position: Vector2): Cell
+    getCell(x: number, y: number): Cell
+    getCell(x: number | Vector2, y?: number) {
+        if (typeOf(x) === 'Vector2') {
+            const v = x as Vector2;
+            return this.cellsXY.get(v.X, v.Y);
+        }
+        else {
+            return this.cellsXY.get(x as number, y as number);
+        }
     }
     getCellIsVacant(x: number, y: number) {
         return this.cellsXY.get(x, y)?.entity === undefined;
