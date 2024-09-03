@@ -13,7 +13,7 @@ export default class Entity implements iEntity {
     blinkAnimation?: Animation;
 
     // audios
-    idleSelectAudio?: Sound;
+    idleSelectAudio?: Sound[];
 
     playerID: number;
     iconURL?: ReadinessIcon;
@@ -73,8 +73,9 @@ export default class Entity implements iEntity {
             return;
         }
 
-        this.idleSelectAudio = thisEntityAudio.FindFirstChild('idle') as Sound;
-        if (!this.idleSelectAudio) {
+        const allAudios = thisEntityAudio.GetChildren();
+        this.idleSelectAudio = allAudios.filter((audio) => audio.Name === "idle") as Sound[];
+        if (this.idleSelectAudio.size() === 0) {
             warn("Idle select audio not found");
         }
 
@@ -84,7 +85,11 @@ export default class Entity implements iEntity {
     playAudio(entityStatus: EntityStatus) {
         switch (entityStatus) {
             case EntityStatus.idle:
-                this.idleSelectAudio?.Play();
+                const audio = this.idleSelectAudio?.[math.random(0, this.idleSelectAudio.size())];
+                if (audio) {
+                    audio.Play();
+                }
+                break;
         }
     }
 
