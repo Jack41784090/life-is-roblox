@@ -3,10 +3,13 @@ import { gridXYToWorldXY } from "shared/func";
 import { ActionType, BotType, EntityInitRequirements, EntityStats, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
+import Expression from "./Expression";
 
 export default class Entity implements iEntity {
     idleAnimationTrack?: AnimationTrack;
     idleAnimation?: Animation;
+    blinkAnimationTrack?: AnimationTrack;
+    blinkAnimation?: Animation;
 
     playerID: number;
     iconURL?: ReadinessIcon;
@@ -23,8 +26,10 @@ export default class Entity implements iEntity {
 
     botType: BotType = BotType.Enemy;
 
+    expression?: Expression;
     template?: Model;
     model?: Model;
+    animator?: Animator;
 
     constructor(options: EntityInitRequirements) {
         this.playerID = options.playerID;
@@ -40,8 +45,10 @@ export default class Entity implements iEntity {
 
         const id = this.stats.id;
         this.template = ReplicatedStorage.WaitForChild(`entity_${id}`) as Model;
+
         const animFolder = this.template.WaitForChild("anim") as Folder;
-        this.idleAnimation = animFolder.WaitForChild("idle") as Animation; print(this.idleAnimation)
+        this.idleAnimation = animFolder.WaitForChild("idle") as Animation;
+        this.blinkAnimation = animFolder.WaitForChild("blink") as Animation;
     }
 
     setCell(cell: Cell) {
@@ -70,11 +77,21 @@ export default class Entity implements iEntity {
         if (this.idleAnimation) {
             const humanoid = entity.WaitForChild("Humanoid") as Humanoid;
             const animator = humanoid?.WaitForChild("Animator") as Animator
-            if (humanoid && animator) {
+            this.animator = animator;
+            if (animator) {
                 this.idleAnimationTrack = animator.LoadAnimation(this.idleAnimation);
+                this.idleAnimationTrack.Looped = true;
                 this.idleAnimationTrack.Play();
             }
         }
+        this.expression = new Expression(this);
+
+        task.spawn(() => {
+            while (true) {
+                this.expression?.blink();
+                wait(math.random(1, 5));
+            }
+        })
 
         return this.model;
     }
@@ -103,7 +120,7 @@ export default class Entity implements iEntity {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const modelPrimaryPart = this.model?.FindFirstChild("Torso") as BasePart;
         if (!modelPrimaryPart || !humanoid) {
-            warn("Model not materialised");
+            warn("Model not materialised", modelPrimaryPart, humanoid);
             return;
         }
 
