@@ -2,7 +2,7 @@ import Roact from "@rbxts/roact";
 import { ReplicatedStorage } from "@rbxts/services";
 import { MOVEMENT_COST } from "shared/const";
 import { getDummyStats } from "shared/func";
-import { ActionType, BattleConfig, BotType, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, BattleConfig, BotType, EntityStatus, ReadinessIcon } from "shared/types/battle-types";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
@@ -186,6 +186,7 @@ export class Battle {
         return new Promise((resolve) => {
             (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
             this.gui?.showEntityActionOptions(w);
+            w.playAudio(EntityStatus.idle);
         });
     }
 

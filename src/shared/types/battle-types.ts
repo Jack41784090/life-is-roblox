@@ -196,3 +196,7 @@ export interface DropmenuAction {
     name: DropmenuActionType,
     run: (contextCell: Cell) => void;
 }
+
+export enum EntityStatus {
+    idle = 'idle',
+}

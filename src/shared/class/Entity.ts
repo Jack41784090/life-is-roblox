@@ -1,15 +1,19 @@
-import { ReplicatedStorage } from "@rbxts/services";
+import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import { gridXYToWorldXY } from "shared/func";
-import { ActionType, BotType, EntityInitRequirements, EntityStats, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, BotType, EntityInitRequirements, EntityStats, EntityStatus, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
 import Expression from "./Expression";
 
 export default class Entity implements iEntity {
+    // animations
     idleAnimationTrack?: AnimationTrack;
     idleAnimation?: Animation;
     blinkAnimationTrack?: AnimationTrack;
     blinkAnimation?: Animation;
+
+    // audios
+    idleSelectAudio?: Sound;
 
     playerID: number;
     iconURL?: ReadinessIcon;
@@ -46,9 +50,42 @@ export default class Entity implements iEntity {
         const id = this.stats.id;
         this.template = ReplicatedStorage.WaitForChild(`entity_${id}`) as Model;
 
+        // init animations
         const animFolder = this.template.WaitForChild("anim") as Folder;
         this.idleAnimation = animFolder.WaitForChild("idle") as Animation;
         this.blinkAnimation = animFolder.WaitForChild("blink") as Animation;
+
+        // init audios
+        const audioFolder = ReplicatedStorage.FindFirstChild("Audio") as Folder;
+        if (!audioFolder) {
+            warn("Audio folder not found");
+            return;
+        }
+        const entityAudio = audioFolder.FindFirstChild("entity") as Folder;
+        if (!entityAudio) {
+            warn("Entity audio folder not found");
+            return;
+        }
+
+        const thisEntityAudio = entityAudio.FindFirstChild(this.stats.id) as Folder;
+        if (!thisEntityAudio) {
+            warn(`audio for ${this.stats.id} not found`);
+            return;
+        }
+
+        this.idleSelectAudio = thisEntityAudio.FindFirstChild('idle') as Sound;
+        if (!this.idleSelectAudio) {
+            warn("Idle select audio not found");
+        }
+
+        print(`this.idleSelectAudio: ${this.idleSelectAudio}`);
+    }
+
+    playAudio(entityStatus: EntityStatus) {
+        switch (entityStatus) {
+            case EntityStatus.idle:
+                this.idleSelectAudio?.Play();
+        }
     }
 
     setCell(cell: Cell) {
@@ -63,7 +100,10 @@ export default class Entity implements iEntity {
         }
 
         const entity = this.template?.Clone();
-        if (!entity) return undefined;
+        if (!entity) {
+            warn("Entity template not found");
+            return;
+        }
 
         if (entity.IsA("BasePart")) {
             this.positionBasePart(entity);
@@ -115,10 +155,9 @@ export default class Entity implements iEntity {
         ]
     }
 
-
     async moveToCell(cell: Cell, path: Vector2[]) {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
-        const modelPrimaryPart = this.model?.FindFirstChild("Torso") as BasePart;
+        const modelPrimaryPart = humanoid?.RootPart;
         if (!modelPrimaryPart || !humanoid) {
             warn("Model not materialised", modelPrimaryPart, humanoid);
             return;
@@ -131,9 +170,33 @@ export default class Entity implements iEntity {
 
         for (const xy of path) {
             const gxy = gridXYToWorldXY(xy, BattleGUI.getBattle().grid);
-            const p = new Vector3(gxy.X, modelPrimaryPart.Position.Y, gxy.Z);
-            humanoid.MoveTo(p);
-            humanoid.MoveToFinished.Wait();
+            const targetPosition = new Vector3(gxy.X, modelPrimaryPart.Position.Y, gxy.Z);
+            if (modelPrimaryPart.Position === targetPosition) {
+                continue;
+            }
+
+            print(`${modelPrimaryPart.Position} -> ${targetPosition}`);
+
+            // Calculate the direction to face
+            const direction = (targetPosition.sub(modelPrimaryPart.Position)).Unit;
+            print(`Direction: ${direction}`);
+
+            // Create a CFrame that points from the current position to the target position
+            const lookAtCFrame = CFrame.lookAt(modelPrimaryPart.Position, modelPrimaryPart.Position.add(direction));
+            print(`${modelPrimaryPart.Position} - look at -> ${modelPrimaryPart.Position.add(direction)}`);
+
+            // Combine the position and orientation
+            const targetCFrame = new CFrame(targetPosition).mul(lookAtCFrame.sub(modelPrimaryPart.Position));
+
+            // Tween to the new CFrame
+            const tween = TweenService.Create(
+                modelPrimaryPart,
+                new TweenInfo(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+                { CFrame: targetCFrame }
+            );
+
+            tween.Play();
+            await tween.Completed.Wait(); // Wait for the tween to complete before moving to the next point
         }
     }
 }
