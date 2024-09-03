@@ -51,7 +51,7 @@ for (let i = 0; i < numberOfAssets; i++) {
 }
 
 // Wait for all assets to be preloaded
-while (loadedAssets < numberOfAssets) wait();
+// while (loadedAssets < numberOfAssets) wait();
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
