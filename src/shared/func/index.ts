@@ -95,6 +95,24 @@ export function getDummyCharacterModel(): Model {
     return humanoid;
 }
 
+export function saveTexture(id: string, texture: string) {
+    const [success, fail] = pcall(() => {
+        const ds = getDatastore("decalTexture");
+        ds.SetAsync(id, texture);
+    })
+    if (!success) warn(fail);
+}
+
+export function getTexture(id: string): string {
+    const ds = getDatastore("decalTexture");
+    const [success, data] = pcall(() => ds.GetAsync(id));
+    if (success) return data as string;
+    else {
+        warn(data);
+        return "";
+    }
+}
+
 export function getAbility(name: string): iAbility | undefined {
     const ds = getDatastore("abilities");
     const [success, data] = pcall(() => ds.GetAsync(name));
