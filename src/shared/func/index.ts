@@ -180,6 +180,14 @@ export function getMouseWorldPosition(camera: Camera, mouse: Mouse): Vector3 | u
     }
 }
 
+export function extractMapValues<T extends defined>(map: Map<any, T>) {
+    const va: T[] = [];
+    for (const [k, v] of pairs(map)) {
+        va.push(v);
+    }
+    return va;
+}
+
 // export function attack(
 //     attacker: Entity | iEntity,
 //     target: Entity | iEntity,

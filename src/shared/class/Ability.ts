@@ -2,6 +2,25 @@ import { AbilityInitOptions, DamageType, iAbility, Potency, potencyMap } from "s
 import Entity from "./Entity";
 
 export default class Ability implements iAbility {
+    static readonly UNIVERSAL_PHYS = new Map<string, iAbility>([
+        ['Slash', {
+            name: 'Slash',
+            description: 'slashing',
+            acc: 100,
+            potencies: new Map<Potency, number>([
+                [Potency.Slash, 1]
+            ]),
+            damageType: new Map<DamageType, number>([
+                [DamageType.Slash, 1]
+            ]),
+            cost: {
+                pos: 10,
+                mana: 0,
+            }
+        }]
+    ])
+
+
     name: string;
     description: string;
     acc: number;

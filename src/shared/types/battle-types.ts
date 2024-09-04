@@ -97,6 +97,9 @@ export type EntityStats = {
 };
 
 export enum Potency {
+    Strike = 'strike',
+    Slash = 'slash',
+    Stab = 'stab',
     Light = 'light',
     Dark = 'dark',
     Arcane = 'arcane',
@@ -126,6 +129,15 @@ export interface iAbility {
 }
 
 export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
+    [Potency.Strike]: [
+        ['str', 1]
+    ],
+    [Potency.Slash]: [
+        ['str', 1]
+    ],
+    [Potency.Stab]: [
+        ['str', 1]
+    ],
     [Potency.TheWay]: [
         ['fai', 1.1]
     ],
@@ -194,9 +206,18 @@ export enum DropmenuActionType {
 
 export interface DropmenuAction {
     name: DropmenuActionType,
-    run: (contextCell: Cell) => void;
+    run: (ctx: DropdownmenuContext) => void;
+    onClickChain?: {
+        isRendering: boolean;
+        render: (ctx: DropdownmenuContext) => Roact.Element;
+    }
 }
 
 export enum EntityStatus {
     idle = 'idle',
+}
+
+export interface DropdownmenuContext {
+    cell: Cell;
+    initiator: Entity;
 }

@@ -1,6 +1,7 @@
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
-import { gridXYToWorldXY } from "shared/func";
-import { ActionType, BotType, EntityInitRequirements, EntityStats, EntityStatus, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import { extractMapValues, gridXYToWorldXY } from "shared/func";
+import { BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import Ability from "./Ability";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
 import Expression from "./Expression";
@@ -154,10 +155,9 @@ export default class Entity implements iEntity {
         entity.PivotTo(new CFrame(position));
     }
 
-    getActions(): { type: ActionType, action: () => void }[] {
-        return [
-            { type: ActionType.Move, action: () => print("Move") },
-        ]
+    getAbilities(): iAbility[] {
+        const uniPhysAbilities = extractMapValues(Ability.UNIVERSAL_PHYS);
+        return uniPhysAbilities;
     }
 
     async moveToCell(cell: Cell, path: Vector2[]) {

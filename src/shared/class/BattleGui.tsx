@@ -1,6 +1,7 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, TweenService, UserInputService } from "@rbxts/services";
 import BattleDD from "gui_sharedfirst/components/battle-dropdown";
+import BattleDDAttackElement from "gui_sharedfirst/components/battle-dropdown-attack";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
@@ -9,7 +10,7 @@ import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { getPlayer } from "shared/func";
-import { Action, DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
+import { Action, DropdownmenuContext, DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
 import { Battle } from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
@@ -275,7 +276,6 @@ export default class BattleGUI {
 
     // Highlight the cells along a path
     glowAlongPath(path: Vector2[]) {
-        print(`Glowing along path: ${path}`);
         const elements = path.mapFiltered((xy) => {
             const cell = this.igetBattle().grid.getCell(xy.X, xy.Y);
             if (!cell) return;
@@ -337,20 +337,27 @@ export default class BattleGUI {
         }
     }
 
-    handleDropmenuMoveTo() {
+    getHandler_MoveTo(): DropmenuAction {
         return {
             name: DropmenuActionType.MoveTo,
-            run: async (contextCell: Cell) => {
+            run: async (ctx: DropdownmenuContext) => {
                 print("Moving to");
                 const battle = this.igetBattle();
-                const crEntity = battle.currentRound?.entity;
-                if (crEntity?.cell === undefined) {
-                    warn(`Dropdown MoveTo action: No current round entity or cell found`);
-                    return;
-                }
-                battle.moveEntity(crEntity, contextCell).then(() => {
+                battle.moveEntity(ctx.initiator, ctx.cell).then(() => {
                     this.doneRound();
                 });
+            }
+        }
+    }
+    getHandler_Attack() {
+        return {
+            name: DropmenuActionType.Attack,
+            run: async (ctx: DropdownmenuContext) => {
+                print("Attacking");
+            },
+            onClickChain: {
+                isRendering: false,
+                render: (ctx: DropdownmenuContext) => <BattleDDAttackElement ctx={ctx} />
             }
         }
     }
@@ -358,9 +365,9 @@ export default class BattleGUI {
     private dropMenuAction(action: DropmenuActionType): DropmenuAction | undefined {
         switch (action) {
             case DropmenuActionType.Attack:
-                return;
+                return this.getHandler_Attack();
             case DropmenuActionType.MoveTo:
-                return this.handleDropmenuMoveTo();
+                return this.getHandler_MoveTo();
         }
     }
 
@@ -383,14 +390,14 @@ export default class BattleGUI {
     }
 
     updateSpecificReadinessIcon(iconID: number, readiness: number) {
-        const icon = this.readinessIconMap.get(iconID)?.getValue();
-        if (!icon) {
+        const iconFrame = this.readinessIconMap.get(iconID)?.getValue();
+        if (!iconFrame) {
             warn("No icon found for readiness update");
             return;
         }
 
         const clampedReadiness = math.clamp(readiness, 0, 1);
-        icon.TweenPosition(UDim2.fromScale(0, clampedReadiness), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, math.abs(icon.Position.Y.Scale - clampedReadiness), true);
+        iconFrame.TweenPosition(UDim2.fromScale(0, clampedReadiness), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, math.abs(iconFrame.Position.Y.Scale - clampedReadiness), true);
     }
 
     // Animate the readiness bar update
