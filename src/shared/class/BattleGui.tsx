@@ -108,18 +108,26 @@ export default class BattleGUI {
     }
 
     // Set up the mouse click handler
-    private setupMouseClickHandler() {
+    private setupMouseClickModelHandler() {
         const mouse = Players.LocalPlayer.GetMouse();
         this.mouseClickDDEvent?.Disconnect();
         return mouse.Button1Down.Connect(() => {
             const target = mouse.Target;
             const ancestor = target?.FindFirstAncestorOfClass('Model');
-            if (ancestor) {
-                const entity = this.igetBattle().getEntityFromModel(ancestor);
-                if (entity?.cell) {
-                    this.showActionDropdown(entity.cell);
-                }
-            }
+            if (!ancestor) return;
+
+            const clickedEntity = this.igetBattle().getEntityFromModel(ancestor);
+            if (!clickedEntity?.cell) return;
+
+            this.showDropdownMenuAt(clickedEntity.cell);
+
+            const crEntity = this.igetBattle().currentRound?.entity;
+            if (!crEntity) return;
+
+
+            crEntity.faceEntity(clickedEntity).then(() => {
+                this.showEntityActionOptions(crEntity);
+            });
         });
     }
 
@@ -131,7 +139,7 @@ export default class BattleGUI {
 
         b.bcamera.enterHOI4Mode().then(() => {
             this.escapeScript = this.setUpCancelCurrentActionScript();
-            this.mouseClickDDEvent = this.setupMouseClickHandler();
+            this.mouseClickDDEvent = this.setupMouseClickModelHandler();
             this.renderWithSensitiveCells();
         });
     }
@@ -250,7 +258,7 @@ export default class BattleGUI {
             this.clickedOnEmptyCell(cell);
         }
         else {
-            this.showActionDropdown(cell);
+            this.showDropdownMenuAt(cell);
         }
     }
 
@@ -270,7 +278,7 @@ export default class BattleGUI {
         const cr = battle.currentRound!;
         const currentEntity = cr.entity;
         currentEntity?.moveToCell(cell, path).then(() => {
-            this.doneRound();
+            this.returnToSelections();
         });
     }
 
@@ -307,36 +315,30 @@ export default class BattleGUI {
     //#endregion
 
     //#region Dropmenu
-    private showActionDropdown(cell: Cell) {
+    private showDropdownMenuAt(cell: Cell) {
         print("Showing action dropdown");
-        const targetEntity = cell.entity;
-        if (!targetEntity) {
+        const cellEntity = cell.entity;
+        if (!cellEntity) {
             warn("No target entity found");
             return;
         }
+
+        const options = this.getDropMenuActions(cellEntity);
+        const battle = this.igetBattle();
+
         if (this.dropDownMenuGui) {
             Roact.unmount(this.dropDownMenuGui);
-            this.dropDownMenuGui = Roact.mount(
-                <BattleDD
-                    gui={this}
-                    battleCamera={this.igetBattle().bcamera}
-                    options={this.getDropMenuActions()}
-                    cell={cell}
-                />,
-            )
         }
-        else {
-            this.dropDownMenuGui = Roact.mount(
-                <BattleDD
-                    gui={this}
-                    battleCamera={this.igetBattle().bcamera}
-                    options={this.getDropMenuActions()}
-                    cell={cell}
-                />,
-            )
-        }
+        this.dropDownMenuGui = Roact.mount(
+            <BattleDD
+                battle={battle}
+                options={options}
+                cell={cell}
+            />,
+        )
     }
 
+    //#region Dropmenu Handlers
     getHandler_MoveTo(): DropmenuAction {
         return {
             name: DropmenuActionType.MoveTo,
@@ -344,7 +346,7 @@ export default class BattleGUI {
                 print("Moving to");
                 const battle = this.igetBattle();
                 battle.moveEntity(ctx.initiator, ctx.cell).then(() => {
-                    this.doneRound();
+                    this.returnToSelections();
                 });
             }
         }
@@ -361,22 +363,40 @@ export default class BattleGUI {
             }
         }
     }
+    getHandler_EndTurn() {
+        return {
+            name: DropmenuActionType.EndTurn,
+            run: async (ctx: DropdownmenuContext) => {
+                print("Ending turn");
+                this.doneRound();
+            }
+        }
+    }
+    //#endregion
 
-    private dropMenuAction(action: DropmenuActionType): DropmenuAction | undefined {
+    private getDropMenuAction(action: DropmenuActionType): DropmenuAction | undefined {
         switch (action) {
             case DropmenuActionType.Attack:
                 return this.getHandler_Attack();
             case DropmenuActionType.MoveTo:
                 return this.getHandler_MoveTo();
+            case DropmenuActionType.EndTurn:
+                return this.getHandler_EndTurn();
         }
     }
 
-    private getDropMenuActions(): DropmenuAction[] {
+    private getDropMenuActions(cellEntity: Entity): DropmenuAction[] {
+        const battle = this.igetBattle();
         const actions: DropmenuAction[] = [];
         for (const [k, v] of pairs(DropmenuActionType)) {
-            const action = this.dropMenuAction(v);
-            if (action)
+            const action = this.getDropMenuAction(v);
+            if (cellEntity !== battle.currentRound?.entity && k === 'EndTurn') {
+                continue;
+            }
+            else if (action) {
                 actions.push(action);
+            }
+
         }
         return actions;
     }
