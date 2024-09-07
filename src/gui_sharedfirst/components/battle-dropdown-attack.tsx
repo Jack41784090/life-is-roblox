@@ -23,7 +23,6 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
     }
 
     protected didMount(): void {
-
         const tweenTime = .2;
         this.v2vPos = new Instance("Vector3Value");
         const vcs = this.v2vPos.GetPropertyChangedSignal("Value").Connect(() => {
