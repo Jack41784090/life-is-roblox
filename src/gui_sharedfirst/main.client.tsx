@@ -87,7 +87,7 @@ function enterBattle() {
         width: 5,
         height: 5,
         camera: game.Workspace.CurrentCamera!,
-        center: new Vector2(100, 100),
+        center: new Vector2(15, 15),
         teamMap: {
             '1': [Players.LocalPlayer],
             '2': [Players.LocalPlayer],
