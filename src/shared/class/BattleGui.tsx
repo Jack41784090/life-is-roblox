@@ -119,14 +119,11 @@ export default class BattleGUI {
             const clickedEntity = this.igetBattle().getEntityFromModel(ancestor);
             if (!clickedEntity?.cell) return;
 
-            this.showDropdownMenuAt(clickedEntity.cell);
-
             const crEntity = this.igetBattle().currentRound?.entity;
             if (!crEntity) return;
 
-
             crEntity.faceEntity(clickedEntity).then(() => {
-                this.showEntityActionOptions(crEntity);
+                this.showDropdownMenuAt(clickedEntity.cell!);
             });
         });
     }
@@ -368,7 +365,7 @@ export default class BattleGUI {
             name: DropmenuActionType.EndTurn,
             run: async (ctx: DropdownmenuContext) => {
                 print("Ending turn");
-                this.doneRound();
+                this.guiDoneRoundExit();
             }
         }
     }
@@ -467,7 +464,7 @@ export default class BattleGUI {
 
     //#endregion
 
-    doneRound() {
+    guiDoneRoundExit() {
         print("【Gui done round】");
         this.escapeScript?.Disconnect();
         this.mouseClickDDEvent?.Disconnect();
@@ -480,7 +477,7 @@ export default class BattleGUI {
         if (this.glowPathGui) {
             this.unmountAndClear('glowPathGui');
         }
-        this.igetBattle().currentRound?.endRoundResolve?.(void 0);
         this.mainGui = this.renderWithOnlyReadinessBar()
+        this.igetBattle().currentRound?.endRoundResolve?.(void 0);
     }
 }

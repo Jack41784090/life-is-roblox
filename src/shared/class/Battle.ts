@@ -104,6 +104,7 @@ export class Battle {
                     name: player.Name,
                     team: teamName,
                     botType: player.UserId === 0 ? BotType.Enemy : undefined,
+                    battle: this,
                 });
                 return entity;
             });
@@ -119,19 +120,27 @@ export class Battle {
     }
 
     private spawn() {
-        for (const team of this.teams) {
-            for (const entity of team.members) {
-                let randomCell: Cell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-                while (randomCell.entity) randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-
-                if (!entity.cell) {
-                    entity.setCell(randomCell);
+        const allEntities = this.getAllEntities();
+        for (const entity of allEntities) {
+            let randomCell: Cell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+            let loopBreaker = 0;
+            while (randomCell.isVacant() === false) {
+                randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+                if (loopBreaker++ > 1000) {
+                    warn("Loop breaker triggered");
+                    break;
                 }
-                entity.materialise();
-
-                print(`Spawning ${entity.name}[${team.name}] at ${entity.cell?.xy.X}, ${entity.cell?.xy.Y}`)
+            }
+            if (!entity.cell && randomCell.isVacant()) {
+                entity.setCell(randomCell);
+                print(`Spawning ${entity.name} at ${randomCell.xy.X}, ${randomCell.xy.Y}`)
+            }
+            else {
+                warn(`Entity ${entity.name} has no cell or cell is not vacant`);
             }
         }
+
+        allEntities.forEach(e => e.initialiseCharacteristics());
     }
 
     public begin() {
@@ -250,7 +259,6 @@ export class Battle {
 
     getReadinessIcons(): ReadinessIcon[] {
         const characterIcons: ReadinessIcon[] = [];
-
         for (const e of this.getAllEntities()) {
             characterIcons.push({
                 iconID: e.playerID,
@@ -258,7 +266,6 @@ export class Battle {
                 readiness: e.pos / 100
             });
         }
-
         return characterIcons;
     }
     calculateReadinessIncrement(entity: Entity) {

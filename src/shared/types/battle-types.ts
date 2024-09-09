@@ -6,6 +6,7 @@
 // // end: number,    // Endurance: stamina, resistance to fatigue
 
 import Roact from "@rbxts/roact";
+import { Battle } from "shared/class/Battle";
 import Cell from "shared/class/Cell";
 import Entity from "shared/class/Entity";
 
@@ -36,7 +37,7 @@ export enum Reality {
 
 export type EntityInitRequirements =
     Partial<iEntity> &
-    { stats: Omit<EntityStats, 'id'>, playerID: number } // requirements: everything is optional exceot stats
+    { stats: Omit<EntityStats, 'id'>, playerID: number, battle: Battle } // requirements: everything is optional exceot stats
 
 export interface iEntity {
     readonly playerID: number;
@@ -202,6 +203,7 @@ export interface Action {
 export enum DropmenuActionType {
     Attack = 'Attack',
     MoveTo = 'Move To',
+    EndTurn = 'End Turn',
 }
 
 export interface DropmenuAction {
