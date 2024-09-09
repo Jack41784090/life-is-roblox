@@ -257,7 +257,7 @@ export default class Entity implements iEntity {
         }
 
         for (const xy of path) {
-            const gxy = gridXYToWorldXY(xy, BattleGUI.getBattle().grid);
+            const gxy = gridXYToWorldXY(xy, BattleGUI.GetBattle().grid);
             const targetPosition = new Vector3(gxy.X, modelPrimaryPart.Position.Y, gxy.Z);
             if (modelPrimaryPart.Position === targetPosition) {
                 continue;

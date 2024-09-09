@@ -223,3 +223,9 @@ export interface DropdownmenuContext {
     cell: Cell;
     initiator: Entity;
 }
+
+export enum BattleStatus {
+    Inactive = 'inactive',
+    Begin = 'begin',
+    PlayerMovement = 'playerMovement',
+}

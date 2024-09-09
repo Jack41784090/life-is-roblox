@@ -1,8 +1,8 @@
 import Roact from "@rbxts/roact";
-import { ReplicatedStorage } from "@rbxts/services";
+import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
 import { getDummyStats } from "shared/func";
-import { ActionType, BattleConfig, BotType, EntityStatus, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, BattleConfig, BattleStatus, BotType, EntityStatus, iAbility, ReadinessIcon } from "shared/types/battle-types";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
@@ -28,11 +28,12 @@ export class BattleTeam {
 }
 
 export class Battle {
+    status: BattleStatus = BattleStatus.Inactive;
     bcamera: BattleCamera;
-
-    openBattleGUIEvent: BindableEvent = ReplicatedStorage.WaitForChild("OpenBattleGUI") as BindableEvent;
-    updateBattleGUIEvent: BindableEvent = ReplicatedStorage.WaitForChild("UpdateBattleGUI") as BindableEvent;
     gui: BattleGUI | undefined;
+
+    // signals
+    onAttackClickedSignal = new Signal<(ability: iAbility) => void>();
 
     //
     currentRound: {
@@ -66,10 +67,14 @@ export class Battle {
         b.initializeTeams(config.teamMap);
 
         // set up gui
-        b.gui = BattleGUI.Start(b);
+        b.gui = BattleGUI.Connect(b);
 
         // Spawn the entities
         b.begin();
+
+        const s = b.onAttackClickedSignal.Connect(a => {
+            print(`Attack clicked: ${a.name}`);
+        })
 
         return b;
     }
@@ -114,7 +119,19 @@ export class Battle {
     //#endregion
 
 
-    //#region
+    createPathForCurrentEntity(dest: Vector2) {
+        const entity = this.currentRound?.entity;
+        if (!entity) return;
+        const lim = math.floor(entity.pos / MOVEMENT_COST);
+        const path = Pathfinding.Start({
+            grid: this.grid,
+            start: entity.cell?.xy ?? new Vector2(0, 0),
+            dest: dest,
+            limit: lim,
+        }).fullPath;
+        return path;
+    }
+
     getAllEntities() {
         return this.teams.map(team => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
     }
@@ -158,6 +175,7 @@ export class Battle {
 
     private async round() {
         const time = this.advanceTime();
+        this.status = BattleStatus.Begin;
 
         // Run the readiness gauntlet and get the next model to act
         const w = await this.runReadinessGauntlet();
@@ -194,7 +212,7 @@ export class Battle {
     private async waitForRoundActions(w: Entity) {
         return new Promise((resolve) => {
             (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
-            this.gui?.showEntityActionOptions(w);
+            this.gui?.mountActionMenu(this.getActions(w));
             w.playAudio(EntityStatus.idle);
         });
     }
@@ -205,7 +223,9 @@ export class Battle {
                 type: ActionType.Move,
                 run: (tree: Roact.Tree) => {
                     Roact.unmount(tree);
-                    this.gui?.enterMovement();
+                    this.bcamera.enterHOI4Mode().then(() => {
+                        this.gui?.enterMovement();
+                    })
                 },
             },
         ];
@@ -250,9 +270,6 @@ export class Battle {
     getEntityFromModel(model: Model) {
         return this.getAllEntities().find(e => e.model === model);
     }
-
-    //#endregion
-
 
     //#region Readiness Management
     static readonly MOVEMENT_COST = 10;

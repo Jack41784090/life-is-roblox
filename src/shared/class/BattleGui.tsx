@@ -14,7 +14,8 @@ import { Action, DropdownmenuContext, DropmenuAction, DropmenuActionType } from 
 import { Battle } from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
-import Pathfinding from "./Pathfinding";
+
+type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 
 export default class BattleGUI {
     actionsUI: Roact.Tree | undefined;
@@ -31,22 +32,22 @@ export default class BattleGUI {
     private static instance: BattleGUI;
 
     // Getters for the singleton instance and the battle instance
-    static getBattle() {
+    static GetBattle() {
         return BattleGUI.battleInstance;
     }
-    igetBattle() {
+    getBattle() {
         return BattleGUI.battleInstance
     }
 
-    static getInstance() {
+    static GetInstance() {
         return BattleGUI.instance;
     }
-    igetInstance() {
+    getInstance() {
         return BattleGUI.instance;
     }
 
-    // Singleton pattern to start the BattleGUI
-    static Start(battle: Battle) {
+    // Singleton pattern to connect the BattleGUI with the Battle instance
+    static Connect(battle: Battle) {
         if (!BattleGUI.instance) {
             BattleGUI.instance = new BattleGUI(battle);
         }
@@ -56,13 +57,17 @@ export default class BattleGUI {
     // Private constructor to prevent direct instantiation
     private constructor(battle: Battle) {
         BattleGUI.battleInstance = battle;
-        this.readinessIconMap = this.initializeReadinessIconFrameRefs(battle);
+        this.readinessIconMap = this.getReadinessIconFrameRefMap();
         this.mainGui = this.mountInitialUI();
     }
 
-    //#region UI Methods
-    // Initialize readiness icons with references
-    private initializeReadinessIconFrameRefs(battle: Battle): Map<number, Roact.Ref<Frame>> {
+
+    /**
+     * Get the readiness icons and create a map of iconID to Ref<Frame>
+     * @returns map of iconID -> Ref<Frame>
+     */
+    private getReadinessIconFrameRefMap(): Map<number, Roact.Ref<Frame>> {
+        const battle = this.getBattle();
         const readinessIcons = battle.getReadinessIcons();
         return new Map(readinessIcons.map((icon) => {
             const ref = Roact.createRef<Frame>();
@@ -70,35 +75,41 @@ export default class BattleGUI {
         }));
     }
 
-    // Mount the initial UI with readiness bar
+    /**
+     * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBarElement
+     * @returns the mounted Tree
+     */
     private mountInitialUI(): Roact.Tree {
         return Roact.mount(
             <MenuFrameElement Key={`BattleUI`} transparency={1}>
-                <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+                <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
             </MenuFrameElement>
         );
     }
 
+    /**
+     * Return to the selection screen after movement or canceling an action
+     *  1. exitMovementUI() is called to reset the UI
+     *  2. The camera is centered on the current entity
+     *  3. going back to the action selection screen
+     */
     private returnToSelections() {
-        const b = this.igetBattle();
-        this.exitMovementUI();
+        const b = this.getBattle();
+        this.exitMovement();
         b.bcamera.enterCharacterCenterMode().then(() => {
             if (!b.currentRound?.entity?.model) {
                 warn("No entity model found");
                 return;
             }
-            this.showEntityActionOptions(b.currentRound.entity);
+            this.mountActionMenu(b.getActions(b.currentRound.entity));
         })
     }
 
-    // Display entity action options and handle the chosen action
-    showEntityActionOptions(entity: Entity) {
-        const actions = this.igetBattle().getActions(entity);
-        this.actionsUI = this.renderActionMenu(actions);
-    }
-
-    // Handle the escape key press
-    setUpCancelCurrentActionScript() {
+    /**
+     * Set up a script that listens for the escape key (X) to cancel the current action
+     * @returns the script connection
+     */
+    setUpCancelCurrentActionScript(): RBXScriptConnection {
         this.escapeScript?.Disconnect();
         return UserInputService.InputBegan.Connect((i, gpe) => {
             if (i.KeyCode === Enum.KeyCode.X && !gpe) {
@@ -107,8 +118,11 @@ export default class BattleGUI {
         })
     }
 
-    // Set up the mouse click handler
-    private setupMouseClickModelHandler() {
+    /**
+     * Set up a script that listens for mouse clicks on models to show the dropdown menu
+     * @returns the script connection
+     */
+    private setupClickOnDropdownHandler(): RBXScriptConnection {
         const mouse = Players.LocalPlayer.GetMouse();
         this.mouseClickDDEvent?.Disconnect();
         return mouse.Button1Down.Connect(() => {
@@ -116,10 +130,10 @@ export default class BattleGUI {
             const ancestor = target?.FindFirstAncestorOfClass('Model');
             if (!ancestor) return;
 
-            const clickedEntity = this.igetBattle().getEntityFromModel(ancestor);
+            const clickedEntity = this.getBattle().getEntityFromModel(ancestor);
             if (!clickedEntity?.cell) return;
 
-            const crEntity = this.igetBattle().currentRound?.entity;
+            const crEntity = this.getBattle().currentRound?.entity;
             if (!crEntity) return;
 
             crEntity.faceEntity(clickedEntity).then(() => {
@@ -128,23 +142,42 @@ export default class BattleGUI {
         });
     }
 
-    // Enter movement mode and display sensitive cells
+    /**
+     * Enter movement mode
+     * Movement mode: when cells glow along with the cursor to create a pathfinding effect
+     * 
+     *  * set up scripts
+     *  ** escape script to cancel the current action
+     *  ** mouse click event to show the dropdown menu
+     * 
+     *  * rendering
+     *  ** re-render the UI with sensitive cells
+     * 
+     */
     enterMovement() {
         print("Entering movement mode");
-        const b = this.igetBattle();
-        if (!b) return;
-
-        b.bcamera.enterHOI4Mode().then(() => {
-            this.escapeScript = this.setUpCancelCurrentActionScript();
-            this.mouseClickDDEvent = this.setupMouseClickModelHandler();
-            this.renderWithSensitiveCells();
-        });
+        this.escapeScript = this.setUpCancelCurrentActionScript();
+        this.mouseClickDDEvent = this.setupClickOnDropdownHandler();
+        this.updateMainUI('withSensitiveCells');
     }
 
-    // Exit movement mode and reset UI
-    exitMovementUI() {
+    /**
+     * Exit movement mode
+     * Movement mode: when cells glow along with the cursor to create a pathfinding effect
+     * 
+     *   * rendering
+     *   ** remove any existing glow path
+     *   ** remove any existing dropdown menu
+     *   ** re-render the UI with only the readiness bar
+     * 
+     *   * disconnect scripts
+     *   ** escape (X) script
+     *   ** click-on-model dropdown menu script
+     * 
+     */
+    exitMovement() {
         print("Exiting movement mode");
-        if (!this.igetBattle()?.currentRound) {
+        if (!this.getBattle()?.currentRound) {
             warn("No battle or current round");
             return;
         }
@@ -164,23 +197,43 @@ export default class BattleGUI {
         }
 
         // 4. Update the UI without the sensitive cells
-        this.mainGui = this.renderWithOnlyReadinessBar()
-    }
-    //#endregion
-
-    //#region Render Methods
-    // Render the UI with readiness bar and sensitive cells
-    renderWithSensitiveCells() {
-        print("Rendering with sensitive cells");
-        return Roact.update(this.mainGui,
-            <MenuFrameElement transparency={1} Key={`BattleUI`}>
-                <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
-                {this.generateSensitiveCells()}
-            </MenuFrameElement>);
+        this.mainGui = this.updateMainUI('onlyReadinessBar')
     }
 
-    private renderActionMenu(actions: Action[]) {
-        print("Rendering action menu");
+    /**
+     * Updating main UI with a specific mode
+     *  * `onlyReadinessBar`: only the readiness bar is shown
+     *  * `withSensitiveCells`: the readiness bar and the sensitive cells (surfacegui on cells)
+     * 
+     * @param mode 
+     * @returns the updated Roact tree
+     */
+    updateMainUI(mode: MainUIModes) {
+        print(`Updating main UI with mode: ${mode}`);
+        switch (mode) {
+            case 'onlyReadinessBar':
+                return Roact.update(this.mainGui,
+                    <MenuFrameElement transparency={1} Key={`BattleUI`}>
+                        <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+                    </MenuFrameElement>);
+            case 'withSensitiveCells':
+                return Roact.update(this.mainGui,
+                    <MenuFrameElement transparency={1} Key={`BattleUI`}>
+                        <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+                        {this.createSensitiveCellElements()}
+                    </MenuFrameElement>);
+        }
+    }
+
+    /**
+     * Mounts action menu
+     * Action Menu: a menu that shows the available actions for the entity's turn (e.g. go into move mode, items, end turn)
+     * 
+     * @param actions 
+     * @returns 
+     */
+    mountActionMenu(actions: Action[]) {
+        print("Mounting action menu");
         this.unmountAndClear('actionsUI');
         const actionOptions = actions.map((action, index) => (
             <ButtonElement
@@ -202,23 +255,14 @@ export default class BattleGUI {
             </MenuFrameElement>);
     }
 
-    // Render the UI with only the readiness bar
-    renderWithOnlyReadinessBar() {
-        print("Rendering with readiness bar");
-        return Roact.update(this.mainGui,
-            <MenuFrameElement transparency={1} Key={`BattleUI`}>
-                <ReadinessBarElement icons={this.igetBattle().getReadinessIcons()} ref={this.readinessIconMap} />
-            </MenuFrameElement>);
-    }
-    //#endregion
-
     //#region Cell Methods
-    // Generate sensitive cells for movement
-    private generateSensitiveCells() {
-        const battle = this.igetBattle();
-        if (!battle) return;
+    /**
+     * Get cell elements that are sensitive to mouse hover
+     * @returns 
+     */
+    private createSensitiveCellElements(): Roact.Element | undefined {
         return <frame>
-            {battle.grid.cells.map((c) => (
+            {this.getBattle().grid.cells.map((c) => (
                 <CellSurfaceElement
                     cell={c}
                     onEnter={() => this.handleCellEnter(c)}
@@ -230,27 +274,25 @@ export default class BattleGUI {
 
     // Handle cell hover (enter) event
     private handleCellEnter(cell: Cell) {
-        const battle = this.igetBattle();
+        const battle = this.getBattle();
         if (!battle?.currentRound?.entity?.cell) return;
 
-        const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
-        const pf = Pathfinding.Start({
-            grid: battle.grid,
-            start: battle.currentRound.entity.cell.xy,
-            dest: cell.xy,
-            limit: lim,
-        });
-        const path = pf.fullPath;
+        // 1. Create path
+        const path = battle.createPathForCurrentEntity(cell.xy);
+        if (!path) return;
 
+        // 2. Move readiness icon to forecast post-move position
         const currentEntity = battle.currentRound.entity;
-        const readinessAfterMove = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
-        this.updateSpecificReadinessIcon(currentEntity.playerID, readinessAfterMove);
+        const readinessPercent = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
+        this.updateSpecificReadinessIcon(currentEntity.playerID, readinessPercent);
+
+        // 3. Glow along the path
         return this.glowAlongPath(path);
     }
 
     // Handle cell click event
     private handleCellClick(cell: Cell) {
-        this.exitMovementUI();
+        this.exitMovement();
         if (cell.isVacant()) {
             this.clickedOnEmptyCell(cell);
         }
@@ -260,18 +302,10 @@ export default class BattleGUI {
     }
 
     private clickedOnEmptyCell(cell: Cell) {
-        const battle = this.igetBattle();
+        const battle = this.getBattle();
         if (!battle?.currentRound?.entity?.cell) return;
 
-        const lim = math.floor(battle.currentRound.entity.pos / MOVEMENT_COST);
-        const pf = Pathfinding.Start({
-            grid: battle.grid,
-            start: battle.currentRound.entity.cell.xy,
-            dest: cell.xy,
-            limit: lim,
-        });
-        const path = pf.fullPath;
-
+        const path = battle.createPathForCurrentEntity(cell.xy);
         const cr = battle.currentRound!;
         const currentEntity = cr.entity;
         currentEntity?.moveToCell(cell, path).then(() => {
@@ -282,7 +316,7 @@ export default class BattleGUI {
     // Highlight the cells along a path
     glowAlongPath(path: Vector2[]) {
         const elements = path.mapFiltered((xy) => {
-            const cell = this.igetBattle().grid.getCell(xy.X, xy.Y);
+            const cell = this.getBattle().grid.getCell(xy.X, xy.Y);
             if (!cell) return;
 
             cell.glow = true;
@@ -321,7 +355,7 @@ export default class BattleGUI {
         }
 
         const options = this.getDropMenuActions(cellEntity);
-        const battle = this.igetBattle();
+        const battle = this.getBattle();
 
         if (this.dropDownMenuGui) {
             Roact.unmount(this.dropDownMenuGui);
@@ -341,7 +375,7 @@ export default class BattleGUI {
             name: DropmenuActionType.MoveTo,
             run: async (ctx: DropdownmenuContext) => {
                 print("Moving to");
-                const battle = this.igetBattle();
+                const battle = this.getBattle();
                 battle.moveEntity(ctx.initiator, ctx.cell).then(() => {
                     this.returnToSelections();
                 });
@@ -356,7 +390,11 @@ export default class BattleGUI {
             },
             onClickChain: {
                 isRendering: false,
-                render: (ctx: DropdownmenuContext) => <BattleDDAttackElement ctx={ctx} />
+                render: (ctx: DropdownmenuContext) => (
+                    <BattleDDAttackElement
+                        ctx={ctx}
+                    />
+                )
             }
         }
     }
@@ -383,7 +421,7 @@ export default class BattleGUI {
     }
 
     private getDropMenuActions(cellEntity: Entity): DropmenuAction[] {
-        const battle = this.igetBattle();
+        const battle = this.getBattle();
         const actions: DropmenuAction[] = [];
         for (const [k, v] of pairs(DropmenuActionType)) {
             const action = this.getDropMenuAction(v);
@@ -406,21 +444,30 @@ export default class BattleGUI {
         return icons;
     }
 
-    updateSpecificReadinessIcon(iconID: number, readiness: number) {
+    async updateSpecificReadinessIcon(iconID: number, readiness: number) {
         const iconFrame = this.readinessIconMap.get(iconID)?.getValue();
         if (!iconFrame) {
-            warn("No icon found for readiness update");
+            warn("No icon found for readiness update", iconID);
             return;
         }
 
         const clampedReadiness = math.clamp(readiness, 0, 1);
-        iconFrame.TweenPosition(UDim2.fromScale(0, clampedReadiness), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, math.abs(iconFrame.Position.Y.Scale - clampedReadiness), true);
+        return new Promise((resolve) => {
+            iconFrame.TweenPosition(
+                UDim2.fromScale(0, clampedReadiness),
+                Enum.EasingDirection.InOut,
+                Enum.EasingStyle.Linear,
+                math.abs(iconFrame.Position.Y.Scale - clampedReadiness),
+                true,
+                resolve
+            );
+        })
     }
 
     // Animate the readiness bar update
     tweenToUpdateReadiness() {
         print("Tweening to update readiness");
-        const newReadinessIcons = this.igetBattle().getReadinessIcons();
+        const newReadinessIcons = this.getBattle().getReadinessIcons();
         const promises: Promise<void>[] = [];
 
         for (const icon of newReadinessIcons) {
@@ -477,7 +524,7 @@ export default class BattleGUI {
         if (this.glowPathGui) {
             this.unmountAndClear('glowPathGui');
         }
-        this.mainGui = this.renderWithOnlyReadinessBar()
-        this.igetBattle().currentRound?.endRoundResolve?.(void 0);
+        this.mainGui = this.updateMainUI('onlyReadinessBar')
+        this.getBattle().currentRound?.endRoundResolve?.(void 0);
     }
 }

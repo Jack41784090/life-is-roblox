@@ -47,7 +47,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
         const gui = this.props.battle.gui;
         if (gui) {
             gui.unmountAndClear('glowPathGui')
-            gui.renderWithOnlyReadinessBar();
+            gui.updateMainUI('onlyReadinessBar')
         }
 
         this.v2vFrameSize = new Instance("Vector3Value");
@@ -108,16 +108,16 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     protected willUnmount(): void {
         this.panScript?.Disconnect();
         this.outsideClickSCript?.Disconnect();
-        this.props.battle.gui?.renderWithSensitiveCells();
+        this.props.battle.gui?.updateMainUI('withSensitiveCells')
     }
 
     private setupOutsideClickListener() {
         wait(0.1);
-        this.outsideClickSCript = UserInputService.InputBegan.Connect((input) => {
-            if (input.UserInputType === Enum.UserInputType.MouseButton1 && this.isWithinFrame === false) {
-                this.props.battle.gui?.unmountAndClear('dropDownMenuGui');
-            }
-        });
+        // this.outsideClickSCript = UserInputService.InputBegan.Connect((input) => {
+        //     if (input.UserInputType === Enum.UserInputType.MouseButton1 && this.isWithinFrame === false) {
+        //         this.props.battle.gui?.unmountAndClear('dropDownMenuGui');
+        //     }
+        // });
     }
 
     private handleOptionClick(optionClickedName: string) {
