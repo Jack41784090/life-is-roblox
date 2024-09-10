@@ -83,6 +83,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     }
 
     protected didMount(): void {
+        wait(0.1);
         const ddFrame = this.dropdownFrameRef.getValue();
         if (!ddFrame) {
             warn("Dropdown frame not found");
