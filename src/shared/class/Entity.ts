@@ -1,4 +1,4 @@
-import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
+import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import { extractMapValues, gridXYToWorldXY } from "shared/func";
 import { BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import Ability from "./Ability";
@@ -7,22 +7,148 @@ import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
 import Expression from "./Expression";
 
-export default class Entity implements iEntity {
-    battle: Battle;
-
-    // animations
-    idleBlinkingScript?: RBXScriptConnection;
+// Handles animations for an entity
+class AnimationHandler {
+    animator?: Animator;
+    idleBlinkingThread?: thread;
     facingClosestEntityThread?: thread;
+
     idleAnimationTrack?: AnimationTrack;
     idleAnimation?: Animation;
     blinkAnimationTrack?: AnimationTrack;
     blinkAnimation?: Animation;
 
+    expression: Expression | undefined;
+
+    constructor(private entity: Entity) {
+        print("Initialising animation handler");
+        const model = entity.model;
+        if (!model) {
+            warn("Model not found");
+            return;
+        }
+
+        this.animator = model.WaitForChild("Humanoid").WaitForChild("Animator") as Animator;
+
+        // load animations
+        const animationFolder = model.WaitForChild("anim") as Folder;
+        this.idleAnimation = animationFolder.WaitForChild("idle") as Animation;
+        this.blinkAnimation = animationFolder.WaitForChild("blink") as Animation;
+        this.idleAnimationTrack = this.animator.LoadAnimation(this.idleAnimation);
+        this.blinkAnimationTrack = this.animator.LoadAnimation(this.blinkAnimation);
+
+        // expression
+        this.initialiseExpression();
+
+        // begin with idle animation
+        this.playIdleAnimation();
+    }
+
+    initialiseExpression() {
+        this.expression = new Expression(this.entity);
+        this.idleBlinkingThread = task.spawn(() => {
+            while (true) {
+                wait(math.random(5, 10));
+                this.expression?.blink();
+            }
+        })
+    }
+
+    playIdleAnimation() {
+        print("Playing idle animation");
+        this.idleAnimationTrack?.Play();
+    }
+
+    playBlinkAnimation() {
+        print("Playing blink animation");
+        this.blinkAnimationTrack?.Play();
+    }
+}
+
+// Manages audio files for the entity
+class AudioHandler {
+    private idleSelectAudio: Sound[] = [];
+
+    constructor(private entity: Entity) {
+        this.initAudio();
+    }
+
+    initAudio() {
+        // init audios
+        const audioFolder = ReplicatedStorage.FindFirstChild("Audio") as Folder;
+        const entityAudio = audioFolder?.FindFirstChild("entity") as Folder;
+        const thisEntityAudio = entityAudio?.FindFirstChild(this.entity.stats.id) as Folder;
+        if (!audioFolder) {
+            warn("Audio folder not found");
+            return;
+        }
+        if (!entityAudio) {
+            warn("Entity audio folder not found");
+            return;
+        }
+        if (!thisEntityAudio) {
+            warn(`audio for ${this.entity.stats.id} not found`);
+            return;
+        }
+
+        const allAudios = thisEntityAudio.GetChildren();
+        this.idleSelectAudio = allAudios.filter((audio) => audio.Name === "idle") as Sound[];
+        if (this.idleSelectAudio.size() === 0) {
+            warn("Idle select audio not found");
+        }
+    }
+
+    playIdleAudio() {
+        // Logic to play idle audio
+        if (!this.idleSelectAudio || this.idleSelectAudio?.size() === 0) {
+            warn("Idle select audio not found");
+            return;
+        }
+        const index = math.random(0, this.idleSelectAudio.size() - 1);
+        this.idleSelectAudio[index].Play();
+    }
+
+    play(entityStatus: EntityStatus) {
+        switch (entityStatus) {
+            case EntityStatus.Idle:
+                this.playIdleAudio();
+                break;
+        }
+    }
+}
+
+// Manages tweening for entity movement and rotations
+class TweenManager {
+    private tweenQueue: Tween[] = [];
+
+    addTween(tween: Tween) {
+        this.tweenQueue.push(tween);
+        task.spawn(() => {
+            tween.Play();
+        });
+    }
+
+    async waitForCompletion(tween: Tween) {
+        return tween.Completed.Wait();
+    }
+
+    createTween(modelPrimaryPart: BasePart, targetCFrame: CFrame, duration: number): Tween {
+        return TweenService.Create(
+            modelPrimaryPart,
+            new TweenInfo(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { CFrame: targetCFrame }
+        );
+    }
+}
+
+export default class Entity implements iEntity {
+    battle: Battle;
+
+    animationHandler?: AnimationHandler;
+    audioHandler?: AudioHandler;
+
     tweenQueue: Array<Tween> = [];
     tweenHandleThread?: thread;
-
-    // audios
-    idleSelectAudio?: Sound[];
 
     playerID: number;
     iconURL?: ReadinessIcon;
@@ -40,7 +166,7 @@ export default class Entity implements iEntity {
     botType: BotType = BotType.Enemy;
 
     expression?: Expression;
-    template?: Model;
+    template: Readonly<Model>;
     model?: Model;
     animator?: Animator;
 
@@ -55,9 +181,11 @@ export default class Entity implements iEntity {
         this.pos = options.pos ?? 0;
         this.name = options.name ?? options.stats.id;
         this.botType = options.botType || BotType.Enemy;
+        this.template = ReplicatedStorage.WaitForChild('Models').FindFirstChild(`entity_${this.stats.id}`) as Model;
+        if (!this.template) {
+            throw `Entity template not found for entity_${this.stats.id}`;
+        }
 
-        this.initAnimationsAndModel();
-        this.initAudioFiles();
         this.initTweenHandleScript();
     }
 
@@ -80,81 +208,39 @@ export default class Entity implements iEntity {
         this.tweenHandleThread = task.spawn(iter);
     }
 
-    initAnimationsAndModel() {
-        const id = this.stats.id;
-        this.template = ReplicatedStorage.WaitForChild(`entity_${id}`) as Model;
-        const animFolder = this.template.WaitForChild("anim") as Folder;
-        this.idleAnimation = animFolder.WaitForChild("idle") as Animation;
-        this.blinkAnimation = animFolder.WaitForChild("blink") as Animation;
-    }
-
-    initAudioFiles() {
-        // init audios
-        const audioFolder = ReplicatedStorage.FindFirstChild("Audio") as Folder;
-        if (!audioFolder) {
-            warn("Audio folder not found");
-            return;
-        }
-        const entityAudio = audioFolder.FindFirstChild("entity") as Folder;
-        if (!entityAudio) {
-            warn("Entity audio folder not found");
-            return;
-        }
-
-        const thisEntityAudio = entityAudio.FindFirstChild(this.stats.id) as Folder;
-        if (!thisEntityAudio) {
-            warn(`audio for ${this.stats.id} not found`);
-            return;
-        }
-
-        const allAudios = thisEntityAudio.GetChildren();
-        this.idleSelectAudio = allAudios.filter((audio) => audio.Name === "idle") as Sound[];
-        if (this.idleSelectAudio.size() === 0) {
-            warn("Idle select audio not found");
-        }
-    }
-
     playAudio(entityStatus: EntityStatus) {
-        switch (entityStatus) {
-            case EntityStatus.idle:
-                const audio = this.idleSelectAudio?.[math.random(0, this.idleSelectAudio.size())];
-                if (audio) {
-                    audio.Play();
-                }
-                break;
+        if (!this.audioHandler) {
+            warn("Audio handler not initialised");
+            return;
         }
+        this.audioHandler.play(entityStatus);
     }
 
-    initialiseExpression() {
-        this.expression = new Expression(this);
-        this.idleBlinkingScript = RunService.RenderStepped.Connect(() => {
-            this.expression?.blink();
-            wait(math.random(1, 5));
-        })
-    }
-
-    getAndCloneTemplate() {
+    cloneAndPositionTemplate(): Model | undefined {
         const entity = this.template?.Clone();
+        //#region defence
         if (!entity) {
             warn(`Entity template not found for entity_${this.stats.id}`);
             return;
         }
+        //#endregion
         this.positionModel(entity);
         this.model = entity;
-        return entity;
+        return this.model;
     }
 
-    initialiseCharacteristics() {
+    initialiseCharacteristics(): Model | undefined {
+        const entity = this.cloneAndPositionTemplate();
+        //#region defence
         if (!this.cell) {
             warn("Coordinates not set");
             return;
         }
-        const entity = this.getAndCloneTemplate();
         if (!entity) return;
-
+        //#endregion
         entity.Parent = this.cell.part;
-        this.initializeAnimation(entity);
-        this.initialiseExpression();
+        this.animationHandler = new AnimationHandler(this);
+        this.audioHandler = new AudioHandler(this);
         return this.model;
     }
 
@@ -193,25 +279,6 @@ export default class Entity implements iEntity {
         }
     }
 
-
-    private initializeAnimation(entity: Model) {
-        const humanoid = entity.WaitForChild("Humanoid") as Humanoid;
-        const animator = humanoid?.WaitForChild("Animator") as Animator;
-        if (!animator) {
-            warn("Animator not found");
-            return
-        }
-        if (!this.idleAnimation) {
-            warn("Idle animation not found");
-            return;
-        }
-
-        this.animator = animator;
-        this.idleAnimationTrack = animator.LoadAnimation(this.idleAnimation);
-        this.idleAnimationTrack.Looped = true;
-        this.idleAnimationTrack.Play();
-    }
-
     private positionModel(entity: Model) {
         const primaryPart = entity.PrimaryPart;
         if (!primaryPart) {
@@ -221,13 +288,13 @@ export default class Entity implements iEntity {
         entity.PivotTo(new CFrame(position));
     }
 
-    getAbilities(): iAbility[] {
+    getAbilities(): Array<iAbility> {
         const uniPhysAbilities = extractMapValues(Ability.UNIVERSAL_PHYS);
         return uniPhysAbilities;
     }
 
 
-    setCell(cell: Cell) {
+    setCell(cell: Cell): Cell | undefined {
         if (cell.isVacant() === false) {
             warn("Cell is occupied");
             return;
@@ -238,34 +305,36 @@ export default class Entity implements iEntity {
         }
         this.cell = cell;
         cell.entity = this;
+        return this.cell;
     }
-    async moveToCell(cell: Cell, path?: Vector2[]) {
+    async moveToCell(cell: Cell, path?: Vector2[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
-        const modelPrimaryPart = humanoid?.RootPart;
-        if (!modelPrimaryPart || !humanoid) {
-            warn("Model not materialised", modelPrimaryPart, humanoid);
+        const primaryPart = humanoid?.RootPart;
+        //#region defence
+        if (!primaryPart || !humanoid) {
+            warn("Model not materialised", primaryPart, humanoid);
             return;
         }
-
-        this.setCell(cell);
         if (!path) {
             path = [cell.xy];
         }
+        //#endregion
+        this.setCell(cell);
 
         for (const xy of path) {
             const gxy = gridXYToWorldXY(xy, BattleGUI.GetBattle().grid);
-            const targetPosition = new Vector3(gxy.X, modelPrimaryPart.Position.Y, gxy.Z);
-            if (modelPrimaryPart.Position === targetPosition) {
+            const targetPosition = new Vector3(gxy.X, primaryPart.Position.Y, gxy.Z);
+            if (primaryPart.Position === targetPosition) {
                 continue;
             }
 
-            const direction = (targetPosition.sub(modelPrimaryPart.Position)).Unit;
-            const lookAtCFrame = CFrame.lookAt(modelPrimaryPart.Position, modelPrimaryPart.Position.add(direction));
-            const targetCFrame = new CFrame(targetPosition).mul(lookAtCFrame.sub(modelPrimaryPart.Position));
+            const direction = (targetPosition.sub(primaryPart.Position)).Unit;
+            const lookAtCFrame = CFrame.lookAt(primaryPart.Position, primaryPart.Position.add(direction));
+            const targetCFrame = new CFrame(targetPosition).mul(lookAtCFrame.sub(primaryPart.Position));
 
             // Tween to the new CFrame
             const tween = TweenService.Create(
-                modelPrimaryPart,
+                primaryPart,
                 new TweenInfo(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
                 { CFrame: targetCFrame }
             );

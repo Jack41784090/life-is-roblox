@@ -209,7 +209,7 @@ export interface DropmenuAction {
 }
 
 export enum EntityStatus {
-    idle = 'idle',
+    Idle = 'idle',
 }
 
 export interface DropdownmenuContext {

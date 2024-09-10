@@ -76,53 +76,67 @@ export default class Expression {
     }
 
     blink() {
-        const blinkAnimation = this.entity.blinkAnimation;
-        const animator = this.entity.animator;
-        if (blinkAnimation && animator) {
-            const track = animator.LoadAnimation(blinkAnimation);
-            track.Looped = false;
-            this.entity.blinkAnimationTrack = track;
-            this.entity.blinkAnimationTrack.Play();
+        print("Blinking");
+        const animationHandler = this.entity.animationHandler;
+        const animator = animationHandler?.animator;
+        const blinkAnimation = animationHandler?.blinkAnimation;
+        const newBlinkTrack = blinkAnimation ? animator?.LoadAnimation(blinkAnimation) : undefined;
 
-            // tween
-            if (this.eyes) {
-                // const closeEyeFrame = track.GetTimeOfKeyframe("CloseEye");
-                // const time = closeEyeFrame / 60;
-                // const tween = TweenService.Create(
-                //     this.eyes,
-                //     new TweenInfo(time, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-                //     {
-                //         Size:
-                //             new Vector3(
-                //                 this.eyes.Size.X,
-                //                 this.eyes.Size.Y * .65,
-                //                 this.eyes.Size.Z
-                //             )
-                //     });
-                // tween.Play();
-            }
-
-            // blink
-            const openEye = track.GetMarkerReachedSignal("OpenEye").Connect(() => {
-                this.openLeftEye();
-                this.openRightEye();
-                if (this.eyes) {
-                    this.eyes.Size = new Vector3(
-                        this.eyes.Size.X,
-                        1,
-                        this.eyes.Size.Z
-                    )
-                }
-            })
-            const closeEye = track.GetMarkerReachedSignal("CloseEye").Connect(() => {
-                this.closeLeftEye();
-                this.closeRightEye();
-            })
-            const close = track.Stopped.Connect(() => {
-                openEye.Disconnect();
-                closeEye.Disconnect();
-                close.Disconnect();
-            })
+        if (!animationHandler) {
+            warn("No animation handler found");
+            return;
         }
+        if (!blinkAnimation || !newBlinkTrack) {
+            warn("No blink animation found");
+            return;
+        }
+        if (!animator) {
+            warn("No animator found");
+            return;
+        }
+
+        newBlinkTrack.Looped = false;
+        animationHandler.blinkAnimationTrack = newBlinkTrack;
+        animationHandler.blinkAnimationTrack.Play();
+
+        // tween
+        if (this.eyes) {
+            // const closeEyeFrame = track.GetTimeOfKeyframe("CloseEye");
+            // const time = closeEyeFrame / 60;
+            // const tween = TweenService.Create(
+            //     this.eyes,
+            //     new TweenInfo(time, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            //     {
+            //         Size:
+            //             new Vector3(
+            //                 this.eyes.Size.X,
+            //                 this.eyes.Size.Y * .65,
+            //                 this.eyes.Size.Z
+            //             )
+            //     });
+            // tween.Play();
+        }
+
+        // blink
+        const openEye = newBlinkTrack.GetMarkerReachedSignal("OpenEye").Connect(() => {
+            this.openLeftEye();
+            this.openRightEye();
+            if (this.eyes) {
+                this.eyes.Size = new Vector3(
+                    this.eyes.Size.X,
+                    1,
+                    this.eyes.Size.Z
+                )
+            }
+        })
+        const closeEye = newBlinkTrack.GetMarkerReachedSignal("CloseEye").Connect(() => {
+            this.closeLeftEye();
+            this.closeRightEye();
+        })
+        const close = newBlinkTrack.Stopped.Connect(() => {
+            openEye.Disconnect();
+            closeEye.Disconnect();
+            close.Disconnect();
+        })
     }
 }

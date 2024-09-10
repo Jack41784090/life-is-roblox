@@ -211,7 +211,7 @@ export default class Battle {
         return new Promise((resolve) => {
             (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
             this.gui?.mountActionMenu(this.getActions(w));
-            w.playAudio(EntityStatus.idle);
+            w.playAudio(EntityStatus.Idle);
         });
     }
 
