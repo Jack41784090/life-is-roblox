@@ -1,6 +1,6 @@
 import { RunService, UserInputService, Workspace } from "@rbxts/services";
 import { getTween, gridXYToWorldXY } from "shared/func";
-import { Battle } from "./Battle";
+import Battle from "./Battle";
 
 export default class BattleCamera {
     battle: Battle;

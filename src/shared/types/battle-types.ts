@@ -1,22 +1,9 @@
-// // // Physical attributes
-// // str: number,    // Strength: muscle density
-// // dex: number,    // Dexterity: precision, skill with physical items and tools
-// // spd: number,    // Speed: quickness
-// // siz: number,    // Size: body mass
-// // end: number,    // Endurance: stamina, resistance to fatigue
-
 import Roact from "@rbxts/roact";
-import { Battle } from "shared/class/Battle";
+import Ability from "shared/class/Ability";
+import Battle from "shared/class/Battle";
 import Cell from "shared/class/Cell";
 import Entity from "shared/class/Entity";
 
-// // // Mental attributes
-// // int: number,    // Intelligence: knowledge of pragmatic magic
-// // spr: number,    // Spirit: connection to the spiritual world
-// // fai: number,    // Faith: faith in the divine
-// // wil: number,    // Willpower: mental strength
-// // cha: number,    // Charisma: ability to influence others
-// // beu: number,    // Beauty: physical appearance
 export enum BotType {
     Player = 'player',
     Enemy = 'enemy',
@@ -126,6 +113,11 @@ export interface iAbility {
         mana: number,
     }
 
+    range: {
+        min: number,
+        max: number,
+    }
+
     // effects: Effect[];
 }
 
@@ -189,13 +181,14 @@ export type AbilityInitOptions = {
     description: string;
     acc: number;
     cost: { pos: number; mana: number; };
+    range: { min: number; max: number; };
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
     using: Entity;
     target: Entity;
 }
 
-export interface Action {
+export interface BattleAction {
     type: ActionType,
     run: (ui: Roact.Tree) => void;
 }
@@ -229,3 +222,22 @@ export enum BattleStatus {
     Begin = 'begin',
     PlayerMovement = 'playerMovement',
 }
+
+export interface _Action {
+    type: ActionType,
+    executed: boolean,
+}
+export interface AttackAction extends _Action {
+    coordinate: Vector2,
+    ability: Ability,
+    clashResult?: ClashResult,
+    abilityEffectString?: string,
+}
+
+export interface ClashResult {
+    damage: number,
+    u_damage: number,
+    fate: ClashResultFate,
+    roll: number,
+}
+

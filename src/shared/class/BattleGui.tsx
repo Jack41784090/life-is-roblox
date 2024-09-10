@@ -10,8 +10,8 @@ import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { getPlayer } from "shared/func";
-import { Action, DropdownmenuContext, DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
-import { Battle } from "./Battle";
+import { BattleAction, DropdownmenuContext, DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
+import Battle from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
 
@@ -131,13 +131,13 @@ export default class BattleGUI {
             if (!ancestor) return;
 
             const clickedEntity = this.getBattle().getEntityFromModel(ancestor);
-            if (!clickedEntity?.cell) return;
+            if (clickedEntity?.cell === undefined) return;
 
             const crEntity = this.getBattle().currentRound?.entity;
             if (!crEntity) return;
 
             crEntity.faceEntity(clickedEntity).then(() => {
-                this.showDropdownMenuAt(clickedEntity.cell!);
+                this.mountDropdownmenuAt(clickedEntity.cell!);
             });
         });
     }
@@ -232,27 +232,27 @@ export default class BattleGUI {
      * @param actions 
      * @returns 
      */
-    mountActionMenu(actions: Action[]) {
+    mountActionMenu(actions: BattleAction[]) {
         print("Mounting action menu");
         this.unmountAndClear('actionsUI');
-        const actionOptions = actions.map((action, index) => (
-            <ButtonElement
-                Key={action.type}
-                position={index / actions.size()}
-                size={1 / actions.size()}
-                onclick={() => {
-                    if (this.actionsUI) action.run(this.actionsUI)
-                }}
-                text={action.type}
-                transparency={0.9}
-            />
-        ));
-        return Roact.mount(
+        this.actionsUI = Roact.mount(
             <MenuFrameElement transparency={1}>
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)}>
-                    {actionOptions}
+                    {actions.map((action, index) => (
+                        <ButtonElement
+                            Key={action.type}
+                            position={index / actions.size()}
+                            size={1 / actions.size()}
+                            onclick={() => {
+                                if (this.actionsUI) action.run(this.actionsUI)
+                            }}
+                            text={action.type}
+                            transparency={0.9}
+                        />
+                    ))}
                 </ButtonFrameElement>
             </MenuFrameElement>);
+        return this.actionsUI;
     }
 
     //#region Cell Methods
@@ -295,9 +295,6 @@ export default class BattleGUI {
         this.exitMovement();
         if (cell.isVacant()) {
             this.clickedOnEmptyCell(cell);
-        }
-        else {
-            this.showDropdownMenuAt(cell);
         }
     }
 
@@ -346,7 +343,7 @@ export default class BattleGUI {
     //#endregion
 
     //#region Dropmenu
-    private showDropdownMenuAt(cell: Cell) {
+    private mountDropdownmenuAt(cell: Cell) {
         print("Showing action dropdown");
         const cellEntity = cell.entity;
         if (!cellEntity) {
@@ -387,11 +384,13 @@ export default class BattleGUI {
             name: DropmenuActionType.Attack,
             run: async (ctx: DropdownmenuContext) => {
                 print("Attacking");
+                this.getBattle().setUpOnAttackClickedSignal();
             },
             onClickChain: {
                 isRendering: false,
                 render: (ctx: DropdownmenuContext) => (
                     <BattleDDAttackElement
+                        battle={this.getBattle()}
                         ctx={ctx}
                     />
                 )
@@ -438,12 +437,6 @@ export default class BattleGUI {
     //#endregion
 
     //#region Readiness Bar Methods
-    private getAllIcons() {
-        const icons: Roact.Ref<Frame>[] = [];
-        this.readinessIconMap.forEach((ref) => icons.push(ref));
-        return icons;
-    }
-
     async updateSpecificReadinessIcon(iconID: number, readiness: number) {
         const iconFrame = this.readinessIconMap.get(iconID)?.getValue();
         if (!iconFrame) {

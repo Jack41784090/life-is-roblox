@@ -1,6 +1,6 @@
 import Roact from "@rbxts/roact";
 import { ContentProvider, Players, ReplicatedFirst, ReplicatedStorage, Workspace } from "@rbxts/services";
-import { Battle } from "shared/class/Battle";
+import Battle from "shared/class/Battle";
 import ButtonElement, { ButtonElementProps } from "./components/button";
 import ButtonFrameElement from "./components/button-frame";
 import MenuFrameElement from "./components/menu";

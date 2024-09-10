@@ -19,6 +19,7 @@
   "dependencies": {
     "@rbxts/roact": "^1.4.4-ts.0",
     "@rbxts/services": "^1.5.4",
+    "@rbxts/signal": "^1.1.1",
     "ansi-colors": "^4.1.3"
   }
 }

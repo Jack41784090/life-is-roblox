@@ -1,11 +1,14 @@
 
 import Roact from "@rbxts/roact";
 import { TweenService } from "@rbxts/services";
+import Ability from "shared/class/Ability";
+import Battle from "shared/class/Battle";
 import { IDGenerator } from "shared/class/IDGenerator";
 import { DropdownmenuContext } from "shared/types/battle-types";
 
 export interface BattleDDAttackElementProps {
     ctx: DropdownmenuContext;
+    battle: Battle;
 }
 interface BattleDDAttackElementState {
     ref: Roact.Ref<Frame>;
@@ -14,6 +17,8 @@ interface BattleDDAttackElementState {
 
 export default class BattleDDAttackElement extends Roact.Component<BattleDDAttackElementProps, BattleDDAttackElementState> {
     private v2vPos: Vector3Value = new Instance("Vector3Value");
+    // private onAttackAbilityClicked = this.props.onAttackAbilityClickedSignal;
+
     constructor(props: BattleDDAttackElementProps) {
         super(props);
         this.state = {
@@ -44,28 +49,57 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
     }
 
     render() {
+        const allAbilities = this.props.ctx.initiator.getAbilities(); print(allAbilities)
+        const attacker = this.props.ctx.initiator;
+        const target = this.props.ctx.cell.entity!;
+        const attackerCellCoords = attacker.cell?.xy;
+        const targetCellCoords = target.cell?.xy;
+        if (!attackerCellCoords || !targetCellCoords) {
+            return undefined;
+        }
+
+        const reachableAbilities = allAbilities.filter(a => {
+            const range = a.range;
+            const distance = attackerCellCoords.sub(targetCellCoords).Magnitude;
+            return range.min <= distance && distance <= range.max;
+        })
+        const abilityButtonElements = reachableAbilities.map(a => {
+            return <textbutton
+                Key={a.name}
+                Position={new UDim2(0, 0, 0, 0)}
+                Size={UDim2.fromScale(1, 1)}
+                Event={{
+                    MouseButton1Click: () => {
+                        print("Clicked on " + a.name);
+                        const ability = new Ability({
+                            name: a.name,
+                            description: a.description,
+                            acc: a.acc,
+                            cost: a.cost,
+                            potencies: a.potencies,
+                            damageType: a.damageType,
+                            using: this.props.ctx.initiator,
+                            target: target,
+                            range: a.range
+                        });
+                        this.props.battle.onAttackClickedSignal.Fire(ability);
+                    }
+                }}
+                Text={a.name}
+            />
+        });
+
+        if (reachableAbilities.size() === 0) {
+            return undefined;
+        }
+
         return (
             <frame Key={"attack-menu-" + IDGenerator.generateID()}
                 Size={UDim2.fromScale(1, 1)}
-                // Position={UDim2.fromScale(this.v2vPos.Value.X, this.v2vPos.Value.Y)}
                 Position={UDim2.fromScale(this.v2vPos.Value.X, this.v2vPos.Value.Y)}
                 Ref={this.state.ref}
             >
-                {
-                    this.props.ctx.initiator.getAbilities().map(a => {
-                        return <textbutton
-                            Key={a.name}
-                            Position={new UDim2(0, 0, 0, 0)}
-                            Size={UDim2.fromScale(1, 1)}
-                            Event={{
-                                MouseButton1Click: () => {
-                                    print("Clicked on " + a.name);
-                                }
-                            }}
-                            Text={a.name}
-                        />
-                    })
-                }
+                {abilityButtonElements}
             </frame>
         );
     }

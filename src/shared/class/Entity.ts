@@ -2,7 +2,7 @@ import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { extractMapValues, gridXYToWorldXY } from "shared/func";
 import { BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import Ability from "./Ability";
-import { Battle } from "./Battle";
+import Battle from "./Battle";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
 import Expression from "./Expression";
@@ -212,10 +212,6 @@ export default class Entity implements iEntity {
         this.idleAnimationTrack.Play();
     }
 
-    private positionBasePart(entity: BasePart) {
-        entity.Position = this.cell!.part.Position.add(new Vector3(0, this.cell!.height * this.cell!.size, 0));
-    }
-
     private positionModel(entity: Model) {
         const primaryPart = entity.PrimaryPart;
         if (!primaryPart) {
@@ -311,5 +307,9 @@ export default class Entity implements iEntity {
         );
         this.tweenQueue.push(tween);
         return tween.Completed.Wait();
+    }
+
+    heal(num: number) {
+        this.hip += num;
     }
 }

@@ -1,6 +1,6 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, RunService, TweenService, UserInputService } from "@rbxts/services";
-import { Battle } from "shared/class/Battle";
+import Battle from "shared/class/Battle";
 import Cell from "shared/class/Cell";
 import { getMouseWorldPosition } from "shared/func";
 import { DropmenuAction } from "shared/types/battle-types";

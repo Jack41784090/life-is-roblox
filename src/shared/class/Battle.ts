@@ -2,7 +2,8 @@ import Roact from "@rbxts/roact";
 import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
 import { getDummyStats } from "shared/func";
-import { ActionType, BattleConfig, BattleStatus, BotType, EntityStatus, iAbility, ReadinessIcon } from "shared/types/battle-types";
+import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, ClashResult, ClashResultFate, EntityStatus, ReadinessIcon } from "shared/types/battle-types";
+import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
 import Cell from "./Cell";
@@ -27,13 +28,14 @@ export class BattleTeam {
     }
 }
 
-export class Battle {
+export default class Battle {
     status: BattleStatus = BattleStatus.Inactive;
     bcamera: BattleCamera;
     gui: BattleGUI | undefined;
 
     // signals
-    onAttackClickedSignal = new Signal<(ability: iAbility) => void>();
+    onAttackClickedScript: RBXScriptConnection | undefined;
+    onAttackClickedSignal = new Signal<(ability: Ability) => void>();
 
     //
     currentRound: {
@@ -71,10 +73,6 @@ export class Battle {
 
         // Spawn the entities
         b.begin();
-
-        const s = b.onAttackClickedSignal.Connect(a => {
-            print(`Attack clicked: ${a.name}`);
-        })
 
         return b;
     }
@@ -270,6 +268,86 @@ export class Battle {
     getEntityFromModel(model: Model) {
         return this.getAllEntities().find(e => e.model === model);
     }
+
+    //#region Ability Management
+    /**
+     * Set up the signal for when an attack is clicked
+     * Only one script can be set up at a time
+     */
+    setUpOnAttackClickedSignal(): RBXScriptConnection {
+        this.onAttackClickedScript?.Disconnect();
+        this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability: Ability) => {
+            const entity = this.currentRound?.entity;
+            if (!entity) return;
+            print(`Entity ${entity.name} is attacking with ${ability.name}`);
+
+            const attackAction: AttackAction = {
+                type: ActionType.Attack,
+                executed: false,
+                ability: ability,
+                coordinate: entity.cell?.xy ?? new Vector2(0, 0),
+            }
+            this.clash(attackAction);
+        });
+        return this.onAttackClickedScript;
+    }
+
+    applyClash(_aA: AttackAction, _cR: ClashResult): void {
+        const attacker = _aA.ability.using;
+        const target = _aA.ability.target;
+        let { damage } = _cR;
+
+        // apply damage
+        target.hip -= damage;
+    }
+    clash(_aA: AttackAction): ClashResult {
+        const ability = _aA.ability;
+        const attacker = _aA.ability.using;
+        const target = _aA.ability.target;
+
+        print(`【Clash】 ${attacker.name} attacking ${target.name} with ${ability.name}`);
+
+        let fate: ClashResultFate = 'Miss';
+        let damage: number = 0, u_damage: number = 0;
+
+        const hit = math.random(1, 100);
+        const hitChance = 100
+        const crit = 0;
+        const minDamage = 0;
+        const maxDamage = ability.calculateDamage();
+        const prot = 0
+
+        // see if it crits
+        if (hit <= hitChance) {
+            // crit
+            if (hit <= hitChance * 0.1 + crit) {
+                u_damage = (math.random((minDamage + maxDamage) / 2, maxDamage)) * 2;
+                fate = "CRIT";
+            }
+            // hit
+            else {
+                u_damage = math.random(minDamage, maxDamage);
+                fate = "Hit";
+            }
+        }
+
+        u_damage = math.clamp(u_damage, 0, 1000);
+
+        // apply protections
+        damage = math.clamp(u_damage * (1 - prot), 0, 100);
+
+        const cR: ClashResult = {
+            damage: damage,
+            u_damage: u_damage,
+            fate: fate,
+            roll: hit,
+        }; print(cR);
+
+        return cR;
+    }
+
+
+    //#endregion
 
     //#region Readiness Management
     static readonly MOVEMENT_COST = 10;
