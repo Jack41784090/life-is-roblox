@@ -83,6 +83,17 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
                             range: a.range
                         });
                         this.props.battle.onAttackClickedSignal.Fire(ability);
+                    },
+
+                    MouseEnter: () => {
+                        print("Hovered on " + a.name);
+                        //#region  defence
+                        if (!attacker.cell) {
+                            warn("attackmenu hover: attacker cell not found");
+                            return;
+                        }
+                        //#endregion
+                        this.props.battle.gui?.mountOrUpdateGlowRange(attacker.cell, a.range);
                     }
                 }}
                 Text={a.name}

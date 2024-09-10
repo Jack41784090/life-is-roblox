@@ -255,7 +255,7 @@ export default class Battle {
             }
         }
 
-        this.gui?.glowAlongPath(path);
+        this.gui?.mountOrUpdateGlowPath(path);
         return entity.moveToCell(destination, path)
     }
 

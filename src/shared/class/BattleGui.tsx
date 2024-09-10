@@ -287,7 +287,7 @@ export default class BattleGUI {
         this.updateSpecificReadinessIcon(currentEntity.playerID, readinessPercent);
 
         // 3. Glow along the path
-        return this.glowAlongPath(path);
+        return this.mountOrUpdateGlowPath(path);
     }
 
     // Handle cell click event
@@ -311,7 +311,7 @@ export default class BattleGUI {
     }
 
     // Highlight the cells along a path
-    glowAlongPath(path: Vector2[]) {
+    mountOrUpdateGlowPath(path: Vector2[]) {
         const elements = path.mapFiltered((xy) => {
             const cell = this.getBattle().grid.getCell(xy.X, xy.Y);
             if (!cell) return;
@@ -340,6 +340,39 @@ export default class BattleGUI {
 
         return path;
     }
+
+    mountOrUpdateGlowRange(_cell: Cell, range: { min: number, max: number }) {
+        //#region defence
+        const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
+        if (!playerGUI) {
+            warn("No player GUI found");
+            return;
+        }
+        //#endregion
+
+        const elements = this.getBattle().grid.cells.mapFiltered((c) => {
+            if (!c) return;
+            const distance = c.xy.sub(_cell.xy).Magnitude;
+            if (range.min <= distance && distance <= range.max) {
+                c.glow = true;
+                return <CellGlowSurfaceElement cell={c} />;
+            }
+        });
+
+        if (this.glowPathGui) {
+            Roact.update(this.glowPathGui,
+                <Portal target={playerGUI}>
+                    <frame>{elements}</frame>
+                </Portal>
+            );
+        } else {
+            this.glowPathGui = Roact.mount(
+                <Portal target={playerGUI}>
+                    <frame>{elements}</frame>
+                </Portal>);
+        }
+    }
+
     //#endregion
 
     //#region Dropmenu
