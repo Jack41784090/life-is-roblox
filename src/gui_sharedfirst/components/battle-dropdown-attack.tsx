@@ -72,15 +72,9 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
                     MouseButton1Click: () => {
                         print("Clicked on " + a.name);
                         const ability = new Ability({
-                            name: a.name,
-                            description: a.description,
-                            acc: a.acc,
-                            cost: a.cost,
-                            potencies: a.potencies,
-                            damageType: a.damageType,
-                            using: this.props.ctx.initiator,
+                            ...a,
+                            using: attacker,
                             target: target,
-                            range: a.range
                         });
                         this.props.battle.onAttackClickedSignal.Fire(ability);
                     },
