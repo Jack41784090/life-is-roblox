@@ -288,8 +288,34 @@ export default class Battle {
                 coordinate: entity.cell?.xy ?? new Vector2(0, 0),
             }
             this.clash(attackAction);
+            this.playAttackAnimation(attackAction);
         });
         return this.onAttackClickedScript;
+    }
+
+    playAttackAnimation(_aA: AttackAction) {
+        const attacker = _aA.ability.using;
+        const attackerPrimaryPart = attacker.model?.PrimaryPart;
+        const animation = _aA.ability.animation;
+        if (!attackerPrimaryPart) {
+            warn("While playing attack animation, Primary Part not found");
+            return;
+        }
+
+        // remove all gui
+        this.gui?.exitMovement();
+
+        // Play the animation
+        const playAttackerAnimationProm = attacker.playAnimation({ animation, priority: Enum.AnimationPriority.Action4 });
+        const playCameraAnimationProm = this.bcamera.playAnimation({ animation, center: attackerPrimaryPart.CFrame });
+
+        // Play the sound
+        attacker.playAudio(EntityStatus.Idle);
+
+        // Wait for the animations to finish
+        return Promise.all([playAttackerAnimationProm, playCameraAnimationProm]).then(() => {
+            this.gui?.enterMovement();
+        });
     }
 
     applyClash(_aA: AttackAction, _cR: ClashResult): void {

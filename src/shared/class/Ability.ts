@@ -4,6 +4,7 @@ import Entity from "./Entity";
 export default class Ability implements iAbility {
     static readonly UNIVERSAL_PHYS = new Map<string, iAbility>([
         ['Slash', {
+            animation: 'swing',
             name: 'Slash',
             description: 'slashing',
             acc: 100,
@@ -25,6 +26,7 @@ export default class Ability implements iAbility {
     ])
 
 
+    animation: string;
     name: string;
     description: string;
     acc: number;
@@ -45,6 +47,7 @@ export default class Ability implements iAbility {
         this.target = opt.target;
         this.damageType = opt.damageType;
         this.range = opt.range;
+        this.animation = opt.animation;
     }
 
     calculateDamage() {

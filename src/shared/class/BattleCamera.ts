@@ -1,4 +1,4 @@
-import { RunService, UserInputService, Workspace } from "@rbxts/services";
+import { ReplicatedStorage, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { getTween, gridXYToWorldXY } from "shared/func";
 import Battle from "./Battle";
 
@@ -12,9 +12,11 @@ export default class BattleCamera {
     center: Vector2;
     size: number;
     camera: Camera;
-    mode: "HOI4" | "CHAR_CENTER" = "HOI4";
+    mode: "HOI4" | "CHAR_CENTER" | "ANIMATION" = "HOI4";
     panningEnabled: boolean = true;
     panService: RBXScriptConnection | undefined;
+
+    camAnimFolder: Folder;
 
     constructor(center: Vector2, size: number, camera: Camera, battle: Battle) {
         this.center = center;
@@ -22,6 +24,8 @@ export default class BattleCamera {
         this.camera = camera;
         this.battle = battle;
         this.setupRenderStepped();
+
+        this.camAnimFolder = ReplicatedStorage.WaitForChild("CamAnim") as Folder;
     }
 
     static readonly EDGE_BUFFER = 0.15;
@@ -200,5 +204,48 @@ export default class BattleCamera {
     private goToModelCam(model: Model) {
         const cam_ori = model.WaitForChild("cam-ori") as BasePart;
         return this.setCameraCFrame(cam_ori.CFrame);
+    }
+
+    async playAnimation({ animation, center, }: { animation: string; center?: CFrame }) {
+        const a = this.camAnimFolder.FindFirstChild(animation) as Animation;
+        const framesFolder = a?.FindFirstChild("Frames") as Folder;
+        if (!a) {
+            warn("Animation not found!");
+            return Promise.reject(void 0)
+        }
+        if (!framesFolder) {
+            warn("Frames folder not found!");
+            return Promise.reject(void 0)
+        }
+
+        const oldCameraMode = this.mode;
+        const oldCameraType = this.camera.CameraType;
+        const oldCameraCFrame = this.camera.CFrame;
+        let frameTime = 0;
+        this.camera.CameraType = Enum.CameraType.Scriptable;
+        this.mode = "ANIMATION";
+
+        const playPromise = new Promise(resolve => {
+
+            const con = RunService.RenderStepped.Connect((deltaTime) => {
+                frameTime += deltaTime * 60;
+                const frame = framesFolder.FindFirstChild(tostring(math.ceil(frameTime))) as CFrameValue;
+                if (frame) {
+                    this.camera.CFrame = center ?
+                        center.mul(frame.Value) :
+                        frame.Value;
+                } else {
+                    wait(0.5);
+                    con.Disconnect();
+                    this.camera.CameraType = oldCameraType;
+                    this.camera.CFrame = oldCameraCFrame;
+                    this.mode = oldCameraMode;
+
+                    resolve(void 0);
+                }
+            });
+        })
+
+        return playPromise;
     }
 }

@@ -98,6 +98,7 @@ export enum Potency {
 }
 
 export interface iAbility {
+    animation: string,
     name: string;
     description: string;
 
@@ -186,6 +187,7 @@ export type AbilityInitOptions = {
     damageType: Map<DamageType, number>;
     using: Entity;
     target: Entity;
+    animation: string;
 }
 
 export interface BattleAction {

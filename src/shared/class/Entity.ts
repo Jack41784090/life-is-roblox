@@ -18,6 +18,8 @@ class AnimationHandler {
     blinkAnimationTrack?: AnimationTrack;
     blinkAnimation?: Animation;
 
+    animationMap: Map<string, Animation> = new Map();
+
     expression: Expression | undefined;
 
     constructor(private entity: Entity) {
@@ -32,10 +34,24 @@ class AnimationHandler {
 
         // load animations
         const animationFolder = model.WaitForChild("anim") as Folder;
-        this.idleAnimation = animationFolder.WaitForChild("idle") as Animation;
-        this.blinkAnimation = animationFolder.WaitForChild("blink") as Animation;
-        this.idleAnimationTrack = this.animator.LoadAnimation(this.idleAnimation);
-        this.blinkAnimationTrack = this.animator.LoadAnimation(this.blinkAnimation);
+        const allAnimations = animationFolder.GetChildren() as Animation[];
+        allAnimations.forEach((animation) => {
+            this.animationMap.set(animation.Name, animation);
+        });
+        this.idleAnimation = this.animationMap.get("idle");
+        this.blinkAnimation = this.animationMap.get("blink");
+        if (this.idleAnimation) {
+            this.idleAnimationTrack = this.animator.LoadAnimation(this.idleAnimation);
+        }
+        else {
+            warn("Idle animation not found");
+        }
+        if (this.blinkAnimation) {
+            this.blinkAnimationTrack = this.animator.LoadAnimation(this.blinkAnimation);
+        }
+        else {
+            warn("Blink animation not found");
+        }
 
         // expression
         this.initialiseExpression();
@@ -52,6 +68,27 @@ class AnimationHandler {
                 this.expression?.blink();
             }
         })
+    }
+
+    playAnimation({ animation, priority = Enum.AnimationPriority.Action }: { animation: string; priority?: Enum.AnimationPriority; }) {
+        const animationObj = this.animationMap.get(animation);
+        if (!animationObj) {
+            warn(`Animation ${animation} not found`);
+            return Promise.reject(void 0)
+        }
+        const track = this.animator?.LoadAnimation(animationObj);
+        if (!this.animator || !track) {
+            warn(`Animator not loaded for ${animation}`);
+            return Promise.reject(void 0)
+        }
+
+        track.Priority = priority;
+        track.Play();
+
+        return new Promise<void>((resolve) => {
+            track.Stopped.Wait()
+            resolve();
+        });
     }
 
     playIdleAnimation() {
@@ -206,6 +243,14 @@ export default class Entity implements iEntity {
             return iter();
         }
         this.tweenHandleThread = task.spawn(iter);
+    }
+
+    playAnimation({ animation, priority = Enum.AnimationPriority.Action }: { animation: string; priority?: Enum.AnimationPriority; }) {
+        if (!this.animationHandler) {
+            warn("Animation handler not initialised");
+            return Promise.reject(void 0)
+        }
+        return this.animationHandler.playAnimation({ animation, priority });
     }
 
     playAudio(entityStatus: EntityStatus) {
