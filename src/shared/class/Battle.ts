@@ -287,17 +287,24 @@ export default class Battle {
                 ability: ability,
                 coordinate: entity.cell?.xy ?? new Vector2(0, 0),
             }
-            this.clash(attackAction);
+            const cr = this.clash(attackAction);
+            print(cr);
             this.playAttackAnimation(attackAction);
         });
         return this.onAttackClickedScript;
     }
 
-    playAttackAnimation(_aA: AttackAction) {
+    async playAttackAnimation(_aA: AttackAction) {
         const attacker = _aA.ability.using;
+        const target = _aA.ability.target;
         const attackerPrimaryPart = attacker.model?.PrimaryPart;
+        const targetPrimaryPart = target.model?.PrimaryPart;
         const animation = _aA.ability.animation;
         if (!attackerPrimaryPart) {
+            warn("While playing attack animation, Primary Part not found");
+            return;
+        }
+        if (!targetPrimaryPart) {
             warn("While playing attack animation, Primary Part not found");
             return;
         }
@@ -305,17 +312,40 @@ export default class Battle {
         // remove all gui
         this.gui?.exitMovement();
 
+        // target faces attacker
+        await target.faceEntity(attacker);
+
         // Play the animation
-        const playAttackerAnimationProm = attacker.playAnimation({ animation, priority: Enum.AnimationPriority.Action4 });
-        const playCameraAnimationProm = this.bcamera.playAnimation({ animation, center: attackerPrimaryPart.CFrame });
+        const attackerAnimationTrack = attacker.playAnimation({ animation, priority: Enum.AnimationPriority.Action4 });
+        // const playCameraAnimationProm = this.bcamera.playAnimation({ animation, center: attackerPrimaryPart.CFrame });
+        const targetInitAnimationTrack = target.playAnimation({ animation: 'defend', priority: Enum.AnimationPriority.Action3, hold: 1 });
+        let targetAnimationTrack: AnimationTrack | undefined;
+
+        const t = attackerAnimationTrack?.GetMarkerReachedSignal("Hit").Connect(() => {
+            targetAnimationTrack = target.playAnimation({ animation: 'defend_hit', priority: Enum.AnimationPriority.Action4, hold: 1 });
+        });
+        const e = attackerAnimationTrack?.Ended.Connect(() => {
+            t?.Disconnect();
+            e?.Disconnect();
+            this.applyClash(_aA, this.clash(_aA));
+        });
+
+        // wait for animations to finish
+        if (targetInitAnimationTrack?.IsPlaying === true) targetInitAnimationTrack?.Ended.Wait();
+        if (attackerAnimationTrack?.IsPlaying === true) attackerAnimationTrack?.Ended.Wait();
+        if (targetAnimationTrack?.IsPlaying === true) targetAnimationTrack?.Ended.Wait();
+        // const cb = await playCameraAnimationProm;
+        // const cameraMovementAnimPromise = cb?.playPromise;
+        // const cameraMovementReturnCB = cb?.doneCallback;
+        // await cameraMovementAnimPromise;
+        // wait(.5);
+        // cameraMovementReturnCB?.();
 
         // Play the sound
         attacker.playAudio(EntityStatus.Idle);
 
-        // Wait for the animations to finish
-        return Promise.all([playAttackerAnimationProm, playCameraAnimationProm]).then(() => {
-            this.gui?.enterMovement();
-        });
+        // go back to movement
+        this.gui?.enterMovement();
     }
 
     applyClash(_aA: AttackAction, _cR: ClashResult): void {

@@ -1,4 +1,4 @@
-import { ReplicatedStorage, RunService, UserInputService, Workspace } from "@rbxts/services";
+import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { getTween, gridXYToWorldXY } from "shared/func";
 import Battle from "./Battle";
 
@@ -211,11 +211,11 @@ export default class BattleCamera {
         const framesFolder = a?.FindFirstChild("Frames") as Folder;
         if (!a) {
             warn("Animation not found!");
-            return Promise.reject(void 0)
+            return;
         }
         if (!framesFolder) {
             warn("Frames folder not found!");
-            return Promise.reject(void 0)
+            return;
         }
 
         const oldCameraMode = this.mode;
@@ -225,8 +225,21 @@ export default class BattleCamera {
         this.camera.CameraType = Enum.CameraType.Scriptable;
         this.mode = "ANIMATION";
 
-        const playPromise = new Promise(resolve => {
+        // tween to first frame
+        const firstFrame = framesFolder.FindFirstChild("0") as CFrameValue;
+        if (!firstFrame) {
+            warn("First frame not found!");
+            return
+        }
+        const tween = TweenService.Create(
+            this.camera,
+            new TweenInfo(0.1, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
+            { CFrame: center ? center.mul(firstFrame.Value) : firstFrame.Value }
+        )
+        tween.Play();
+        tween.Completed.Wait();
 
+        const playPromise = new Promise(resolve => {
             const con = RunService.RenderStepped.Connect((deltaTime) => {
                 frameTime += deltaTime * 60;
                 const frame = framesFolder.FindFirstChild(tostring(math.ceil(frameTime))) as CFrameValue;
@@ -237,15 +250,19 @@ export default class BattleCamera {
                 } else {
                     wait(0.5);
                     con.Disconnect();
-                    this.camera.CameraType = oldCameraType;
-                    this.camera.CFrame = oldCameraCFrame;
-                    this.mode = oldCameraMode;
-
                     resolve(void 0);
                 }
             });
         })
 
-        return playPromise;
+
+        return {
+            playPromise,
+            doneCallback: () => {
+                this.camera.CameraType = oldCameraType;
+                this.camera.CFrame = oldCameraCFrame;
+                this.mode = oldCameraMode;
+            }
+        };
     }
 }
