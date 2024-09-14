@@ -1,8 +1,8 @@
 import Roact from "@rbxts/roact";
 import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
-import { getDummyStats } from "shared/func";
-import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, ClashResult, ClashResultFate, EntityStatus, ReadinessIcon } from "shared/types/battle-types";
+import { requestData } from "shared/func";
+import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
 import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
@@ -97,10 +97,18 @@ export default class Battle {
 
     private initializeTeams(teamMap: Record<string, Player[]>) {
         for (const [teamName, playerList] of pairs(teamMap)) {
-            const members = playerList.map(player => {
+            const members = playerList.mapFiltered(player => {
+                const characterID = 'entity_adalbrecht'; // temp
+                // const characterStats = getCharacterStats(characterID);
+                const characterStats = requestData(player, 'characterStats', characterID) as EntityStats;
+                warn('cs', characterStats);
+                if (!characterStats) {
+                    warn(`Character [${characterID}] not found for [${player.Name}]`);
+                    return;
+                }
                 const entity = new Entity({
                     playerID: player.UserId + math.random(0, 1000),
-                    stats: getDummyStats(),
+                    stats: characterStats,
                     pos: 0,
                     org: 0,
                     hip: 0,
@@ -269,6 +277,16 @@ export default class Battle {
         return this.getAllEntities().find(e => e.model === model);
     }
 
+    //#region Calculations
+    getReality(reality: Reality, entity: Entity) {
+        switch (reality) {
+            case Reality.Maneuver:
+                return entity.stats.spd * entity.stats.acr;
+            default: return 0;
+        }
+    }
+    //#endregion
+
     //#region Ability Management
     /**
      * Set up the signal for when an attack is clicked
@@ -277,15 +295,16 @@ export default class Battle {
     setUpOnAttackClickedSignal(): RBXScriptConnection {
         this.onAttackClickedScript?.Disconnect();
         this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability: Ability) => {
-            const entity = this.currentRound?.entity;
-            if (!entity) return;
-            print(`Entity ${entity.name} is attacking with ${ability.name}`);
+            if (!ability.target.cell?.xy) {
+                warn("Target cell not found");
+                return;
+            }
 
             const attackAction: AttackAction = {
                 type: ActionType.Attack,
                 executed: false,
                 ability: ability,
-                coordinate: entity.cell?.xy ?? new Vector2(0, 0),
+                coordinate: ability.target.cell?.xy,
             }
             const cr = this.clash(attackAction);
             print(cr);
@@ -356,6 +375,7 @@ export default class Battle {
         // apply damage
         target.hip -= damage;
     }
+
     clash(_aA: AttackAction): ClashResult {
         const ability = _aA.ability;
         const attacker = _aA.ability.using;
@@ -367,9 +387,11 @@ export default class Battle {
         let damage: number = 0, u_damage: number = 0;
 
         const hit = math.random(1, 100);
-        const hitChance = 100
-        const crit = 0;
-        const minDamage = 0;
+        const hitChance = ability.acc - this.getReality(Reality.Maneuver, target);
+        const crit = this.getReality(Reality.Precision, attacker);
+
+        const abilitydamage = ability.calculateDamage();
+        const minDamage = abilitydamage * 0.5;
         const maxDamage = ability.calculateDamage();
         const prot = 0
 
@@ -401,7 +423,6 @@ export default class Battle {
 
         return cR;
     }
-
 
     //#endregion
 

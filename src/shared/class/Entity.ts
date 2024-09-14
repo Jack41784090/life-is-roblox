@@ -242,7 +242,7 @@ export default class Entity implements iEntity {
         this.pos = options.pos ?? 0;
         this.name = options.name ?? options.stats.id;
         this.botType = options.botType || BotType.Enemy;
-        this.template = ReplicatedStorage.WaitForChild('Models').FindFirstChild(`entity_${this.stats.id}`) as Model;
+        this.template = ReplicatedStorage.WaitForChild('Models').FindFirstChild(this.stats.id) as Model;
         if (!this.template) {
             throw `Entity template not found for entity_${this.stats.id}`;
         }

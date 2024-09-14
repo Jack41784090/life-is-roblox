@@ -1,22 +1,20 @@
-import { ReplicatedStorage, Workspace } from "@rbxts/services";
+import { DataStoreService, Players, ReplicatedStorage, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import Grid from "shared/class/Grid";
 import { EntityStats, iAbility } from "shared/types/battle-types";
 
-const service_Players = game.GetService("Players");
-const serivce_DataStore = game.GetService("DataStoreService");
-const service_Input = game.GetService("UserInputService");
-const service_Tween = game.GetService("TweenService");
+const remoteEvents = ReplicatedStorage.WaitForChild("RemoteEvents").GetChildren() as RemoteEvent[];
+const remoteFunctions = ReplicatedStorage.WaitForChild("RemoteFunctions").GetChildren() as RemoteFunction[];
 
 export function getPlayer(id?: number): Player | undefined {
-    return id ? service_Players.GetPlayerByUserId(id!) : service_Players.LocalPlayer;
+    return id ? Players.GetPlayerByUserId(id!) : Players.LocalPlayer;
 }
 
 export function getDatastore(name: string): DataStore {
-    return serivce_DataStore.GetDataStore(name);
+    return DataStoreService.GetDataStore(name);
 }
 
 export function onInput(inputType: Enum.UserInputType, callback: (input: InputObject) => void) {
-    service_Input.InputBegan.Connect((input: InputObject) => {
+    UserInputService.InputBegan.Connect((input: InputObject) => {
         if (input.UserInputType === inputType) {
             callback(input);
         }
@@ -24,7 +22,7 @@ export function onInput(inputType: Enum.UserInputType, callback: (input: InputOb
 }
 
 export function getTween(object: Instance, info: TweenInfo, goal: { [key: string]: any }) {
-    return service_Tween.Create(object, info, goal);
+    return TweenService.Create(object, info, goal);
 }
 
 export function enableCharacter(character: Model) {
@@ -146,7 +144,10 @@ export function getCharacterStats(id: string): EntityStats | undefined {
 export function saveCharacterStats(character: EntityStats, overwrite = false) {
     const [success, fail] = pcall(() => {
         const ds = getDatastore("characterStats");
-        if (overwrite) ds.SetAsync(character.id, character);
+        if (overwrite) {
+            warn(`Character [${character.id}] saved.`);
+            ds.SetAsync(character.id, character);
+        }
         else {
             const data = getCharacterStats(character.id);
             if (data) {
@@ -186,6 +187,13 @@ export function extractMapValues<T extends defined>(map: Map<any, T>) {
         va.push(v);
     }
     return va;
+}
+
+export function requestData(requester: Player, datastoreName: string, key: string) {
+    const requestDataRemoteEvent = remoteFunctions.find((re) => re.Name === "RequestData");
+    if (requestDataRemoteEvent) {
+        return requestDataRemoteEvent.InvokeServer(datastoreName, key);
+    }
 }
 
 // export function attack(
