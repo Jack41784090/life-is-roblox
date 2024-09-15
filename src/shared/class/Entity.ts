@@ -1,4 +1,4 @@
-import { ReplicatedStorage, TweenService } from "@rbxts/services";
+import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { extractMapValues, gridXYToWorldXY } from "shared/func";
 import { BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import Ability from "./Ability";
@@ -8,6 +8,12 @@ import Cell from "./Cell";
 import Expression from "./Expression";
 
 // Handles animations for an entity
+interface AnimationOptions {
+    animation: string;
+    loop: boolean;
+    priority?: Enum.AnimationPriority;
+    hold?: number,
+}
 class AnimationHandler {
     animator?: Animator;
     idleBlinkingThread?: thread;
@@ -70,7 +76,7 @@ class AnimationHandler {
         })
     }
 
-    playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0 }: { hold: number, animation: string; priority?: Enum.AnimationPriority; }): AnimationTrack | undefined {
+    playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
         const animationObj = this.animationMap.get(animation);
         if (!animationObj) {
             warn(`Animation ${animation} not found`);
@@ -82,6 +88,7 @@ class AnimationHandler {
             return
         }
 
+        track.Looped = loop;
         track.Priority = priority;
         track.Play();
         if (hold > 0) {
@@ -116,8 +123,7 @@ class AnimationHandler {
             warn("Idle animation track not found");
             return;
         }
-        this.idleAnimationTrack.Priority = Enum.AnimationPriority.Idle;
-        this.idleAnimationTrack.Play();
+        this.playAnimation({ animation: "idle", loop: true, priority: Enum.AnimationPriority.Idle });
     }
 
     playBlinkAnimation() {
@@ -209,7 +215,7 @@ export default class Entity implements iEntity {
     audioHandler?: AudioHandler;
 
     tweenQueue: Array<Tween> = [];
-    tweenHandleThread?: thread;
+    tweenHandleScript?: RBXScriptConnection;
 
     playerID: number;
     iconURL?: ReadinessIcon;
@@ -251,30 +257,25 @@ export default class Entity implements iEntity {
     }
 
     initTweenHandleScript() {
-        const iter: () => void = () => {
+        this.tweenHandleScript = RunService.RenderStepped.Connect(() => {
             this.tweenQueue = this.tweenQueue.filter(tween => tween.PlaybackState === Enum.PlaybackState.Begin);
             const q = this.tweenQueue;
-            if (q.size() === 0) {
-                wait(0.1);
-                return iter();
-            }
             const t = q.shift();
             if (t) {
                 t.Play();
                 print("Playing tween", t.TweenInfo);
                 t.Completed.Wait();
             }
-            return iter();
-        }
-        this.tweenHandleThread = task.spawn(iter);
+        });
     }
 
-    playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0 }: { hold?: number, animation: string; priority?: Enum.AnimationPriority; }): AnimationTrack | undefined {
+    playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
         if (!this.animationHandler) {
             warn("Animation handler not initialised");
             return
         }
-        return this.animationHandler.playAnimation({ animation, priority, hold });
+        print(`${this.name}: Playing animation ${animation}`);
+        return this.animationHandler.playAnimation({ animation, priority, hold, loop });
     }
 
     playAudio(entityStatus: EntityStatus) {
@@ -390,6 +391,7 @@ export default class Entity implements iEntity {
         //#endregion
         this.setCell(cell);
 
+        const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
         for (const xy of path) {
             const gxy = gridXYToWorldXY(xy, BattleGUI.GetBattle().grid);
             const targetPosition = new Vector3(gxy.X, primaryPart.Position.Y, gxy.Z);
@@ -408,8 +410,18 @@ export default class Entity implements iEntity {
                 { CFrame: targetCFrame }
             );
             this.tweenQueue.push(tween);
-            await tween.Completed.Wait(); // Wait for the tween to complete before moving to the next point
+            tween.Completed.Wait();
         }
+        moveTrack?.Stop();
+        const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
+        if (!transitionTrack) return;
+
+        return new Promise((resolve) => {
+            const scrp = transitionTrack?.Ended.Connect(() => {
+                scrp?.Disconnect();
+                resolve();
+            });
+        });
     }
 
     async faceEntity(entity: Entity) {

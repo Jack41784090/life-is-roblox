@@ -335,17 +335,24 @@ export default class Battle {
         await target.faceEntity(attacker);
 
         // Play the animation
-        const attackerAnimationTrack = attacker.playAnimation({ animation, priority: Enum.AnimationPriority.Action4 });
+        const attackerAnimationTrack = attacker.playAnimation({ animation, priority: Enum.AnimationPriority.Action4, loop: false });
         // const playCameraAnimationProm = this.bcamera.playAnimation({ animation, center: attackerPrimaryPart.CFrame });
-        const targetInitAnimationTrack = target.playAnimation({ animation: 'defend', priority: Enum.AnimationPriority.Action3, hold: 1 });
+        const targetInitAnimationTrack = target.playAnimation({ animation: 'defend', priority: Enum.AnimationPriority.Action2, loop: false });
         let targetAnimationTrack: AnimationTrack | undefined;
 
         const t = attackerAnimationTrack?.GetMarkerReachedSignal("Hit").Connect(() => {
-            targetAnimationTrack = target.playAnimation({ animation: 'defend_hit', priority: Enum.AnimationPriority.Action4, hold: 1 });
+            targetAnimationTrack = target.playAnimation({ animation: 'defend-hit', priority: Enum.AnimationPriority.Action3, loop: false });
         });
         const e = attackerAnimationTrack?.Ended.Connect(() => {
             t?.Disconnect();
             e?.Disconnect();
+            const transition = target.playAnimation({ animation: 'defend->idle', priority: Enum.AnimationPriority.Action4, loop: false });
+            if (transition) {
+                target.animationHandler?.idleAnimationTrack?.Stop();
+                targetInitAnimationTrack?.Stop();
+                targetAnimationTrack?.Stop();
+                transition.Stopped.Wait();
+            }
             this.applyClash(_aA, this.clash(_aA));
         });
 
