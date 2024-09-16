@@ -76,7 +76,6 @@ export default class Expression {
     }
 
     blink() {
-        print("Blinking");
         const animationHandler = this.entity.animationHandler;
         const animator = animationHandler?.animator;
         const blinkAnimation = animationHandler?.blinkAnimation;

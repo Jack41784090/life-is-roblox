@@ -4,51 +4,42 @@ import { TweenService } from "@rbxts/services";
 import Ability from "shared/class/Ability";
 import Battle from "shared/class/Battle";
 import { IDGenerator } from "shared/class/IDGenerator";
-import { DropdownmenuContext } from "shared/types/battle-types";
+import { DropdownmenuContext, DropmenuActionType } from "shared/types/battle-types";
+import BattleDDElement from "./battle-dropdown";
 
 export interface BattleDDAttackElementProps {
     ctx: DropdownmenuContext;
     battle: Battle;
+    dropdownMenu: BattleDDElement;
 }
-interface BattleDDAttackElementState {
-    ref: Roact.Ref<Frame>;
-    menuFramePos: UDim2;
-}
+interface BattleDDAttackElementState { }
 
 export default class BattleDDAttackElement extends Roact.Component<BattleDDAttackElementProps, BattleDDAttackElementState> {
-    private v2vPos: Vector3Value = new Instance("Vector3Value");
-    // private onAttackAbilityClicked = this.props.onAttackAbilityClickedSignal;
+    private position: NumberValue;
+    private frameRef: Roact.Ref<Frame>;
 
     constructor(props: BattleDDAttackElementProps) {
         super(props);
-        this.state = {
-            ref: Roact.createRef<Frame>(),
-            menuFramePos: UDim2.fromScale(0, 0)
-        }
+        this.frameRef = Roact.createRef();
+        this.position = new Instance("NumberValue");
+    }
+
+    private tweenFrameSize() {
+        const tweenTime = 0.2;
+        const targetX = 1.05
+        this.position.Value = 0; // Initial size
+        TweenService.Create(
+            this.position,
+            new TweenInfo(tweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            { Value: targetX }
+        ).Play()
     }
 
     protected didMount(): void {
-        const tweenTime = .2;
-        this.v2vPos = new Instance("Vector3Value");
-        const vcs = this.v2vPos.GetPropertyChangedSignal("Value").Connect(() => {
-            const x = this.state.ref.getValue();
-            if (x) {
-                x.Position = UDim2.fromScale(this.v2vPos.Value.X, this.v2vPos.Value.Y);
-            }
-        });
-        const tsc = TweenService.Create(
-            this.v2vPos,
-            new TweenInfo(tweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            { Value: new Vector3(1.05, 0) }
-        )
-        tsc.Play();
-        task.spawn(() => {
-            tsc.Completed.Wait();
-            vcs.Disconnect();
-        })
+        this.tweenFrameSize();
     }
 
-    render() {
+    public render() {
         const allAbilities = this.props.ctx.initiator.getAbilities(); print(allAbilities)
         const attacker = this.props.ctx.initiator;
         const target = this.props.ctx.cell.entity!;
@@ -66,7 +57,6 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
         const abilityButtonElements = reachableAbilities.map(a => {
             return <textbutton
                 Key={a.name}
-                Position={new UDim2(0, 0, 0, 0)}
                 Size={UDim2.fromScale(1, 1)}
                 Event={{
                     MouseButton1Click: () => {
@@ -78,7 +68,6 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
                         });
                         this.props.battle.onAttackClickedSignal.Fire(ability);
                     },
-
                     MouseEnter: () => {
                         print("Hovered on " + a.name);
                         //#region  defence
@@ -87,7 +76,14 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
                             return;
                         }
                         //#endregion
+
+                        this.props.dropdownMenu.setOptionAsHovering(DropmenuActionType.Attack, true);
                         this.props.battle.gui?.mountOrUpdateGlowRange(attacker.cell, a.range);
+                    },
+                    MouseLeave: () => {
+                        print("Left " + a.name);
+                        this.props.dropdownMenu.setOptionAsHovering(DropmenuActionType.Attack, false);
+                        this.props.battle.gui?.unmountAndClear('glowPathGui')
                     }
                 }}
                 Text={a.name}
@@ -100,9 +96,9 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
 
         return (
             <frame Key={"attack-menu-" + IDGenerator.generateID()}
-                Size={UDim2.fromScale(1, 1)}
-                Position={UDim2.fromScale(this.v2vPos.Value.X, this.v2vPos.Value.Y)}
-                Ref={this.state.ref}
+                Size={UDim2.fromScale(1, abilityButtonElements.size())}
+                Position={UDim2.fromScale(this.position.Value, 0)}
+                Ref={this.frameRef}
             >
                 {abilityButtonElements}
             </frame>

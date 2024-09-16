@@ -1,4 +1,5 @@
 import Roact from "@rbxts/roact";
+import BattleDDElement from "gui_sharedfirst/components/battle-dropdown";
 import Ability from "shared/class/Ability";
 import Battle from "shared/class/Battle";
 import Cell from "shared/class/Cell";
@@ -201,13 +202,16 @@ export enum DropmenuActionType {
     EndTurn = 'End Turn',
 }
 
+
+export interface OnClickChain {
+    isHovering: boolean;
+    isRendering: boolean;
+    render: (ctx: DropdownmenuContext) => Roact.Element;
+}
 export interface DropmenuAction {
     name: DropmenuActionType,
     run: (ctx: DropdownmenuContext) => void;
-    onClickChain?: {
-        isRendering: boolean;
-        render: (ctx: DropdownmenuContext) => Roact.Element;
-    }
+    onClickChain?: OnClickChain
 }
 
 export enum EntityStatus {
@@ -215,8 +219,10 @@ export enum EntityStatus {
 }
 
 export interface DropdownmenuContext {
+    occ: DropmenuAction;
     cell: Cell;
     initiator: Entity;
+    dropdownMenu: BattleDDElement;
 }
 
 export enum BattleStatus {

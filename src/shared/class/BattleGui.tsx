@@ -1,6 +1,6 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, TweenService, UserInputService } from "@rbxts/services";
-import BattleDD from "gui_sharedfirst/components/battle-dropdown";
+import BattleDDElement from "gui_sharedfirst/components/battle-dropdown";
 import BattleDDAttackElement from "gui_sharedfirst/components/battle-dropdown-attack";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
@@ -60,7 +60,6 @@ export default class BattleGUI {
         this.readinessIconMap = this.getReadinessIconFrameRefMap();
         this.mainGui = this.mountInitialUI();
     }
-
 
     /**
      * Get the readiness icons and create a map of iconID to Ref<Frame>
@@ -292,7 +291,6 @@ export default class BattleGUI {
 
     // Handle cell click event
     private handleCellClick(cell: Cell) {
-        this.exitMovement();
         if (cell.isVacant()) {
             this.clickedOnEmptyCell(cell);
         }
@@ -376,7 +374,10 @@ export default class BattleGUI {
     //#endregion
 
     //#region Dropmenu
+    mountDropdownDebounce = false;
     private mountDropdownmenuAt(cell: Cell) {
+        if (this.mountDropdownDebounce) return;
+        this.mountDropdownDebounce = true;
         print("Showing action dropdown");
         const cellEntity = cell.entity;
         if (!cellEntity) {
@@ -388,15 +389,26 @@ export default class BattleGUI {
         const battle = this.getBattle();
 
         if (this.dropDownMenuGui) {
-            Roact.unmount(this.dropDownMenuGui);
+            Roact.update(this.dropDownMenuGui,
+                <BattleDDElement
+                    mouseLocation={UserInputService.GetMouseLocation()}
+                    battle={battle}
+                    options={options}
+                    cell={cell}
+                />);
         }
-        this.dropDownMenuGui = Roact.mount(
-            <BattleDD
-                battle={battle}
-                options={options}
-                cell={cell}
-            />,
-        )
+        else {
+            this.dropDownMenuGui = Roact.mount(
+                <BattleDDElement
+                    mouseLocation={UserInputService.GetMouseLocation()}
+                    battle={battle}
+                    options={options}
+                    cell={cell}
+                />,
+            )
+        }
+        wait(0.1);
+        this.mountDropdownDebounce = false;
     }
 
     //#region Dropmenu Handlers
@@ -413,21 +425,24 @@ export default class BattleGUI {
         }
     }
     getHandler_Attack() {
+        const occ = {
+            isHovering: false,
+            isRendering: false,
+            render: (ctx: DropdownmenuContext) => (
+                <BattleDDAttackElement
+                    dropdownMenu={ctx.dropdownMenu}
+                    battle={this.getBattle()}
+                    ctx={ctx}
+                />
+            )
+        };
         return {
             name: DropmenuActionType.Attack,
             run: async (ctx: DropdownmenuContext) => {
                 print("Attacking");
                 this.getBattle().setUpOnAttackClickedSignal();
             },
-            onClickChain: {
-                isRendering: false,
-                render: (ctx: DropdownmenuContext) => (
-                    <BattleDDAttackElement
-                        battle={this.getBattle()}
-                        ctx={ctx}
-                    />
-                )
-            }
+            onClickChain: occ
         }
     }
     getHandler_EndTurn() {

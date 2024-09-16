@@ -3,12 +3,13 @@ import { Players, RunService, TweenService, UserInputService } from "@rbxts/serv
 import Battle from "shared/class/Battle";
 import Cell from "shared/class/Cell";
 import { getMouseWorldPosition } from "shared/func";
-import { DropmenuAction } from "shared/types/battle-types";
+import { DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
 
 export interface BattleDDProps {
     options: ReadonlyArray<DropmenuAction>;
-    cell: Cell
-    battle: Battle
+    cell: Cell;
+    battle: Battle;
+    mouseLocation: Vector2;
 }
 
 interface BattleDDState {
@@ -17,14 +18,11 @@ interface BattleDDState {
 }
 
 export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDState> {
-    screenPosition: Vector2;
-    worldPosition?: Vector3;
-    private v2vFrameSize: Vector3Value; // tweenable size for the main frame
-
     private isWithinFrame = false;
+    private initWorldPosition: Vector3;
     private dropdownFrameRef: Roact.Ref<Frame>;
-    private panScript?: RBXScriptConnection;
-    private outsideClickSCript?: RBXScriptConnection;
+    private panConnection?: RBXScriptConnection;
+    private outsideClickConnection?: RBXScriptConnection;
 
     constructor(props: BattleDDProps) {
         super(props);
@@ -38,52 +36,73 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
             isOnScreen: true,
             options: this.props.options,
         };
-        this.initializeWorldPosition();
-        this.connectPanScript();
-        this.setupOutsideClickListener();
-
-        this.screenPosition = UserInputService.GetMouseLocation();
 
         const gui = this.props.battle.gui;
         if (gui) {
-            gui.unmountAndClear('glowPathGui')
-            gui.updateMainUI('onlyReadinessBar')
+            gui.unmountAndClear("glowPathGui");
+            gui.updateMainUI("onlyReadinessBar");
         }
 
-        this.v2vFrameSize = new Instance("Vector3Value");
-        this.v2vFrameSize.Value = new Vector3(200, 0, 0);
+        const wp = getMouseWorldPosition(this.props.battle.bcamera.camera, Players.LocalPlayer.GetMouse());
+        this.initWorldPosition = wp ? wp : new Vector3();
+        this.connectPanScript();
     }
 
-    private initializeWorldPosition() {
-        const bc = this.props.battle.bcamera;
-        const rayCastVector = getMouseWorldPosition(bc.camera, Players.LocalPlayer.GetMouse());
-        if (!rayCastVector) return;
-        this.worldPosition = rayCastVector;
+    protected didUpdate(previousProps: BattleDDProps, previousState: BattleDDState): void {
+        if (previousProps.mouseLocation !== this.props.mouseLocation) {
+            this.tweenFrameSize();
+        }
+    }
+
+    protected didMount(): void {
+        this.setupOutsideClickListener();
+        this.tweenFrameSize();
+    }
+
+    protected willUnmount(): void {
+        this.panConnection?.Disconnect();
+        this.outsideClickConnection?.Disconnect();
+        this.props.battle.gui?.updateMainUI("withSensitiveCells");
     }
 
     private connectPanScript() {
-        this.panScript?.Disconnect();
-        this.panScript = RunService.RenderStepped.Connect(() => {
-            const frame = this.dropdownFrameRef.getValue();
-            if (!this.worldPosition) {
-                warn("dropdownmenu world pos not set");
-                this.initializeWorldPosition();
-                if (!this.worldPosition) return;
-            }
-            const bc = this.props.battle.bcamera;
-            const [screenPoint, onScreen] = bc.camera.WorldToScreenPoint(this.worldPosition);
-            if (this.screenPosition && onScreen && (screenPoint.X !== this.screenPosition.X || screenPoint.Y !== this.screenPosition.Y)) {
-                this.screenPosition = new Vector2(screenPoint.X, screenPoint.Y);
-                if (frame) frame.Position = UDim2.fromOffset(this.screenPosition.X, this.screenPosition.Y);
-            }
-            if (onScreen !== this.state.isOnScreen) {
-                this.setState({ isOnScreen: onScreen });
+        this.panConnection?.Disconnect();
+        this.panConnection = RunService.RenderStepped.Connect(() => {
+            this.positionDropdownMenu();
+        });
+    }
+
+    private positionDropdownMenu() {
+        const ddFrame = this.dropdownFrameRef.getValue();
+        if (!ddFrame) {
+            warn("Dropdown frame not found");
+            return;
+        }
+
+        // Get the mouse location and position the dropdown accordingly
+        const [mouseLocation, onScreen] = this.props.battle.bcamera.camera.WorldToScreenPoint(this.initWorldPosition);
+        if (this.state.isOnScreen !== onScreen) {
+            this.setState({ isOnScreen: onScreen });
+        }
+
+        // Adjust for the top bar (36 pixels)
+        const adjustedPosition = new UDim2(0, mouseLocation.X, 0, mouseLocation.Y - 36);
+        ddFrame.Position = adjustedPosition;
+    }
+
+    private setupOutsideClickListener() {
+        this.outsideClickConnection = UserInputService.InputBegan.Connect((input) => {
+            const persistCondition =
+                !this.isWithinFrame ||
+                this.state.options.some(o => o.onClickChain?.isHovering);
+            if (input.UserInputType === Enum.UserInputType.MouseButton1 && persistCondition) {
+                warn("Outside click detected");
+                this.props.battle.gui?.unmountAndClear("dropDownMenuGui");
             }
         });
     }
 
-    protected didMount(): void {
-        wait(0.1);
+    private tweenFrameSize() {
         const ddFrame = this.dropdownFrameRef.getValue();
         if (!ddFrame) {
             warn("Dropdown frame not found");
@@ -91,112 +110,111 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
         }
 
         const tweenTime = 0.2;
-        ddFrame.TweenSize(
-            UDim2.fromOffset(200, this.state.options.size() * 36),
-            Enum.EasingDirection.Out,
-            Enum.EasingStyle.Quad,
-            tweenTime,
-            true
-        )
+        const targetSize = UDim2.fromOffset(200, this.state.options.size() * 36);
+
+        ddFrame.Size = UDim2.fromOffset(200, 0); // Initial size
         TweenService.Create(
-            this.v2vFrameSize,
+            ddFrame,
             new TweenInfo(tweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            { Value: new Vector3(200, this.state.options.size() * 36, 0) }
-        )
-            .Play();
+            { Size: targetSize },
+        ).Play();
     }
 
-    protected willUnmount(): void {
-        this.panScript?.Disconnect();
-        this.outsideClickSCript?.Disconnect();
-        this.props.battle.gui?.updateMainUI('withSensitiveCells')
-    }
-
-    private setupOutsideClickListener() {
-        wait(0.1);
-        // this.outsideClickSCript = UserInputService.InputBegan.Connect((input) => {
-        //     if (input.UserInputType === Enum.UserInputType.MouseButton1 && this.isWithinFrame === false) {
-        //         this.props.battle.gui?.unmountAndClear('dropDownMenuGui');
-        //     }
-        // });
-    }
-
-    private handleOptionClick(optionClickedName: string) {
+    private handleOptionClick(optionName: string) {
         const initiator = this.props.battle.currentRound?.entity;
-        const selectedAction = this.state.options.find((action) => action.name === optionClickedName);
+        const selectedAction = this.state.options.find((action) => action.name === optionName);
+
         if (selectedAction && initiator) {
             selectedAction.run({
                 cell: this.props.cell,
-                initiator: initiator
+                initiator,
+                dropdownMenu: this,
+                occ: selectedAction,
             });
+
             if (selectedAction.onClickChain) {
                 selectedAction.onClickChain.isRendering = !selectedAction.onClickChain.isRendering;
                 this.setState({
-                    options: this.state.options.map((action) => action.name === optionClickedName ? selectedAction : action)
-                })
+                    options: this.state.options.map((action) =>
+                        action.name === optionName ? selectedAction : action,
+                    ),
+                });
             }
-        }
-        else {
-            warn("dropdown menu: Selected action or current-round initiator not found", selectedAction, initiator);
+        } else {
+            warn(
+                "Dropdown menu: Selected action or current-round initiator not found",
+                selectedAction,
+                initiator,
+            );
         }
     }
 
+    private getOptionButtons() {
+        const currentEntity = this.props.battle.currentRound?.entity;
 
-    getOptionButtons() {
-        const crEntity = this.props.battle.currentRound?.entity;
-        return this.state.options.map((option, index) => (
+        return this.state.options.map((option) => (
             <textbutton
                 Key={option.name}
-                Size={UDim2.fromScale(1, 1 / this.state.options.size())}
-                Position={UDim2.fromOffset(0, 36 * index)}
+                Size={new UDim2(1, 0, 0, 36)}
+                BackgroundColor3={new Color3(1, 1, 1)}
+                TextColor3={new Color3(0, 0, 0)}
                 Event={{
                     MouseButton1Click: () => this.handleOptionClick(option.name),
                 }}
                 Text={option.name}
             >
-                {
-                    option.onClickChain?.isRendering &&
-                    crEntity &&
+                {option.onClickChain?.isRendering &&
+                    currentEntity &&
                     option.onClickChain.render({
-                        initiator: crEntity,
-                        cell: this.props.cell
-                    })
-                }
+                        occ: option,
+                        dropdownMenu: this,
+                        initiator: currentEntity,
+                        cell: this.props.cell,
+                    })}
             </textbutton>
         ));
     }
 
-    render() {
-        // print("Rendering dropdown");
-        if (this.state.isOnScreen === false) {
-            return undefined;
-        }
+    public setOptionAsHovering(optionName: DropmenuActionType, hovering: boolean) {
+        this.setState({
+            options: this.state.options.map((option) => {
+                if (option.name === optionName) {
+                    if (option.onClickChain) {
+                        option.onClickChain.isHovering = hovering;
+                    }
+                }
+                return option;
+            }),
+        })
+    }
 
+    public render() {
         return (
             <Portal target={Players.LocalPlayer.WaitForChild("PlayerGui")}>
                 <screengui Key="dropdown-gui" IgnoreGuiInset={true} DisplayOrder={1}>
                     <frame
+                        Key="bg"
                         AnchorPoint={new Vector2(0.5, 0.5)}
-                        Key={"bg"}
                         BorderSizePixel={0}
-                        Size={UDim2.fromOffset(this.v2vFrameSize.Value.X, this.v2vFrameSize.Value.Y)}
+                        Size={UDim2.fromOffset(200, 0)} // Initial size; will be tweened
                         Ref={this.dropdownFrameRef}
-                        Position={UDim2.fromOffset(this.screenPosition.X, this.screenPosition.Y)}
+                        Position={UDim2.fromScale(0.5, 0.5)} // Temporary position; will be updated in didMount
                         BackgroundColor3={new Color3(0, 0, 0)}
+                        Transparency={this.state.isOnScreen ? 0 : 1}
                     >
                         <uicorner CornerRadius={new UDim(0.05, 0)} />
-                        <uipadding PaddingLeft={new UDim(.05)} PaddingRight={new UDim(.05)} />
+                        <uipadding PaddingLeft={new UDim(0.05, 0)} PaddingRight={new UDim(0.05, 0)} />
                         <frame
                             Key="dropdown"
                             BorderSizePixel={0}
                             AnchorPoint={new Vector2(0.5, 0.5)}
                             Position={UDim2.fromScale(0.5, 0.5)}
-                            Size={UDim2.fromScale(1, .95)}
+                            Size={UDim2.fromScale(1, 1)}
+                            BackgroundColor3={new Color3(0.2, 0.2, 0.2)}
                             Event={{
-                                MouseEnter: () => this.isWithinFrame = true,
-                                MouseLeave: () => this.isWithinFrame = false,
+                                MouseEnter: () => (this.isWithinFrame = true),
+                                MouseLeave: () => (this.isWithinFrame = false),
                             }}
-                            BackgroundColor3={new Color3(0, 0, 0)}
                         >
                             <uilistlayout FillDirection={Enum.FillDirection.Vertical} />
                             {this.getOptionButtons()}
