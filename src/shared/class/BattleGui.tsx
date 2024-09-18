@@ -276,6 +276,15 @@ export default class BattleGUI {
         const battle = this.getBattle();
         if (!battle?.currentRound?.entity?.cell) return;
 
+        // 0. Change mouse icon if the cell is not vacant
+        const mouse = Players.LocalPlayer.GetMouse();
+        if (cell.isVacant()) {
+            mouse.Icon = '';
+        }
+        else {
+            mouse.Icon = 'rbxassetid://89793300852596';
+        }
+
         // 1. Create path
         const path = battle.createPathForCurrentEntity(cell.xy);
         if (!path) return;
