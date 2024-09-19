@@ -5,12 +5,21 @@ import XY from "./XY";
 export default class Grid {
     cells: Cell[] = [];
     cellsXY: XY<Cell>;
+    widthheight: Vector2;
+    center: Vector2;
+    size: number;
+    name: string;
 
-    constructor(public widthheight: Vector2, public center: Vector2, public size: number, public name = "Grid") {
+
+    constructor(widthheight: Vector2, center: Vector2, size: number, name: string) {
         if (widthheight.X <= 0 || widthheight.Y <= 0) {
             throw ("Grid dimensions must be positive numbers.");
         }
         this.cellsXY = new XY<Cell>(widthheight.X, widthheight.Y);
+        this.widthheight = widthheight;
+        this.center = center;
+        this.size = size;
+        this.name = name;
     }
 
 
@@ -20,21 +29,22 @@ export default class Grid {
 
     async materialise() {
         print("Materialising grid");
-        const grid = new Instance("Model");
-        grid.Name = this.name;
-        grid.Parent = game.Workspace;
+        const grid = this;
+        const gridModel = new Instance("Model");
+        gridModel.Name = this.name;
+        gridModel.Parent = game.Workspace;
 
         for (let x = 0; x < this.widthheight.X; x++) {
             for (let y = 0; y < this.widthheight.Y; y++) {
                 const cell = new Cell({
                     position: new Vector2(x, y),
                     size: this.size,
-                    height: 1,
+                    height: 0.125,
                     terrain: CellTerrain.plains,
-                    grid: this
+                    grid,
                 });
 
-                cell.part.Parent = grid;
+                cell.part.Parent = gridModel;
                 this.cellsXY.set(x, y, cell);
                 this.cells.push(cell);
             }

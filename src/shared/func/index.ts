@@ -163,10 +163,29 @@ export function saveCharacterStats(character: EntityStats, overwrite = false) {
 }
 
 export function gridXYToWorldXY(position: Vector2, grid: Grid) {
-    return new Vector3(
-        (position.X + grid.center.X - math.floor(grid.widthheight.X / 2)) * (grid.size),
-        grid.size / 2,
-        (position.Y + grid.center.Y - math.floor(grid.widthheight.Y / 2)) * (grid.size))
+    const size = grid.size;
+    const r = size / 2;
+    const YIncrement = size;
+    const YShiftUnit = r;
+    const XShiftUnit = 1.5 * r;
+    const shiftingXY = position.X % 2 === 1;
+
+    const y = (position.Y * YIncrement) + (shiftingXY ? YShiftUnit : 0);
+    const x = (position.X * XShiftUnit);
+
+    const localLocation = new Vector3(
+        (y),
+        0.125 * grid.size,
+        (x),
+    );
+    const worldLocation = new Vector3(
+        (y + grid.center.Y),
+        0.125 * grid.size,
+        (x + grid.center.X),
+    );
+    print(localLocation, "->", worldLocation);
+
+    return worldLocation;
 }
 
 // Function to get the world position from the mouse position

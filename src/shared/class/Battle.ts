@@ -57,7 +57,7 @@ export default class Battle {
     time: number = -1;
 
     static Create(config: BattleConfig) {
-        const b = new Battle(config.center, config.size, config.width, config.height, config.camera);
+        const b = new Battle(config.worldCenter, config.size, config.width, config.height, config.camera);
 
         // Set up the camera
         b.initializeCamera();
@@ -77,13 +77,13 @@ export default class Battle {
         return b;
     }
 
-    private constructor(center: Vector2, size: number, width: number, height: number, camera: Camera) {
-        const camera_centerx = math.floor(center.X) * size;
-        const camera_centery = math.floor(center.Y) * size;
+    private constructor(worldCenter: Vector2, size: number, width: number, height: number, camera: Camera) {
+        this.grid = new Grid(new Vector2(width, height), worldCenter, size, "BattleGrid");
+        const camera_centerx = worldCenter.X;
+        const camera_centery = worldCenter.Y;
         this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
         this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
-        this.bcamera = new BattleCamera(center, size, camera, this);
-        this.grid = new Grid(new Vector2(width, height), center, size);
+        this.bcamera = new BattleCamera(camera, worldCenter, this);
     }
 
     //#region Initialization

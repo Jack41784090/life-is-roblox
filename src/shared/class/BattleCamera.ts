@@ -1,5 +1,5 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import { getTween, gridXYToWorldXY } from "shared/func";
+import { gridXYToWorldXY } from "shared/func";
 import Battle from "./Battle";
 
 export default class BattleCamera {
@@ -9,7 +9,7 @@ export default class BattleCamera {
     static HOI4_PAN_SPEED = 0.6;
     static CHAR_ANGLE = 0;
 
-    center: Vector2;
+    worldCenter: Vector2;
     size: number;
     camera: Camera;
     mode: "HOI4" | "CHAR_CENTER" | "ANIMATION" = "HOI4";
@@ -18,9 +18,9 @@ export default class BattleCamera {
 
     camAnimFolder: Folder;
 
-    constructor(center: Vector2, size: number, camera: Camera, battle: Battle) {
-        this.center = center;
-        this.size = size;
+    constructor(camera: Camera, worldCenter: Vector2, battle: Battle) {
+        this.worldCenter = worldCenter;
+        this.size = battle.grid.size;
         this.camera = camera;
         this.battle = battle;
         this.setupRenderStepped();
@@ -82,9 +82,12 @@ export default class BattleCamera {
     async enterHOI4Mode(gridFocal?: Vector2) {
         print('Setting up HOI4 Camera Pan');
         this.panningEnabled = false;
-        const center = gridFocal ?
-            new Vector2(gridXYToWorldXY(gridFocal, this.battle.grid).X, gridXYToWorldXY(gridFocal, this.battle.grid).Z) :
-            new Vector2(math.floor(this.center.X) * this.size, math.floor(this.center.Y) * this.size);
+        const focalWorld = gridFocal ?
+            gridXYToWorldXY(gridFocal, this.battle.grid) :
+            gridXYToWorldXY(this.worldCenter, this.battle.grid);
+        print(focalWorld)
+        const center = new Vector2(focalWorld.X, focalWorld.Z);
+
 
         const x1 = new Vector3(center.X, this.size * 5, center.Y);
         const x2 = new Vector3(center.X, 0, center.Y);
@@ -189,11 +192,11 @@ export default class BattleCamera {
     private setCameraCFrame(cFrame: CFrame, tweenInfo?: TweenInfo) {
         const cam = this.camera;
         cam.CameraType = Enum.CameraType.Scriptable;
-        const tween = getTween(
+        const tween = TweenService.Create(
             cam,
             tweenInfo ?? new TweenInfo(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
             { CFrame: cFrame }
-        );
+        )
         return new Promise<void>((resolve) => {
             tween.Play();
             tween.Completed.Wait();
