@@ -5,7 +5,7 @@ import Ability from "shared/class/Ability";
 import Battle from "shared/class/Battle";
 import { IDGenerator } from "shared/class/IDGenerator";
 import { DropdownmenuContext, DropmenuActionType } from "shared/types/battle-types";
-import BattleDDElement from "./battle-dropdown";
+import BattleDDElement from "./dropdown";
 
 export interface BattleDDAttackElementProps {
     ctx: DropdownmenuContext;
@@ -40,7 +40,7 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
     }
 
     public render() {
-        const allAbilities = this.props.ctx.initiator.getAbilities(); print(allAbilities)
+        const allAbilities = this.props.ctx.initiator.getAllAbilities(); print(allAbilities)
         const attacker = this.props.ctx.initiator;
         const target = this.props.ctx.cell.entity!;
         const attackerCellCoords = attacker.cell?.xy;
