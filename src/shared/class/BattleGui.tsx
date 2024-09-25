@@ -1,7 +1,7 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, TweenService, UserInputService } from "@rbxts/services";
-import BattleDDElement from "gui_sharedfirst/components/battle-dropdown";
-import BattleDDAttackElement from "gui_sharedfirst/components/battle-dropdown-attack";
+import AbilitySlotsElement from "gui_sharedfirst/components/battle/ability-buttons";
+import AbilitySetElement from "gui_sharedfirst/components/battle/ability-slot";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
@@ -10,7 +10,7 @@ import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { getPlayer } from "shared/func";
-import { BattleAction, DropdownmenuContext, DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
+import { CharacterMenuAction } from "shared/types/battle-types";
 import Battle from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
@@ -18,9 +18,10 @@ import Entity from "./Entity";
 type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 
 export default class BattleGUI {
-    actionsUI: Roact.Tree | undefined;
+    actionsGui: Roact.Tree | undefined;
     dropDownMenuGui: Roact.Tree | undefined;
     glowPathGui: Roact.Tree | undefined;
+    abilitySlotGui: Roact.Tree | undefined;
     private mainGui: Roact.Tree;
 
     private mouseClickDDEvent: RBXScriptConnection | undefined;
@@ -31,7 +32,7 @@ export default class BattleGUI {
     private static battleInstance: Battle;
     private static instance: BattleGUI;
 
-    // Getters for the singleton instance and the battle instance
+    //#region Getters for the singleton instance and the battle instance
     static GetBattle() {
         return BattleGUI.battleInstance;
     }
@@ -45,6 +46,7 @@ export default class BattleGUI {
     getInstance() {
         return BattleGUI.instance;
     }
+    //#endregion
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(battle: Battle) {
@@ -75,18 +77,6 @@ export default class BattleGUI {
     }
 
     /**
-     * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBarElement
-     * @returns the mounted Tree
-     */
-    private mountInitialUI(): Roact.Tree {
-        return Roact.mount(
-            <MenuFrameElement Key={`BattleUI`} transparency={1}>
-                <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
-            </MenuFrameElement>
-        );
-    }
-
-    /**
      * Return to the selection screen after movement or canceling an action
      *  1. exitMovementUI() is called to reset the UI
      *  2. The camera is centered on the current entity
@@ -96,11 +86,12 @@ export default class BattleGUI {
         const b = this.getBattle();
         this.exitMovement();
         b.bcamera.enterCharacterCenterMode().then(() => {
-            if (!b.currentRound?.entity?.model) {
-                warn("No entity model found");
+            const currentRoundEntity = b.currentRound?.entity;
+            if (!currentRoundEntity) {
+                warn("ReturnToSelections: No entity found");
                 return;
             }
-            this.mountActionMenu(b.getActions(b.currentRound.entity));
+            this.mountActionMenu(b.getCharacterMenuActions(currentRoundEntity));
         })
     }
 
@@ -117,29 +108,29 @@ export default class BattleGUI {
         })
     }
 
-    /**
-     * Set up a script that listens for mouse clicks on models to show the dropdown menu
-     * @returns the script connection
-     */
-    private setupClickOnDropdownHandler(): RBXScriptConnection {
-        const mouse = Players.LocalPlayer.GetMouse();
-        this.mouseClickDDEvent?.Disconnect();
-        return mouse.Button1Down.Connect(() => {
-            const target = mouse.Target;
-            const ancestor = target?.FindFirstAncestorOfClass('Model');
-            if (!ancestor) return;
+    // /**
+    //  * Set up a script that listens for mouse clicks on models to show the dropdown menu
+    //  * @returns the script connection
+    //  */
+    // private setupClickOnDropdownHandler(): RBXScriptConnection {
+    //     const mouse = Players.LocalPlayer.GetMouse();
+    //     this.mouseClickDDEvent?.Disconnect();
+    //     return mouse.Button1Down.Connect(() => {
+    //         const target = mouse.Target;
+    //         const ancestor = target?.FindFirstAncestorOfClass('Model');
+    //         if (!ancestor) return;
 
-            const clickedEntity = this.getBattle().getEntityFromModel(ancestor);
-            if (clickedEntity?.cell === undefined) return;
+    //         const clickedEntity = this.getBattle().getEntityFromModel(ancestor);
+    //         if (clickedEntity?.cell === undefined) return;
 
-            const crEntity = this.getBattle().currentRound?.entity;
-            if (!crEntity) return;
+    //         const crEntity = this.getBattle().currentRound?.entity;
+    //         if (!crEntity) return;
 
-            crEntity.faceEntity(clickedEntity).then(() => {
-                this.mountDropdownmenuAt(clickedEntity.cell!);
-            });
-        });
-    }
+    //         crEntity.faceEntity(clickedEntity).then(() => {
+    //             this.mountDropdownmenuAt(clickedEntity.cell!);
+    //         });
+    //     });
+    // }
 
     /**
      * Enter movement mode
@@ -156,8 +147,11 @@ export default class BattleGUI {
     enterMovement() {
         print("Entering movement mode");
         this.escapeScript = this.setUpCancelCurrentActionScript();
-        this.mouseClickDDEvent = this.setupClickOnDropdownHandler();
+        // this.mouseClickDDEvent = this.setupClickOnDropdownHandler();
         this.updateMainUI('withSensitiveCells');
+
+        const cre = this.getBattle().currentRound?.entity;
+        if (cre) this.mountAbilitySlots(cre);
     }
 
     /**
@@ -224,6 +218,12 @@ export default class BattleGUI {
         }
     }
 
+    //#region Ability Slots Methods
+
+
+    //#endregion
+
+    //#region UI Mounting Methods
     /**
      * Mounts action menu
      * Action Menu: a menu that shows the available actions for the entity's turn (e.g. go into move mode, items, end turn)
@@ -231,10 +231,10 @@ export default class BattleGUI {
      * @param actions 
      * @returns 
      */
-    mountActionMenu(actions: BattleAction[]) {
+    mountActionMenu(actions: CharacterMenuAction[]) {
         print("Mounting action menu");
-        this.unmountAndClear('actionsUI');
-        this.actionsUI = Roact.mount(
+        this.unmountAndClear('actionsGui');
+        this.actionsGui = Roact.mount(
             <MenuFrameElement transparency={1}>
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)}>
                     {actions.map((action, index) => (
@@ -243,7 +243,7 @@ export default class BattleGUI {
                             position={index / actions.size()}
                             size={1 / actions.size()}
                             onclick={() => {
-                                if (this.actionsUI) action.run(this.actionsUI)
+                                if (this.actionsGui) action.run(this.actionsGui)
                             }}
                             text={action.type}
                             transparency={0.9}
@@ -251,70 +251,19 @@ export default class BattleGUI {
                     ))}
                 </ButtonFrameElement>
             </MenuFrameElement>);
-        return this.actionsUI;
+        return this.actionsGui;
     }
 
-    //#region Cell Methods
     /**
-     * Get cell elements that are sensitive to mouse hover
-     * @returns 
+     * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBarElement
+     * @returns the mounted Tree
      */
-    private createSensitiveCellElements(): Roact.Element | undefined {
-        return <frame>
-            {this.getBattle().grid.cells.map((c) => (
-                <CellSurfaceElement
-                    cell={c}
-                    onEnter={() => this.handleCellEnter(c)}
-                    onclick={() => this.handleCellClick(c)}
-                />
-            ))}
-        </frame>;
-    }
-
-    // Handle cell hover (enter) event
-    private handleCellEnter(cell: Cell) {
-        const battle = this.getBattle();
-        if (!battle?.currentRound?.entity?.cell) return;
-
-        // 0. Change mouse icon if the cell is not vacant
-        const mouse = Players.LocalPlayer.GetMouse();
-        if (cell.isVacant()) {
-            mouse.Icon = '';
-        }
-        else {
-            mouse.Icon = 'rbxassetid://89793300852596';
-        }
-
-        // 1. Create path
-        const path = battle.createPathForCurrentEntity(cell.xy);
-        if (!path) return;
-
-        // 2. Move readiness icon to forecast post-move position
-        const currentEntity = battle.currentRound.entity;
-        const readinessPercent = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
-        this.updateSpecificReadinessIcon(currentEntity.playerID, readinessPercent);
-
-        // 3. Glow along the path
-        return this.mountOrUpdateGlowPath(path);
-    }
-
-    // Handle cell click event
-    private handleCellClick(cell: Cell) {
-        if (cell.isVacant()) {
-            this.clickedOnEmptyCell(cell);
-        }
-    }
-
-    private clickedOnEmptyCell(cell: Cell) {
-        const battle = this.getBattle();
-        if (!battle?.currentRound?.entity?.cell) return;
-
-        const path = battle.createPathForCurrentEntity(cell.xy);
-        const cr = battle.currentRound!;
-        const currentEntity = cr.entity;
-        currentEntity?.moveToCell(cell, path).then(() => {
-            this.returnToSelections();
-        });
+    private mountInitialUI(): Roact.Tree {
+        return Roact.mount(
+            <MenuFrameElement Key={`BattleUI`} transparency={1}>
+                <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+            </MenuFrameElement>
+        );
     }
 
     // Highlight the cells along a path
@@ -380,117 +329,95 @@ export default class BattleGUI {
         }
     }
 
-    //#endregion
-
-    //#region Dropmenu
-    mountDropdownDebounce = false;
-    private mountDropdownmenuAt(cell: Cell) {
-        if (this.mountDropdownDebounce) return;
-        this.mountDropdownDebounce = true;
-        print("Showing action dropdown");
-        const cellEntity = cell.entity;
-        if (!cellEntity) {
-            warn("No target entity found");
+    mountAbilitySlots(entity: Entity) {
+        const mountingAbilitySet = entity.getAllAbilitySets().find(a => a !== undefined);
+        if (!mountingAbilitySet) {
+            warn("No ability set found for entity");
             return;
         }
 
-        const options = this.getDropMenuActions(cellEntity);
-        const battle = this.getBattle();
-
-        if (this.dropDownMenuGui) {
-            Roact.update(this.dropDownMenuGui,
-                <BattleDDElement
-                    mouseLocation={UserInputService.GetMouseLocation()}
-                    battle={battle}
-                    options={options}
-                    cell={cell}
-                />);
-        }
-        else {
-            this.dropDownMenuGui = Roact.mount(
-                <BattleDDElement
-                    mouseLocation={UserInputService.GetMouseLocation()}
-                    battle={battle}
-                    options={options}
-                    cell={cell}
-                />,
-            )
-        }
-        wait(0.1);
-        this.mountDropdownDebounce = false;
+        this.unmountAndClear('abilitySlotGui');
+        this.abilitySlotGui = Roact.mount(
+            <AbilitySetElement>
+                <AbilitySlotsElement abilitySet={mountingAbilitySet} />
+            </AbilitySetElement>
+        );
     }
 
-    //#region Dropmenu Handlers
-    getHandler_MoveTo(): DropmenuAction {
-        return {
-            name: DropmenuActionType.MoveTo,
-            run: async (ctx: DropdownmenuContext) => {
-                print("Moving to");
-                const battle = this.getBattle();
-                battle.moveEntity(ctx.initiator, ctx.cell).then(() => {
-                    this.returnToSelections();
-                });
-            }
-        }
-    }
-    getHandler_Attack() {
-        const occ = {
-            isHovering: false,
-            isRendering: false,
-            render: (ctx: DropdownmenuContext) => (
-                <BattleDDAttackElement
-                    dropdownMenu={ctx.dropdownMenu}
-                    battle={this.getBattle()}
-                    ctx={ctx}
-                />
-            )
-        };
-        return {
-            name: DropmenuActionType.Attack,
-            run: async (ctx: DropdownmenuContext) => {
-                print("Attacking");
-                this.getBattle().setUpOnAttackClickedSignal();
-            },
-            onClickChain: occ
-        }
-    }
-    getHandler_EndTurn() {
-        return {
-            name: DropmenuActionType.EndTurn,
-            run: async (ctx: DropdownmenuContext) => {
-                print("Ending turn");
-                this.guiDoneRoundExit();
-            }
-        }
-    }
     //#endregion
 
-    private getDropMenuAction(action: DropmenuActionType): DropmenuAction | undefined {
-        switch (action) {
-            case DropmenuActionType.Attack:
-                return this.getHandler_Attack();
-            case DropmenuActionType.MoveTo:
-                return this.getHandler_MoveTo();
-            case DropmenuActionType.EndTurn:
-                return this.getHandler_EndTurn();
-        }
+    //#region Cell Methods
+    /**
+     * Get cell elements that are sensitive to mouse hover
+     * @returns 
+     */
+    private createSensitiveCellElements(): Roact.Element | undefined {
+        return <frame>
+            {this.getBattle().grid.cells.map((c) => (
+                <CellSurfaceElement
+                    cell={c}
+                    onEnter={() => this.handleCellEnter(c)}
+                    onclick={() => this.handleCellClick(c)}
+                />
+            ))}
+        </frame>;
     }
 
-    private getDropMenuActions(cellEntity: Entity): DropmenuAction[] {
+    // Handle cell hover (enter) event
+    private handleCellEnter(cell: Cell) {
         const battle = this.getBattle();
-        const actions: DropmenuAction[] = [];
-        for (const [k, v] of pairs(DropmenuActionType)) {
-            const action = this.getDropMenuAction(v);
-            if (cellEntity !== battle.currentRound?.entity && k === 'EndTurn') {
-                continue;
-            }
-            else if (action) {
-                actions.push(action);
-            }
+        if (!battle?.currentRound?.entity?.cell) return;
 
+        // 0. Change mouse icon if the cell is not vacant
+        const mouse = Players.LocalPlayer.GetMouse();
+        if (cell.isVacant()) {
+            mouse.Icon = '';
         }
-        return actions;
+        else {
+            mouse.Icon = 'rbxassetid://89793300852596';
+        }
+
+        // 1. Create path
+        const path = battle.createPathForCurrentEntity(cell.xy);
+        if (!path) return;
+
+        // 2. Move readiness icon to forecast post-move position
+        const currentEntity = battle.currentRound.entity;
+        const readinessPercent = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
+        this.updateSpecificReadinessIcon(currentEntity.playerID, readinessPercent);
+
+        // 3. Glow along the path
+        return this.mountOrUpdateGlowPath(path);
     }
+
+    // Handle cell click event
+    private handleCellClick(cell: Cell) {
+        if (cell.isVacant()) {
+            this.clickedOnEmptyCell(cell);
+        }
+        else {
+            const entityClicked = cell.entity;
+            if (!entityClicked) return;
+            this.clickedOnEntity(entityClicked);
+        }
+    }
+
+    private clickedOnEntity(entity: Entity) {
+
+    }
+
+    private clickedOnEmptyCell(cell: Cell) {
+        const battle = this.getBattle();
+        if (!battle?.currentRound?.entity?.cell) return;
+
+        const path = battle.createPathForCurrentEntity(cell.xy);
+        const cr = battle.currentRound!;
+        const currentEntity = cr.entity;
+        currentEntity?.moveToCell(cell, path).then(() => {
+            this.returnToSelections();
+        });
+    }
+
     //#endregion
 
     //#region Readiness Bar Methods
@@ -544,7 +471,6 @@ export default class BattleGUI {
     //#endregion
 
     //#region UI Unmount Methods
-
     unmountAndClear(propertyName: keyof this): void {
         const property = this[propertyName];
         if (property !== undefined && typeOf(property) === 'table') {
@@ -565,8 +491,8 @@ export default class BattleGUI {
         print("【Gui done round】");
         this.escapeScript?.Disconnect();
         this.mouseClickDDEvent?.Disconnect();
-        if (this.actionsUI) {
-            this.unmountAndClear('actionsUI');
+        if (this.actionsGui) {
+            this.unmountAndClear('actionsGui');
         }
         if (this.dropDownMenuGui) {
             this.unmountAndClear('dropDownMenuGui');

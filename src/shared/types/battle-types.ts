@@ -1,5 +1,5 @@
 import Roact from "@rbxts/roact";
-import BattleDDElement from "gui_sharedfirst/components/battle-dropdown";
+import BattleDDElement from 'gui_sharedfirst/components/battle/dropdown';
 import Ability from "shared/class/Ability";
 import Battle from "shared/class/Battle";
 import Cell from "shared/class/Cell";
@@ -123,6 +123,12 @@ export interface iAbility {
     // effects: Effect[];
 }
 
+export type AbilityKeys = Enum.KeyCode.Q | Enum.KeyCode.W | Enum.KeyCode.E | Enum.KeyCode.R;
+
+export type AbilitySet = {
+    [key in keyof typeof Enum.KeyCode]?: iAbility;
+};
+
 export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
     [Potency.Strike]: [
         ['str', 1]
@@ -191,38 +197,13 @@ export type AbilityInitOptions = {
     animation: string;
 }
 
-export interface BattleAction {
+export interface CharacterMenuAction {
     type: ActionType,
     run: (ui: Roact.Tree) => void;
 }
 
-export enum DropmenuActionType {
-    Attack = 'Attack',
-    MoveTo = 'Move To',
-    EndTurn = 'End Turn',
-}
-
-
-export interface OnClickChain {
-    isHovering: boolean;
-    isRendering: boolean;
-    render: (ctx: DropdownmenuContext) => Roact.Element;
-}
-export interface DropmenuAction {
-    name: DropmenuActionType,
-    run: (ctx: DropdownmenuContext) => void;
-    onClickChain?: OnClickChain
-}
-
 export enum EntityStatus {
     Idle = 'idle',
-}
-
-export interface DropdownmenuContext {
-    occ: DropmenuAction;
-    cell: Cell;
-    initiator: Entity;
-    dropdownMenu: BattleDDElement;
 }
 
 export enum BattleStatus {
@@ -231,12 +212,11 @@ export enum BattleStatus {
     PlayerMovement = 'playerMovement',
 }
 
-export interface _Action {
+export interface BattleAction {
     type: ActionType,
     executed: boolean,
 }
-export interface AttackAction extends _Action {
-    coordinate: Vector2,
+export interface AttackAction extends BattleAction {
     ability: Ability,
     clashResult?: ClashResult,
     abilityEffectString?: string,
@@ -249,3 +229,27 @@ export interface ClashResult {
     roll: number,
 }
 
+
+//#region Dropdown Menu Types
+export interface OnClickChain {
+    isHovering: boolean;
+    isRendering: boolean;
+    render: (ctx: DropdownmenuContext) => Roact.Element;
+}
+export enum DropmenuActionType {
+    Attack = 'Attack',
+    MoveTo = 'Move To',
+    EndTurn = 'End Turn',
+}
+export interface DropdownmenuContext {
+    occ: DropmenuAction;
+    cell: Cell;
+    initiator: Entity;
+    dropdownMenu: BattleDDElement;
+}
+export interface DropmenuAction {
+    name: DropmenuActionType,
+    run: (ctx: DropdownmenuContext) => void;
+    onClickChain?: OnClickChain
+}
+//#endregion

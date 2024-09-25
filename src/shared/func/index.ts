@@ -14,7 +14,7 @@ export function getDatastore(name: string): DataStore {
 }
 
 export function onInput(inputType: Enum.UserInputType, callback: (input: InputObject) => void) {
-    UserInputService.InputBegan.Connect((input: InputObject) => {
+    return UserInputService.InputBegan.Connect((input: InputObject) => {
         if (input.UserInputType === inputType) {
             callback(input);
         }
@@ -213,6 +213,14 @@ export function requestData(requester: Player, datastoreName: string, key: strin
     if (requestDataRemoteEvent) {
         return requestDataRemoteEvent.InvokeServer(datastoreName, key);
     }
+}
+
+export function countObjectKeys(object: object) {
+    let count = 0;
+    for (const _ of pairs(object)) {
+        count++;
+    }
+    return count;
 }
 
 // export function attack(

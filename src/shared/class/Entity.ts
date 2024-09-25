@@ -1,6 +1,6 @@
 import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { extractMapValues, gridXYToWorldXY } from "shared/func";
-import { BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
 import Ability from "./Ability";
 import Battle from "./Battle";
 import BattleGUI from "./BattleGui";
@@ -256,15 +256,19 @@ export default class Entity implements iEntity {
         this.initTweenHandleScript();
     }
 
+    tweenPlaying: boolean = false;
     initTweenHandleScript() {
         this.tweenHandleScript = RunService.RenderStepped.Connect(() => {
+            if (this.tweenPlaying) return;
             this.tweenQueue = this.tweenQueue.filter(tween => tween.PlaybackState === Enum.PlaybackState.Begin);
             const q = this.tweenQueue;
             const t = q.shift();
             if (t) {
+                this.tweenPlaying = true;
                 t.Play();
                 print("Playing tween", t.TweenInfo);
                 t.Completed.Wait();
+                this.tweenPlaying = false;
             }
         });
     }
@@ -358,11 +362,23 @@ export default class Entity implements iEntity {
         entity.PivotTo(new CFrame(position));
     }
 
-    getAbilities(): Array<iAbility> {
+    getAllAbilitySets(): Array<AbilitySet> {
+        const allAbilities = this.getAllAbilities();
+        const setOne: AbilitySet = {
+            'Q': allAbilities[0],
+            'W': allAbilities[0],
+            'E': allAbilities[0],
+            'R': allAbilities[0],
+        };
+
+
+        return [setOne];
+    }
+
+    getAllAbilities(): Array<iAbility> {
         const uniPhysAbilities = extractMapValues(Ability.UNIVERSAL_PHYS);
         return uniPhysAbilities;
     }
-
 
     setCell(cell: Cell): Cell | undefined {
         if (cell.isVacant() === false) {
