@@ -183,7 +183,6 @@ export function gridXYToWorldXY(position: Vector2, grid: Grid) {
         0.125 * grid.size,
         (x + grid.center.X),
     );
-    print(localLocation, "->", worldLocation);
 
     return worldLocation;
 }
@@ -223,33 +222,119 @@ export function countObjectKeys(object: object) {
     return count;
 }
 
-// export function attack(
-//     attacker: Entity | iEntity,
-//     target: Entity | iEntity,
-//     value: number,
-//     type: keyof iEntityStats = 'hp',
-//     apply = false
-// ) {
-//     // const ability = this.getAction();
-//     // const targetAbility = target.getAction();
+export class PriorityQueue<T extends defined> {
+    public heap: T[] = [];
+    private priorityFunction: (element: T) => number;
 
-//     const vattacker =
-//         attacker instanceof Entity ?
-//             apply ?
-//                 attacker.applyCurrentStatus() :
-//                 attacker.virtual() :
-//             attacker;
-//     const vTarget =
-//         target instanceof Entity ?
-//             apply ?
-//                 target.applyCurrentStatus() :
-//                 target.virtual() :
-//             target;
+    /**
+     * Creates a new PriorityQueue with a given priority function.
+     * @param priorityFunction - A function that takes an element and returns its priority as a number.
+     */
+    constructor(priorityFunction: (element: T) => number) {
+        this.priorityFunction = priorityFunction;
+    }
 
+    /** Inserts an element into the priority queue. */
+    public enqueue(element: T): void {
+        this.heap.push(element);
+        this.heapifyUp(this.heap.size() - 1);
+    }
 
-//     return {
-//         vattacker,
-//         vTarget,
-//         value,
-//     }
-// }
+    /**
+     * Removes and returns the element with the highest priority (lowest priority number).
+     * Returns `undefined` if the queue is empty.
+     */
+    public dequeue(): T | undefined {
+        if (this.heap.size() === 0) {
+            return undefined;
+        }
+        const rootElement = this.heap[0];
+        const lastElement = this.heap.pop();
+        if (this.heap.size() > 0 && lastElement !== undefined) {
+            this.heap[0] = lastElement;
+            this.heapifyDown(0);
+        }
+        return rootElement;
+    }
+
+    /** Returns the element with the highest priority without removing it. */
+    public peek(index: number = 0): T | undefined {
+        return this.heap.size() > 0 ? this.heap[index] : undefined;
+    }
+
+    /** Returns the number of elements in the priority queue. */
+    public size(): number {
+        return this.heap.size();
+    }
+
+    /** Checks if the priority queue is empty. */
+    public isEmpty(): boolean {
+        return this.heap.size() === 0;
+    }
+
+    /** Swaps two elements in the heap by their indices. */
+    private swap(i: number, j: number): void {
+        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+    }
+
+    /** Moves the element at the given index up to maintain the heap property. */
+    private heapifyUp(index: number): void {
+        let currentIndex = index;
+        while (currentIndex > 0) {
+            const parentIndex = math.floor((currentIndex - 1) / 2);
+            if (
+                this.priorityFunction(this.heap[currentIndex]) <
+                this.priorityFunction(this.heap[parentIndex])
+            ) {
+                this.swap(currentIndex, parentIndex);
+                currentIndex = parentIndex;
+            } else {
+                break;
+            }
+        }
+    }
+
+    /** Moves the element at the given index down to maintain the heap property. */
+    private heapifyDown(index: number): void {
+        let currentIndex = index;
+        const length = this.heap.size();
+        let i = 0;
+        while (true && i < this.heap.size() * 10) {
+            let smallestIndex = currentIndex;
+            const leftChildIndex = 2 * currentIndex + 1;
+            const rightChildIndex = 2 * currentIndex + 2;
+
+            let smallestPriority = this.priorityFunction(this.heap[smallestIndex]);
+
+            if (leftChildIndex < length) {
+                const leftChildPriority = this.priorityFunction(this.heap[leftChildIndex]);
+                if (leftChildPriority < smallestPriority) {
+                    smallestIndex = leftChildIndex;
+                    smallestPriority = leftChildPriority;
+                }
+            }
+
+            if (rightChildIndex < length) {
+                const rightChildPriority = this.priorityFunction(this.heap[rightChildIndex]);
+                if (rightChildPriority < smallestPriority) {
+                    smallestIndex = rightChildIndex;
+                    smallestPriority = rightChildPriority;
+                }
+            }
+
+            if (smallestIndex !== currentIndex) {
+                this.swap(currentIndex, smallestIndex);
+                currentIndex = smallestIndex;
+            } else {
+                break;
+            }
+            i++;
+        }
+
+        if (i >= this.heap.size() * 10) {
+            warn("HeapifyDown took too long to complete.", currentIndex, this.heap);
+        }
+    }
+
+}
+
