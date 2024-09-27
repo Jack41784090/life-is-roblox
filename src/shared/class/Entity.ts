@@ -187,12 +187,27 @@ class AudioHandler {
 // Manages tweening for entity movement and rotations
 class TweenManager {
     private tweenQueue: Tween[] = [];
+    playing: boolean = false;
+    handleScript: RBXScriptConnection;
+
+    constructor() {
+        this.handleScript = RunService.RenderStepped.Connect(() => {
+            if (this.playing) return;
+            this.tweenQueue = this.tweenQueue.filter(tween => tween.PlaybackState === Enum.PlaybackState.Begin);
+            const q = this.tweenQueue;
+            const t = q.shift();
+            if (t) {
+                this.playing = true;
+                t.Play();
+                print("Playing tween", t.TweenInfo);
+                t.Completed.Wait();
+                this.playing = false;
+            }
+        });
+    }
 
     addTween(tween: Tween) {
         this.tweenQueue.push(tween);
-        task.spawn(() => {
-            tween.Play();
-        });
     }
 
     async waitForCompletion(tween: Tween) {
@@ -209,13 +224,11 @@ class TweenManager {
 }
 
 export default class Entity implements iEntity {
-    battle: Battle;
+    private battle: Battle;
 
-    animationHandler?: AnimationHandler;
-    audioHandler?: AudioHandler;
-
-    tweenQueue: Array<Tween> = [];
-    tweenHandleScript?: RBXScriptConnection;
+    animationHandler: AnimationHandler;
+    audioHandler: AudioHandler;
+    tweenHandler: TweenManager;
 
     playerID: number;
     iconURL?: ReadinessIcon;
@@ -230,6 +243,7 @@ export default class Entity implements iEntity {
     org: number;
     pos: number;
 
+    armed: keyof typeof Enum.KeyCode | undefined;
     botType: BotType = BotType.Enemy;
 
     expression?: Expression;
@@ -253,31 +267,13 @@ export default class Entity implements iEntity {
             throw `Entity template not found for entity_${this.stats.id}`;
         }
 
-        this.initTweenHandleScript();
+        this.tweenHandler = new TweenManager();
+        this.animationHandler = new AnimationHandler(this);
+        this.audioHandler = new AudioHandler(this);
     }
 
-    tweenPlaying: boolean = false;
-    initTweenHandleScript() {
-        this.tweenHandleScript = RunService.RenderStepped.Connect(() => {
-            if (this.tweenPlaying) return;
-            this.tweenQueue = this.tweenQueue.filter(tween => tween.PlaybackState === Enum.PlaybackState.Begin);
-            const q = this.tweenQueue;
-            const t = q.shift();
-            if (t) {
-                this.tweenPlaying = true;
-                t.Play();
-                print("Playing tween", t.TweenInfo);
-                t.Completed.Wait();
-                this.tweenPlaying = false;
-            }
-        });
-    }
-
+    //#region play animation/audio
     playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
-        if (!this.animationHandler) {
-            warn("Animation handler not initialised");
-            return
-        }
         print(`${this.name}: Playing animation ${animation}`);
         return this.animationHandler.playAnimation({ animation, priority, hold, loop });
     }
@@ -289,7 +285,9 @@ export default class Entity implements iEntity {
         }
         this.audioHandler.play(entityStatus);
     }
+    //#endregion
 
+    //#region feature initialisation
     cloneAndPositionTemplate(): Model | undefined {
         const entity = this.template?.Clone();
         //#region defence
@@ -313,55 +311,26 @@ export default class Entity implements iEntity {
         if (!entity) return;
         //#endregion
         entity.Parent = this.cell.part;
-        this.animationHandler = new AnimationHandler(this);
-        this.audioHandler = new AudioHandler(this);
         return this.model;
-    }
-
-    private faceClosestEntity() {
-        const entities = this.battle.getAllEntities().filter(e => e !== this);
-        if (entities.size() === 0) {
-            warn("No other entities found");
-            return;
-        }
-
-        const myXY = this.cell?.coord;
-        if (!myXY) {
-            warn("Current entity coordinates not set");
-            return;
-        }
-
-        const closestEntity = entities.reduce((closestEntity, c) => {
-            const closestEntityXY = closestEntity.cell?.coord;
-            const currentEntityXY = c.cell?.coord;
-
-            if (!closestEntityXY || !currentEntityXY) {
-                warn("Coordinates not set for entity");
-                return closestEntity;
-            }
-
-            const closestDistance = closestEntityXY.sub(myXY).Magnitude;
-            const currentDistance = currentEntityXY.sub(myXY).Magnitude;
-
-            return currentDistance < closestDistance ? c : closestEntity;
-        }, entities[0]);
-
-        if (closestEntity) {
-            this.faceEntity(closestEntity);
-        } else {
-            warn("No closest entity found");
-        }
     }
 
     private positionModel(entity: Model) {
         const primaryPart = entity.PrimaryPart;
+        //#region defence
         if (!primaryPart) {
             throw `PrimaryPart is not set for the model entity_${this.stats.id}`;
         }
-        const position = this.cell!.part.Position.add(new Vector3(0, this.cell!.height * this.cell!.size, 0));
+        if (!this.cell) {
+            warn(`${this.name}: positionModel: cell not defined.`)
+            return;
+        }
+        //#endregion
+        const position = this.cell.part.Position.add(new Vector3(0, this.cell.height * this.cell.size, 0));
         entity.PivotTo(new CFrame(position));
     }
+    //#endregion
 
+    //#region get abilities
     getAllAbilitySets(): Array<AbilitySet> {
         const allAbilities = this.getAllAbilities();
         const setOne: AbilitySet = {
@@ -370,8 +339,6 @@ export default class Entity implements iEntity {
             'E': allAbilities[0],
             'R': allAbilities[0],
         };
-
-
         return [setOne];
     }
 
@@ -379,7 +346,9 @@ export default class Entity implements iEntity {
         const uniPhysAbilities = extractMapValues(Ability.UNIVERSAL_PHYS);
         return uniPhysAbilities;
     }
+    //#endregion
 
+    //#region cell move
     setCell(cell: Cell): Cell | undefined {
         if (cell.isVacant() === false) {
             warn("Cell is occupied");
@@ -425,7 +394,7 @@ export default class Entity implements iEntity {
                 new TweenInfo(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
                 { CFrame: targetCFrame }
             );
-            this.tweenQueue.push(tween);
+            this.tweenHandler.addTween(tween);
             tween.Completed.Wait();
         }
         moveTrack?.Stop();
@@ -439,7 +408,9 @@ export default class Entity implements iEntity {
             });
         });
     }
+    //#endregion
 
+    //#region look at ...
     async faceEntity(entity: Entity) {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const modelPrimaryPart = humanoid?.RootPart;
@@ -471,11 +442,53 @@ export default class Entity implements iEntity {
             new TweenInfo(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
             { CFrame: lookAtCFrame }
         );
-        this.tweenQueue.push(tween);
+        this.tweenHandler.addTween(tween);
         return tween.Completed.Wait();
     }
+    private faceClosestEntity() {
+        const entities = this.battle.getAllEntities().filter(e => e !== this);
+        if (entities.size() === 0) {
+            warn("No other entities found");
+            return;
+        }
 
+        const myXY = this.cell?.coord;
+        if (!myXY) {
+            warn("Current entity coordinates not set");
+            return;
+        }
+
+        const closestEntity = entities.reduce((closestEntity, c) => {
+            const closestEntityXY = closestEntity.cell?.coord;
+            const currentEntityXY = c.cell?.coord;
+
+            if (!closestEntityXY || !currentEntityXY) {
+                warn("Coordinates not set for entity");
+                return closestEntity;
+            }
+
+            const closestDistance = closestEntityXY.sub(myXY).Magnitude;
+            const currentDistance = currentEntityXY.sub(myXY).Magnitude;
+
+            return currentDistance < closestDistance ? c : closestEntity;
+        }, entities[0]);
+
+        if (closestEntity) {
+            this.faceEntity(closestEntity);
+        } else {
+            warn("No closest entity found");
+        }
+    }
+    //#endregion
+
+    //#region number manipulation
     heal(num: number) {
+        if (num < 0) return;
         this.hip += num;
     }
+    damage(num: number) {
+        if (num > 0) return;
+        this.hip -= num;
+    }
+    //#endregion
 }
