@@ -339,7 +339,7 @@ export default class BattleGUI {
         this.unmountAndClear('abilitySlotGui');
         this.abilitySlotGui = Roact.mount(
             <AbilitySetElement>
-                <AbilitySlotsElement abilitySet={mountingAbilitySet} />
+                <AbilitySlotsElement gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>
         );
     }

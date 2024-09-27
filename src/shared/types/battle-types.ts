@@ -102,6 +102,7 @@ export interface iAbility {
     animation: string,
     name: string;
     description: string;
+    icon: string;
 
     using?: Entity;
     target?: Entity;
@@ -195,6 +196,7 @@ export type AbilityInitOptions = {
     using: Entity;
     target: Entity;
     animation: string;
+    icon: string;
 }
 
 export interface CharacterMenuAction {

@@ -279,6 +279,10 @@ export default class Battle {
         return this.getAllEntities().find(e => e.model === model);
     }
 
+    getCurrentRoundEntity() {
+        return this.currentRound?.entity;
+    }
+
     //#region Calculations
     getReality(reality: Reality, entity: Entity) {
         switch (reality) {
