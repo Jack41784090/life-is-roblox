@@ -1,6 +1,6 @@
 
 import Roact from "@rbxts/roact";
-import { onInput } from "shared/func";
+import { onInput } from "shared/utils";
 
 interface Ability1SlotElementProps {
     key: keyof typeof Enum.KeyCode;

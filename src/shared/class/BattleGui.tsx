@@ -9,8 +9,8 @@ import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
-import { getPlayer } from "shared/func";
 import { CharacterMenuAction } from "shared/types/battle-types";
+import { getPlayer } from "shared/utils";
 import Battle from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
@@ -308,7 +308,7 @@ export default class BattleGUI {
 
         const elements = this.getBattle().grid.cells.mapFiltered((c) => {
             if (!c) return;
-            const distance = c.xy.sub(_cell.xy).Magnitude;
+            const distance = c.coord.sub(_cell.coord).Magnitude;
             if (range.min <= distance && distance <= range.max) {
                 c.glow = true;
                 return <CellGlowSurfaceElement cell={c} />;
@@ -366,7 +366,9 @@ export default class BattleGUI {
     // Handle cell hover (enter) event
     private handleCellEnter(cell: Cell) {
         const battle = this.getBattle();
-        if (!battle?.currentRound?.entity?.cell) return;
+        const currentEntity = battle?.currentRound?.entity;
+        const currentCell = battle?.currentRound?.entity?.cell;
+        if (!currentEntity || !currentCell) return;
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
@@ -378,11 +380,12 @@ export default class BattleGUI {
         }
 
         // 1. Create path
-        const path = battle.createPathForCurrentEntity(cell.xy);
-        if (!path) return;
+        print(`${currentCell.coord.X},${currentCell.coord.Y} -> ${cell.coord.X},${cell.coord.Y}`);
+        const pf = battle.createPathfindingForCurrentEntity(cell.coord);
+        if (!pf) return;
 
         // 2. Move readiness icon to forecast post-move position
-        const currentEntity = battle.currentRound.entity;
+        const path = pf.begin();
         const readinessPercent = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
         this.updateSpecificReadinessIcon(currentEntity.playerID, readinessPercent);
 
@@ -410,7 +413,8 @@ export default class BattleGUI {
         const battle = this.getBattle();
         if (!battle?.currentRound?.entity?.cell) return;
 
-        const path = battle.createPathForCurrentEntity(cell.xy);
+        const pf = battle.createPathfindingForCurrentEntity(cell.coord);
+        const path = pf?.begin();
         const cr = battle.currentRound!;
         const currentEntity = cr.entity;
         currentEntity?.moveToCell(cell, path).then(() => {

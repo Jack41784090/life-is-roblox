@@ -1,5 +1,5 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import { gridXYToWorldXY } from "shared/func";
+import { gridXYToWorldXY } from "shared/utils";
 import Battle from "./Battle";
 
 export default class BattleCamera {

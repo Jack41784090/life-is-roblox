@@ -1,5 +1,5 @@
 import Roact from "@rbxts/roact";
-import { getPlayer } from "shared/func";
+import { getPlayer } from "shared/utils";
 
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 

@@ -1,6 +1,6 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
 import Grid from "shared/class/Grid";
-import { disableCharacter, enableCharacter } from "shared/func";
+import { disableCharacter, enableCharacter } from "shared/utils";
 
 const loadCharacterEvent = ReplicatedStorage.WaitForChild("LoadCharacterEvent") as RemoteEvent;
 
@@ -21,17 +21,17 @@ Players.PlayerAdded.Connect((player) => {
 wait(3)
 const grid = new Grid(new Vector2(10, 10), new Vector2(0, 0), 10, "FunGrid");
 grid.materialise()
-function iterate() {
-    const mappedCells = grid.cells.map(cell => {
-        return cell.raiseHeight(math.random(1, 10))
-    })
-    Promise.all(mappedCells)
-        .then(() => iterate())
-        .catch((err: unknown) => {
-            print("Error: " + err);
-        });
-}
-iterate();
+// function iterate() {
+//     const mappedCells = grid.cells.map(cell => {
+//         return cell.raiseHeight(math.random(1, 10))
+//     })
+//     Promise.all(mappedCells)
+//         .then(() => iterate())
+//         .catch((err: unknown) => {
+//             print("Error: " + err);
+//         });
+// }
+// iterate();
 
 // Pathfinding.Start({
 //     grid: grid,

@@ -2,8 +2,8 @@ import Roact, { Portal } from "@rbxts/roact";
 import { Players, RunService, TweenService, UserInputService } from "@rbxts/services";
 import Battle from "shared/class/Battle";
 import Cell from "shared/class/Cell";
-import { getMouseWorldPosition } from "shared/func";
 import { DropmenuAction, DropmenuActionType } from "shared/types/battle-types";
+import { getMouseWorldPosition } from "shared/utils";
 
 export interface BattleDDProps {
     options: ReadonlyArray<DropmenuAction>;

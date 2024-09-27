@@ -1,6 +1,6 @@
 import Roact from "@rbxts/roact";
 import Cell from "shared/class/Cell";
-import { getPlayer } from "shared/func";
+import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
 export interface CellSurfaceElementProps {
@@ -28,7 +28,7 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
                 Key={this.props.cell.part.Name}
                 Adornee={this.props.cell.part}
                 Face={"Top"}
-                AlwaysOnTop={this.props.cell.isVacant()}
+                AlwaysOnTop={true}
             >
                 <textbutton
                     Ref={this.buttonRef}

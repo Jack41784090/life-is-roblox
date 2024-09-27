@@ -1,6 +1,6 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { getTween, gridXYToWorldXY } from "shared/func";
 import { CellInitOptions, CellTerrain } from "shared/types";
+import { getTween, gridXYToWorldXY } from "shared/utils";
 import Entity from "./Entity";
 import Grid from "./Grid";
 
@@ -12,22 +12,19 @@ export default class Cell {
     public glow = false;
     public part: UnionOperation;
     public size = 4;
-    public xy: Vector2;
+    public coord: Vector2;
     public terrain: CellTerrain;
     public height: number;
     public entity?: Entity;
     public grid: Grid;
 
-    private shiftingXY: boolean;
-
     constructor(initOptions: CellInitOptions) {
         const { position, size, height, terrain } = initOptions;
-        this.xy = position;
+        this.coord = position;
         this.terrain = terrain;
         this.height = height;
         this.size = size;
         this.grid = initOptions.grid;
-        this.shiftingXY = initOptions.position.X % 2 === 1;
 
         const part = Cell.HEXAGON.Clone();
         part.Name = `Cell(${position.X}, ${position.Y})`;

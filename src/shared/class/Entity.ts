@@ -1,6 +1,6 @@
 import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
-import { extractMapValues, gridXYToWorldXY } from "shared/func";
 import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import { extractMapValues, gridXYToWorldXY } from "shared/utils";
 import Ability from "./Ability";
 import Battle from "./Battle";
 import BattleGUI from "./BattleGui";
@@ -325,15 +325,15 @@ export default class Entity implements iEntity {
             return;
         }
 
-        const myXY = this.cell?.xy;
+        const myXY = this.cell?.coord;
         if (!myXY) {
             warn("Current entity coordinates not set");
             return;
         }
 
         const closestEntity = entities.reduce((closestEntity, c) => {
-            const closestEntityXY = closestEntity.cell?.xy;
-            const currentEntityXY = c.cell?.xy;
+            const closestEntityXY = closestEntity.cell?.coord;
+            const currentEntityXY = c.cell?.coord;
 
             if (!closestEntityXY || !currentEntityXY) {
                 warn("Coordinates not set for entity");
@@ -402,7 +402,7 @@ export default class Entity implements iEntity {
             return;
         }
         if (!path) {
-            path = [cell.xy];
+            path = [cell.coord];
         }
         //#endregion
         this.setCell(cell);

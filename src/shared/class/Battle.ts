@@ -1,8 +1,8 @@
 import Roact from "@rbxts/roact";
 import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
-import { requestData } from "shared/func";
-import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { requestData } from "shared/utils";
 import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
@@ -125,17 +125,19 @@ export default class Battle {
     //#endregion
 
 
-    createPathForCurrentEntity(dest: Vector2) {
+    createPathfindingForCurrentEntity(dest: Vector2) {
         const entity = this.currentRound?.entity;
         if (!entity) return;
         const lim = math.floor(entity.pos / MOVEMENT_COST);
-        const path = Pathfinding.Start({
+        const pf = new Pathfinding({
             grid: this.grid,
-            start: entity.cell?.xy ?? new Vector2(0, 0),
+            start: entity.cell?.coord ?? new Vector2(0, 0),
             dest: dest,
             limit: lim,
-        }).fullPath;
-        return path;
+            hexagonal: true,
+            // verbose: true,
+        });
+        return pf;
     }
 
     getAllEntities() {
@@ -156,7 +158,7 @@ export default class Battle {
             }
             if (!entity.cell && randomCell.isVacant()) {
                 entity.setCell(randomCell);
-                print(`Spawning ${entity.name} at ${randomCell.xy.X}, ${randomCell.xy.Y}`)
+                print(`Spawning ${entity.name} at ${randomCell.coord.X}, ${randomCell.coord.Y}`)
             }
             else {
                 warn(`Entity ${entity.name} has no cell or cell is not vacant`);
@@ -218,12 +220,12 @@ export default class Battle {
     private async waitForRoundActions(w: Entity) {
         return new Promise((resolve) => {
             (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
-            this.gui?.mountActionMenu(this.getActions(w));
+            this.gui?.mountActionMenu(this.getCharacterMenuActions(w));
             w.playAudio(EntityStatus.Idle);
         });
     }
 
-    getActions(e: Entity) {
+    getCharacterMenuActions(e: Entity): CharacterMenuAction[] {
         return [
             {
                 type: ActionType.Move,
@@ -239,26 +241,26 @@ export default class Battle {
 
     async moveEntity(entity: Entity, cell: Cell, _path?: Vector2[]) {
         const lim = math.floor(entity.pos / MOVEMENT_COST);
-        const path = _path ?? Pathfinding.Start({
+        const path = _path ?? new Pathfinding({
             grid: this.grid,
-            start: entity.cell?.xy ?? new Vector2(0, 0),
-            dest: cell.xy,
+            start: entity.cell?.coord ?? new Vector2(0, 0),
+            dest: cell.coord,
             limit: lim,
-        }).fullPath;
+        }).begin();
         if (path.size() === 0) {
-            warn(`No path found from ${entity.cell?.xy.X}, ${entity.cell?.xy.Y} to ${cell.xy.X}, ${cell.xy.Y}`);
+            warn(`No path found from ${entity.cell?.coord.X}, ${entity.cell?.coord.Y} to ${cell.coord.X}, ${cell.coord.Y}`);
             return;
         }
 
         const adjacentCell = this.grid.getCell(path[path.size() - 1]);
         let destination: Cell = cell;
         if (cell.isVacant() === false) {
-            warn(`Cell ${cell.xy.X}, ${cell.xy.Y} is not vacant`);
+            warn(`Cell ${cell.coord.X}, ${cell.coord.Y} is not vacant`);
             if (adjacentCell.isVacant()) {
                 destination = adjacentCell;
             }
             else {
-                warn(`Adjacent cell ${adjacentCell.xy.X}, ${adjacentCell.xy.Y} is not vacant`);
+                warn(`Adjacent cell ${adjacentCell.coord.X}, ${adjacentCell.coord.Y} is not vacant`);
                 return;
             }
         }
@@ -295,7 +297,7 @@ export default class Battle {
     setUpOnAttackClickedSignal(): RBXScriptConnection {
         this.onAttackClickedScript?.Disconnect();
         this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability: Ability) => {
-            if (!ability.target.cell?.xy) {
+            if (!ability.target.cell?.coord) {
                 warn("Target cell not found");
                 return;
             }
@@ -304,7 +306,6 @@ export default class Battle {
                 type: ActionType.Attack,
                 executed: false,
                 ability: ability,
-                coordinate: ability.target.cell?.xy,
             }
             const cr = this.clash(attackAction);
             print(cr);

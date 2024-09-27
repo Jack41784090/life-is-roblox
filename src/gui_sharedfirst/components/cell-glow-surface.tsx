@@ -1,7 +1,7 @@
 import Roact from "@rbxts/roact";
 import { RunService, TweenService } from "@rbxts/services";
 import Cell from "shared/class/Cell";
-import { getPlayer } from "shared/func";
+import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
 export interface CellGlowSurfaceElementProps {
