@@ -43,8 +43,8 @@ export default class BattleDDAttackElement extends Roact.Component<BattleDDAttac
         const allAbilities = this.props.ctx.initiator.getAllAbilities(); print(allAbilities)
         const attacker = this.props.ctx.initiator;
         const target = this.props.ctx.cell.entity!;
-        const attackerCellCoords = attacker.cell?.xy;
-        const targetCellCoords = target.cell?.xy;
+        const attackerCellCoords = attacker.cell?.coord;
+        const targetCellCoords = target.cell?.coord;
         if (!attackerCellCoords || !targetCellCoords) {
             return undefined;
         }
