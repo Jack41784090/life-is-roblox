@@ -26,6 +26,7 @@ export default class Ability1SlotElement extends Roact.Component<Ability1SlotEle
                 const cre = gui.getBattle().getCurrentRoundEntity();
                 if (cre?.cell) {
                     gui.mountOrUpdateGlowRange(cre.cell, this.props.ability.range);
+                    cre.armed = this.props.key;
                 }
             }
             else if (this.state.focus) {
@@ -37,7 +38,6 @@ export default class Ability1SlotElement extends Roact.Component<Ability1SlotEle
     protected willUnmount(): void {
         this.onKeyClickScript.Disconnect();
     }
-
 
     render() {
         const ability = this.props.ability;

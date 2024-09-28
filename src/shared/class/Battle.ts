@@ -3,6 +3,7 @@ import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
 import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { requestData } from "shared/utils";
+import { get2DEuclidDistance } from '../utils/index';
 import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
@@ -37,11 +38,10 @@ export default class Battle {
     onAttackClickedScript: RBXScriptConnection | undefined;
     onAttackClickedSignal = new Signal<(ability: Ability) => void>();
 
-    //
-    currentRound: {
+    // currentRound
+    private currentRound?: {
         entity?: Entity,
-        endRoundResolve?: (value: unknown) => void,
-    } | undefined;
+    };
 
     // Entity-Related Information
     teams: BattleTeam[] = [];
@@ -49,6 +49,7 @@ export default class Battle {
     enemyCount: number = 0;
     playerCount: number = 0;
 
+    // Grid info
     grid: Grid;
     gridMin: Vector2;
     gridMax: Vector2;
@@ -56,6 +57,7 @@ export default class Battle {
     // Timeslotting
     time: number = -1;
 
+    //#region creation
     static Create(config: BattleConfig) {
         const b = new Battle(config.worldCenter, config.size, config.width, config.height, config.camera);
 
@@ -85,6 +87,7 @@ export default class Battle {
         this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
         this.bcamera = new BattleCamera(camera, worldCenter, this);
     }
+    //#endregion
 
     //#region Initialization
     private initializeGrid() {
@@ -124,14 +127,18 @@ export default class Battle {
     }
     //#endregion
 
-
     createPathfindingForCurrentEntity(dest: Vector2) {
-        const entity = this.currentRound?.entity;
-        if (!entity) return;
-        const lim = math.floor(entity.pos / MOVEMENT_COST);
+        const cre = this.getCurrentRoundEntity();
+        //#region defence
+        if (!cre) {
+            warn('currentEntity not found')
+            return;
+        }
+        //#endregion
+        const lim = math.floor(cre.pos / MOVEMENT_COST);
         const pf = new Pathfinding({
             grid: this.grid,
-            start: entity.cell?.coord ?? new Vector2(0, 0),
+            start: cre.cell?.coord ?? new Vector2(0, 0),
             dest: dest,
             limit: lim,
             hexagonal: true,
@@ -142,87 +149,6 @@ export default class Battle {
 
     getAllEntities() {
         return this.teams.map(team => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
-    }
-
-    private spawn() {
-        const allEntities = this.getAllEntities();
-        for (const entity of allEntities) {
-            let randomCell: Cell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-            let loopBreaker = 0;
-            while (randomCell.isVacant() === false) {
-                randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-                if (loopBreaker++ > 1000) {
-                    warn("Loop breaker triggered");
-                    break;
-                }
-            }
-            if (!entity.cell && randomCell.isVacant()) {
-                entity.setCell(randomCell);
-                print(`Spawning ${entity.name} at ${randomCell.coord.X}, ${randomCell.coord.Y}`)
-            }
-            else {
-                warn(`Entity ${entity.name} has no cell or cell is not vacant`);
-            }
-        }
-
-        allEntities.forEach(e => e.initialiseCharacteristics());
-    }
-
-    public begin() {
-        print('【Begin】')
-        if (this.time === -1) {
-            this.spawn();
-            this.round();
-        };
-    }
-
-    private advanceTime() {
-        print(`【Time】 ${this.time + 1}`)
-        return this.time++;
-    }
-
-    private async round() {
-        const time = this.advanceTime();
-        this.status = BattleStatus.Begin;
-
-        // Run the readiness gauntlet and get the next model to act
-        const w = await this.runReadinessGauntlet();
-        if (!w) {
-            this.resetCameraAndRestartRound();
-            return;
-        }
-
-        this.currentRound = {
-            entity: w,
-            endRoundResolve: () => { },
-        };
-
-        // Focus the camera on the model
-        await this.bcamera.enterCharacterCenterMode();
-
-        // Handle the current round's actions
-        const chosenActions = await this.waitForRoundActions(w);
-
-        // Update readiness and finalize the round
-        if (w) {
-            w.pos /= 2;
-        }
-
-        this.finalizeRound();
-        this.round(); // Start the next round
-    }
-
-    private async resetCameraAndRestartRound() {
-        await this.bcamera.enterHOI4Mode();
-        this.round(); // Restart the round
-    }
-
-    private async waitForRoundActions(w: Entity) {
-        return new Promise((resolve) => {
-            (this.currentRound ?? (this.currentRound = {})).endRoundResolve = resolve;
-            this.gui?.mountActionMenu(this.getCharacterMenuActions(w));
-            w.playAudio(EntityStatus.Idle);
-        });
     }
 
     getCharacterMenuActions(e: Entity): CharacterMenuAction[] {
@@ -269,19 +195,97 @@ export default class Battle {
         return entity.moveToCell(destination, path)
     }
 
+    getCurrentRoundEntity() {
+        return this.currentRound?.entity;
+    }
+
+    get2DEuclidDistance(coord1: Vector2, coord2: Vector2) {
+        return get2DEuclidDistance(new Vector3(coord1.X, 0, coord1.Y), new Vector3(coord2.X, 0, coord2.Y));
+    }
+
+    //#region Round functions
+    private spawn() {
+        const allEntities = this.getAllEntities();
+        for (const entity of allEntities) {
+            let randomCell: Cell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+            let loopBreaker = 0;
+            while (randomCell.isVacant() === false) {
+                randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+                if (loopBreaker++ > 1000) {
+                    warn("Loop breaker triggered");
+                    break;
+                }
+            }
+            if (!entity.cell && randomCell.isVacant()) {
+                entity.setCell(randomCell);
+                print(`Spawning ${entity.name} at ${randomCell.coord.X}, ${randomCell.coord.Y}`)
+            }
+            else {
+                warn(`Entity ${entity.name} has no cell or cell is not vacant`);
+            }
+        }
+
+        allEntities.forEach(e => e.initialiseCharacteristics());
+    }
+
+    public begin() {
+        print('【Begin】')
+        if (this.time === -1) {
+            this.spawn();
+            this.round();
+        };
+    }
+
+    private advanceTime() {
+        print(`【Time】 ${this.time + 1}`)
+        return this.time++;
+    }
+
+    private async round() {
+        const time = this.advanceTime();
+        this.status = BattleStatus.Begin;
+
+        // Run the readiness gauntlet and get the next model to act
+        const w = await this.runReadinessGauntlet();
+        if (!w) {
+            warn('running readiness gauntlet fails. Restarting round')
+            this.resetCameraAndRestartRound();
+            return;
+        }
+
+        // Handle the current round's actions
+        const chosenActions = await this.waitForRoundActions(w);
+
+        // Update readiness and finalize the round
+        this.updateStats(w);
+        this.finalizeRound();
+        this.round(); // Start the next round
+    }
+
+    private async resetCameraAndRestartRound() {
+        await this.bcamera.enterHOI4Mode();
+        this.round(); // Restart the round
+    }
+
+    private updateStats(entity: Entity) {
+        entity.pos /= 2;
+    }
+
+    private async waitForRoundActions(w: Entity) {
+        this.currentRound = { entity: w, };
+        await this.bcamera.enterCharacterCenterMode();
+        return new Promise((resolve) => {
+            this.gui?.initiateRound(resolve);
+            w.playAudio(EntityStatus.Idle);
+        });
+    }
+
     private finalizeRound() {
         this.currentRound = undefined;
         print('【Round Finish】');
         wait(1);
     }
-
-    getEntityFromModel(model: Model) {
-        return this.getAllEntities().find(e => e.model === model);
-    }
-
-    getCurrentRoundEntity() {
-        return this.currentRound?.entity;
-    }
+    //#endregion
 
     //#region Calculations
     getReality(reality: Reality, entity: Entity) {

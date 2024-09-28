@@ -11,6 +11,7 @@ import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { CharacterMenuAction } from "shared/types/battle-types";
 import { getPlayer } from "shared/utils";
+import Ability from "./Ability";
 import Battle from "./Battle";
 import Cell from "./Cell";
 import Entity from "./Entity";
@@ -22,6 +23,7 @@ export default class BattleGUI {
     dropDownMenuGui: Roact.Tree | undefined;
     glowPathGui: Roact.Tree | undefined;
     abilitySlotGui: Roact.Tree | undefined;
+    finishRoundTicket: ((value: unknown) => void) | undefined;
     private mainGui: Roact.Tree;
 
     private mouseClickDDEvent: RBXScriptConnection | undefined;
@@ -86,7 +88,7 @@ export default class BattleGUI {
         const b = this.getBattle();
         this.exitMovement();
         b.bcamera.enterCharacterCenterMode().then(() => {
-            const currentRoundEntity = b.currentRound?.entity;
+            const currentRoundEntity = b.getCurrentRoundEntity();
             if (!currentRoundEntity) {
                 warn("ReturnToSelections: No entity found");
                 return;
@@ -108,6 +110,7 @@ export default class BattleGUI {
         })
     }
 
+    //#region legacy: dropdownmenu
     // /**
     //  * Set up a script that listens for mouse clicks on models to show the dropdown menu
     //  * @returns the script connection
@@ -123,7 +126,7 @@ export default class BattleGUI {
     //         const clickedEntity = this.getBattle().getEntityFromModel(ancestor);
     //         if (clickedEntity?.cell === undefined) return;
 
-    //         const crEntity = this.getBattle().currentRound?.entity;
+    //         const crEntity = this.getBattle().getCurrentRoundEntity();
     //         if (!crEntity) return;
 
     //         crEntity.faceEntity(clickedEntity).then(() => {
@@ -131,6 +134,7 @@ export default class BattleGUI {
     //         });
     //     });
     // }
+    //#endregion
 
     /**
      * Enter movement mode
@@ -150,7 +154,7 @@ export default class BattleGUI {
         // this.mouseClickDDEvent = this.setupClickOnDropdownHandler();
         this.updateMainUI('withSensitiveCells');
 
-        const cre = this.getBattle().currentRound?.entity;
+        const cre = this.getBattle().getCurrentRoundEntity();
         if (cre) this.mountAbilitySlots(cre);
     }
 
@@ -170,10 +174,6 @@ export default class BattleGUI {
      */
     exitMovement() {
         print("Exiting movement mode");
-        if (!this.getBattle()?.currentRound) {
-            warn("No battle or current round");
-            return;
-        }
 
         // 1. Remove the glow path
         if (this.glowPathGui) {
@@ -183,11 +183,6 @@ export default class BattleGUI {
         // 2. Disconnect the escape script and mouse click event
         this.escapeScript?.Disconnect();
         this.mouseClickDDEvent?.Disconnect();
-
-        // 3. Remove the dropdown menu
-        if (this.dropDownMenuGui) {
-            this.unmountAndClear('dropDownMenuGui');
-        }
 
         // 4. Update the UI without the sensitive cells
         this.mainGui = this.updateMainUI('onlyReadinessBar')
@@ -216,6 +211,18 @@ export default class BattleGUI {
                         {this.createSensitiveCellElements()}
                     </MenuFrameElement>);
         }
+    }
+
+    initiateRound(finishTicket: (value: unknown) => void) {
+        const battle = this.getBattle();
+        const cre = battle.getCurrentRoundEntity();
+        if (!cre) {
+            warn("No current round entity found");
+            return;
+        }
+
+        this.finishRoundTicket = finishTicket;
+        this.mountActionMenu(battle.getCharacterMenuActions(cre));
     }
 
     //#region Ability Slots Methods
@@ -366,18 +373,35 @@ export default class BattleGUI {
     // Handle cell hover (enter) event
     private handleCellEnter(cell: Cell) {
         const battle = this.getBattle();
-        const currentEntity = battle?.currentRound?.entity;
-        const currentCell = battle?.currentRound?.entity?.cell;
-        if (!currentEntity || !currentCell) return;
+        const cre = battle.getCurrentRoundEntity();
+        const currentCell = cre?.cell;
+        if (!currentCell) return;
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
-        if (cell.isVacant()) {
-            mouse.Icon = '';
+        if (cre.armed && cell.entity) {
+            const ability = cre.getEquippedAbilitySet()[cre.armed];
+            if (ability &&
+                battle.get2DEuclidDistance(cell.coord, currentCell.coord) <= ability.range.max &&
+                battle.get2DEuclidDistance(cell.coord, currentCell.coord) >= ability.range.min) {
+                mouse.Icon = 'rbxassetid://89793300852596';
+            }
+            else {
+                mouse.Icon = 'rbxassetid://114570670961562';
+            }
         }
         else {
-            mouse.Icon = 'rbxassetid://89793300852596';
+            mouse.Icon = ''
         }
+        // if (cell.isVacant()) {
+        //     mouse.Icon = '';
+        // }
+        // else  {
+        //     if (cell.entity) {
+
+        //     }
+        //     mouse.Icon = 'rbxassetid://89793300852596';
+        // }
 
         // 1. Create path
         print(`${currentCell.coord.X},${currentCell.coord.Y} -> ${cell.coord.X},${cell.coord.Y}`);
@@ -386,8 +410,8 @@ export default class BattleGUI {
 
         // 2. Move readiness icon to forecast post-move position
         const path = pf.begin();
-        const readinessPercent = (currentEntity.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
-        this.updateSpecificReadinessIcon(currentEntity.playerID, readinessPercent);
+        const readinessPercent = (cre.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
+        this.updateSpecificReadinessIcon(cre.playerID, readinessPercent);
 
         // 3. Glow along the path
         return this.mountOrUpdateGlowPath(path);
@@ -406,20 +430,39 @@ export default class BattleGUI {
     }
 
     private clickedOnEntity(entity: Entity) {
+        const cre = this.getBattle().getCurrentRoundEntity();
+        if (cre?.armed) {
+            const keyed = cre.armed;
+            const iability = cre.getEquippedAbilitySet()[keyed];
+            //#region defence
+            if (!iability) {
+                warn(`${keyed} has no ability keyed`)
+                return;
+            }
+            //#endregion
 
+            const ability = new Ability({
+                ...iability,
+                using: cre,
+                target: entity,
+            });
+            this.getBattle().onAttackClickedSignal.Fire(ability);
+        }
     }
 
     private clickedOnEmptyCell(cell: Cell) {
         const battle = this.getBattle();
-        if (!battle?.currentRound?.entity?.cell) return;
-
-        const pf = battle.createPathfindingForCurrentEntity(cell.coord);
-        const path = pf?.begin();
-        const cr = battle.currentRound!;
-        const currentEntity = cr.entity;
-        currentEntity?.moveToCell(cell, path).then(() => {
+        const cre = battle.getCurrentRoundEntity();
+        if (cre) {
+            const pf = battle.createPathfindingForCurrentEntity(cell.coord);
+            const path = pf?.begin();
+            cre?.moveToCell(cell, path).then(() => {
+                this.returnToSelections();
+            });
+        }
+        else {
             this.returnToSelections();
-        });
+        }
     }
 
     //#endregion
@@ -491,10 +534,7 @@ export default class BattleGUI {
 
     //#endregion
 
-    guiDoneRoundExit() {
-        print("【Gui done round】");
-        this.escapeScript?.Disconnect();
-        this.mouseClickDDEvent?.Disconnect();
+    clearAllLooseGui() {
         if (this.actionsGui) {
             this.unmountAndClear('actionsGui');
         }
@@ -504,7 +544,17 @@ export default class BattleGUI {
         if (this.glowPathGui) {
             this.unmountAndClear('glowPathGui');
         }
+    }
+    clearAllLooseScript() {
+        this.escapeScript?.Disconnect();
+        this.mouseClickDDEvent?.Disconnect();
+    }
+    guiDoneRoundExit() {
+        print("【Gui done round】");
+        this.clearAllLooseScript();
+        this.clearAllLooseGui();
         this.mainGui = this.updateMainUI('onlyReadinessBar')
-        this.getBattle().currentRound?.endRoundResolve?.(void 0);
+        this.finishRoundTicket?.(void 0);
+        this.finishRoundTicket = undefined;
     }
 }

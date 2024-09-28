@@ -222,6 +222,10 @@ export function countObjectKeys(object: object) {
     return count;
 }
 
+export function get2DEuclidDistance(a: Vector3, b: Vector3) {
+    return math.sqrt(math.pow(a.X - b.X, 2) + math.pow(a.Z - b.Z, 2));
+}
+
 export class PriorityQueue<T extends defined> {
     public heap: T[] = [];
     private priorityFunction: (element: T) => number;

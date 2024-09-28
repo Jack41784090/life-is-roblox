@@ -124,7 +124,7 @@ export interface iAbility {
     // effects: Effect[];
 }
 
-export type AbilityKeys = Enum.KeyCode.Q | Enum.KeyCode.W | Enum.KeyCode.E | Enum.KeyCode.R;
+export type AbilityKey = Enum.KeyCode.Q | Enum.KeyCode.W | Enum.KeyCode.E | Enum.KeyCode.R;
 
 export type AbilitySet = {
     [key in keyof typeof Enum.KeyCode]?: iAbility;

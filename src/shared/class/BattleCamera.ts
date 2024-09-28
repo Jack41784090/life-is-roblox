@@ -101,11 +101,11 @@ export default class BattleCamera {
     async enterCharacterCenterMode() {
         print('Setting up Character Center Camera Pan');
         this.panningEnabled = false;
-        const model = this.battle.currentRound?.entity?.model;
+        const model = this.battle.getCurrentRoundEntity()?.model;
         const primPart = model?.PrimaryPart;
-        const camOriPart = this.battle.currentRound?.entity?.model?.FindFirstChild("cam-ori") as BasePart;
+        const camOriPart = model?.FindFirstChild("cam-ori") as BasePart;
         if (!primPart || !camOriPart) {
-            warn("Primary Part or Camera Orientation Part not found!", primPart, camOriPart);
+            warn("Primary Part or Camera Orientation Part not found!", this.battle.getCurrentRoundEntity(), model, primPart, camOriPart);
             return;
         }
 
@@ -152,7 +152,7 @@ export default class BattleCamera {
 
     private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
         // Assume model is available and valid (add proper checks in production code)
-        const model = this.battle.currentRound?.entity?.model;
+        const model = this.battle.getCurrentRoundEntity()?.model;
         if (model?.PrimaryPart === undefined) {
             warn("Model not found!");
             return;

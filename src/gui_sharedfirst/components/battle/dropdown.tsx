@@ -121,7 +121,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     }
 
     private handleOptionClick(optionName: string) {
-        const initiator = this.props.battle.currentRound?.entity;
+        const initiator = this.props.battle.getCurrentRoundEntity();
         const selectedAction = this.state.options.find((action) => action.name === optionName);
 
         if (selectedAction && initiator) {
@@ -150,7 +150,7 @@ export default class BattleDD extends Roact.Component<BattleDDProps, BattleDDSta
     }
 
     private getOptionButtons() {
-        const currentEntity = this.props.battle.currentRound?.entity;
+        const currentEntity = this.props.battle.getCurrentRoundEntity();
 
         return this.state.options.map((option) => (
             <textbutton

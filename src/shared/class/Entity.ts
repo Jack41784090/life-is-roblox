@@ -131,8 +131,6 @@ class AnimationHandler {
         this.blinkAnimationTrack?.Play();
     }
 }
-
-// Manages audio files for the entity
 class AudioHandler {
     private idleSelectAudio: Sound[] = [];
 
@@ -143,14 +141,9 @@ class AudioHandler {
     initAudio() {
         // init audios
         const audioFolder = ReplicatedStorage.FindFirstChild("Audio") as Folder;
-        const entityAudio = audioFolder?.FindFirstChild("entity") as Folder;
-        const thisEntityAudio = entityAudio?.FindFirstChild(this.entity.stats.id) as Folder;
+        const thisEntityAudio = audioFolder?.FindFirstChild(this.entity.stats.id) as Folder;
         if (!audioFolder) {
             warn("Audio folder not found");
-            return;
-        }
-        if (!entityAudio) {
-            warn("Entity audio folder not found");
             return;
         }
         if (!thisEntityAudio) {
@@ -183,8 +176,6 @@ class AudioHandler {
         }
     }
 }
-
-// Manages tweening for entity movement and rotations
 class TweenManager {
     private tweenQueue: Tween[] = [];
     playing: boolean = false;
@@ -226,7 +217,7 @@ class TweenManager {
 export default class Entity implements iEntity {
     private battle: Battle;
 
-    animationHandler: AnimationHandler;
+    animationHandler?: AnimationHandler;
     audioHandler: AudioHandler;
     tweenHandler: TweenManager;
 
@@ -268,12 +259,15 @@ export default class Entity implements iEntity {
         }
 
         this.tweenHandler = new TweenManager();
-        this.animationHandler = new AnimationHandler(this);
         this.audioHandler = new AudioHandler(this);
     }
 
     //#region play animation/audio
     playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
+        if (!this.animationHandler) {
+            warn("Animation handler / model not initialised");
+            return;
+        }
         print(`${this.name}: Playing animation ${animation}`);
         return this.animationHandler.playAnimation({ animation, priority, hold, loop });
     }
@@ -311,6 +305,7 @@ export default class Entity implements iEntity {
         if (!entity) return;
         //#endregion
         entity.Parent = this.cell.part;
+        this.animationHandler = new AnimationHandler(this);
         return this.model;
     }
 
@@ -345,6 +340,11 @@ export default class Entity implements iEntity {
     getAllAbilities(): Array<iAbility> {
         const uniPhysAbilities = extractMapValues(Ability.UNIVERSAL_PHYS);
         return uniPhysAbilities;
+    }
+
+    getEquippedAbilitySet() {
+        const sets = this.getAllAbilitySets();
+        return sets[0];
     }
     //#endregion
 

@@ -19,8 +19,8 @@ export default class AbilitySlotsElement extends Roact.Component<AbilitySlotsEle
         const abilityButtons: (Element | undefined)[] = [
             abilitySet['Q'] ? <Ability1SlotElement gui={this.props.gui} key={'Q'} ability={abilitySet['Q']} focus={false} /> : undefined,
             abilitySet['W'] ? <Ability1SlotElement gui={this.props.gui} key={'W'} ability={abilitySet['W']} focus={false} /> : undefined,
-            abilitySet['E'] ? <Ability1SlotElement gui={this.props.gui} key={'W'} ability={abilitySet['E']} focus={false} /> : undefined,
-            abilitySet['R'] ? <Ability1SlotElement gui={this.props.gui} key={'W'} ability={abilitySet['R']} focus={false} /> : undefined
+            abilitySet['E'] ? <Ability1SlotElement gui={this.props.gui} key={'E'} ability={abilitySet['E']} focus={false} /> : undefined,
+            abilitySet['R'] ? <Ability1SlotElement gui={this.props.gui} key={'R'} ability={abilitySet['R']} focus={false} /> : undefined
         ];
 
 
