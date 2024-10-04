@@ -34,7 +34,7 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
                     Ref={this.buttonRef}
                     Position={new UDim2(0.5, 0, 0.5, 0)}
                     AnchorPoint={new Vector2(0.5, 0.5)}
-                    Size={new UDim2(1, 0, 1, 0)}
+                    Size={new UDim2(.6, 0, .6, 0)}
                     BackgroundTransparency={1}
                     Event={{
                         MouseButton1Click: this.props.onclick,
