@@ -9,7 +9,7 @@ export default class BattleCamera {
     static HOI4_PAN_SPEED = 0.6;
     static CHAR_ANGLE = 0;
 
-    worldCenter: Vector2;
+    worldCenter: Vector3;
     size: number;
     camera: Camera;
     mode: "HOI4" | "CHAR_CENTER" | "ANIMATION" = "HOI4";
@@ -18,7 +18,7 @@ export default class BattleCamera {
 
     camAnimFolder: Folder;
 
-    constructor(camera: Camera, worldCenter: Vector2, battle: Battle) {
+    constructor(camera: Camera, worldCenter: Vector3, battle: Battle) {
         this.worldCenter = worldCenter;
         this.size = battle.grid.size;
         this.camera = camera;
@@ -79,18 +79,12 @@ export default class BattleCamera {
         BattleCamera.CHAR_ANGLE = initAngle;
     }
 
-    async enterHOI4Mode(gridFocal?: Vector2) {
+    async enterHOI4Mode(focalGridXY?: Vector2) {
         print('Setting up HOI4 Camera Pan');
         this.panningEnabled = false;
-        const focalWorld = gridFocal ?
-            gridXYToWorldXY(gridFocal, this.battle.grid) :
-            gridXYToWorldXY(this.worldCenter, this.battle.grid);
-        print(focalWorld)
-        const center = new Vector2(focalWorld.X, focalWorld.Z);
-
-
-        const x1 = new Vector3(center.X, this.size * 5, center.Y);
-        const x2 = new Vector3(center.X, 0, center.Y);
+        const center = focalGridXY ? gridXYToWorldXY(focalGridXY, this.battle.grid) : this.worldCenter;
+        const x1 = new Vector3(center.X, this.size * 5, center.Z);
+        const x2 = new Vector3(center.X, 0, center.Z);
         const lookAtCframe = new CFrame(x1, x2);
         return this.setCameraCFrame(lookAtCframe).then(() => {
             this.mode = "HOI4";

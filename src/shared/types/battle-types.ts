@@ -51,7 +51,7 @@ export type ReadinessIcon = {
 export interface BattleConfig {
     size: number;
     camera: Camera,
-    worldCenter: Vector2,
+    worldCenter: Vector3,
     width: number;
     height: number;
     teamMap: Record<string, Player[]>;

@@ -79,10 +79,10 @@ export default class Battle {
         return b;
     }
 
-    private constructor(worldCenter: Vector2, size: number, width: number, height: number, camera: Camera) {
-        this.grid = new Grid(new Vector2(width, height), worldCenter, size, "BattleGrid");
+    private constructor(worldCenter: Vector3, size: number, width: number, height: number, camera: Camera) {
+        this.grid = new Grid({ widthheight: new Vector2(width, height), center: new Vector2(worldCenter.X, worldCenter.Z), size, name: "BattleGrid" });
         const camera_centerx = worldCenter.X;
-        const camera_centery = worldCenter.Y;
+        const camera_centery = worldCenter.Z;
         this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
         this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
         this.bcamera = new BattleCamera(camera, worldCenter, this);
@@ -157,7 +157,7 @@ export default class Battle {
                 type: ActionType.Move,
                 run: (tree: Roact.Tree) => {
                     Roact.unmount(tree);
-                    this.bcamera.enterHOI4Mode().then(() => {
+                    this.bcamera.enterHOI4Mode(e.cell?.coord).then(() => {
                         this.gui?.enterMovement();
                     })
                 },
@@ -263,7 +263,7 @@ export default class Battle {
     }
 
     private async resetCameraAndRestartRound() {
-        await this.bcamera.enterHOI4Mode();
+        await this.bcamera.enterHOI4Mode(this.currentRound?.entity?.cell?.coord);
         this.round(); // Restart the round
     }
 

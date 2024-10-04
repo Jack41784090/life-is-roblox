@@ -5,18 +5,20 @@ import XY from "./XY";
 export default class Grid {
     cells: Cell[] = [];
     cellsXY: XY<Cell>;
-    widthheight: Vector2;
+    width: number;
+    height: number;
     center: Vector2;
     size: number;
     name: string;
 
 
-    constructor(widthheight: Vector2, center: Vector2, size: number, name: string) {
+    constructor({ widthheight, center, size, name }: { widthheight: Vector2; center: Vector2; size: number; name: string; }) {
         if (widthheight.X <= 0 || widthheight.Y <= 0) {
             throw ("Grid dimensions must be positive numbers.");
         }
         this.cellsXY = new XY<Cell>(widthheight.X, widthheight.Y);
-        this.widthheight = widthheight;
+        this.width = widthheight.X;
+        this.height = widthheight.Y;
         this.center = center;
         this.size = size;
         this.name = name;
@@ -24,7 +26,7 @@ export default class Grid {
 
 
     area() {
-        return this.widthheight.X * this.widthheight.Y;
+        return this.width * this.height;
     }
 
     async materialise() {
@@ -34,8 +36,8 @@ export default class Grid {
         gridModel.Name = this.name;
         gridModel.Parent = game.Workspace;
 
-        for (let x = 0; x < this.widthheight.X; x++) {
-            for (let y = 0; y < this.widthheight.Y; y++) {
+        for (let x = 0; x < this.width; x++) {
+            for (let y = 0; y < this.height; y++) {
                 const cell = new Cell({
                     position: new Vector2(x, y),
                     size: this.size,
@@ -67,10 +69,10 @@ export default class Grid {
     }
 
     getWidth() {
-        return this.widthheight.X;
+        return this.width;
     }
 
     getHeight() {
-        return this.widthheight.Y;
+        return this.height;
     }
 }

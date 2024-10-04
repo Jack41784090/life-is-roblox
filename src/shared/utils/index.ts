@@ -179,9 +179,9 @@ export function gridXYToWorldXY(position: Vector2, grid: Grid) {
         (x),
     );
     const worldLocation = new Vector3(
-        (y + grid.center.Y),
+        (y + grid.center.Y - grid.width * grid.size / 2),
         0.125 * grid.size,
-        (x + grid.center.X),
+        (x + grid.center.X - grid.height * grid.size / 2),
     );
 
     return worldLocation;

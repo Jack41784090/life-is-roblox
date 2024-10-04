@@ -19,7 +19,7 @@ Players.PlayerAdded.Connect((player) => {
 
 // find all cells and change height
 wait(3)
-const grid = new Grid(new Vector2(10, 10), new Vector2(0, 0), 10, "FunGrid");
+const grid = new Grid({ widthheight: new Vector2(10, 10), center: new Vector2(0, 0), size: 10, name: "FunGrid" });
 grid.materialise()
 // function iterate() {
 //     const mappedCells = grid.cells.map(cell => {
