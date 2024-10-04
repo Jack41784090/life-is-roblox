@@ -1,6 +1,8 @@
 import Roact from "@rbxts/roact";
 import { ContentProvider, Players, ReplicatedFirst, ReplicatedStorage, Workspace } from "@rbxts/services";
 import Battle from "shared/class/Battle";
+import Scene from "shared/class/Scene";
+import { DialogueExpression } from "shared/types/scene-types";
 import ButtonElement, { ButtonElementProps } from "./components/button";
 import ButtonFrameElement from "./components/button-frame";
 import MenuFrameElement from "./components/menu";
@@ -83,17 +85,37 @@ function enterPlayground() {
 }
 function enterBattle() {
     const battle = Battle.Create({
-        size: 4,
+        size: 5,
         width: 5,
         height: 5,
         camera: game.Workspace.CurrentCamera!,
-        center: new Vector2(15, 15),
+        worldCenter: new Vector2(150, 150),
         teamMap: {
             '1': [Players.LocalPlayer],
             '2': [Players.LocalPlayer],
             '3': [Players.LocalPlayer],
         }
     });
+}
+function enterStory() {
+    const scene = new Scene('scene');
+    scene.addDialogue({
+        text: 'Hello, World!',
+        speaker: 'NPC',
+        expression: DialogueExpression.Neutral,
+        effects: []
+    }, {
+        text: 'Hello back',
+        speaker: 'NPC2',
+        expression: DialogueExpression.Neutral,
+        effects: []
+    }, {
+        text: 'Goodbye',
+        speaker: '',
+        expression: DialogueExpression.Neutral,
+        effects: []
+    })
+    scene.playFromBeginning();
 }
 function mainMenuSetup() {
     const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui") as PlayerGui;
@@ -110,6 +132,13 @@ function mainMenuSetup() {
             onclick: () => {
                 Roact.unmount(mainMenu);
                 enterBattle();
+            }
+        },
+        {
+            text: "Story",
+            onclick: () => {
+                Roact.unmount(mainMenu);
+                enterStory();
             }
         }
     ];
@@ -144,4 +173,6 @@ mainMenuCameraSetup();
 mainMenuSetup();
 //#endregion
 
-
+// const d = new Dialogue('');
+// wait(0.5)
+// d.speak('Hello, World!');
