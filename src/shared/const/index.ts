@@ -67,3 +67,6 @@ export enum iEntityKeyEmoji {
 
 export const MOVEMENT_COST = 10;
 export const MAX_READINESS = 100;
+
+export const DECAL_WITHINRANGE = 'rbxassetid://89793300852596';
+export const DECAL_OUTOFRANGE = 'rbxassetid://114570670961562'; 

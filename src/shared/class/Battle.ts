@@ -1,7 +1,7 @@
 import Roact from "@rbxts/roact";
 import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
-import { ActionType, AttackAction, BattleConfig, BattleStatus, BotType, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { AttackAction, BattleConfig, BattleStatus, BotType, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { requestData } from "shared/utils";
 import { get2DEuclidDistance } from '../utils/index';
 import Ability from "./Ability";
@@ -154,7 +154,7 @@ export default class Battle {
     getCharacterMenuActions(e: Entity): CharacterMenuAction[] {
         return [
             {
-                type: ActionType.Move,
+                type: CharacterActionMenuAction.Move,
                 run: (tree: Roact.Tree) => {
                     Roact.unmount(tree);
                     this.bcamera.enterHOI4Mode(e.cell?.coord).then(() => {
@@ -162,6 +162,13 @@ export default class Battle {
                     })
                 },
             },
+            {
+                type: CharacterActionMenuAction.EndTurn,
+                run: (tree: Roact.Tree) => {
+                    Roact.unmount(tree);
+                    this.endTurn();
+                }
+            }
         ];
     }
 
@@ -271,6 +278,10 @@ export default class Battle {
         entity.pos /= 2;
     }
 
+    private endTurn() {
+        this.gui?.guiDoneRoundExit()
+    }
+
     private async waitForRoundActions(w: Entity) {
         this.currentRound = { entity: w, };
         await this.bcamera.enterCharacterCenterMode();
@@ -311,9 +322,8 @@ export default class Battle {
             }
 
             const attackAction: AttackAction = {
-                type: ActionType.Attack,
                 executed: false,
-                ability: ability,
+                ability: ability
             }
             const cr = this.clash(attackAction);
             print(cr);

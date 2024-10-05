@@ -57,15 +57,13 @@ export interface BattleConfig {
     teamMap: Record<string, Player[]>;
 }
 
-export enum ActionType {
-    Attack = 'attack',
-    Defend = 'defend',
+export enum CharacterActionMenuAction {
+    EndTurn = 'endTurn',
     Move = 'move',
-    Wait = 'wait',
 }
 
 export type EntityActionOptions = {
-    type: ActionType,
+    type: CharacterActionMenuAction,
     ui: Roact.Tree
 }
 
@@ -200,7 +198,7 @@ export type AbilityInitOptions = {
 }
 
 export interface CharacterMenuAction {
-    type: ActionType,
+    type: CharacterActionMenuAction,
     run: (ui: Roact.Tree) => void;
 }
 
@@ -215,7 +213,6 @@ export enum BattleStatus {
 }
 
 export interface BattleAction {
-    type: ActionType,
     executed: boolean,
 }
 export interface AttackAction extends BattleAction {

@@ -8,7 +8,7 @@ import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface
 import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
-import { MAX_READINESS, MOVEMENT_COST } from "shared/const";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MAX_READINESS, MOVEMENT_COST } from "shared/const";
 import { CharacterMenuAction } from "shared/types/battle-types";
 import { getPlayer } from "shared/utils";
 import Ability from "./Ability";
@@ -384,24 +384,16 @@ export default class BattleGUI {
             if (ability &&
                 battle.get2DEuclidDistance(cell.coord, currentCell.coord) <= ability.range.max &&
                 battle.get2DEuclidDistance(cell.coord, currentCell.coord) >= ability.range.min) {
-                mouse.Icon = 'rbxassetid://89793300852596';
+                mouse.Icon = DECAL_WITHINRANGE;
             }
             else {
-                mouse.Icon = 'rbxassetid://114570670961562';
+                mouse.Icon = DECAL_OUTOFRANGE;
             }
+            cre.faceEntity(cell.entity);
         }
         else {
             mouse.Icon = ''
         }
-        // if (cell.isVacant()) {
-        //     mouse.Icon = '';
-        // }
-        // else  {
-        //     if (cell.entity) {
-
-        //     }
-        //     mouse.Icon = 'rbxassetid://89793300852596';
-        // }
 
         // 1. Create path
         print(`${currentCell.coord.X},${currentCell.coord.Y} -> ${cell.coord.X},${cell.coord.Y}`);
