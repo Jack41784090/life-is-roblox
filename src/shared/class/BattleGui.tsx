@@ -8,7 +8,7 @@ import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface
 import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MAX_READINESS, MOVEMENT_COST } from "shared/const";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE } from "shared/const";
 import { CharacterMenuAction } from "shared/types/battle-types";
 import { getPlayer } from "shared/utils";
 import Ability from "./Ability";
@@ -390,23 +390,25 @@ export default class BattleGUI {
                 mouse.Icon = DECAL_OUTOFRANGE;
             }
             cre.faceEntity(cell.entity);
+            if (cre.cell && ability) {
+                return this.mountOrUpdateGlowRange(cre.cell, ability?.range ?? { min: 0, max: 0 });
+            }
         }
         else {
             mouse.Icon = ''
+            // print(`${currentCell.coord.X},${currentCell.coord.Y} -> ${cell.coord.X},${cell.coord.Y}`);
+
+            const pf = battle.createPathfindingForCurrentEntity(cell.coord);
+            if (!pf) return;
+            const path = pf.begin();
+            return this.mountOrUpdateGlowPath(path);
         }
 
-        // 1. Create path
-        print(`${currentCell.coord.X},${currentCell.coord.Y} -> ${cell.coord.X},${cell.coord.Y}`);
-        const pf = battle.createPathfindingForCurrentEntity(cell.coord);
-        if (!pf) return;
 
-        // 2. Move readiness icon to forecast post-move position
-        const path = pf.begin();
-        const readinessPercent = (cre.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
-        this.updateSpecificReadinessIcon(cre.playerID, readinessPercent);
+        // // 2. Move readiness icon to forecast post-move position
+        // const readinessPercent = (cre.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
+        // this.updateSpecificReadinessIcon(cre.playerID, readinessPercent);
 
-        // 3. Glow along the path
-        return this.mountOrUpdateGlowPath(path);
     }
 
     // Handle cell click event
