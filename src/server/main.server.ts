@@ -1,5 +1,5 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
-import Grid from "shared/class/Grid";
+import HexGrid from "shared/class/HexGrid";
 import { disableCharacter, enableCharacter } from "shared/utils";
 
 const loadCharacterEvent = ReplicatedStorage.WaitForChild("LoadCharacterEvent") as RemoteEvent;
@@ -17,10 +17,19 @@ Players.PlayerAdded.Connect((player) => {
     });
 });
 
+
+const hexGrid = new HexGrid({
+    widthheight: new Vector2(10, 10),
+    center: new Vector2(0, 0),
+    size: 10,
+    name: "FunGrid"
+});
+hexGrid.materialise();
+
 // find all cells and change height
 wait(3)
-const grid = new Grid({ widthheight: new Vector2(10, 10), center: new Vector2(0, 0), size: 10, name: "FunGrid" });
-grid.materialise()
+// const grid = new Grid({ widthheight: new Vector2(10, 10), center: new Vector2(0, 0), size: 10, name: "FunGrid" });
+// grid.materialise()
 // function iterate() {
 //     const mappedCells = grid.cells.map(cell => {
 //         return cell.raiseHeight(math.random(1, 10))
