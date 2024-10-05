@@ -1,8 +1,9 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { CellInitOptions, CellTerrain } from "shared/types";
+import { CellTerrain } from "shared/types";
 import { getTween, gridXYToWorldXY } from "shared/utils";
 import Entity from "./Entity";
 import Grid from "./Grid";
+
 
 export default class Cell {
     public static readonly SELECTED_COLOUR = new Color3(1, 58 / 255, 58 / 255);
@@ -18,7 +19,13 @@ export default class Cell {
     public entity?: Entity;
     public grid: Grid;
 
-    constructor(initOptions: CellInitOptions) {
+    constructor(initOptions: {
+        position: Vector2;
+        size: number;
+        height: number;
+        terrain: CellTerrain;
+        grid: Grid;
+    }) {
         const { position, size, height, terrain } = initOptions;
         this.coord = position;
         this.terrain = terrain;
