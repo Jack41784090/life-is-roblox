@@ -54,7 +54,24 @@ export default class HexCell {
         this.part = part;
     }
 
+    public static readonly directions = [
+        new Vector3(1, -1, 0),  // Direction 1
+        new Vector3(1, 0, -1),  // Direction 2
+        new Vector3(0, 1, -1),  // Direction 3
+        new Vector3(-1, 1, 0),  // Direction 4
+        new Vector3(-1, 0, 1),  // Direction 5
+        new Vector3(0, -1, 1),  // Direction 6
+    ];
 
+    public findNeighbors(): HexCell[] {
+        const neighbors: HexCell[] = [];
+        for (const direction of HexCell.directions) {
+            const neighborPos = this.qrs.add(direction);  // Add the direction vector to current qrs
+            const neighbor = this.grid.getCell(neighborPos.X, neighborPos.Y);
+            if (neighbor) neighbors.push(neighbor);
+        }
+        return neighbors;
+    }
 
 
     private createMoveParticle(): ParticleEmitter {

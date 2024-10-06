@@ -42,3 +42,16 @@ export default class XY<T> {
         return x >= 0 && x < this.width && y >= 0 && y < this.height;
     }
 }
+
+export class QR<T> extends XY<T> {
+    constructor(public radius: number, defaultValue = undefined) {
+        if (radius <= 0) {
+            throw ("Radius must be a positive number.");
+        }
+        super(radius + 1, radius + 1, defaultValue);
+    }
+
+    isValidCoordinate(q: number, r: number) {
+        return super.isValidCoordinate(math.abs(q), math.abs(r));
+    }
+}

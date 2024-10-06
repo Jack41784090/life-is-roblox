@@ -2,8 +2,10 @@ import { HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain } from "shared/types";
 import { Layout, Point } from "./Hexagon_Tutorial";
 import HexCell from "./HexCell";
+import { QR } from "./XY";
 
 export default class HexGrid {
+    cellsQR: QR<HexCell>;
     cells: HexCell[] = [];
     center: Vector2;
     size: number;
@@ -27,6 +29,7 @@ export default class HexGrid {
         this.center = center;
         this.size = size;
         this.name = name;
+        this.cellsQR = new QR<HexCell>(this.radius);
     }
 
     async materialise() {
@@ -57,7 +60,13 @@ export default class HexGrid {
                 });
                 cell.part.Parent = gridModel;
                 this.cells.push(cell);
+                this.cellsQR.set(q, r, cell);
             }
         }
+    }
+
+    getCell(q: number, r: number): HexCell | undefined {
+        const cell = this.cellsQR.get(q, r);
+        return cell
     }
 }
