@@ -19,8 +19,8 @@ Players.PlayerAdded.Connect((player) => {
 
 
 const hexGrid = new HexGrid({
-    widthheight: new Vector2(10, 10),
-    center: new Vector2(0, 0),
+    radius: 5,
+    center: new Vector2(15, 15),
     size: 10,
     name: "FunGrid"
 });

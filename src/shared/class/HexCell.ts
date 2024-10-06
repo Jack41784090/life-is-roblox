@@ -1,14 +1,14 @@
-import { ReplicatedStorage } from "@rbxts/services";
+import { HEXAGON } from "shared/const";
 import { CellTerrain } from "shared/types";
-import { getTween, hexQRSToWorldXY } from "shared/utils";
+import { getTween } from "shared/utils";
 import Entity from "./Entity";
 import HexGrid from "./HexGrid";
+import { Hex, Layout } from "./Hexagon_Tutorial";
 
 
 export default class HexCell {
     public static readonly SELECTED_COLOUR = new Color3(1, 58 / 255, 58 / 255);
     private static readonly TWEEN_TIME = 0.5;
-    private static readonly HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOperation;
 
     public glow = false;
     public part: UnionOperation;
@@ -18,6 +18,7 @@ export default class HexCell {
     public height: number;
     public entity?: Entity;
     public grid: HexGrid;
+    public layout: Layout;
 
     constructor(initOptions: {
         qr: Vector2;
@@ -25,8 +26,9 @@ export default class HexCell {
         height: number;
         terrain: CellTerrain;
         grid: HexGrid;
+        layout: Layout; // Pass the layout instance here
     }) {
-        const { qr: qrs, size, height, terrain } = initOptions;
+        const { qr: qrs, size, height, terrain, layout } = initOptions;
         const { X: q, Y: r } = qrs;
         const s = -q - r;
         this.qrs = new Vector3(q, r, s);
@@ -34,11 +36,17 @@ export default class HexCell {
         this.height = height;
         this.size = size;
         this.grid = initOptions.grid;
+        this.layout = layout;
 
-        const part = HexCell.HEXAGON.Clone();
+        // Create the hex cell part
+        const part = HEXAGON.Clone();
         part.Name = `HexCell(${q},${r},${s})`;
         part.Size = part.Size.mul(this.size);
-        part.Position = hexQRSToWorldXY(this.qrs, this.size / 2);
+
+        // Convert the hex QR to world XY using the layout instance
+        const worldPosition = this.layout.hexToPixel(new Hex(q, r, s));
+        part.Position = new Vector3(worldPosition.x, this.height, worldPosition.y);
+
         part.Anchored = true;
         part.Material = Enum.Material.Pebble;
         part.Parent = game.Workspace;

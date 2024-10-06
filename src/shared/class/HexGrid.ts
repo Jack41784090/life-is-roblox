@@ -1,80 +1,63 @@
+import { HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain } from "shared/types";
+import { Layout, Point } from "./Hexagon_Tutorial";
 import HexCell from "./HexCell";
-import XY from "./XY";
 
 export default class HexGrid {
     cells: HexCell[] = [];
-    cellsXY: XY<HexCell>;
-    width: number;
-    height: number;
     center: Vector2;
     size: number;
     name: string;
+    radius: number;
 
-
-    constructor({ widthheight, center, size, name }: { widthheight: Vector2; center: Vector2; size: number; name: string; }) {
-        if (widthheight.X <= 0 || widthheight.Y <= 0) {
-            throw ("Grid dimensions must be positive numbers.");
+    constructor({ center, radius, size, name }: {
+        center: Vector2;
+        radius: number;
+        size: number;
+        name: string;
+    }) {
+        if (size <= 0) {
+            throw ("Cell size must be a positive number.");
         }
-        this.cellsXY = new XY<HexCell>(widthheight.X, widthheight.Y);
-        this.width = widthheight.X;
-        this.height = widthheight.Y;
+        if (radius <= 0) {
+            throw ("Radius must be a positive number.");
+        }
+
+        this.radius = radius;
         this.center = center;
         this.size = size;
         this.name = name;
     }
 
-
-    area() {
-        return this.width * this.height;
-    }
-
     async materialise() {
-        print("Materialising grid");
+        print("Materialising grid with radius");
         const grid = this;
         const gridModel = new Instance("Model");
         gridModel.Name = this.name;
         gridModel.Parent = game.Workspace;
+        const radius = this.radius;
 
-        for (let x = 0; x < this.width; x++) {
-            for (let y = 0; y < this.height; y++) {
-                const q = x
-                const r = y - (x + (x & 1)) / 2
+        for (let q = -radius; q <= radius; q++) {
+            for (let r = math.max(-radius, -q - radius); r <= math.min(radius, -q + radius); r++) {
+                const s = -q - r;
                 const cell = new HexCell({
                     qr: new Vector2(q, r),
                     size: this.size,
                     height: 0.125,
                     terrain: CellTerrain.plains,
                     grid,
+                    layout: new Layout(
+                        Layout.pointy,
+                        new Point(
+                            HEXAGON_MAGIC * this.size,
+                            HEXAGON_MAGIC * this.size
+                        ),
+                        new Point(this.center.X, this.center.Y),
+                    )
                 });
-
                 cell.part.Parent = gridModel;
-                this.cellsXY.set(x, y, cell);
                 this.cells.push(cell);
             }
         }
-    }
-
-    getCell(position: Vector2): HexCell
-    getCell(x: number, y: number): HexCell
-    getCell(x: number | Vector2, y?: number) {
-        if (typeOf(x) === 'Vector2') {
-            const v = x as Vector2;
-            return this.cellsXY.get(v.X, v.Y);
-        }
-        else {
-            return this.cellsXY.get(x as number, y as number);
-        }
-    }
-    getCellIsVacant(x: number, y: number) {
-        return this.cellsXY.get(x, y)?.entity === undefined;
-    }
-
-    getWidth() {
-        return this.width;
-    }
-
-    getHeight() {
-        return this.height;
     }
 }

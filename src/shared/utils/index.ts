@@ -172,6 +172,16 @@ export function hexQRSToWorldXY(qrs: Vector3, cellSize: number) {
     return new Vector3(x, 0, y);
 }
 
+export function hexGridQRSToWorldXY(qrs: Vector3, cellSize: number) {
+    const q = qrs.X;
+    const r = qrs.Y;
+
+    const x = cellSize * (math.sqrt(3) * q + math.sqrt(3) / 2 * r);
+    const y = cellSize * (3 / 2 * r);
+
+    return new Vector3(x, 0, y);
+}
+
 export function gridXYToWorldXY(position: Vector2, grid: Grid) {
     const size = grid.size;
     const r = size / 2;
@@ -351,4 +361,3 @@ export class PriorityQueue<T extends defined> {
     }
 
 }
-

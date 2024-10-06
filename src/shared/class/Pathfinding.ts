@@ -19,16 +19,6 @@ type PathfindNode = {
     totalCost: number
 }
 
-type PathfindInit = {
-    grid: Grid,
-    start: Vector2,
-    dest: Vector2,
-    method?: 'lowest' | 'highest',
-    limit?: number,
-    verbose?: boolean
-    hexagonal?: boolean
-}
-
 enum Direction {
     UpLeft,
     Up,
@@ -83,9 +73,15 @@ export default class Pathfinding {
         };
     }
 
-    public constructor(
-        { grid, start, dest, method = 'lowest', limit = math.huge, verbose = false, hexagonal = false }: PathfindInit
-    ) {
+    public constructor({ grid, start, dest, method = 'lowest', limit = math.huge, verbose = false, hexagonal = false }: {
+        grid: Grid,
+        start: Vector2,
+        dest: Vector2,
+        method?: 'lowest' | 'highest',
+        limit?: number,
+        verbose?: boolean
+        hexagonal?: boolean
+    }) {
         this.grid = grid;
         this.start = start;
         this.destination = dest;
@@ -253,7 +249,6 @@ export default class Pathfinding {
             print("The full path:", fullPath);
         }
 
-        print(fullPath)
         return fullPath;
     }
 }
