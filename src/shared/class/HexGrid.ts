@@ -1,6 +1,6 @@
 import { HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain } from "shared/types";
-import { Layout, Point } from "./Hexagon_Tutorial";
+import { Layout } from "./Hexagon_Tutorial";
 import HexCell from "./HexCell";
 import { QR } from "./XY";
 
@@ -51,11 +51,11 @@ export default class HexGrid {
                     grid,
                     layout: new Layout(
                         Layout.pointy,
-                        new Point(
+                        new Vector2(
                             HEXAGON_MAGIC * this.size,
                             HEXAGON_MAGIC * this.size
                         ),
-                        new Point(this.center.X, this.center.Y),
+                        new Vector2(this.center.X, this.center.Y),
                     )
                 });
                 cell.part.Parent = gridModel;

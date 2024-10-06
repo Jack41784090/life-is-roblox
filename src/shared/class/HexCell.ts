@@ -45,7 +45,7 @@ export default class HexCell {
 
         // Convert the hex QR to world XY using the layout instance
         const worldPosition = this.layout.hexToPixel(new Hex(q, r, s));
-        part.Position = new Vector3(worldPosition.x, this.height, worldPosition.y);
+        part.Position = new Vector3(worldPosition.X, this.height, worldPosition.Y);
 
         part.Anchored = true;
         part.Material = Enum.Material.Pebble;
@@ -71,6 +71,10 @@ export default class HexCell {
             if (neighbor) neighbors.push(neighbor);
         }
         return neighbors;
+    }
+
+    public qr(): Vector2 {
+        return new Vector2(this.qrs.X, this.qrs.Y);
     }
 
 
