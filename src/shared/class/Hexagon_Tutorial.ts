@@ -1,7 +1,3 @@
-export class Point {
-    constructor(public x: number, public y: number) { }
-}
-
 export class Hex {
     constructor(public q: number, public r: number, public s: number) {
         if (math.round(q + r + s) !== 0) throw "q + r + s must be 0";
@@ -186,45 +182,45 @@ export class Orientation {
 }
 
 export class Layout {
-    constructor(public orientation: Orientation, public size: Point, public origin: Point) { }
+    constructor(public orientation: Orientation, public size: Vector2, public origin: Vector2) { }
     public static pointy: Orientation = new Orientation(math.sqrt(3.0), math.sqrt(3.0) / 2.0, 0.0, 3.0 / 2.0, math.sqrt(3.0) / 3.0, -1.0 / 3.0, 0.0, 2.0 / 3.0, 0.5);
     public static flat: Orientation = new Orientation(3.0 / 2.0, 0.0, math.sqrt(3.0) / 2.0, math.sqrt(3.0), 2.0 / 3.0, 0.0, -1.0 / 3.0, math.sqrt(3.0) / 3.0, 0.0);
 
-    public hexToPixel(h: Hex): Point {
+    public hexToPixel(h: Hex): Vector2 {
         const M: Orientation = this.orientation;
-        const size: Point = this.size;
-        const origin: Point = this.origin;
-        const x: number = (M.f0 * h.q + M.f1 * h.r) * size.x;
-        const y: number = (M.f2 * h.q + M.f3 * h.r) * size.y;
-        return new Point(x + origin.x, y + origin.y);
+        const size: Vector2 = this.size;
+        const origin: Vector2 = this.origin;
+        const x: number = (M.f0 * h.q + M.f1 * h.r) * size.X;
+        const y: number = (M.f2 * h.q + M.f3 * h.r) * size.Y;
+        return new Vector2(x + origin.X, y + origin.Y);
     }
 
 
-    public pixelToHex(p: Point): Hex {
+    public pixelToHex(p: Vector2): Hex {
         const M: Orientation = this.orientation;
-        const size: Point = this.size;
-        const origin: Point = this.origin;
-        const pt: Point = new Point((p.x - origin.x) / size.x, (p.y - origin.y) / size.y);
-        const q: number = M.b0 * pt.x + M.b1 * pt.y;
-        const r: number = M.b2 * pt.x + M.b3 * pt.y;
+        const size: Vector2 = this.size;
+        const origin: Vector2 = this.origin;
+        const pt: Vector2 = new Vector2((p.X - origin.X) / size.X, (p.Y - origin.Y) / size.Y);
+        const q: number = M.b0 * pt.X + M.b1 * pt.Y;
+        const r: number = M.b2 * pt.X + M.b3 * pt.Y;
         return new Hex(q, r, -q - r);
     }
 
 
-    public hexCornerOffset(corner: number): Point {
+    public hexCornerOffset(corner: number): Vector2 {
         const M: Orientation = this.orientation;
-        const size: Point = this.size;
+        const size: Vector2 = this.size;
         const angle: number = 2.0 * math.pi * (M.start_angle - corner) / 6.0;
-        return new Point(size.x * math.cos(angle), size.y * math.sin(angle));
+        return new Vector2(size.X * math.cos(angle), size.Y * math.sin(angle));
     }
 
 
-    public polygonCorners(h: Hex): Point[] {
-        const corners: Point[] = [];
-        const center: Point = this.hexToPixel(h);
+    public polygonCorners(h: Hex): Vector2[] {
+        const corners: Vector2[] = [];
+        const center: Vector2 = this.hexToPixel(h);
         for (let i = 0; i < 6; i++) {
-            const offset: Point = this.hexCornerOffset(i);
-            corners.push(new Point(center.x + offset.x, center.y + offset.y));
+            const offset: Vector2 = this.hexCornerOffset(i);
+            corners.push(new Vector2(center.X + offset.X, center.Y + offset.Y));
         }
         return corners;
     }
