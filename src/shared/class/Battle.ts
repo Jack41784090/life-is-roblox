@@ -357,7 +357,7 @@ export default class Battle {
     }
 
     clash(attackAction: AttackAction): ClashResult {
-        const { using: attacker, target, acc, calculateDamage } = attackAction.ability;
+        const { using: attacker, target, acc } = attackAction.ability;
         let fate: ClashResultFate = "Miss";
         let damage = 0;
 
@@ -365,7 +365,7 @@ export default class Battle {
         const hitChance = acc - this.calculateRealityValue(Reality.Maneuver, target);
         const critChance = this.calculateRealityValue(Reality.Precision, attacker);
 
-        const abilityDamage = calculateDamage();
+        const abilityDamage = attackAction.ability.calculateDamage();
         const minDamage = abilityDamage * 0.5;
         const maxDamage = abilityDamage;
 

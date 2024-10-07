@@ -10,7 +10,7 @@ import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE } from "shared/const";
 import { CharacterMenuAction } from "shared/types/battle-types";
-import { getPlayer } from "shared/utils";
+import { get2DEuclidDistance, getPlayer } from "shared/utils";
 import Ability from "./Ability";
 import Battle from "./Battle";
 import Entity from "./Entity";
@@ -382,8 +382,8 @@ export default class BattleGUI {
         if (cre.armed && cell.entity) {
             const ability = cre.getEquippedAbilitySet()[cre.armed];
             if (ability &&
-                battle.get2DEuclidDistance(cell.qr(), currentCell.qr()) <= ability.range.max &&
-                battle.get2DEuclidDistance(cell.qr(), currentCell.qr()) >= ability.range.min) {
+                get2DEuclidDistance(cell.qrs, currentCell.qrs) <= ability.range.max &&
+                get2DEuclidDistance(cell.qrs, currentCell.qrs) >= ability.range.min) {
                 mouse.Icon = DECAL_WITHINRANGE;
             }
             else {
@@ -398,7 +398,7 @@ export default class BattleGUI {
             mouse.Icon = ''
             // print(`${currentCell.qr().X},${currentCell.qr().Y} -> ${cell.qr().X},${cell.qr().Y}`);
 
-            const pf = battle.createPathfindingForCurrentEntity(cell.qr());
+            const pf = battle.createPathfinderForCurrentEntity(cell.qr());
             if (!pf) return;
             const path = pf.begin();
             return this.mountOrUpdateGlowPath(path);
@@ -448,7 +448,7 @@ export default class BattleGUI {
         const battle = this.getBattle();
         const cre = battle.getCurrentRoundEntity();
         if (cre) {
-            const pf = battle.createPathfindingForCurrentEntity(cell.qr());
+            const pf = battle.createPathfinderForCurrentEntity(cell.qr());
             const path = pf?.begin();
             cre?.moveToCell(cell, path).then(() => {
                 this.returnToSelections();
