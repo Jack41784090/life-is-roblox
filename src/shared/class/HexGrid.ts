@@ -65,8 +65,15 @@ export default class HexGrid {
         }
     }
 
-    getCell(q: number, r: number): HexCell | undefined {
-        const cell = this.cellsQR.get(q, r);
-        return cell
+    getCell(v: Vector2): HexCell | undefined
+    getCell(q: number, r: number): HexCell | undefined
+    getCell(q: number | Vector2, r?: number): HexCell | undefined {
+        if (typeOf(q) === 'number') {
+            const x = q as number;
+            return this.cellsQR.get(x, r as number);
+        } else if (typeOf(q) === 'Vector2') {
+            const v = q as Vector2;
+            return this.cellsQR.get(v.X, v.Y);
+        }
     }
 }

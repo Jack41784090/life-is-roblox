@@ -1,5 +1,5 @@
 import Roact from "@rbxts/roact";
-import Cell from "shared/class/Cell";
+import HexCell from "shared/class/HexCell";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
@@ -7,7 +7,7 @@ export interface CellSurfaceElementProps {
     onclick?: () => void;
     onEnter?: () => void;
     onLeave?: () => void;
-    cell: Cell
+    cell: HexCell
 }
 interface CellSurfaceElementState { }
 

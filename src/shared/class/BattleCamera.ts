@@ -1,5 +1,4 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import { gridXYToWorldXY } from "shared/utils";
 import Battle from "./Battle";
 
 export default class BattleCamera {
@@ -79,10 +78,10 @@ export default class BattleCamera {
         BattleCamera.CHAR_ANGLE = initAngle;
     }
 
-    async enterHOI4Mode(focalGridXY?: Vector2) {
+    async enterHOI4Mode(worldFocus?: Vector3) {
         print('Setting up HOI4 Camera Pan');
         this.panningEnabled = false;
-        const center = focalGridXY ? gridXYToWorldXY(focalGridXY, this.battle.grid) : this.worldCenter;
+        const center = worldFocus ?? this.worldCenter;
         const x1 = new Vector3(center.X, this.size * 5, center.Z);
         const x2 = new Vector3(center.X, 0, center.Z);
         const lookAtCframe = new CFrame(x1, x2);

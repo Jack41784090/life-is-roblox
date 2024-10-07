@@ -1,11 +1,10 @@
 import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
-import { extractMapValues, gridXYToWorldXY } from "shared/utils";
+import { extractMapValues } from "shared/utils";
 import Ability from "./Ability";
 import Battle from "./Battle";
-import BattleGUI from "./BattleGui";
-import Cell from "./Cell";
 import Expression from "./Expression";
+import HexCell from "./HexCell";
 
 // Handles animations for an entity
 interface AnimationOptions {
@@ -223,7 +222,7 @@ export default class Entity implements iEntity {
 
     playerID: number;
     iconURL?: ReadinessIcon;
-    cell: Cell | undefined;
+    cell: HexCell | undefined;
 
     readonly stats: Readonly<EntityStats>;
     team?: string;
@@ -309,8 +308,8 @@ export default class Entity implements iEntity {
         return this.model;
     }
 
-    private positionModel(entity: Model) {
-        const primaryPart = entity.PrimaryPart;
+    private positionModel(model: Model) {
+        const primaryPart = model.PrimaryPart;
         //#region defence
         if (!primaryPart) {
             throw `PrimaryPart is not set for the model entity_${this.stats.id}`;
@@ -320,8 +319,10 @@ export default class Entity implements iEntity {
             return;
         }
         //#endregion
-        const position = this.cell.part.Position.add(new Vector3(0, this.cell.height * this.cell.size, 0));
-        entity.PivotTo(new CFrame(position));
+        const origin = model.WaitForChild("origin") as Part;
+        const targetPosition = this.cell.part.Position;
+        primaryPart.Position = new Vector3(targetPosition.X, primaryPart.Position.Y, targetPosition.Z);
+        origin.Position = new Vector3(origin.Position.X, targetPosition.Y, origin.Position.Z);
     }
     //#endregion
 
@@ -349,9 +350,9 @@ export default class Entity implements iEntity {
     //#endregion
 
     //#region cell move
-    setCell(cell: Cell): Cell | undefined {
+    setCell(cell: HexCell): HexCell | undefined {
         if (cell.isVacant() === false) {
-            warn("Cell is occupied");
+            warn("HexCell is occupied");
             return;
         }
 
@@ -362,7 +363,7 @@ export default class Entity implements iEntity {
         cell.entity = this;
         return this.cell;
     }
-    async moveToCell(cell: Cell, path?: Vector2[]): Promise<void> {
+    async moveToCell(cell: HexCell, path?: Vector2[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const primaryPart = humanoid?.RootPart;
         //#region defence
@@ -371,31 +372,18 @@ export default class Entity implements iEntity {
             return;
         }
         if (!path) {
-            path = [cell.coord];
+            path = [cell.qr()];
         }
         //#endregion
         this.setCell(cell);
 
         const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
-        for (const xy of path) {
-            const gxy = gridXYToWorldXY(xy, BattleGUI.GetBattle().grid);
-            const targetPosition = new Vector3(gxy.X, primaryPart.Position.Y, gxy.Z);
+        for (const cell of path.mapFiltered(xy => this.battle.grid.getCell(xy.X, xy.Y))) {
+            const targetPosition = cell.worldPosition();
             if (primaryPart.Position === targetPosition) {
                 continue;
             }
-
-            const direction = (targetPosition.sub(primaryPart.Position)).Unit;
-            const lookAtCFrame = CFrame.lookAt(primaryPart.Position, primaryPart.Position.add(direction));
-            const targetCFrame = new CFrame(targetPosition).mul(lookAtCFrame.sub(primaryPart.Position));
-
-            // Tween to the new CFrame
-            const tween = TweenService.Create(
-                primaryPart,
-                new TweenInfo(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-                { CFrame: targetCFrame }
-            );
-            this.tweenHandler.addTween(tween);
-            tween.Completed.Wait();
+            await this.facePosition(targetPosition);
         }
         moveTrack?.Stop();
         const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
@@ -411,6 +399,33 @@ export default class Entity implements iEntity {
     //#endregion
 
     //#region look at ...
+    async facePosition(targetPosition: Vector3) {
+        const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
+        const modelPrimaryPart = humanoid?.RootPart;
+        if (!modelPrimaryPart || !humanoid) {
+            warn("Model not materialised", modelPrimaryPart, humanoid);
+            return;
+        }
+
+        const primaryPart = modelPrimaryPart;
+        const direction = (targetPosition.sub(primaryPart.Position)).Unit;
+        const lookAtCFrame = CFrame.lookAt(primaryPart.Position, primaryPart.Position.add(direction));
+        const targetCFrame = new CFrame(targetPosition).mul(lookAtCFrame.sub(primaryPart.Position));
+        if (modelPrimaryPart.CFrame.LookVector.Dot(lookAtCFrame.LookVector) > 0.999) {
+            // print("Already facing the position", modelPrimaryPart.CFrame.LookVector, lookAtCFrame.LookVector);
+            return;
+        }
+
+        // Tween to the new CFrame
+        const tween = TweenService.Create(
+            modelPrimaryPart,
+            new TweenInfo(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { CFrame: targetCFrame }
+        );
+        this.tweenHandler.addTween(tween);
+        return tween.Completed.Wait();
+    }
+
     async faceEntity(entity: Entity) {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const modelPrimaryPart = humanoid?.RootPart;
@@ -452,15 +467,15 @@ export default class Entity implements iEntity {
             return;
         }
 
-        const myXY = this.cell?.coord;
+        const myXY = this.cell?.qrs;
         if (!myXY) {
             warn("Current entity coordinates not set");
             return;
         }
 
         const closestEntity = entities.reduce((closestEntity, c) => {
-            const closestEntityXY = closestEntity.cell?.coord;
-            const currentEntityXY = c.cell?.coord;
+            const closestEntityXY = closestEntity.cell?.qrs;
+            const currentEntityXY = c.cell?.qrs;
 
             if (!closestEntityXY || !currentEntityXY) {
                 warn("Coordinates not set for entity");

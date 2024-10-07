@@ -1,11 +1,11 @@
 import Roact from "@rbxts/roact";
 import { RunService, TweenService } from "@rbxts/services";
-import Cell from "shared/class/Cell";
+import HexCell from "shared/class/HexCell";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
 export interface CellGlowSurfaceElementProps {
-    cell: Cell
+    cell: HexCell
 }
 interface CellGlowSurfaceElementState {
     size: UDim2;
@@ -79,7 +79,7 @@ export default class CellGlowSurfaceElement extends Roact.Component<CellGlowSurf
                 <textbutton
                     Ref={this.buttonRef}
                     BackgroundTransparency={this.state.transparency}
-                    BackgroundColor3={Cell.SELECTED_COLOUR}
+                    BackgroundColor3={HexCell.SELECTED_COLOUR}
                     Position={new UDim2(0.5, 0, 0.5, 0)}
                     AnchorPoint={new Vector2(0.5, 0.5)}
                     Size={this.state.size}

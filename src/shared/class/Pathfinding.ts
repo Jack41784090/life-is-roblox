@@ -1,5 +1,5 @@
 import { PriorityQueue } from "shared/utils"
-import Grid from "./Grid"
+import HexGrid from "./HexGrid"
 
 type NodeInit = {
     coord: Vector2,
@@ -19,31 +19,9 @@ type PathfindNode = {
     totalCost: number
 }
 
-enum Direction {
-    UpLeft,
-    Up,
-    UpRight,
-    Left,
-    Right,
-    DownLeft,
-    Down,
-    DownRight,
-}
-
-const directionVectors = new Map<Direction, { dx: number; dy: number }>([
-    [Direction.UpLeft, { dx: -1, dy: 1 }],
-    [Direction.Up, { dx: 0, dy: 1 }],
-    [Direction.UpRight, { dx: 1, dy: 1 }],
-    [Direction.Left, { dx: -1, dy: 0 }],
-    [Direction.Right, { dx: 1, dy: 0 }],
-    [Direction.DownLeft, { dx: -1, dy: -1 }],
-    [Direction.Down, { dx: 0, dy: -1 }],
-    [Direction.DownRight, { dx: 1, dy: -1 }],
-]);
-
 export default class Pathfinding {
     frontier: PriorityQueue<PathfindNode>;
-    grid: Grid;
+    grid: HexGrid;
     start: Vector2;
     destination: Vector2;
     priorityFunction: (a: PathfindNode) => number;
@@ -74,7 +52,7 @@ export default class Pathfinding {
     }
 
     public constructor({ grid, start, dest, method = 'lowest', limit = math.huge, verbose = false, hexagonal = false }: {
-        grid: Grid,
+        grid: HexGrid,
         start: Vector2,
         dest: Vector2,
         method?: 'lowest' | 'highest',
@@ -140,48 +118,31 @@ export default class Pathfinding {
 
             // 1. Expand nodes
             // look at surrounding nodes
-            for (const [direction, { dx, dy }] of directionVectors) {
-                const changeVector = new Vector2(dx, dy);
-                const nodeDirectedCoord = new Vector2(AINode.x, AINode.y).add(changeVector);
-
-                // print(AINode.coords.X)
-                if (AINode.coords.X % 2 === 1) {
-                    // mound @ odd x
-                    if (direction === Direction.DownLeft || direction === Direction.DownRight) {
-                        // skip
-                        continue;
-                    }
-                }
-                else {
-                    // concave @ even x
-                    if (direction === Direction.UpLeft || direction === Direction.UpRight) {
-                        // skip
-                        continue;
-                    }
-                }
-
-                // if directed node is unexplored
-                const cell = this.grid.cellsXY.get(new Vector2(nodeDirectedCoord.X, nodeDirectedCoord.Y));
-                const coordExplored = explored.find(node => node.x === nodeDirectedCoord.X && node.y === nodeDirectedCoord.Y);
+            const exploringCell = this.grid.getCell(AINode.x, AINode.y);
+            if (!exploringCell) {
                 if (this.verbose) {
-                    print(`Checking ${direction} ${changeVector} @${nodeDirectedCoord}`);
-                    print("||=>", cell ? `(${cell.coord.X},${cell.coord.Y})` : "cell does not exist");
-                    if (cell) {
-                        print(`||=> within limit: ${AINode.distanceTravelled < this.limit}`);
-                        print(`||=> vacant: ${cell.isVacant()}`);
-                        print(`||=> explored: ${coordExplored !== undefined}`);
-                    }
+                    warn(`Cell does not exist @${AINode.x},${AINode.y}`);
+                }
+                continue;
+            }
+            for (const cell of exploringCell.findNeighbors()) {
+                const coordExplored = explored.find(node => node.x === cell.qrs.X && node.y === cell.qrs.Y);
+                if (this.verbose) {
+                    print(`Checking ${cell.qrs.X},${cell.qrs.Y},${cell.qrs.Z}`);
+                    print(`||=> (${cell.qrs.X},${cell.qrs.Y})`)
+                    print(`||=> within limit: ${AINode.distanceTravelled < this.limit}`);
+                    print(`||=> vacant: ${cell.isVacant()}`);
+                    print(`||=> explored: ${coordExplored !== undefined}`);
                 }
 
                 if (
-                    cell &&                                 // unexplored node exists
                     AINode.distanceTravelled < this.limit && // distance travelled is within limit
                     !coordExplored &&                        // unexplored node is not explored
                     cell.isVacant()                         // unexplored node is not occupied
                 ) {
                     // update unexplored node
                     const node = this.newNode({
-                        coord: cell.coord,
+                        coord: cell.qr(),
                         distanceTravelled: AINode.distanceTravelled + 1,
                         lastNode: AINode
                     });
@@ -191,10 +152,10 @@ export default class Pathfinding {
                         print("|||=> Updating unexplored node", cell);
                     }
                 }
-                else if (cell && cell.coord.X === dest.X && cell.coord.Y === dest.Y) {
+                else if (cell && cell.qrs.X === dest.X && cell.qrs.Y === dest.Y) {
                     // update destination node
                     const node = this.newNode({
-                        coord: cell.coord,
+                        coord: cell.qr(),
                         distanceTravelled: AINode.distanceTravelled + 1,
                         lastNode: AINode
                     });

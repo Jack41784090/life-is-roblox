@@ -7,9 +7,9 @@ import { get2DEuclidDistance } from '../utils/index';
 import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
-import Cell from "./Cell";
 import Entity from "./Entity";
-import Grid from "./Grid";
+import HexCell from "./HexCell";
+import HexGrid from "./HexGrid";
 import Pathfinding from "./Pathfinding";
 
 export class BattleTeam {
@@ -49,8 +49,8 @@ export default class Battle {
     enemyCount: number = 0;
     playerCount: number = 0;
 
-    // Grid info
-    grid: Grid;
+    // HexGrid info
+    grid: HexGrid;
     gridMin: Vector2;
     gridMax: Vector2;
 
@@ -80,7 +80,12 @@ export default class Battle {
     }
 
     private constructor(worldCenter: Vector3, size: number, width: number, height: number, camera: Camera) {
-        this.grid = new Grid({ widthheight: new Vector2(width, height), center: new Vector2(worldCenter.X, worldCenter.Z), size, name: "BattleGrid" });
+        this.grid = new HexGrid({
+            radius: math.floor(width / 2),
+            center: new Vector2(worldCenter.X, worldCenter.Z),
+            size: size,
+            name: "BattleGrid",
+        });
         const camera_centerx = worldCenter.X;
         const camera_centery = worldCenter.Z;
         this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
@@ -134,11 +139,15 @@ export default class Battle {
             warn('currentEntity not found')
             return;
         }
+        if (!cre.cell) {
+            warn('Entity has no cell');
+            return;
+        }
         //#endregion
         const lim = math.floor(cre.pos / MOVEMENT_COST);
         const pf = new Pathfinding({
             grid: this.grid,
-            start: cre.cell?.coord ?? new Vector2(0, 0),
+            start: cre.cell.qr(),
             dest: dest,
             limit: lim,
             hexagonal: true,
@@ -157,7 +166,7 @@ export default class Battle {
                 type: CharacterActionMenuAction.Move,
                 run: (tree: Roact.Tree) => {
                     Roact.unmount(tree);
-                    this.bcamera.enterHOI4Mode(e.cell?.coord).then(() => {
+                    this.bcamera.enterHOI4Mode(e.cell?.worldPosition()).then(() => {
                         this.gui?.enterMovement();
                     })
                 },
@@ -172,34 +181,42 @@ export default class Battle {
         ];
     }
 
-    async moveEntity(entity: Entity, cell: Cell, _path?: Vector2[]) {
+    async moveEntity(entity: Entity, toCell: HexCell, _path?: Vector2[]) {
         const lim = math.floor(entity.pos / MOVEMENT_COST);
-        const path = _path ?? new Pathfinding({
-            grid: this.grid,
-            start: entity.cell?.coord ?? new Vector2(0, 0),
-            dest: cell.coord,
-            limit: lim,
-        }).begin();
-        if (path.size() === 0) {
-            warn(`No path found from ${entity.cell?.coord.X}, ${entity.cell?.coord.Y} to ${cell.coord.X}, ${cell.coord.Y}`);
+        //#region defence
+        if (!entity.cell) {
+            warn('Entity has no cell');
             return;
         }
+        //#endregion
+        const path = _path ?? new Pathfinding({
+            grid: this.grid,
+            start: entity.cell.qr(),
+            dest: toCell.qr(),
+            limit: lim,
+        }).begin();
+        //#region defence
+        if (path.size() === 0) {
+            warn(`No path found from ${entity.cell?.qrs.X}, ${entity.cell?.qrs.Y} to ${toCell.qrs.X}, ${toCell.qrs.Y}`);
+            return;
+        }
+        //#endregion
 
-        const adjacentCell = this.grid.getCell(path[path.size() - 1]);
-        let destination: Cell = cell;
-        if (cell.isVacant() === false) {
-            warn(`Cell ${cell.coord.X}, ${cell.coord.Y} is not vacant`);
-            if (adjacentCell.isVacant()) {
+        let destination: HexCell = toCell;
+        if (toCell.isVacant() === false) {
+            warn(`HexCell ${toCell.qrs.X}, ${toCell.qrs.Y} is not vacant`);
+            const adjacentCell = this.grid.getCell(path[path.size() - 1]);
+            if (adjacentCell?.isVacant()) {
                 destination = adjacentCell;
             }
             else {
-                warn(`Adjacent cell ${adjacentCell.coord.X}, ${adjacentCell.coord.Y} is not vacant`);
+                warn(`Adjacent cell ${adjacentCell?.qrs.X}, ${adjacentCell?.qrs.Y} is not vacant`);
                 return;
             }
         }
 
         this.gui?.mountOrUpdateGlowPath(path);
-        return entity.moveToCell(destination, path)
+        return entity.moveToCell(destination, path);
     }
 
     getCurrentRoundEntity() {
@@ -214,7 +231,7 @@ export default class Battle {
     private spawn() {
         const allEntities = this.getAllEntities();
         for (const entity of allEntities) {
-            let randomCell: Cell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
+            let randomCell: HexCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
             let loopBreaker = 0;
             while (randomCell.isVacant() === false) {
                 randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
@@ -225,7 +242,7 @@ export default class Battle {
             }
             if (!entity.cell && randomCell.isVacant()) {
                 entity.setCell(randomCell);
-                print(`Spawning ${entity.name} at ${randomCell.coord.X}, ${randomCell.coord.Y}`)
+                print(`Spawning ${entity.name} at ${randomCell.qrs.X}, ${randomCell.qrs.Y}`)
             }
             else {
                 warn(`Entity ${entity.name} has no cell or cell is not vacant`);
@@ -270,7 +287,7 @@ export default class Battle {
     }
 
     private async resetCameraAndRestartRound() {
-        await this.bcamera.enterHOI4Mode(this.currentRound?.entity?.cell?.coord);
+        await this.bcamera.enterHOI4Mode(this.currentRound?.entity?.cell?.qrs);
         this.round(); // Restart the round
     }
 
@@ -316,7 +333,7 @@ export default class Battle {
     setUpOnAttackClickedSignal(): RBXScriptConnection {
         this.onAttackClickedScript?.Disconnect();
         this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability: Ability) => {
-            if (!ability.target.cell?.coord) {
+            if (!ability.target.cell?.qrs) {
                 warn("Target cell not found");
                 return;
             }

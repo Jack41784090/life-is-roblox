@@ -77,6 +77,10 @@ export default class HexCell {
         return new Vector2(this.qrs.X, this.qrs.Y);
     }
 
+    public worldPosition(): Vector3 {
+        return this.part.Position;
+    }
+
 
     private createMoveParticle(): ParticleEmitter {
         const particle = new Instance("ParticleEmitter");

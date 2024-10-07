@@ -26,6 +26,8 @@ const hexGrid = new HexGrid({
 });
 hexGrid.materialise();
 
+print(hexGrid.cells[0].findNeighbors())
+
 // find all cells and change height
 wait(3)
 // const grid = new Grid({ widthheight: new Vector2(10, 10), center: new Vector2(0, 0), size: 10, name: "FunGrid" });

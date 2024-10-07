@@ -13,8 +13,8 @@ import { CharacterMenuAction } from "shared/types/battle-types";
 import { getPlayer } from "shared/utils";
 import Ability from "./Ability";
 import Battle from "./Battle";
-import Cell from "./Cell";
 import Entity from "./Entity";
+import HexCell from "./HexCell";
 
 type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 
@@ -304,7 +304,7 @@ export default class BattleGUI {
         return path;
     }
 
-    mountOrUpdateGlowRange(_cell: Cell, range: { min: number, max: number }) {
+    mountOrUpdateGlowRange(_cell: HexCell, range: { min: number, max: number }) {
         //#region defence
         const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
         if (!playerGUI) {
@@ -315,7 +315,7 @@ export default class BattleGUI {
 
         const elements = this.getBattle().grid.cells.mapFiltered((c) => {
             if (!c) return;
-            const distance = c.coord.sub(_cell.coord).Magnitude;
+            const distance = c.qrs.sub(_cell.qrs).Magnitude;
             if (range.min <= distance && distance <= range.max) {
                 c.glow = true;
                 return <CellGlowSurfaceElement cell={c} />;
@@ -353,7 +353,7 @@ export default class BattleGUI {
 
     //#endregion
 
-    //#region Cell Methods
+    //#region HexCell Methods
     /**
      * Get cell elements that are sensitive to mouse hover
      * @returns 
@@ -371,7 +371,7 @@ export default class BattleGUI {
     }
 
     // Handle cell hover (enter) event
-    private handleCellEnter(cell: Cell) {
+    private handleCellEnter(cell: HexCell) {
         const battle = this.getBattle();
         const cre = battle.getCurrentRoundEntity();
         const currentCell = cre?.cell;
@@ -382,8 +382,8 @@ export default class BattleGUI {
         if (cre.armed && cell.entity) {
             const ability = cre.getEquippedAbilitySet()[cre.armed];
             if (ability &&
-                battle.get2DEuclidDistance(cell.coord, currentCell.coord) <= ability.range.max &&
-                battle.get2DEuclidDistance(cell.coord, currentCell.coord) >= ability.range.min) {
+                battle.get2DEuclidDistance(cell.qr(), currentCell.qr()) <= ability.range.max &&
+                battle.get2DEuclidDistance(cell.qr(), currentCell.qr()) >= ability.range.min) {
                 mouse.Icon = DECAL_WITHINRANGE;
             }
             else {
@@ -396,9 +396,9 @@ export default class BattleGUI {
         }
         else {
             mouse.Icon = ''
-            // print(`${currentCell.coord.X},${currentCell.coord.Y} -> ${cell.coord.X},${cell.coord.Y}`);
+            // print(`${currentCell.qr().X},${currentCell.qr().Y} -> ${cell.qr().X},${cell.qr().Y}`);
 
-            const pf = battle.createPathfindingForCurrentEntity(cell.coord);
+            const pf = battle.createPathfindingForCurrentEntity(cell.qr());
             if (!pf) return;
             const path = pf.begin();
             return this.mountOrUpdateGlowPath(path);
@@ -412,7 +412,7 @@ export default class BattleGUI {
     }
 
     // Handle cell click event
-    private handleCellClick(cell: Cell) {
+    private handleCellClick(cell: HexCell) {
         if (cell.isVacant()) {
             this.clickedOnEmptyCell(cell);
         }
@@ -444,11 +444,11 @@ export default class BattleGUI {
         }
     }
 
-    private clickedOnEmptyCell(cell: Cell) {
+    private clickedOnEmptyCell(cell: HexCell) {
         const battle = this.getBattle();
         const cre = battle.getCurrentRoundEntity();
         if (cre) {
-            const pf = battle.createPathfindingForCurrentEntity(cell.coord);
+            const pf = battle.createPathfindingForCurrentEntity(cell.qr());
             const path = pf?.begin();
             cre?.moveToCell(cell, path).then(() => {
                 this.returnToSelections();
