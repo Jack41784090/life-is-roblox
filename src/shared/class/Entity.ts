@@ -363,6 +363,54 @@ export default class Entity implements iEntity {
         cell.entity = this;
         return this.cell;
     }
+    async moveToPosition(targetPosition: Vector3) {
+        const modelPrimaryPart = this.model?.PrimaryPart;
+
+        //#region defence
+        if (!modelPrimaryPart) {
+            warn("Model not materialised", modelPrimaryPart);
+            return;
+        }
+        //#endregion
+
+        const primaryPart = modelPrimaryPart;
+
+        if (primaryPart.Position === targetPosition) {
+            warn("Already at target position", targetPosition);
+            return;
+        }
+
+        // Use the current Y position of the entity to avoid sinking into the ground
+        const adjustedTargetPosition = new Vector3(targetPosition.X, primaryPart.Position.Y, targetPosition.Z);
+        print(`${this.name}: Moving to position`, adjustedTargetPosition);
+
+        const direction = (adjustedTargetPosition.sub(primaryPart.Position)).Unit;
+        const lookAtCFrame = CFrame.lookAt(primaryPart.Position, primaryPart.Position.add(direction));
+
+        // Create target CFrame with correct position and facing direction
+        const targetCFrame = new CFrame(adjustedTargetPosition).mul(lookAtCFrame.sub(primaryPart.Position));
+
+        print("Target CFrame", targetCFrame);
+        print("Current CFrame", primaryPart.CFrame);
+        print("LookAt CFrame", lookAtCFrame);
+        print("Direction", direction);
+
+        if (direction.X !== direction.X || direction.Y !== direction.Y || direction.Z !== direction.Z) {
+            warn("Direction is NaN; bypassed already at position?", direction);
+            return;
+        }
+
+        // Tween to the new CFrame
+        const tween = TweenService.Create(
+            modelPrimaryPart,
+            new TweenInfo(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { CFrame: targetCFrame }
+        );
+
+        this.tweenHandler.addTween(tween);
+        return tween.Completed.Wait();
+    }
+
     async moveToCell(cell: HexCell, path?: Vector2[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const primaryPart = humanoid?.RootPart;
@@ -375,19 +423,18 @@ export default class Entity implements iEntity {
             path = [cell.qr()];
         }
         //#endregion
-        this.setCell(cell);
 
         const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
         for (const cell of path.mapFiltered(xy => this.battle.grid.getCell(xy.X, xy.Y))) {
             const targetPosition = cell.worldPosition();
-            if (primaryPart.Position === targetPosition) {
-                continue;
-            }
-            await this.facePosition(targetPosition);
+            if (primaryPart.Position === targetPosition) continue;
+            await this.moveToPosition(targetPosition);
         }
         moveTrack?.Stop();
         const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
         if (!transitionTrack) return;
+
+        this.setCell(cell);
 
         return new Promise((resolve) => {
             const scrp = transitionTrack?.Ended.Connect(() => {
@@ -399,33 +446,6 @@ export default class Entity implements iEntity {
     //#endregion
 
     //#region look at ...
-    async facePosition(targetPosition: Vector3) {
-        const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
-        const modelPrimaryPart = humanoid?.RootPart;
-        if (!modelPrimaryPart || !humanoid) {
-            warn("Model not materialised", modelPrimaryPart, humanoid);
-            return;
-        }
-
-        const primaryPart = modelPrimaryPart;
-        const direction = (targetPosition.sub(primaryPart.Position)).Unit;
-        const lookAtCFrame = CFrame.lookAt(primaryPart.Position, primaryPart.Position.add(direction));
-        const targetCFrame = new CFrame(targetPosition).mul(lookAtCFrame.sub(primaryPart.Position));
-        if (modelPrimaryPart.CFrame.LookVector.Dot(lookAtCFrame.LookVector) > 0.999) {
-            // print("Already facing the position", modelPrimaryPart.CFrame.LookVector, lookAtCFrame.LookVector);
-            return;
-        }
-
-        // Tween to the new CFrame
-        const tween = TweenService.Create(
-            modelPrimaryPart,
-            new TweenInfo(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-            { CFrame: targetCFrame }
-        );
-        this.tweenHandler.addTween(tween);
-        return tween.Completed.Wait();
-    }
-
     async faceEntity(entity: Entity) {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const modelPrimaryPart = humanoid?.RootPart;
