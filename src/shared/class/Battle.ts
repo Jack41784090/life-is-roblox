@@ -1,9 +1,21 @@
 import Roact from "@rbxts/roact";
 import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
-import { AttackAction, BattleConfig, BattleStatus, BotType, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
+import {
+    AttackAction,
+    BattleConfig,
+    BattleStatus,
+    BotType,
+    CharacterActionMenuAction,
+    CharacterMenuAction,
+    ClashResult,
+    ClashResultFate,
+    EntityStats,
+    EntityStatus,
+    ReadinessIcon,
+    Reality,
+} from "shared/types/battle-types";
 import { requestData } from "shared/utils";
-import { get2DEuclidDistance } from '../utils/index';
 import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGUI from "./BattleGui";
@@ -15,14 +27,15 @@ import Pathfinding from "./Pathfinding";
 export class BattleTeam {
     name: string;
     members: Entity[];
+
     constructor(name: string, members: Entity[]) {
-        this.members = members;
         this.name = name;
+        this.members = members;
     }
+
     push(...members: Entity[]) {
         for (const member of members) {
-            const exist = this.members.find(m => m.stats.id === member.stats.id);
-            if (!exist) {
+            if (!this.members.some((m) => m.stats.id === member.stats.id)) {
                 this.members.push(member);
             }
         }
@@ -32,51 +45,26 @@ export class BattleTeam {
 export default class Battle {
     status: BattleStatus = BattleStatus.Inactive;
     bcamera: BattleCamera;
-    gui: BattleGUI | undefined;
-
-    // signals
-    onAttackClickedScript: RBXScriptConnection | undefined;
+    gui?: BattleGUI;
+    onAttackClickedScript?: RBXScriptConnection;
     onAttackClickedSignal = new Signal<(ability: Ability) => void>();
-
-    // currentRound
-    private currentRound?: {
-        entity?: Entity,
-    };
-
-    // Entity-Related Information
+    currentRound?: Entity;
     teams: BattleTeam[] = [];
-    totalEnemyCount: number = 0;
-    enemyCount: number = 0;
-    playerCount: number = 0;
-
-    // HexGrid info
     grid: HexGrid;
     gridMin: Vector2;
     gridMax: Vector2;
+    time = -1;
 
-    // Timeslotting
-    time: number = -1;
+    //#region Initialization
 
-    //#region creation
     static Create(config: BattleConfig) {
-        const b = new Battle(config.worldCenter, config.size, config.width, config.height, config.camera);
-
-        // Set up the camera
-        b.initializeCamera();
-
-        // Set up the grid
-        b.initializeGrid();
-
-        // init players and teams
-        b.initializeTeams(config.teamMap);
-
-        // set up gui
-        b.gui = BattleGUI.Connect(b);
-
-        // Spawn the entities
-        b.begin();
-
-        return b;
+        const battle = new Battle(config.worldCenter, config.size, config.width, config.height, config.camera);
+        battle.initializeCamera();
+        battle.initializeGrid();
+        battle.initializeTeams(config.teamMap);
+        battle.gui = BattleGUI.Connect(battle);
+        battle.startBattle();
+        return battle;
     }
 
     private constructor(worldCenter: Vector3, size: number, width: number, height: number, camera: Camera) {
@@ -86,15 +74,13 @@ export default class Battle {
             size: size,
             name: "BattleGrid",
         });
-        const camera_centerx = worldCenter.X;
-        const camera_centery = worldCenter.Z;
-        this.gridMin = new Vector2(camera_centerx - (width * size) / 2, camera_centery - (height * size) / 2);
-        this.gridMax = new Vector2(camera_centerx + (width * size) / 2, camera_centery + (height * size) / 2);
+        const halfWidth = (width * size) / 2;
+        const halfHeight = (height * size) / 2;
+        this.gridMin = new Vector2(worldCenter.X - halfWidth, worldCenter.Z - halfHeight);
+        this.gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
         this.bcamera = new BattleCamera(camera, worldCenter, this);
     }
-    //#endregion
 
-    //#region Initialization
     private initializeGrid() {
         this.grid.materialise();
     }
@@ -105,70 +91,64 @@ export default class Battle {
 
     private initializeTeams(teamMap: Record<string, Player[]>) {
         for (const [teamName, playerList] of pairs(teamMap)) {
-            const members = playerList.mapFiltered(player => {
-                const characterID = 'entity_adalbrecht'; // temp
-                // const characterStats = getCharacterStats(characterID);
-                const characterStats = requestData(player, 'characterStats', characterID) as EntityStats;
-                warn('cs', characterStats);
-                if (!characterStats) {
-                    warn(`Character [${characterID}] not found for [${player.Name}]`);
-                    return;
-                }
-                const entity = new Entity({
-                    playerID: player.UserId + math.random(0, 1000),
-                    stats: characterStats,
-                    pos: 0,
-                    org: 0,
-                    hip: 0,
-                    name: player.Name,
-                    team: teamName,
-                    botType: player.UserId === 0 ? BotType.Enemy : undefined,
-                    battle: this,
-                });
-                return entity;
-            });
+            const members = playerList
+                .mapFiltered((player) => {
+                    const characterID = player.Character ? player.Character.Name : "default_character";
+                    const characterStats = requestData(player, "characterStats", characterID) as EntityStats;
+                    if (!characterStats) {
+                        warn(`Character [${characterID}] not found for [${player.Name}]`);
+                        return undefined;
+                    }
+                    return new Entity({
+                        playerID: player.UserId + math.random(0, 1000),
+                        stats: characterStats,
+                        pos: 0,
+                        org: 0,
+                        hip: 0,
+                        name: player.Name,
+                        team: teamName,
+                        botType: player.UserId === 0 ? BotType.Enemy : undefined,
+                        battle: this,
+                    });
+                })
+                .filter((entity): entity is Entity => entity !== undefined);
             this.teams.push(new BattleTeam(teamName, members));
         }
     }
+
     //#endregion
 
-    createPathfindingForCurrentEntity(dest: Vector2) {
-        const cre = this.getCurrentRoundEntity();
-        //#region defence
-        if (!cre) {
-            warn('currentEntity not found')
+    //#region Entity Management
+
+    createPathfinderForCurrentEntity(dest: Vector2) {
+        const entity = this.currentRound;
+        if (!entity || !entity.cell) {
+            warn("Current entity not found or has no cell");
             return;
         }
-        if (!cre.cell) {
-            warn('Entity has no cell');
-            return;
-        }
-        //#endregion
-        const lim = math.floor(cre.pos / MOVEMENT_COST);
-        const pf = new Pathfinding({
+        const lim = math.floor(entity.pos / MOVEMENT_COST);
+        return new Pathfinding({
             grid: this.grid,
-            start: cre.cell.qr(),
+            start: entity.cell.qr(),
             dest: dest,
             limit: lim,
             hexagonal: true,
-            // verbose: true,
         });
-        return pf;
     }
 
-    getAllEntities() {
-        return this.teams.map(team => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
+    getAllEntities(): Entity[] {
+        return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
     }
 
-    getCharacterMenuActions(e: Entity): CharacterMenuAction[] {
+    getCharacterMenuActions(entity: Entity): CharacterMenuAction[] {
         return [
             {
                 type: CharacterActionMenuAction.Move,
                 run: (tree: Roact.Tree) => {
                     Roact.unmount(tree);
-                    this.bcamera.enterHOI4Mode(e.cell?.worldPosition()).then(() => {
+                    this.bcamera.enterHOI4Mode(entity.cell?.worldPosition()).then(() => {
                         this.gui?.enterMovement();
-                    })
+                    });
                 },
             },
             {
@@ -176,344 +156,269 @@ export default class Battle {
                 run: (tree: Roact.Tree) => {
                     Roact.unmount(tree);
                     this.endTurn();
-                }
-            }
+                },
+            },
         ];
     }
 
-    async moveEntity(entity: Entity, toCell: HexCell, _path?: Vector2[]) {
-        const lim = math.floor(entity.pos / MOVEMENT_COST);
-        //#region defence
+    async moveEntity(entity: Entity, toCell: HexCell, path?: Vector2[]) {
         if (!entity.cell) {
-            warn('Entity has no cell');
+            warn("Entity has no cell");
             return;
         }
-        //#endregion
-        const path = _path ?? new Pathfinding({
-            grid: this.grid,
-            start: entity.cell.qr(),
-            dest: toCell.qr(),
-            limit: lim,
-        }).begin();
-        //#region defence
-        if (path.size() === 0) {
-            warn(`No path found from ${entity.cell?.qrs.X}, ${entity.cell?.qrs.Y} to ${toCell.qrs.X}, ${toCell.qrs.Y}`);
-            return;
-        }
-        //#endregion
+        const lim = math.floor(entity.pos / MOVEMENT_COST);
+        const calculatedPath =
+            path ??
+            new Pathfinding({
+                grid: this.grid,
+                start: entity.cell.qr(),
+                dest: toCell.qr(),
+                limit: lim,
+            }).begin();
 
-        let destination: HexCell = toCell;
-        if (toCell.isVacant() === false) {
-            warn(`HexCell ${toCell.qrs.X}, ${toCell.qrs.Y} is not vacant`);
-            const adjacentCell = this.grid.getCell(path[path.size() - 1]);
+        if (calculatedPath.size() === 0) {
+            warn(
+                `No path found from ${entity.cell.qr().X}, ${entity.cell.qr().Y} to ${toCell.qr().X}, ${toCell.qr().Y}`,
+            );
+            return;
+        }
+
+        let destination = toCell;
+        if (!toCell.isVacant()) {
+            const adjacentCell = this.grid.getCell(calculatedPath[calculatedPath.size() - 1]);
             if (adjacentCell?.isVacant()) {
                 destination = adjacentCell;
-            }
-            else {
-                warn(`Adjacent cell ${adjacentCell?.qrs.X}, ${adjacentCell?.qrs.Y} is not vacant`);
+            } else {
+                warn("Destination cell and adjacent cell are not vacant");
                 return;
             }
         }
 
-        this.gui?.mountOrUpdateGlowPath(path);
-        return entity.moveToCell(destination, path);
+        this.gui?.mountOrUpdateGlowPath(calculatedPath);
+        return entity.moveToCell(destination, calculatedPath);
     }
 
     getCurrentRoundEntity() {
-        return this.currentRound?.entity;
+        return this.currentRound;
     }
 
-    get2DEuclidDistance(coord1: Vector2, coord2: Vector2) {
-        return get2DEuclidDistance(new Vector3(coord1.X, 0, coord1.Y), new Vector3(coord2.X, 0, coord2.Y));
-    }
+    //#endregion
 
-    //#region Round functions
-    private spawn() {
+    //#region Battle Flow
+
+    private initializeEntitiesPositions() {
         const allEntities = this.getAllEntities();
-        for (const entity of allEntities) {
-            let randomCell: HexCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-            let loopBreaker = 0;
-            while (randomCell.isVacant() === false) {
-                randomCell = this.grid.cells[math.random(0, this.grid.cells.size() - 1)];
-                if (loopBreaker++ > 1000) {
-                    warn("Loop breaker triggered");
-                    break;
-                }
-            }
-            if (!entity.cell && randomCell.isVacant()) {
-                entity.setCell(randomCell);
-                print(`Spawning ${entity.name} at ${randomCell.qrs.X}, ${randomCell.qrs.Y}`)
-            }
-            else {
-                warn(`Entity ${entity.name} has no cell or cell is not vacant`);
-            }
-        }
+        const vacantCells = this.grid.cells.filter((cell) => cell.isVacant());
 
-        allEntities.forEach(e => e.initialiseCharacteristics());
-    }
-
-    public begin() {
-        print('【Begin】')
-        if (this.time === -1) {
-            this.spawn();
-            this.round();
-        };
-    }
-
-    private advanceTime() {
-        print(`【Time】 ${this.time + 1}`)
-        return this.time++;
-    }
-
-    private async round() {
-        const time = this.advanceTime();
-        this.status = BattleStatus.Begin;
-
-        // Run the readiness gauntlet and get the next model to act
-        const w = await this.runReadinessGauntlet();
-        if (!w) {
-            warn('running readiness gauntlet fails. Restarting round')
-            this.resetCameraAndRestartRound();
+        if (vacantCells.size() < allEntities.size()) {
+            warn("Not enough vacant cells to spawn all entities");
             return;
         }
 
-        // Handle the current round's actions
-        const chosenActions = await this.waitForRoundActions(w);
+        for (const entity of allEntities) {
+            const randomCell = vacantCells.pop();
+            if (randomCell) entity.setCell(randomCell);
+        }
 
-        // Update readiness and finalize the round
-        this.updateStats(w);
+        allEntities.forEach((e) => e.initialiseCharacteristics());
+    }
+
+    startBattle() {
+        if (this.time === -1) {
+            this.initializeEntitiesPositions();
+            this.round();
+        }
+    }
+
+    private incrementTime() {
+        return ++this.time;
+    }
+
+    private async round() {
+        this.incrementTime();
+        this.status = BattleStatus.Begin;
+
+        const nextEntity = await this.runReadinessGauntlet();
+        if (!nextEntity) {
+            await this.bcamera.enterHOI4Mode(this.currentRound?.cell?.qrs);
+            this.round();
+            return;
+        }
+
+        await this.waitForEntityAction(nextEntity);
+        this.updateEntityStatsAfterRound(nextEntity);
         this.finalizeRound();
-        this.round(); // Start the next round
+        this.round();
     }
 
-    private async resetCameraAndRestartRound() {
-        await this.bcamera.enterHOI4Mode(this.currentRound?.entity?.cell?.qrs);
-        this.round(); // Restart the round
-    }
-
-    private updateStats(entity: Entity) {
+    private updateEntityStatsAfterRound(entity: Entity) {
         entity.pos /= 2;
     }
 
     private endTurn() {
-        this.gui?.guiDoneRoundExit()
+        this.gui?.guiDoneRoundExit();
     }
 
-    private async waitForRoundActions(w: Entity) {
-        this.currentRound = { entity: w, };
-        await this.bcamera.enterCharacterCenterMode();
-        return new Promise((resolve) => {
-            this.gui?.initiateRound(resolve);
-            w.playAudio(EntityStatus.Idle);
+    private waitForEntityAction(entity: Entity) {
+        this.currentRound = entity;
+        return this.bcamera.enterCharacterCenterMode().then(() => {
+            return new Promise((resolve) => {
+                this.gui?.initiateRound(resolve);
+                entity.playAudio(EntityStatus.Idle);
+            });
         });
     }
 
     private finalizeRound() {
         this.currentRound = undefined;
-        print('【Round Finish】');
         wait(1);
     }
+
     //#endregion
 
-    //#region Calculations
-    getReality(reality: Reality, entity: Entity) {
-        switch (reality) {
-            case Reality.Maneuver:
-                return entity.stats.spd * entity.stats.acr;
-            default: return 0;
+    //#region Combat Mechanics
+
+    calculateRealityValue(reality: Reality, entity: Entity) {
+        if (reality === Reality.Maneuver) {
+            return entity.stats.spd * entity.stats.acr;
         }
+        return 0;
     }
-    //#endregion
 
-    //#region Ability Management
-    /**
-     * Set up the signal for when an attack is clicked
-     * Only one script can be set up at a time
-     */
-    setUpOnAttackClickedSignal(): RBXScriptConnection {
+    initializeAttackClickHandler(): RBXScriptConnection {
         this.onAttackClickedScript?.Disconnect();
-        this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability: Ability) => {
-            if (!ability.target.cell?.qrs) {
+        this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability) => {
+            if (!ability.target.cell?.qr()) {
                 warn("Target cell not found");
                 return;
             }
-
-            const attackAction: AttackAction = {
-                executed: false,
-                ability: ability
-            }
-            const cr = this.clash(attackAction);
-            print(cr);
+            const attackAction: AttackAction = { executed: false, ability };
+            const clashResult = this.clash(attackAction);
             this.playAttackAnimation(attackAction);
         });
         return this.onAttackClickedScript;
     }
 
-    async playAttackAnimation(_aA: AttackAction) {
-        const attacker = _aA.ability.using;
-        const target = _aA.ability.target;
-        const attackerPrimaryPart = attacker.model?.PrimaryPart;
-        const targetPrimaryPart = target.model?.PrimaryPart;
-        const animation = _aA.ability.animation;
-        if (!attackerPrimaryPart) {
-            warn("While playing attack animation, Primary Part not found");
-            return;
-        }
-        if (!targetPrimaryPart) {
-            warn("While playing attack animation, Primary Part not found");
+    async playAttackAnimation(attackAction: AttackAction) {
+        const { using: attacker, target, animation } = attackAction.ability;
+        if (!attacker.model?.PrimaryPart || !target.model?.PrimaryPart) {
+            warn("Primary Part not found for attacker or target");
             return;
         }
 
-        // remove all gui
         this.gui?.exitMovement();
-
-        // target faces attacker
         await target.faceEntity(attacker);
 
-        // Play the animation
-        const attackerAnimationTrack = attacker.playAnimation({ animation, priority: Enum.AnimationPriority.Action4, loop: false });
-        // const playCameraAnimationProm = this.bcamera.playAnimation({ animation, center: attackerPrimaryPart.CFrame });
-        const targetInitAnimationTrack = target.playAnimation({ animation: 'defend', priority: Enum.AnimationPriority.Action2, loop: false });
+        const attackerAnimationTrack = attacker.playAnimation({
+            animation,
+            priority: Enum.AnimationPriority.Action4,
+            loop: false,
+        });
+        const targetInitAnimationTrack = target.playAnimation({
+            animation: "defend",
+            priority: Enum.AnimationPriority.Action2,
+            loop: false,
+        });
         let targetAnimationTrack: AnimationTrack | undefined;
 
-        const t = attackerAnimationTrack?.GetMarkerReachedSignal("Hit").Connect(() => {
-            targetAnimationTrack = target.playAnimation({ animation: 'defend-hit', priority: Enum.AnimationPriority.Action3, loop: false });
-        });
-        const e = attackerAnimationTrack?.Ended.Connect(() => {
-            t?.Disconnect();
-            e?.Disconnect();
-            const transition = target.playAnimation({ animation: 'defend->idle', priority: Enum.AnimationPriority.Action4, loop: false });
-            if (transition) {
-                target.animationHandler?.idleAnimationTrack?.Stop();
-                targetInitAnimationTrack?.Stop();
-                targetAnimationTrack?.Stop();
-                transition.Stopped.Wait();
-            }
-            this.applyClash(_aA, this.clash(_aA));
+        const hitConnection = attackerAnimationTrack?.GetMarkerReachedSignal("Hit").Connect(() => {
+            targetAnimationTrack = target.playAnimation({
+                animation: "defend-hit",
+                priority: Enum.AnimationPriority.Action3,
+                loop: false,
+            });
         });
 
-        // wait for animations to finish
-        if (targetInitAnimationTrack?.IsPlaying === true) targetInitAnimationTrack?.Ended.Wait();
-        if (attackerAnimationTrack?.IsPlaying === true) attackerAnimationTrack?.Ended.Wait();
-        if (targetAnimationTrack?.IsPlaying === true) targetAnimationTrack?.Ended.Wait();
-        // const cb = await playCameraAnimationProm;
-        // const cameraMovementAnimPromise = cb?.playPromise;
-        // const cameraMovementReturnCB = cb?.doneCallback;
-        // await cameraMovementAnimPromise;
-        // wait(.5);
-        // cameraMovementReturnCB?.();
+        const endConnection = attackerAnimationTrack?.Ended.Connect(() => {
+            hitConnection?.Disconnect();
+            endConnection?.Disconnect();
+            const transition = target.playAnimation({
+                animation: "defend->idle",
+                priority: Enum.AnimationPriority.Action4,
+                loop: false,
+            });
+            target.animationHandler?.idleAnimationTrack?.Stop();
+            targetInitAnimationTrack?.Stop();
+            targetAnimationTrack?.Stop();
+            transition?.Stopped.Wait();
+            this.applyClash(attackAction, this.clash(attackAction));
+        });
 
-        // Play the sound
+        targetInitAnimationTrack?.Ended.Wait();
+        attackerAnimationTrack?.Ended.Wait();
+        targetAnimationTrack?.Ended.Wait();
+
         attacker.playAudio(EntityStatus.Idle);
-
-        // go back to movement
         this.gui?.enterMovement();
     }
 
-    applyClash(_aA: AttackAction, _cR: ClashResult): void {
-        const attacker = _aA.ability.using;
-        const target = _aA.ability.target;
-        let { damage } = _cR;
-
-        // apply damage
-        target.hip -= damage;
+    applyClash(attackAction: AttackAction, clashResult: ClashResult) {
+        attackAction.ability.target.hip -= clashResult.damage;
     }
 
-    clash(_aA: AttackAction): ClashResult {
-        const ability = _aA.ability;
-        const attacker = _aA.ability.using;
-        const target = _aA.ability.target;
+    clash(attackAction: AttackAction): ClashResult {
+        const { using: attacker, target, acc, calculateDamage } = attackAction.ability;
+        let fate: ClashResultFate = "Miss";
+        let damage = 0;
 
-        print(`【Clash】 ${attacker.name} attacking ${target.name} with ${ability.name}`);
+        const hitRoll = math.random(1, 100);
+        const hitChance = acc - this.calculateRealityValue(Reality.Maneuver, target);
+        const critChance = this.calculateRealityValue(Reality.Precision, attacker);
 
-        let fate: ClashResultFate = 'Miss';
-        let damage: number = 0, u_damage: number = 0;
+        const abilityDamage = calculateDamage();
+        const minDamage = abilityDamage * 0.5;
+        const maxDamage = abilityDamage;
 
-        const hit = math.random(1, 100);
-        const hitChance = ability.acc - this.getReality(Reality.Maneuver, target);
-        const crit = this.getReality(Reality.Precision, attacker);
-
-        const abilitydamage = ability.calculateDamage();
-        const minDamage = abilitydamage * 0.5;
-        const maxDamage = ability.calculateDamage();
-        const prot = 0
-
-        // see if it crits
-        if (hit <= hitChance) {
-            // crit
-            if (hit <= hitChance * 0.1 + crit) {
-                u_damage = (math.random((minDamage + maxDamage) / 2, maxDamage)) * 2;
+        if (hitRoll <= hitChance) {
+            if (hitRoll <= hitChance * 0.1 + critChance) {
+                damage = math.random((minDamage + maxDamage) / 2, maxDamage) * 2;
                 fate = "CRIT";
-            }
-            // hit
-            else {
-                u_damage = math.random(minDamage, maxDamage);
+            } else {
+                damage = math.random(minDamage, maxDamage);
                 fate = "Hit";
             }
         }
 
-        u_damage = math.clamp(u_damage, 0, 1000);
-
-        // apply protections
-        damage = math.clamp(u_damage * (1 - prot), 0, 100);
-
-        const cR: ClashResult = {
-            damage: damage,
-            u_damage: u_damage,
-            fate: fate,
-            roll: hit,
-        }; print(cR);
-
-        return cR;
+        damage = math.clamp(damage, 0, 1000);
+        return { damage, u_damage: damage, fate, roll: hitRoll };
     }
 
     //#endregion
 
-    //#region Readiness Management
-    static readonly MOVEMENT_COST = 10;
+    //#region Readiness Mechanics
 
     getReadinessIcons(): ReadinessIcon[] {
-        const characterIcons: ReadinessIcon[] = [];
-        for (const e of this.getAllEntities()) {
-            characterIcons.push({
-                iconID: e.playerID,
-                iconUrl: "rbxassetid://18915919565",
-                readiness: e.pos / 100
-            });
-        }
-        return characterIcons;
+        return this.getAllEntities().map((entity) => ({
+            iconID: entity.playerID,
+            iconUrl: "rbxassetid://18915919565",
+            readiness: entity.pos / 100,
+        }));
     }
-    calculateReadinessIncrement(entity: Entity) {
-        // const y = entity.stats.spd;
-        const y = math.random(0, 10);
-        const r = - math.random() * 0.1 * y + math.random() * 0.1 * y;
-        return y + r;
-    }
-    runReadinessGauntlet() {
-        print('【Run Readiness Gauntlet】');
-        const entities = this.teams.map(team => team.members).reduce<Entity[]>(
-            (acc, val) => [...acc, ...val], []);
 
+    calculateReadinessIncrement(entity: Entity) {
+        return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
+    }
+
+    runReadinessGauntlet() {
+        const entities = this.getAllEntities();
         if (entities.size() === 0) return;
 
-        let i = 0
-        while (entities.sort((a, b) => a.pos - b.pos > 0)[0].pos < 100) {
-            this._gauntletIterate(entities);
-            i++;
-            if (i++ > 10000) break;
+        while (entities.some((e) => e.pos < 100)) {
+            this.iterateReadinessGauntlet(entities);
         }
 
         const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
         return this.gui?.tweenToUpdateReadiness()?.then(() => winner);
     }
-    private _gauntletIterate(entities: Entity[]) {
+
+    private iterateReadinessGauntlet(entities: Entity[]) {
         for (const entity of entities) {
             entity.pos += this.calculateReadinessIncrement(entity);
             if (entity.pos >= 100) {
                 entity.pos = 100;
-                // this.onEntityReady(entity);
             }
         }
     }
+
     //#endregion
 }
