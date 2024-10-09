@@ -82,7 +82,7 @@ export default class BattleCamera {
         print('Setting up HOI4 Camera Pan');
         this.panningEnabled = false;
         const center = worldFocus ?? this.worldCenter;
-        const x1 = new Vector3(center.X, this.size * 5, center.Z);
+        const x1 = new Vector3(center.X, 25, center.Z);
         const x2 = new Vector3(center.X, 0, center.Z);
         const lookAtCframe = new CFrame(x1, x2);
         return this.setCameraCFrame(lookAtCframe).then(() => {

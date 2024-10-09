@@ -85,7 +85,6 @@ function enterPlayground() {
 }
 function enterBattle() {
     const battle = Battle.Create({
-        size: 5,
         width: 5,
         height: 5,
         camera: game.Workspace.CurrentCamera!,

@@ -3,7 +3,6 @@ import Signal from "@rbxts/signal";
 import { MOVEMENT_COST } from "shared/const";
 import {
     AttackAction,
-    BattleConfig,
     BattleStatus,
     BotType,
     CharacterActionMenuAction,
@@ -13,7 +12,7 @@ import {
     EntityStats,
     EntityStatus,
     ReadinessIcon,
-    Reality,
+    Reality
 } from "shared/types/battle-types";
 import { requestData } from "shared/utils";
 import Ability from "./Ability";
@@ -57,8 +56,14 @@ export default class Battle {
 
     //#region Initialization
 
-    static Create(config: BattleConfig) {
-        const battle = new Battle(config.worldCenter, config.size, config.width, config.height, config.camera);
+    static Create(config: {
+        camera: Camera,
+        worldCenter: Vector3,
+        width: number;
+        height: number;
+        teamMap: Record<string, Player[]>;
+    }) {
+        const battle = new Battle(config.worldCenter, 15, config.width, config.height, config.camera);
         battle.initializeCamera();
         battle.initializeGrid();
         battle.initializeTeams(config.teamMap);
@@ -93,7 +98,8 @@ export default class Battle {
         for (const [teamName, playerList] of pairs(teamMap)) {
             const members = playerList
                 .mapFiltered((player) => {
-                    const characterID = player.Character ? player.Character.Name : "default_character";
+                    // const characterID = player.Character ? player.Character.Name : "default_character";
+                    const characterID = 'entity_adalbrecht'; // temp
                     const characterStats = requestData(player, "characterStats", characterID) as EntityStats;
                     if (!characterStats) {
                         warn(`Character [${characterID}] not found for [${player.Name}]`);

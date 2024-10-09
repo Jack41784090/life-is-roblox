@@ -48,14 +48,6 @@ export type ReadinessIcon = {
     iconUrl: string;
     readiness: number;
 }
-export interface BattleConfig {
-    size: number;
-    camera: Camera,
-    worldCenter: Vector3,
-    width: number;
-    height: number;
-    teamMap: Record<string, Player[]>;
-}
 
 export enum CharacterActionMenuAction {
     EndTurn = 'endTurn',
