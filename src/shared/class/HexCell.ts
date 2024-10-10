@@ -81,6 +81,46 @@ export default class HexCell {
         return this.part.Position;
     }
 
+    public findCellsWithinRange(min: number, max: number): HexCell[] {
+        return this.findCellsWithinDistance(max).filter(cell => {
+            const hex = new Hex(cell.qrs.X, cell.qrs.Y, cell.qrs.Z);
+            const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
+            const distance = hex.distance(thisHex);
+            return distance >= min
+        });
+    }
+
+    public findCellsWithinDistance(distance: number): HexCell[] {
+        print(`Finding cells within distance ${distance} of ${this.qrs}`);
+        const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
+        const cells = this.grid.cells.sort((a, b) => {
+            const aHex = new Hex(a.qrs.X, a.qrs.Y, a.qrs.Z);
+            const bHex = new Hex(b.qrs.X, b.qrs.Y, b.qrs.Z);
+            return aHex.distance(thisHex) < bHex.distance(thisHex)
+        });
+
+        const result = [];
+        for (const cell of cells) {
+            const hex = new Hex(cell.qrs.X, cell.qrs.Y, cell.qrs.Z);
+            print(`${cell.qrs} distance: ${hex.distance(thisHex)}`);
+            if (hex.distance(thisHex) <= distance) {
+                result.push(cell);
+            }
+            else {
+                break;
+            }
+        }
+
+        print("result", result.map(cell => cell.qrs));
+        return result;
+    }
+
+    public isWithinRange(cell: HexCell, range: NumberRange): boolean {
+        const hex = new Hex(cell.qrs.X, cell.qrs.Y, cell.qrs.Z);
+        const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
+        return hex.distance(thisHex) >= range.Min && hex.distance(thisHex) <= range.Max;
+    }
+
 
     private createMoveParticle(): ParticleEmitter {
         const particle = new Instance("ParticleEmitter");

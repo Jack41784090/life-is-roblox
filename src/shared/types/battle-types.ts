@@ -1,8 +1,6 @@
 import Roact from "@rbxts/roact";
-import BattleDDElement from 'gui_sharedfirst/components/battle/dropdown';
 import Ability from "shared/class/Ability";
 import Battle from "shared/class/Battle";
-import Cell from "shared/class/Cell";
 import Entity from "shared/class/Entity";
 
 export enum BotType {
@@ -106,10 +104,7 @@ export interface iAbility {
         mana: number,
     }
 
-    range: {
-        min: number,
-        max: number,
-    }
+    range: NumberRange
 
     // effects: Effect[];
 }
@@ -180,7 +175,7 @@ export type AbilityInitOptions = {
     description: string;
     acc: number;
     cost: { pos: number; mana: number; };
-    range: { min: number; max: number; };
+    range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
     using: Entity;
@@ -219,28 +214,3 @@ export interface ClashResult {
     fate: ClashResultFate,
     roll: number,
 }
-
-
-//#region Dropdown Menu Types
-export interface OnClickChain {
-    isHovering: boolean;
-    isRendering: boolean;
-    render: (ctx: DropdownmenuContext) => Roact.Element;
-}
-export enum DropmenuActionType {
-    Attack = 'Attack',
-    MoveTo = 'Move To',
-    EndTurn = 'End Turn',
-}
-export interface DropdownmenuContext {
-    occ: DropmenuAction;
-    cell: Cell;
-    initiator: Entity;
-    dropdownMenu: BattleDDElement;
-}
-export interface DropmenuAction {
-    name: DropmenuActionType,
-    run: (ctx: DropdownmenuContext) => void;
-    onClickChain?: OnClickChain
-}
-//#endregion

@@ -179,6 +179,9 @@ export default class BattleGUI {
         if (this.glowPathGui) {
             this.unmountAndClear('glowPathGui');
         };
+        if (this.abilitySlotGui) {
+            this.unmountAndClear('abilitySlotGui');
+        }
 
         // 2. Disconnect the escape script and mouse click event
         this.escapeScript?.Disconnect();
@@ -304,7 +307,7 @@ export default class BattleGUI {
         return path;
     }
 
-    mountOrUpdateGlowRange(_cell: HexCell, range: { min: number, max: number }) {
+    mountOrUpdateGlowRange(_cell: HexCell, range: NumberRange) {
         //#region defence
         const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
         if (!playerGUI) {
@@ -313,13 +316,8 @@ export default class BattleGUI {
         }
         //#endregion
 
-        const elements = this.getBattle().grid.cells.mapFiltered((c) => {
-            if (!c) return;
-            const distance = c.qrs.sub(_cell.qrs).Magnitude;
-            if (range.min <= distance && distance <= range.max) {
-                c.glow = true;
-                return <CellGlowSurfaceElement cell={c} />;
-            }
+        const elements = _cell.findCellsWithinRange(range.Min, range.Max).mapFiltered((c) => {
+            return <CellGlowSurfaceElement cell={c} />;
         });
 
         if (this.glowPathGui) {
@@ -382,8 +380,8 @@ export default class BattleGUI {
         if (cre.armed && cell.entity) {
             const ability = cre.getEquippedAbilitySet()[cre.armed];
             if (ability &&
-                get2DEuclidDistance(cell.qrs, currentCell.qrs) <= ability.range.max &&
-                get2DEuclidDistance(cell.qrs, currentCell.qrs) >= ability.range.min) {
+                get2DEuclidDistance(cell.qrs, currentCell.qrs) <= ability.range.Max &&
+                get2DEuclidDistance(cell.qrs, currentCell.qrs) >= ability.range.Min) {
                 mouse.Icon = DECAL_WITHINRANGE;
             }
             else {
@@ -391,7 +389,7 @@ export default class BattleGUI {
             }
             cre.faceEntity(cell.entity);
             if (cre.cell && ability) {
-                return this.mountOrUpdateGlowRange(cre.cell, ability?.range ?? { min: 0, max: 0 });
+                return this.mountOrUpdateGlowRange(cre.cell, ability?.range ?? { Min: 0, Max: 0 });
             }
         }
         else {
@@ -417,6 +415,7 @@ export default class BattleGUI {
             this.clickedOnEmptyCell(cell);
         }
         else {
+            // print(`Clicked on cell with entity: ${cell.entity?.name}`);
             const entityClicked = cell.entity;
             if (!entityClicked) return;
             this.clickedOnEntity(entityClicked);
@@ -424,6 +423,7 @@ export default class BattleGUI {
     }
 
     private clickedOnEntity(entity: Entity) {
+        // print(`Clicked on entity: ${entity.name}`);
         const cre = this.getBattle().getCurrentRoundEntity();
         if (cre?.armed) {
             const keyed = cre.armed;
@@ -433,14 +433,24 @@ export default class BattleGUI {
                 warn(`${keyed} has no ability keyed`)
                 return;
             }
+            if (!entity.cell) {
+                warn("Entity has no cell");
+                return;
+            }
+            if (!cre.cell) {
+                warn("Current entity has no cell");
+                return;
+            }
             //#endregion
 
-            const ability = new Ability({
-                ...iability,
-                using: cre,
-                target: entity,
-            });
-            this.getBattle().onAttackClickedSignal.Fire(ability);
+            if (entity.cell.isWithinRange(cre.cell, iability.range)) {
+                const ability = new Ability({
+                    ...iability,
+                    using: cre,
+                    target: entity,
+                });
+                this.getBattle().onAttackClickedSignal.Fire(ability);
+            }
         }
     }
 

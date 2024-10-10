@@ -1,6 +1,6 @@
 import Roact from "@rbxts/roact";
 import Signal from "@rbxts/signal";
-import { MOVEMENT_COST } from "shared/const";
+import { MOVEMENT_COST, TILE_SIZE } from "shared/const";
 import {
     AttackAction,
     BattleStatus,
@@ -63,7 +63,7 @@ export default class Battle {
         height: number;
         teamMap: Record<string, Player[]>;
     }) {
-        const battle = new Battle(config.worldCenter, 15, config.width, config.height, config.camera);
+        const battle = new Battle(config.worldCenter, TILE_SIZE, config.width, config.height, config.camera);
         battle.initializeCamera();
         battle.initializeGrid();
         battle.initializeTeams(config.teamMap);
@@ -244,6 +244,8 @@ export default class Battle {
         this.incrementTime();
         this.status = BattleStatus.Begin;
 
+        print(`Round ${this.time} has begun!`);
+        print(this.getAllEntities())
         const nextEntity = await this.runReadinessGauntlet();
         if (!nextEntity) {
             await this.bcamera.enterHOI4Mode(this.currentRound?.cell?.qrs);
@@ -251,14 +253,18 @@ export default class Battle {
             return;
         }
 
+        this.initializeAttackClickHandler();
         await this.waitForEntityAction(nextEntity);
+        this.onAttackClickedScript?.Disconnect();
         this.updateEntityStatsAfterRound(nextEntity);
         this.finalizeRound();
         this.round();
     }
 
     private updateEntityStatsAfterRound(entity: Entity) {
+        print(`${entity.name} has ${entity.pos} readiness points`);
         entity.pos /= 2;
+        print(`${entity.name} has ${entity.pos} readiness points`);
     }
 
     private endTurn() {
@@ -294,6 +300,7 @@ export default class Battle {
     initializeAttackClickHandler(): RBXScriptConnection {
         this.onAttackClickedScript?.Disconnect();
         this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability) => {
+            print(`Attack clicked: ${ability}`);
             if (!ability.target.cell?.qr()) {
                 warn("Target cell not found");
                 return;
@@ -350,9 +357,9 @@ export default class Battle {
             this.applyClash(attackAction, this.clash(attackAction));
         });
 
-        targetInitAnimationTrack?.Ended.Wait();
-        attackerAnimationTrack?.Ended.Wait();
-        targetAnimationTrack?.Ended.Wait();
+        if (targetInitAnimationTrack?.IsPlaying) targetInitAnimationTrack?.Ended.Wait();
+        if (attackerAnimationTrack?.IsPlaying) attackerAnimationTrack?.Ended.Wait();
+        if (targetAnimationTrack?.IsPlaying) targetAnimationTrack?.Ended.Wait();
 
         attacker.playAudio(EntityStatus.Idle);
         this.gui?.enterMovement();
@@ -364,6 +371,7 @@ export default class Battle {
 
     clash(attackAction: AttackAction): ClashResult {
         const { using: attacker, target, acc } = attackAction.ability;
+        print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
         let fate: ClashResultFate = "Miss";
         let damage = 0;
 
@@ -409,7 +417,7 @@ export default class Battle {
         const entities = this.getAllEntities();
         if (entities.size() === 0) return;
 
-        while (entities.some((e) => e.pos < 100)) {
+        while (!entities.some((e) => e.pos >= 100)) {
             this.iterateReadinessGauntlet(entities);
         }
 

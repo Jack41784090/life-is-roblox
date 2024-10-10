@@ -19,10 +19,7 @@ export default class Ability implements iAbility {
                 pos: 10,
                 mana: 0,
             },
-            range: {
-                min: 1,
-                max: 2,
-            }
+            range: new NumberRange(1, 1),
         }]
     ])
 
@@ -33,7 +30,7 @@ export default class Ability implements iAbility {
     description: string;
     acc: number;
     cost: { pos: number; mana: number; };
-    range: { min: number; max: number; };
+    range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
     using: Entity;
