@@ -1,7 +1,7 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, TweenService, UserInputService } from "@rbxts/services";
-import AbilitySlotsElement from "gui_sharedfirst/components/battle/ability-buttons";
-import AbilitySetElement from "gui_sharedfirst/components/battle/ability-slot";
+import AbilitySetElement from "gui_sharedfirst/components/battle/ability-set-gui";
+import AbilitySlotsElement from "gui_sharedfirst/components/battle/ability-slots";
 import ButtonElement from "gui_sharedfirst/components/button";
 import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
 import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
