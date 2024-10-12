@@ -91,7 +91,7 @@ export default class HexCell {
     }
 
     public findCellsWithinDistance(distance: number): HexCell[] {
-        print(`Finding cells within distance ${distance} of ${this.qrs}`);
+        // print(`Finding cells within distance ${distance} of ${this.qrs}`);
         const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
         const cells = this.grid.cells.sort((a, b) => {
             const aHex = new Hex(a.qrs.X, a.qrs.Y, a.qrs.Z);
@@ -102,7 +102,7 @@ export default class HexCell {
         const result = [];
         for (const cell of cells) {
             const hex = new Hex(cell.qrs.X, cell.qrs.Y, cell.qrs.Z);
-            print(`${cell.qrs} distance: ${hex.distance(thisHex)}`);
+            // print(`${cell.qrs} distance: ${hex.distance(thisHex)}`);
             if (hex.distance(thisHex) <= distance) {
                 result.push(cell);
             }
@@ -111,7 +111,7 @@ export default class HexCell {
             }
         }
 
-        print("result", result.map(cell => cell.qrs));
+        // print("result", result.map(cell => cell.qrs));
         return result;
     }
 
