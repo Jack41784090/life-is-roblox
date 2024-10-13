@@ -111,6 +111,7 @@ export default class Battle {
                         pos: 0,
                         org: 0,
                         hip: 0,
+                        sta: 0,
                         name: player.Name,
                         team: teamName,
                         botType: player.UserId === 0 ? BotType.Enemy : undefined,
@@ -290,24 +291,50 @@ export default class Battle {
 
     //#region Combat Mechanics
 
-    calculateRealityValue(reality: Reality, entity: Entity) {
-        if (reality === Reality.Maneuver) {
-            return entity.stats.spd * entity.stats.acr;
+    public calculateRealityValue(reality: Reality, entity: Entity): number {
+        switch (reality) {
+            case Reality.HP:
+                return (entity.stats.end * 5) + (entity.stats.siz * 2);
+            case Reality.Force:
+                return (entity.stats.str * 2) + (entity.stats.spd * 1) + (entity.stats.siz * 1);
+            case Reality.Mana:
+                return (entity.stats.int * 3) + (entity.stats.spr * 2) + (entity.stats.fai * 1);
+            case Reality.Spirituality:
+                return (entity.stats.spr * 2) + (entity.stats.fai * 2) + (entity.stats.wil * 1);
+            case Reality.Divinity:
+                return (entity.stats.fai * 3) + (entity.stats.wil * 2) + (entity.stats.cha * 1);
+            case Reality.Precision:
+                return (entity.stats.dex * 2) + (entity.stats.acr * 1) + (entity.stats.spd * 1);
+            case Reality.Maneuver:
+                return (entity.stats.acr * 2) + (entity.stats.spd * 2) + (entity.stats.dex * 1);
+            case Reality.Convince:
+                return (entity.stats.cha * 2) + (entity.stats.beu * 1) + (entity.stats.int * 1);
+            case Reality.Bravery:
+                return (entity.stats.wil * 2) + (entity.stats.end * 1) + (entity.stats.fai * 1);
+            default:
+                warn(`Reality value for ${reality} not found`);
+                return 0;
         }
-        return 0;
+    }
+
+
+    async executeAttackSequence(ability: Ability) {
+        print(`Attack clicked: ${ability}`);
+        if (!ability.target.cell?.qr()) {
+            warn("Target cell not found");
+            return;
+        }
+
+        const attackAction: AttackAction = { executed: false, ability };
+        const clashResult = this.clash(attackAction);
+        await this.playAttackAnimation(attackAction);
+        this.applyClash(attackAction, clashResult);
     }
 
     initializeAttackClickHandler(): RBXScriptConnection {
         this.onAttackClickedScript?.Disconnect();
         this.onAttackClickedScript = this.onAttackClickedSignal.Connect((ability) => {
-            print(`Attack clicked: ${ability}`);
-            if (!ability.target.cell?.qr()) {
-                warn("Target cell not found");
-                return;
-            }
-            const attackAction: AttackAction = { executed: false, ability };
-            const clashResult = this.clash(attackAction);
-            this.playAttackAnimation(attackAction);
+            this.executeAttackSequence(ability);
         });
         return this.onAttackClickedScript;
     }
@@ -332,6 +359,7 @@ export default class Battle {
             priority: Enum.AnimationPriority.Action2,
             loop: false,
         });
+
         let targetAnimationTrack: AnimationTrack | undefined;
 
         const hitConnection = attackerAnimationTrack?.GetMarkerReachedSignal("Hit").Connect(() => {
@@ -345,33 +373,36 @@ export default class Battle {
         const endConnection = attackerAnimationTrack?.Ended.Connect(() => {
             hitConnection?.Disconnect();
             endConnection?.Disconnect();
+
             const transition = target.playAnimation({
                 animation: "defend->idle",
                 priority: Enum.AnimationPriority.Action4,
                 loop: false,
             });
+
             target.animationHandler?.idleAnimationTrack?.Stop();
             targetInitAnimationTrack?.Stop();
             targetAnimationTrack?.Stop();
             transition?.Stopped.Wait();
-            this.applyClash(attackAction, this.clash(attackAction));
         });
 
-        if (targetInitAnimationTrack?.IsPlaying) targetInitAnimationTrack?.Ended.Wait();
-        if (attackerAnimationTrack?.IsPlaying) attackerAnimationTrack?.Ended.Wait();
-        if (targetAnimationTrack?.IsPlaying) targetAnimationTrack?.Ended.Wait();
+        if (targetInitAnimationTrack?.IsPlaying) await targetInitAnimationTrack?.Ended.Wait();
+        if (attackerAnimationTrack?.IsPlaying) await attackerAnimationTrack?.Ended.Wait();
+        if (targetAnimationTrack?.IsPlaying) await targetAnimationTrack?.Ended.Wait();
 
         attacker.playAudio(EntityStatus.Idle);
         this.gui?.enterMovement();
     }
 
     applyClash(attackAction: AttackAction, clashResult: ClashResult) {
-        attackAction.ability.target.hip -= clashResult.damage;
+        print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
+        attackAction.ability.target.damage(clashResult.damage);
     }
 
     clash(attackAction: AttackAction): ClashResult {
         const { using: attacker, target, acc } = attackAction.ability;
         print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
+
         let fate: ClashResultFate = "Miss";
         let damage = 0;
 
@@ -396,6 +427,7 @@ export default class Battle {
         damage = math.clamp(damage, 0, 1000);
         return { damage, u_damage: damage, fate, roll: hitRoll };
     }
+
 
     //#endregion
 

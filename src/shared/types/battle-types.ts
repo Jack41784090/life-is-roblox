@@ -11,6 +11,7 @@ export enum BotType {
 export type ClashResultFate = "Miss" | "Hit" | "CRIT"
 
 export enum Reality {
+    HP = 'hp',
     Force = 'force',
     Mana = 'mana',
     Spirituality = 'spirituality',
@@ -23,18 +24,19 @@ export enum Reality {
 
 export type EntityInitRequirements =
     Partial<iEntity> &
-    { stats: Omit<EntityStats, 'id'>, playerID: number, battle: Battle } // requirements: everything is optional exceot stats
+    {
+        stats: Omit<EntityStats, 'id'>, playerID: number, battle: Battle,
+        hip: number,
+        pos: number,
+        org: number,
+        sta: number,
+    } // requirements: everything is optional exceot stats
 
 export interface iEntity {
     readonly playerID: number;
     stats: EntityStats,
     team?: string,
     name: string,
-
-    sta: number,
-    hip: number,
-    org: number,
-    pos: number,
 
     iconURL?: ReadinessIcon,
     botType?: BotType,

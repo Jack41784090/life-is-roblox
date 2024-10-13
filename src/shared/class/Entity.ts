@@ -1,5 +1,5 @@
 import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
-import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon } from "shared/types/battle-types";
+import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { extractMapValues } from "shared/utils";
 import Ability from "./Ability";
 import Battle from "./Battle";
@@ -239,6 +239,7 @@ export default class Entity implements iEntity {
     expression?: Expression;
     template: Readonly<Model>;
     model?: Model;
+    hpPool?: SurfaceGui;
     animator?: Animator;
 
     constructor(options: EntityInitRequirements) {
@@ -294,17 +295,37 @@ export default class Entity implements iEntity {
         return this.model;
     }
 
-    initialiseCharacteristics(): Model | undefined {
+    initialiseModel(): Model | undefined {
         const entity = this.cloneAndPositionTemplate();
-        //#region defence
-        if (!this.cell) {
-            warn("Coordinates not set");
+        if (!entity) return;
+        entity.Parent = this.cell?.part;
+        return this.model;
+    }
+
+    initialiseAnimations() {
+        this.animationHandler = new AnimationHandler(this);
+    }
+
+    initialiseHPPool() {
+        this.hpPool = this.model?.FindFirstChild("HPPool") as SurfaceGui;
+        if (!this.hpPool) {
+            warn("HP Pool not found");
             return;
         }
-        if (!entity) return;
-        //#endregion
-        entity.Parent = this.cell.part;
-        this.animationHandler = new AnimationHandler(this);
+        this.hpPool.Adornee = this.cell?.part;
+
+        const poolFrame = this.hpPool.WaitForChild("Pool") as Frame;
+        if (!poolFrame) {
+            warn("HP Pool frame not found");
+            return;
+        }
+        poolFrame.Size = UDim2.fromScale(0, 0);
+    }
+
+    initialiseCharacteristics(): Model | undefined {
+        this.initialiseModel();
+        this.initialiseAnimations();
+        this.initialiseHPPool();
         return this.model;
     }
 
@@ -390,10 +411,10 @@ export default class Entity implements iEntity {
         // Create target CFrame with correct position and facing direction
         const targetCFrame = new CFrame(adjustedTargetPosition).mul(lookAtCFrame.sub(primaryPart.Position));
 
-        print("Target CFrame", targetCFrame);
-        print("Current CFrame", primaryPart.CFrame);
-        print("LookAt CFrame", lookAtCFrame);
-        print("Direction", direction);
+        // print("Target CFrame", targetCFrame);
+        // print("Current CFrame", primaryPart.CFrame);
+        // print("LookAt CFrame", lookAtCFrame);
+        // print("Direction", direction);
 
         if (direction.X !== direction.X || direction.Y !== direction.Y || direction.Z !== direction.Z) {
             warn("Direction is NaN; bypassed already at position?", direction);
@@ -429,6 +450,7 @@ export default class Entity implements iEntity {
             const targetPosition = cell.worldPosition();
             if (primaryPart.Position === targetPosition) continue;
             await this.moveToPosition(targetPosition);
+            if (this.hpPool) this.hpPool.Adornee = cell.part;
         }
         moveTrack?.Stop();
         const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
@@ -516,14 +538,36 @@ export default class Entity implements iEntity {
     }
     //#endregion
 
+    //#region hp pool
+    changeHPPoolSize(size: UDim2) {
+        const hpPoolFrame = this.hpPool?.WaitForChild("Pool") as Frame;
+        if (hpPoolFrame) {
+            this.tweenHandler.addTween(TweenService.Create(
+                hpPoolFrame,
+                new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+                { Size: size }
+            ));
+        }
+    }
+
+    //#endregion
+
     //#region number manipulation
+    changeHP(num: number) {
+        print(`${this.name}: Changing HP by ${num}`);
+
+        this.hip += num;
+        const maxHP = this.battle.calculateRealityValue(Reality.HP, this);
+        const hpPercentage = 0.9 - math.clamp((this.hip / maxHP) * .9, 0, .9); print(hpPercentage)
+        this.changeHPPoolSize(UDim2.fromScale(hpPercentage, hpPercentage));
+    }
     heal(num: number) {
         if (num < 0) return;
-        this.hip += num;
+        this.changeHP(num);
     }
     damage(num: number) {
-        if (num > 0) return;
-        this.hip -= num;
+        if (num < 0) return;
+        this.changeHP(-num);
     }
     //#endregion
 }
