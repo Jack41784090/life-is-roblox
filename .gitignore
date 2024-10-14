@@ -1,6 +1,9 @@
 /node_modules
 /out
 /include
+/.models
+/.progress
+/.story
 *.tsbuildinfo
 
 # Project place file
