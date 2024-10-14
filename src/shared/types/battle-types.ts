@@ -1,5 +1,5 @@
 import Roact from "@rbxts/roact";
-import Battle from "shared/class/battle/BattleSystem";
+import { Battle } from "shared/class/battle/Battle";
 import Ability from "shared/class/battle/system/Ability";
 import Entity from "shared/class/battle/system/Entity";
 
@@ -25,7 +25,7 @@ export enum Reality {
 export type EntityInitRequirements =
     Partial<iEntity> &
     {
-        stats: Omit<EntityStats, 'id'>, playerID: number, battle: Battle,
+        stats: Omit<EntityStats, 'id'>, playerID: number, battle: Battle.System,
         hip: number,
         pos: number,
         org: number,

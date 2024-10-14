@@ -1,5 +1,5 @@
 import { Players } from "@rbxts/services";
-import Battle from "shared/class/battle/BattleSystem";
+import { Battle } from "shared/class/battle/Battle";
 import HexGrid from "shared/class/battle/system/hex/HexGrid";
 import { disableCharacter, enableCharacter } from "shared/utils";
 import { remoteEventsMap } from "shared/utils/events";
@@ -29,7 +29,7 @@ const hexGrid = new HexGrid({
 hexGrid.materialise();
 
 remoteEventsMap["StartBattle"].OnServerEvent.Connect(() => {
-    const battle = Battle.Create({
+    const battle = Battle.System.Create({
         width: 5,
         height: 5,
         camera: game.Workspace.CurrentCamera!,

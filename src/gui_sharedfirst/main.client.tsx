@@ -1,5 +1,6 @@
 import Roact from "@rbxts/roact";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
+import { Battle } from "shared/class/battle/Battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
@@ -85,18 +86,18 @@ function enterPlayground() {
     loadCharacterEvent.FireServer();
 }
 function enterBattle() {
-    // const battle = Battle.Create({
-    //     width: 5,
-    //     height: 5,
-    //     camera: game.Workspace.CurrentCamera!,
-    //     worldCenter: new Vector3(150, 0, 150),
-    //     teamMap: {
-    //         '1': [Players.LocalPlayer],
-    //         '2': [Players.LocalPlayer],
-    //         '3': [Players.LocalPlayer],
-    //     }
-    // });
-    remoteEventsMap["StartBattle"].FireServer();
+    const battle = Battle.System.Create({
+        width: 5,
+        height: 5,
+        camera: game.Workspace.CurrentCamera!,
+        worldCenter: new Vector3(150, 0, 150),
+        teamMap: {
+            '1': [Players.LocalPlayer],
+            '2': [Players.LocalPlayer],
+            '3': [Players.LocalPlayer],
+        }
+    });
+    // remoteEventsMap["StartBattle"].FireServer();
 }
 function enterStory() {
     const scene = new Scene('scene');

@@ -1,6 +1,6 @@
 
 import Roact, { Element } from "@rbxts/roact";
-import Instance from "shared/class/battle/BattleGui";
+import { Battle } from "shared/class/battle/Battle";
 import Entity from "shared/class/battle/system/Entity";
 import { AbilitySet } from "shared/types/battle-types";
 import Ability1SlotElement from "./ability-1slot";
@@ -8,7 +8,7 @@ import Ability1SlotElement from "./ability-1slot";
 interface AbilitySlotsElementProps {
     cre: Entity;
     abilitySet: AbilitySet;
-    gui: Instance;
+    gui: Battle.Gui;
 }
 interface AbilitySlotsElementState { }
 export default class AbilitySlotsElement extends Roact.Component<AbilitySlotsElementProps, AbilitySlotsElementState> {

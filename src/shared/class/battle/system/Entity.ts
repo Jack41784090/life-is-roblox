@@ -1,7 +1,7 @@
 import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { extractMapValues } from "shared/utils";
-import Battle from "../BattleSystem";
+import { Battle } from "../Battle";
 import Ability from "./Ability";
 import HexCell from "./hex/HexCell";
 
@@ -352,7 +352,7 @@ class Expression {
     }
 }
 export default class Entity implements iEntity {
-    private battle: Battle;
+    private battle: Battle.System;
 
     animationHandler?: AnimationHandler;
     audioHandler: AudioHandler;
