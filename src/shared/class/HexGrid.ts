@@ -6,7 +6,7 @@ import { QR } from "./XY";
 
 export default class HexGrid {
     cellsQR: QR<HexCell>;
-    cells: HexCell[] = [];
+    cells: Array<HexCell> = [];
     center: Vector2;
     size: number;
     name: string;

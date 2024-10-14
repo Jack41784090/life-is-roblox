@@ -1,11 +1,12 @@
 
 import Roact from "@rbxts/roact";
-import BattleGUI from "shared/class/BattleGui";
+import Entity from "shared/class/Entity";
 import { iAbility } from "shared/types/battle-types";
 import { onInput } from "shared/utils";
+import { bindableEventsMap } from "shared/utils/events";
 
 interface Ability1SlotElementProps {
-    gui: BattleGUI;
+    cre: Entity;
     key: keyof typeof Enum.KeyCode;
     ability: iAbility;
     focus: boolean;
@@ -20,19 +21,27 @@ export default class Ability1SlotElement extends Roact.Component<Ability1SlotEle
         super(props);
         this.setState({ focus: this.props.focus });
         this.onKeyClickScript = onInput(Enum.UserInputType.Keyboard, (input: InputObject) => {
-            const gui = this.props.gui;
             if (input.KeyCode.Name === this.props.key) {
                 this.setState({ focus: true });
-                const cre = gui.getBattle().getCurrentRoundEntity();
-                if (cre?.cell) {
-                    gui.mountOrUpdateGlowRange(cre.cell, this.props.ability.range);
-                    cre.armed = this.props.key;
-                }
+                const cre = this.props.cre;
+                if (!cre.cell) return;
+                this.glowUpRange(this.props.ability.range);
+                cre.armed = this.props.key;
             }
             else if (this.state.focus) {
                 this.setState({ focus: false });
             }
         });
+    }
+
+    glowUpRange(range: NumberRange) {
+        const cre = this.props.cre;
+        if (!cre.cell) return;
+        const cells = cre.cell.findCellsWithinRange(range);
+        const event = bindableEventsMap["GlowUpCells"] as BindableEvent;
+        if (event) {
+            event.Fire(cells.map(c => c.qr()));
+        }
     }
 
     protected willUnmount(): void {

@@ -17,7 +17,6 @@ export class ReadinessBarElement extends Roact.Component<ReadinessBarElementProp
         return this.props.icons.mapFiltered((icon, index) => {
             // Calculate the position based on readiness
             const iconRef = this.props.ref.get(icon.iconID);
-
             if (iconRef) {
                 return (
                     <ReadinessIconElement

@@ -284,7 +284,7 @@ export default class Entity implements iEntity {
     //#region feature initialisation
     cloneAndPositionTemplate(): Model | undefined {
         const entity = this.template?.Clone();
-        //#region defence
+        //#region
         if (!entity) {
             warn(`Entity template not found for entity_${this.stats.id}`);
             return;
@@ -331,7 +331,7 @@ export default class Entity implements iEntity {
 
     private positionModel(model: Model) {
         const primaryPart = model.PrimaryPart;
-        //#region defence
+        //#region
         if (!primaryPart) {
             throw `PrimaryPart is not set for the model entity_${this.stats.id}`;
         }
@@ -387,7 +387,7 @@ export default class Entity implements iEntity {
     async moveToPosition(targetPosition: Vector3) {
         const modelPrimaryPart = this.model?.PrimaryPart;
 
-        //#region defence
+        //#region
         if (!modelPrimaryPart) {
             warn("Model not materialised", modelPrimaryPart);
             return;
@@ -435,7 +435,7 @@ export default class Entity implements iEntity {
     async moveToCell(cell: HexCell, path?: Vector2[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const primaryPart = humanoid?.RootPart;
-        //#region defence
+        //#region
         if (!primaryPart || !humanoid) {
             warn("Model not materialised", primaryPart, humanoid);
             return;

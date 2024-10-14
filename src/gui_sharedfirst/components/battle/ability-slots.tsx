@@ -1,12 +1,14 @@
 
 import Roact, { Element } from "@rbxts/roact";
-import BattleGUI from "shared/class/BattleGui";
+import Instance from "shared/class/BattleGui";
+import Entity from "shared/class/Entity";
 import { AbilitySet } from "shared/types/battle-types";
 import Ability1SlotElement from "./ability-1slot";
 
 interface AbilitySlotsElementProps {
+    cre: Entity;
     abilitySet: AbilitySet;
-    gui: BattleGUI;
+    gui: Instance;
 }
 interface AbilitySlotsElementState { }
 export default class AbilitySlotsElement extends Roact.Component<AbilitySlotsElementProps, AbilitySlotsElementState> {
@@ -17,10 +19,10 @@ export default class AbilitySlotsElement extends Roact.Component<AbilitySlotsEle
     render() {
         const abilitySet = this.props.abilitySet;
         const abilityButtons: (Element | undefined)[] = [
-            abilitySet['Q'] ? <Ability1SlotElement gui={this.props.gui} key={'Q'} ability={abilitySet['Q']} focus={false} /> : undefined,
-            abilitySet['W'] ? <Ability1SlotElement gui={this.props.gui} key={'W'} ability={abilitySet['W']} focus={false} /> : undefined,
-            abilitySet['E'] ? <Ability1SlotElement gui={this.props.gui} key={'E'} ability={abilitySet['E']} focus={false} /> : undefined,
-            abilitySet['R'] ? <Ability1SlotElement gui={this.props.gui} key={'R'} ability={abilitySet['R']} focus={false} /> : undefined
+            abilitySet['Q'] ? <Ability1SlotElement cre={this.props.cre} key={'Q'} ability={abilitySet['Q']} focus={false} /> : undefined,
+            abilitySet['W'] ? <Ability1SlotElement cre={this.props.cre} key={'W'} ability={abilitySet['W']} focus={false} /> : undefined,
+            abilitySet['E'] ? <Ability1SlotElement cre={this.props.cre} key={'E'} ability={abilitySet['E']} focus={false} /> : undefined,
+            abilitySet['R'] ? <Ability1SlotElement cre={this.props.cre} key={'R'} ability={abilitySet['R']} focus={false} /> : undefined
         ];
 
 

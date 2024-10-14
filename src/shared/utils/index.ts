@@ -1,9 +1,8 @@
 import { DataStoreService, Players, ReplicatedStorage, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import Grid from "shared/class/Grid";
 import { EntityStats, iAbility } from "shared/types/battle-types";
+import { remoteFunctionsMap } from "./events";
 
-const remoteEvents = ReplicatedStorage.WaitForChild("RemoteEvents").GetChildren() as RemoteEvent[];
-const remoteFunctions = ReplicatedStorage.WaitForChild("RemoteFunctions").GetChildren() as RemoteFunction[];
 
 export function getPlayer(id?: number): Player | undefined {
     return id ? Players.GetPlayerByUserId(id!) : Players.LocalPlayer;
@@ -226,9 +225,8 @@ export function extractMapValues<T extends defined>(map: Map<any, T>) {
     }
     return va;
 }
-
 export function requestData(requester: Player, datastoreName: string, key: string) {
-    const requestDataRemoteEvent = remoteFunctions.find((re) => re.Name === "RequestData");
+    const requestDataRemoteEvent = remoteFunctionsMap["RequestData"];
     if (requestDataRemoteEvent) {
         return requestDataRemoteEvent.InvokeServer(datastoreName, key);
     }

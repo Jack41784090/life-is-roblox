@@ -1,8 +1,9 @@
 import Roact from "@rbxts/roact";
-import { ContentProvider, Players, ReplicatedFirst, ReplicatedStorage, Workspace } from "@rbxts/services";
+import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
 import Battle from "shared/class/Battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
+import { remoteEventsMap } from "shared/utils/events";
 import ButtonElement, { ButtonElementProps } from "./components/button";
 import ButtonFrameElement from "./components/button-frame";
 import MenuFrameElement from "./components/menu";
@@ -61,7 +62,7 @@ Roact.unmount(loadingScreen!);
 //#endregion
 
 //#region 2. MAIN MENU
-const loadCharacterEvent = ReplicatedStorage.WaitForChild("LoadCharacterEvent") as RemoteEvent;
+
 
 // Setup the camera
 function mainMenuCameraSetup() {
@@ -81,6 +82,7 @@ function enterPlayground() {
     if (Workspace.CurrentCamera) {
         Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom;
     }
+    const loadCharacterEvent = remoteEventsMap["LoadCharacterEvent"] as RemoteEvent;
     loadCharacterEvent.FireServer();
 }
 function enterBattle() {
@@ -171,6 +173,11 @@ print("Initializing main menu");
 mainMenuCameraSetup();
 mainMenuSetup();
 //#endregion
+
+remoteEventsMap["GuiStart"].OnClientEvent.Connect((...args) => {
+    print("GuiStart event received");
+    print(args);
+});
 
 // const d = new Dialogue('');
 // wait(0.5)

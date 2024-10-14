@@ -33,8 +33,8 @@ export default class Ability implements iAbility {
     range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
-    using: Entity;
-    target: Entity;
+    readonly using: Entity;
+    readonly target: Entity;
 
     constructor(opt: AbilityInitOptions) {
         this.acc = opt.acc;

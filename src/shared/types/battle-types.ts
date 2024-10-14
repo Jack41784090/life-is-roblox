@@ -198,7 +198,11 @@ export enum EntityStatus {
 export enum BattleStatus {
     Inactive = 'inactive',
     Begin = 'begin',
-    PlayerMovement = 'playerMovement',
+    RunReadiness = 'runReadiness',
+    CameraTravel = 'cameraTravel',
+    SelectAction = 'selectAction',
+    MovementMode = 'playerMovement',
+    PlayingAnimation = 'playingAnimation',
 }
 
 export interface BattleAction {

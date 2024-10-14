@@ -1,5 +1,5 @@
 import Roact, { Portal } from "@rbxts/roact";
-import { Players, TweenService, UserInputService } from "@rbxts/services";
+import { Players, TweenService } from "@rbxts/services";
 import AbilitySetElement from "gui_sharedfirst/components/battle/ability-set-gui";
 import AbilitySlotsElement from "gui_sharedfirst/components/battle/ability-slots";
 import ButtonElement from "gui_sharedfirst/components/button";
@@ -8,187 +8,47 @@ import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface
 import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
 import MenuFrameElement from "gui_sharedfirst/components/menu";
 import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE } from "shared/const";
-import { CharacterMenuAction } from "shared/types/battle-types";
-import { get2DEuclidDistance, getPlayer } from "shared/utils";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
+import { CharacterMenuAction, ReadinessIcon } from "shared/types/battle-types";
+import { getPlayer } from "shared/utils";
+import { bindableEventsMap, remoteEventsMap } from "shared/utils/events";
 import Ability from "./Ability";
-import Battle from "./Battle";
 import Entity from "./Entity";
 import HexCell from "./HexCell";
+import HexGrid from "./HexGrid";
+import Pathfinding from "./Pathfinding";
 
 type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 
 export default class BattleGUI {
+    private mainGui: Roact.Tree;
     actionsGui: Roact.Tree | undefined;
     dropDownMenuGui: Roact.Tree | undefined;
     glowPathGui: Roact.Tree | undefined;
     abilitySlotGui: Roact.Tree | undefined;
-    finishRoundTicket: ((value: unknown) => void) | undefined;
-    private mainGui: Roact.Tree;
-
-    private mouseClickDDEvent: RBXScriptConnection | undefined;
-    private escapeScript: RBXScriptConnection | undefined;
-
-    private readinessIconMap: Map<number, Roact.Ref<Frame>>;
-
-    private static battleInstance: Battle;
-    private static instance: BattleGUI;
-
-    //#region Getters for the singleton instance and the battle instance
-    static GetBattle() {
-        return BattleGUI.battleInstance;
-    }
-    getBattle() {
-        return BattleGUI.battleInstance
-    }
-
-    static GetInstance() {
-        return BattleGUI.instance;
-    }
-    getInstance() {
-        return BattleGUI.instance;
-    }
-    //#endregion
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
-    static Connect(battle: Battle) {
-        if (!BattleGUI.instance) {
-            BattleGUI.instance = new BattleGUI(battle);
-        }
-        return BattleGUI.instance;
+    static Connect(icons: ReadinessIcon[], grid: HexGrid) {
+        const ui = new BattleGUI(icons, grid);
+        // remoteEventsMap["GuiStart"].FireAllClients(icons); // temp, should use icons playerID
+        return ui
     }
 
     // Private constructor to prevent direct instantiation
-    private constructor(battle: Battle) {
-        BattleGUI.battleInstance = battle;
-        this.readinessIconMap = this.getReadinessIconFrameRefMap();
-        this.mainGui = this.mountInitialUI();
-    }
+    private constructor(icons: ReadinessIcon[], grid: HexGrid) {
+        this.mainGui = this.mountInitialUI(icons);
+        const glowUpCellsEvent = bindableEventsMap["GlowUpCells"] as BindableEvent;
+        if (glowUpCellsEvent) {
+            glowUpCellsEvent.Event.Connect((vecs: Vector2[]) => {
+                const cells = vecs.mapFiltered((qr) => grid.getCell(qr));
+                this.mountOrUpdateGlow(cells);
+            });
+        }
 
-    /**
-     * Get the readiness icons and create a map of iconID to Ref<Frame>
-     * @returns map of iconID -> Ref<Frame>
-     */
-    private getReadinessIconFrameRefMap(): Map<number, Roact.Ref<Frame>> {
-        const battle = this.getBattle();
-        const readinessIcons = battle.getReadinessIcons();
-        return new Map(readinessIcons.map((icon) => {
+        this.readinessIconMap = new Map(icons.map((icon) => {
             const ref = Roact.createRef<Frame>();
             return [icon.iconID, ref];
         }));
-    }
-
-    /**
-     * Return to the selection screen after movement or canceling an action
-     *  1. exitMovementUI() is called to reset the UI
-     *  2. The camera is centered on the current entity
-     *  3. going back to the action selection screen
-     */
-    private returnToSelections() {
-        const b = this.getBattle();
-        this.exitMovement();
-        b.bcamera.enterCharacterCenterMode().then(() => {
-            const currentRoundEntity = b.getCurrentRoundEntity();
-            if (!currentRoundEntity) {
-                warn("ReturnToSelections: No entity found");
-                return;
-            }
-            this.mountActionMenu(b.getCharacterMenuActions(currentRoundEntity));
-        })
-    }
-
-    /**
-     * Set up a script that listens for the escape key (X) to cancel the current action
-     * @returns the script connection
-     */
-    setUpCancelCurrentActionScript(): RBXScriptConnection {
-        this.escapeScript?.Disconnect();
-        return UserInputService.InputBegan.Connect((i, gpe) => {
-            if (i.KeyCode === Enum.KeyCode.X && !gpe) {
-                this.returnToSelections();
-            }
-        })
-    }
-
-    //#region legacy: dropdownmenu
-    // /**
-    //  * Set up a script that listens for mouse clicks on models to show the dropdown menu
-    //  * @returns the script connection
-    //  */
-    // private setupClickOnDropdownHandler(): RBXScriptConnection {
-    //     const mouse = Players.LocalPlayer.GetMouse();
-    //     this.mouseClickDDEvent?.Disconnect();
-    //     return mouse.Button1Down.Connect(() => {
-    //         const target = mouse.Target;
-    //         const ancestor = target?.FindFirstAncestorOfClass('Model');
-    //         if (!ancestor) return;
-
-    //         const clickedEntity = this.getBattle().getEntityFromModel(ancestor);
-    //         if (clickedEntity?.cell === undefined) return;
-
-    //         const crEntity = this.getBattle().getCurrentRoundEntity();
-    //         if (!crEntity) return;
-
-    //         crEntity.faceEntity(clickedEntity).then(() => {
-    //             this.mountDropdownmenuAt(clickedEntity.cell!);
-    //         });
-    //     });
-    // }
-    //#endregion
-
-    /**
-     * Enter movement mode
-     * Movement mode: when cells glow along with the cursor to create a pathfinding effect
-     * 
-     *  * set up scripts
-     *  ** escape script to cancel the current action
-     *  ** mouse click event to show the dropdown menu
-     * 
-     *  * rendering
-     *  ** re-render the UI with sensitive cells
-     * 
-     */
-    enterMovement() {
-        print("Entering movement mode");
-        this.escapeScript = this.setUpCancelCurrentActionScript();
-        // this.mouseClickDDEvent = this.setupClickOnDropdownHandler();
-        this.updateMainUI('withSensitiveCells');
-
-        const cre = this.getBattle().getCurrentRoundEntity();
-        if (cre) this.mountAbilitySlots(cre);
-    }
-
-    /**
-     * Exit movement mode
-     * Movement mode: when cells glow along with the cursor to create a pathfinding effect
-     * 
-     *   * rendering
-     *   ** remove any existing glow path
-     *   ** remove any existing dropdown menu
-     *   ** re-render the UI with only the readiness bar
-     * 
-     *   * disconnect scripts
-     *   ** escape (X) script
-     *   ** click-on-model dropdown menu script
-     * 
-     */
-    exitMovement() {
-        print("Exiting movement mode");
-
-        // 1. Remove the glow path
-        if (this.glowPathGui) {
-            this.unmountAndClear('glowPathGui');
-        };
-        if (this.abilitySlotGui) {
-            this.unmountAndClear('abilitySlotGui');
-        }
-
-        // 2. Disconnect the escape script and mouse click event
-        this.escapeScript?.Disconnect();
-        this.mouseClickDDEvent?.Disconnect();
-
-        // 4. Update the UI without the sensitive cells
-        this.mainGui = this.updateMainUI('onlyReadinessBar')
     }
 
     /**
@@ -199,39 +59,36 @@ export default class BattleGUI {
      * @param mode 
      * @returns the updated Roact tree
      */
-    updateMainUI(mode: MainUIModes) {
+    updateMainUI(mode: 'withSensitiveCells', props: { readinessIcons: ReadinessIcon[], cre: Entity, grid: HexGrid }): Roact.Tree;
+    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): Roact.Tree;
+    updateMainUI(mode: MainUIModes, props: {
+        readinessIcons?: ReadinessIcon[]
+        cre?: Entity
+        grid?: HexGrid
+    } = {}) {
         print(`Updating main UI with mode: ${mode}`);
         switch (mode) {
             case 'onlyReadinessBar':
+                if (!props.readinessIcons) {
+                    warn(`No readiness icons provided for mode: ${mode}`);
+                    return;
+                }
                 return Roact.update(this.mainGui,
                     <MenuFrameElement transparency={1} Key={`BattleUI`}>
-                        <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+                        <ReadinessBarElement icons={props.readinessIcons} ref={this.readinessIconMap} />
                     </MenuFrameElement>);
             case 'withSensitiveCells':
+                if (!props.cre || !props.grid || !props.readinessIcons) {
+                    warn(`No entity, grid or readiness icons provided for mode: ${mode}`);
+                    return;
+                }
                 return Roact.update(this.mainGui,
                     <MenuFrameElement transparency={1} Key={`BattleUI`}>
-                        <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
-                        {this.createSensitiveCellElements()}
+                        <ReadinessBarElement icons={props.readinessIcons} ref={this.readinessIconMap} />
+                        {this.createSensitiveCellElements(props.cre, props.grid)}
                     </MenuFrameElement>);
         }
     }
-
-    initiateRound(finishTicket: (value: unknown) => void) {
-        const battle = this.getBattle();
-        const cre = battle.getCurrentRoundEntity();
-        if (!cre) {
-            warn("No current round entity found");
-            return;
-        }
-
-        this.finishRoundTicket = finishTicket;
-        this.mountActionMenu(battle.getCharacterMenuActions(cre));
-    }
-
-    //#region Ability Slots Methods
-
-
-    //#endregion
 
     //#region UI Mounting Methods
     /**
@@ -263,35 +120,27 @@ export default class BattleGUI {
             </MenuFrameElement>);
         return this.actionsGui;
     }
-
     /**
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBarElement
      * @returns the mounted Tree
      */
-    private mountInitialUI(): Roact.Tree {
+    mountInitialUI(icons: ReadinessIcon[]): Roact.Tree {
         return Roact.mount(
             <MenuFrameElement Key={`BattleUI`} transparency={1}>
-                <ReadinessBarElement icons={this.getBattle().getReadinessIcons()} ref={this.readinessIconMap} />
+                <ReadinessBarElement icons={icons} ref={this.readinessIconMap} />
             </MenuFrameElement>
         );
     }
-
     // Highlight the cells along a path
-    mountOrUpdateGlowPath(path: Vector2[]) {
-        const elements = path.mapFiltered((xy) => {
-            const cell = this.getBattle().grid.getCell(xy.X, xy.Y);
-            if (!cell) return;
-
-            cell.glow = true;
-            return <CellGlowSurfaceElement cell={cell} />;
-        });
-
+    mountOrUpdateGlow(cell: HexCell, range: NumberRange): HexCell[] | undefined
+    mountOrUpdateGlow(path: HexCell[]): HexCell[] | undefined
+    mountOrUpdateGlow(_cells: HexCell[] | HexCell, range?: NumberRange) {
+        const cellsToGlow = _cells instanceof HexCell ? _cells.findCellsWithinRange(range!) : _cells;
+        const elements = cellsToGlow.mapFiltered((cell) => <CellGlowSurfaceElement cell={cell} />);
         const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
-        if (!playerGUI) {
-            warn("No player GUI found");
-            return;
-        }
-        if (this.glowPathGui) {
+        if (!playerGUI) return;
+
+        if (playerGUI && this.glowPathGui) {
             Roact.update(this.glowPathGui,
                 <Portal target={playerGUI}>
                     <frame>{elements}</frame>
@@ -304,51 +153,38 @@ export default class BattleGUI {
                 </Portal>);
         }
 
-        return path;
+        return cellsToGlow;
     }
 
-    mountOrUpdateGlowRange(_cell: HexCell, range: NumberRange) {
-        //#region defence
-        const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
-        if (!playerGUI) {
-            warn("No player GUI found");
-            return;
-        }
-        //#endregion
-
-        const elements = _cell.findCellsWithinRange(range.Min, range.Max).mapFiltered((c) => {
-            return <CellGlowSurfaceElement cell={c} />;
-        });
-
-        if (this.glowPathGui) {
-            Roact.update(this.glowPathGui,
-                <Portal target={playerGUI}>
-                    <frame>{elements}</frame>
-                </Portal>
-            );
-        } else {
-            this.glowPathGui = Roact.mount(
-                <Portal target={playerGUI}>
-                    <frame>{elements}</frame>
-                </Portal>);
-        }
-    }
-
-    mountAbilitySlots(entity: Entity) {
-        const mountingAbilitySet = entity.getAllAbilitySets().find(a => a !== undefined);
+    mountAbilitySlots(cre: Entity) {
+        const mountingAbilitySet = cre.getAllAbilitySets().find(a => a !== undefined);
+        //#region 
         if (!mountingAbilitySet) {
             warn("No ability set found for entity");
             return;
         }
-
+        //#endregion
         this.unmountAndClear('abilitySlotGui');
         this.abilitySlotGui = Roact.mount(
             <AbilitySetElement>
-                <AbilitySlotsElement gui={this} abilitySet={mountingAbilitySet} />
+                <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>
         );
     }
 
+    unmountAndClear(propertyName: keyof this): void {
+        const property = this[propertyName];
+        if (property !== undefined && typeOf(property) === 'table') {
+            print(`Unmounting and clearing: ${propertyName as string}`);
+            const [s, f] = pcall(() => {
+                Roact.unmount(property as Roact.Tree);
+                this[propertyName] = undefined as unknown as this[typeof propertyName];
+            });
+            if (!s) {
+                warn(`Failed to unmount: ${f}`);
+            }
+        }
+    }
     //#endregion
 
     //#region HexCell Methods
@@ -356,122 +192,152 @@ export default class BattleGUI {
      * Get cell elements that are sensitive to mouse hover
      * @returns 
      */
-    private createSensitiveCellElements(): Roact.Element | undefined {
+    private createSensitiveCellElements(cre: Entity, grid: HexGrid): Roact.Element | undefined {
         return <frame>
-            {this.getBattle().grid.cells.map((c) => (
+            {grid.cells.map((c) => (
                 <CellSurfaceElement
                     cell={c}
-                    onEnter={() => this.handleCellEnter(c)}
-                    onclick={() => this.handleCellClick(c)}
+                    onEnter={() => this.handleCellEnter(cre, c)}
+                    onclick={() => this.handleCellClick(cre, c)}
                 />
             ))}
         </frame>;
     }
-
-    // Handle cell hover (enter) event
-    private handleCellEnter(cell: HexCell) {
-        const battle = this.getBattle();
-        const cre = battle.getCurrentRoundEntity();
-        const currentCell = cre?.cell;
+    /**
+     * Handles the event when an entity enters a new cell.
+     *
+     * @param cre - The entity that is entering the cell.
+     * @param enteringCell - The cell that the entity is entering.
+     *
+     * This function performs the following actions:
+     * 1. Changes the mouse icon based on whether the cell is vacant and within range.
+     * 2. If the entity is armed and the cell is not vacant, it faces the entity in the cell and updates the mouse icon based on the ability range.
+     * 3. If the cell is within range, it mounts or updates the glow effect.
+     * 4. If the cell is out of range, it mounts or updates the glow effect with a different icon.
+     * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
+     */
+    private handleCellEnter(cre: Entity, enteringCell: HexCell) {
+        const currentCell = cre.cell;
         if (!currentCell) return;
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
-        if (cre.armed && cell.entity) {
+        if (cre.armed && !enteringCell.isVacant()) {
+            cre.faceEntity(enteringCell.entity!);
             const ability = cre.getEquippedAbilitySet()[cre.armed];
-            if (ability &&
-                get2DEuclidDistance(cell.qrs, currentCell.qrs) <= ability.range.Max &&
-                get2DEuclidDistance(cell.qrs, currentCell.qrs) >= ability.range.Min) {
+            if (!ability) {
+                mouse.Icon = '';
+                return;
+            }
+            else if (enteringCell.isWithinRangeOf(currentCell, ability.range)) {
                 mouse.Icon = DECAL_WITHINRANGE;
+                return this.mountOrUpdateGlow(currentCell, ability.range);
             }
             else {
                 mouse.Icon = DECAL_OUTOFRANGE;
-            }
-            cre.faceEntity(cell.entity);
-            if (cre.cell && ability) {
-                return this.mountOrUpdateGlowRange(cre.cell, ability?.range ?? { Min: 0, Max: 0 });
+                return this.mountOrUpdateGlow(currentCell, ability.range);
             }
         }
         else {
             mouse.Icon = ''
-            // print(`${currentCell.qr().X},${currentCell.qr().Y} -> ${cell.qr().X},${cell.qr().Y}`);
-
-            const pf = battle.createPathfinderForCurrentEntity(cell.qr());
+            const pf = new Pathfinding({
+                grid: enteringCell.grid,
+                start: currentCell.qr(),
+                dest: enteringCell.qr(),
+                limit: math.floor(cre.pos / MOVEMENT_COST),
+                hexagonal: true,
+            })
             if (!pf) return;
             const path = pf.begin();
-            return this.mountOrUpdateGlowPath(path);
+            return this.mountOrUpdateGlow(path.mapFiltered((qr) => enteringCell.grid.getCell(qr)));
         }
 
-
-        // // 2. Move readiness icon to forecast post-move position
+        // 2. Move readiness icon to forecast post-move position
         // const readinessPercent = (cre.pos - (path.size() - 1) * MOVEMENT_COST) / MAX_READINESS;
         // this.updateSpecificReadinessIcon(cre.playerID, readinessPercent);
 
     }
-
-    // Handle cell click event
-    private handleCellClick(cell: HexCell) {
-        if (cell.isVacant()) {
-            this.clickedOnEmptyCell(cell);
+    /**
+     * Handles the click event on a cell within the battle GUI.
+     *
+     * @param cre - The entity that initiated the click event.
+     * @param clickedCell - The cell that was clicked.
+     */
+    private handleCellClick(cre: Entity, clickedCell: HexCell) {
+        if (clickedCell.isVacant()) {
+            this.clickedOnEmptyCell(cre, clickedCell);
         }
         else {
-            // print(`Clicked on cell with entity: ${cell.entity?.name}`);
-            const entityClicked = cell.entity;
-            if (!entityClicked) return;
-            this.clickedOnEntity(entityClicked);
+            const entityClicked = clickedCell.entity!;
+            this.clickedOnEntity(cre, entityClicked);
         }
     }
-
-    private clickedOnEntity(entity: Entity) {
-        // print(`Clicked on entity: ${entity.name}`);
-        const cre = this.getBattle().getCurrentRoundEntity();
-        if (cre?.armed) {
+    /**
+     * Handles the event when an entity is clicked.
+     * 
+     * @param cre - The current entity that is performing the click action.
+     * @param entity - The target entity that is being clicked on.
+     * 
+     * This method checks if the current entity (`cre`) is armed and has an ability equipped.
+     * If the ability is found and both entities have valid cells, it checks if the target entity
+     * is within the range of the ability. If all conditions are met, it creates a new `Ability`
+     * instance and fires the `onAttackClickedSignal` with the created ability.
+     * 
+     * Warnings are logged if:
+     * - The current entity has no ability keyed.
+     * - The target entity has no cell.
+     * - The current entity has no cell.
+     */
+    private clickedOnEntity(cre: Entity, entity: Entity) {
+        if (cre.armed) {
             const keyed = cre.armed;
             const iability = cre.getEquippedAbilitySet()[keyed];
-            //#region defence
+            //#region
             if (!iability) {
-                warn(`${keyed} has no ability keyed`)
+                warn(`clickedOnEntity: ${keyed} has no ability keyed`)
                 return;
             }
             if (!entity.cell) {
-                warn("Entity has no cell");
+                warn("clickedOnEntity: Entity has no cell");
                 return;
             }
             if (!cre.cell) {
-                warn("Current entity has no cell");
+                warn("clickedOnEntity: Current entity has no cell");
                 return;
             }
             //#endregion
-
-            if (entity.cell.isWithinRange(cre.cell, iability.range)) {
+            if (entity.cell.isWithinRangeOf(cre.cell, iability.range)) {
                 const ability = new Ability({
                     ...iability,
                     using: cre,
                     target: entity,
                 });
-                this.getBattle().onAttackClickedSignal.Fire(ability);
+                remoteEventsMap["Attack"].FireServer(ability);
             }
         }
     }
 
-    private clickedOnEmptyCell(cell: HexCell) {
-        const battle = this.getBattle();
-        const cre = battle.getCurrentRoundEntity();
-        if (cre) {
-            const pf = battle.createPathfinderForCurrentEntity(cell.qr());
+    private clickedOnEmptyCell(cre: Entity, cell: HexCell) {
+        if (cre.cell) {
+            const pf = new Pathfinding({
+                grid: cell.grid,
+                start: cre.cell.qr(),
+                dest: cell.qr(),
+                limit: math.floor(cre.pos / MOVEMENT_COST),
+                hexagonal: true,
+            })
             const path = pf?.begin();
-            cre?.moveToCell(cell, path).then(() => {
-                this.returnToSelections();
-            });
+            return cre.moveToCell(cell, path)
         }
         else {
-            this.returnToSelections();
+            return Promise.resolve();
         }
     }
-
     //#endregion
 
     //#region Readiness Bar Methods
+    readinessIconMap: Map<number, Roact.Ref<Frame>>;
+
     async updateSpecificReadinessIcon(iconID: number, readiness: number) {
         const iconFrame = this.readinessIconMap.get(iconID)?.getValue();
         if (!iconFrame) {
@@ -491,11 +357,9 @@ export default class BattleGUI {
             );
         })
     }
-
     // Animate the readiness bar update
-    tweenToUpdateReadiness() {
+    tweenToUpdateReadiness(newReadinessIcons: ReadinessIcon[]) {
         print("Tweening to update readiness");
-        const newReadinessIcons = this.getBattle().getReadinessIcons();
         const promises: Promise<void>[] = [];
 
         for (const icon of newReadinessIcons) {
@@ -521,22 +385,7 @@ export default class BattleGUI {
     }
     //#endregion
 
-    //#region UI Unmount Methods
-    unmountAndClear(propertyName: keyof this): void {
-        const property = this[propertyName];
-        if (property !== undefined && typeOf(property) === 'table') {
-            print(`Unmounting and clearing: ${propertyName as string}`);
-            const [s, f] = pcall(() => {
-                Roact.unmount(property as Roact.Tree);
-                this[propertyName] = undefined as unknown as this[typeof propertyName];
-            });
-            if (!s) {
-                warn(`Failed to unmount: ${f}`);
-            }
-        }
-    }
-
-    //#endregion
+    //#region Clearing Methods
 
     clearAllLooseGui() {
         if (this.actionsGui) {
@@ -549,16 +398,8 @@ export default class BattleGUI {
             this.unmountAndClear('glowPathGui');
         }
     }
+
     clearAllLooseScript() {
-        this.escapeScript?.Disconnect();
-        this.mouseClickDDEvent?.Disconnect();
     }
-    guiDoneRoundExit() {
-        print("【Gui done round】");
-        this.clearAllLooseScript();
-        this.clearAllLooseGui();
-        this.mainGui = this.updateMainUI('onlyReadinessBar')
-        this.finishRoundTicket?.(void 0);
-        this.finishRoundTicket = undefined;
-    }
+    //#endregion
 }

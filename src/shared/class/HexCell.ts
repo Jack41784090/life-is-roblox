@@ -81,12 +81,21 @@ export default class HexCell {
         return this.part.Position;
     }
 
-    public findCellsWithinRange(min: number, max: number): HexCell[] {
-        return this.findCellsWithinDistance(max).filter(cell => {
+    public findCellsWithinRange(range: NumberRange): HexCell[]
+    public findCellsWithinRange(min: number, max: number): HexCell[]
+    public findCellsWithinRange(min: number | NumberRange, max?: number): HexCell[] {
+        let range: NumberRange;
+        if (typeOf(min) === 'number') {
+            range = new NumberRange(min as number, max!);
+        } else {
+            range = min as NumberRange;
+        }
+
+        return this.findCellsWithinDistance(range.Max).filter(cell => {
             const hex = new Hex(cell.qrs.X, cell.qrs.Y, cell.qrs.Z);
             const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
             const distance = hex.distance(thisHex);
-            return distance >= min
+            return distance >= range.Min
         });
     }
 
@@ -115,7 +124,7 @@ export default class HexCell {
         return result;
     }
 
-    public isWithinRange(cell: HexCell, range: NumberRange): boolean {
+    public isWithinRangeOf(cell: HexCell, range: NumberRange): boolean {
         const hex = new Hex(cell.qrs.X, cell.qrs.Y, cell.qrs.Z);
         const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
         return hex.distance(thisHex) >= range.Min && hex.distance(thisHex) <= range.Max;

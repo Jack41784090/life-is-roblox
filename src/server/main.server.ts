@@ -1,8 +1,10 @@
-import { Players, ReplicatedStorage } from "@rbxts/services";
+import { Players } from "@rbxts/services";
+import Battle from "shared/class/Battle";
 import HexGrid from "shared/class/HexGrid";
 import { disableCharacter, enableCharacter } from "shared/utils";
+import { remoteEventsMap } from "shared/utils/events";
 
-const loadCharacterEvent = ReplicatedStorage.WaitForChild("LoadCharacterEvent") as RemoteEvent;
+const loadCharacterEvent = remoteEventsMap["LoadCharacterEvent"]
 
 Players.PlayerAdded.Connect((player) => {
     player.CharacterAppearanceLoaded.Connect((character) => {
@@ -26,7 +28,19 @@ const hexGrid = new HexGrid({
 });
 hexGrid.materialise();
 
-print(hexGrid.cells[0].findNeighbors())
+remoteEventsMap["StartBattle"].OnServerEvent.Connect(() => {
+    const battle = Battle.Create({
+        width: 5,
+        height: 5,
+        camera: game.Workspace.CurrentCamera!,
+        worldCenter: new Vector3(150, 0, 150),
+        teamMap: {
+            '1': [Players.LocalPlayer],
+            '2': [Players.LocalPlayer],
+            '3': [Players.LocalPlayer],
+        }
+    });
+})
 
 // find all cells and change height
 wait(3)
