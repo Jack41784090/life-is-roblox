@@ -1,7 +1,7 @@
 import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { extractMapValues } from "shared/utils";
-import Battle from "../Battle";
+import Battle from "../BattleSystem";
 import Ability from "./Ability";
 import HexCell from "./hex/HexCell";
 

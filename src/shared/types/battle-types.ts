@@ -1,5 +1,5 @@
 import Roact from "@rbxts/roact";
-import Battle from "shared/class/battle/Battle";
+import Battle from "shared/class/battle/BattleSystem";
 import Ability from "shared/class/battle/system/Ability";
 import Entity from "shared/class/battle/system/Entity";
 

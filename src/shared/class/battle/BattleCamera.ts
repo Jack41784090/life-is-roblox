@@ -1,5 +1,5 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import Battle from "./Battle";
+import Battle from "./BattleSystem";
 
 export default class BattleCamera {
     battle: Battle;
