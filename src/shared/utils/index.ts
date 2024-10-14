@@ -1,5 +1,4 @@
 import { DataStoreService, Players, ReplicatedStorage, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import Grid from "shared/class/Grid";
 import { EntityStats, iAbility } from "shared/types/battle-types";
 import { remoteFunctionsMap } from "./events";
 
@@ -179,31 +178,6 @@ export function hexGridQRSToWorldXY(qrs: Vector3, cellSize: number) {
     const y = cellSize * (3 / 2 * r);
 
     return new Vector3(x, 0, y);
-}
-
-export function gridXYToWorldXY(position: Vector2, grid: Grid) {
-    const size = grid.size;
-    const r = size / 2;
-    const YIncrement = size;
-    const YShiftUnit = r;
-    const XShiftUnit = 1.5 * r;
-    const shiftingXY = position.X % 2 === 1;
-
-    const y = (position.Y * YIncrement) + (shiftingXY ? YShiftUnit : 0);
-    const x = (position.X * XShiftUnit);
-
-    const localLocation = new Vector3(
-        (y),
-        0.125 * grid.size,
-        (x),
-    );
-    const worldLocation = new Vector3(
-        (y + grid.center.Y - grid.width * grid.size / 2),
-        0.125 * grid.size,
-        (x + grid.center.X - grid.height * grid.size / 2),
-    );
-
-    return worldLocation;
 }
 
 // Function to get the world position from the mouse position

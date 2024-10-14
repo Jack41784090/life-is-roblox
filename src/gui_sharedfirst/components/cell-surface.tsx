@@ -1,5 +1,5 @@
 import Roact from "@rbxts/roact";
-import HexCell from "shared/class/HexCell";
+import HexCell from "shared/class/battle/system/hex/HexCell";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 

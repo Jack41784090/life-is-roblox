@@ -12,11 +12,11 @@ import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const
 import { CharacterMenuAction, ReadinessIcon } from "shared/types/battle-types";
 import { getPlayer } from "shared/utils";
 import { bindableEventsMap, remoteEventsMap } from "shared/utils/events";
-import Ability from "./Ability";
-import Entity from "./Entity";
-import HexCell from "./HexCell";
-import HexGrid from "./HexGrid";
 import Pathfinding from "./Pathfinding";
+import Ability from "./system/Ability";
+import Entity from "./system/Entity";
+import HexCell from "./system/hex/HexCell";
+import HexGrid from "./system/hex/HexGrid";
 
 type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 

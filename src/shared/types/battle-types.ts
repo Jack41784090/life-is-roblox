@@ -1,7 +1,7 @@
 import Roact from "@rbxts/roact";
-import Ability from "shared/class/Ability";
-import Battle from "shared/class/Battle";
-import Entity from "shared/class/Entity";
+import Battle from "shared/class/battle/Battle";
+import Ability from "shared/class/battle/system/Ability";
+import Entity from "shared/class/battle/system/Entity";
 
 export enum BotType {
     Player = 'player',

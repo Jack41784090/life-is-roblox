@@ -1,6 +1,6 @@
 
 import Roact from "@rbxts/roact";
-import Entity from "shared/class/Entity";
+import Entity from "shared/class/battle/system/Entity";
 import { iAbility } from "shared/types/battle-types";
 import { onInput } from "shared/utils";
 import { bindableEventsMap } from "shared/utils/events";

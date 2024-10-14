@@ -1,9 +1,9 @@
 import { HEXAGON } from "shared/const";
 import { CellTerrain } from "shared/types";
 import { getTween } from "shared/utils";
-import Entity from "./Entity";
+import Entity from "../Entity";
 import HexGrid from "./HexGrid";
-import { Hex, Layout } from "./Hexagon_Tutorial";
+import { Hex, Layout } from "./HexInfrastructure";
 
 
 export default class HexCell {

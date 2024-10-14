@@ -16,13 +16,13 @@ import {
 } from "shared/types/battle-types";
 import { requestData } from "shared/utils";
 import { remoteEventsMap } from "shared/utils/events";
-import Ability from "./Ability";
 import BattleCamera from "./BattleCamera";
 import BattleGui from "./BattleGui";
-import Entity from "./Entity";
-import HexCell from "./HexCell";
-import HexGrid from "./HexGrid";
 import Pathfinding from "./Pathfinding";
+import Ability from "./system/Ability";
+import Entity from "./system/Entity";
+import HexCell from "./system/hex/HexCell";
+import HexGrid from "./system/hex/HexGrid";
 
 export class BattleTeam {
     name: string;
