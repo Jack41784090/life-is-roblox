@@ -1,9 +1,9 @@
 import { HEXAGON } from "shared/const/assets";
 import { CellTerrain } from "shared/types";
 import { getTween } from "shared/utils";
-import { Battle } from "../../Battle";
-import HexGrid from "./HexGrid";
-import { Hex, Layout } from "./HexInfrastructure";
+import { Entity } from "../Entity";
+import HexGrid from "./Grid";
+import { Hex, Layout } from "./Layout";
 
 
 export default class HexCell {
@@ -16,7 +16,7 @@ export default class HexCell {
     public qrs: Vector3;
     public terrain: CellTerrain;
     public height: number;
-    public entity?: Battle.Entity;
+    public entity?: Entity;
     public grid: HexGrid;
     public layout: Layout;
 

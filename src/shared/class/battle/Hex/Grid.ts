@@ -1,8 +1,8 @@
 import { HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain } from "shared/types";
-import { QR } from "../../../XY";
-import HexCell from "./HexCell";
-import { Layout } from "./HexInfrastructure";
+import { QR } from "../../XY";
+import HexCell from "./Cell";
+import { Layout } from "./Layout";
 
 export default class HexGrid {
     cellsQR: QR<HexCell>;

@@ -1,5 +1,6 @@
 import Roact from "@rbxts/roact";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
+import * as Battle from "shared/class/Battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
@@ -7,7 +8,6 @@ import ButtonElement, { ButtonElementProps } from "./components/button";
 import ButtonFrameElement from "./components/button-frame";
 import MenuFrameElement from "./components/menu";
 import TitleElement from "./components/title";
-import { Battle } from "shared/class/battle/Battle";
 
 //#region 1. LOADING
 // Wait for the game to load

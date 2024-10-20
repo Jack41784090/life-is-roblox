@@ -1,12 +1,12 @@
 
 import Roact from "@rbxts/roact";
-import { Battle } from "shared/class/battle/Battle";
+import { Entity } from "shared/class/Battle/Entity";
 import { iAbility } from "shared/types/battle-types";
 import { onInput } from "shared/utils";
 import { bindableEventsMap } from "shared/utils/events";
 
 interface Ability1SlotElementProps {
-    cre: Battle.Entity;
+    cre: Entity;
     key: keyof typeof Enum.KeyCode;
     ability: iAbility;
     focus: boolean;

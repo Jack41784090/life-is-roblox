@@ -1,5 +1,5 @@
 import { AbilityInitOptions, DamageType, iAbility, Potency, potencyMap } from "shared/types/battle-types";
-import { Battle } from "../Battle";
+import { Entity } from "../Entity";
 
 export type AbilityState = {
     acc: number;
@@ -49,8 +49,8 @@ export default class Ability implements iAbility {
     range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
-    readonly using: Battle.Entity;
-    readonly target: Battle.Entity;
+    readonly using: Entity;
+    readonly target: Entity;
 
     constructor(opt: AbilityInitOptions) {
         this.acc = opt.acc;

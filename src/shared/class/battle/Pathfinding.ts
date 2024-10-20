@@ -1,5 +1,5 @@
 import { PriorityQueue } from "shared/utils"
-import HexGrid from "./system/hex/HexGrid"
+import HexGrid from "./Hex/Grid"
 
 type NodeInit = {
     coord: Vector2,

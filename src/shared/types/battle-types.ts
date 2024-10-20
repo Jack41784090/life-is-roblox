@@ -1,6 +1,7 @@
 import Roact from "@rbxts/roact";
-import { Battle } from "shared/class/battle/Battle";
-import Ability from "shared/class/battle/system/Ability";
+import { State } from "shared/class/Battle";
+import Ability from "shared/class/Battle/Ability";
+import { Entity } from "shared/class/Battle/Entity";
 
 export enum BotType {
     Player = 'player',
@@ -24,7 +25,7 @@ export enum Reality {
 export type EntityInitRequirements =
     Partial<iEntity> &
     {
-        stats: Omit<EntityStats, 'id'>, playerID: number, battle: Battle.State,
+        stats: Omit<EntityStats, 'id'>, playerID: number, battle: State,
         hip: number,
         pos: number,
         org: number,
@@ -93,8 +94,8 @@ export interface iAbility {
     description: string;
     icon: string;
 
-    using?: Battle.Entity;
-    target?: Battle.Entity;
+    using?: Entity;
+    target?: Entity;
 
     acc: number;
     potencies: Map<Potency, number>;
@@ -179,8 +180,8 @@ export type AbilityInitOptions = {
     range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
-    using: Battle.Entity;
-    target: Battle.Entity;
+    using: Entity;
+    target: Entity;
     animation: string;
     icon: string;
 }
