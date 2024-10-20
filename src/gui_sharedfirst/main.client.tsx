@@ -1,6 +1,5 @@
 import Roact from "@rbxts/roact";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
-import { Battle } from "shared/class/battle/Battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
@@ -8,6 +7,7 @@ import ButtonElement, { ButtonElementProps } from "./components/button";
 import ButtonFrameElement from "./components/button-frame";
 import MenuFrameElement from "./components/menu";
 import TitleElement from "./components/title";
+import { Battle } from "shared/class/battle/Battle";
 
 //#region 1. LOADING
 // Wait for the game to load
@@ -86,18 +86,7 @@ function enterPlayground() {
     loadCharacterEvent.FireServer();
 }
 function enterBattle() {
-    const battle = Battle.System.Create({
-        width: 5,
-        height: 5,
-        camera: game.Workspace.CurrentCamera!,
-        worldCenter: new Vector3(150, 0, 150),
-        teamMap: {
-            '1': [Players.LocalPlayer],
-            '2': [Players.LocalPlayer],
-            '3': [Players.LocalPlayer],
-        }
-    });
-    // remoteEventsMap["StartBattle"].FireServer();
+    Battle.remoteEvent_Start.FireServer();
 }
 function enterStory() {
     const scene = new Scene('scene');
@@ -174,11 +163,6 @@ print("Initializing main menu");
 mainMenuCameraSetup();
 mainMenuSetup();
 //#endregion
-
-remoteEventsMap["GuiStart"].OnClientEvent.Connect((...args) => {
-    print("GuiStart event received");
-    print(args);
-});
 
 // const d = new Dialogue('');
 // wait(0.5)

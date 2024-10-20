@@ -28,16 +28,10 @@ const hexGrid = new HexGrid({
 });
 hexGrid.materialise();
 
-remoteEventsMap["StartBattle"].OnServerEvent.Connect(() => {
-    const battle = Battle.System.Create({
-        width: 5,
-        height: 5,
-        camera: game.Workspace.CurrentCamera!,
-        worldCenter: new Vector3(150, 0, 150),
+Battle.remoteEvent_Start.OnServerEvent.Connect((p) => {
+    const battle = Battle.Session.New({
         teamMap: {
-            '1': [Players.LocalPlayer],
-            '2': [Players.LocalPlayer],
-            '3': [Players.LocalPlayer],
+            '1': [p],
         }
     });
 })

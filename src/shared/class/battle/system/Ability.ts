@@ -1,5 +1,22 @@
 import { AbilityInitOptions, DamageType, iAbility, Potency, potencyMap } from "shared/types/battle-types";
-import Entity from "./Entity";
+import { Battle } from "../Battle";
+
+export type AbilityState = {
+    acc: number;
+    potencies: Map<Potency, number>;
+    damageType: Map<DamageType, number>;
+    cost: {
+        pos: number;
+        mana: number;
+    };
+    range: NumberRange;
+    animation: string;
+    icon: string;
+    name: string;
+    description: string;
+    using: number;
+    target: number;
+}
 
 export default class Ability implements iAbility {
     static readonly UNIVERSAL_PHYS = new Map<string, iAbility>([
@@ -23,7 +40,6 @@ export default class Ability implements iAbility {
         }]
     ])
 
-
     icon: string;
     animation: string;
     name: string;
@@ -33,8 +49,8 @@ export default class Ability implements iAbility {
     range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
-    readonly using: Entity;
-    readonly target: Entity;
+    readonly using: Battle.Entity;
+    readonly target: Battle.Entity;
 
     constructor(opt: AbilityInitOptions) {
         this.acc = opt.acc;
@@ -62,6 +78,22 @@ export default class Ability implements iAbility {
             });
         });
         return damage;
+    }
+
+    getState(): AbilityState {
+        return {
+            acc: this.acc,
+            name: this.name,
+            description: this.description,
+            cost: this.cost,
+            potencies: this.potencies,
+            using: this.using.playerID,
+            target: this.target.playerID,
+            damageType: this.damageType,
+            range: this.range,
+            animation: this.animation,
+            icon: this.icon,
+        }
     }
 }
 

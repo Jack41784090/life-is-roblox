@@ -1,7 +1,7 @@
-import { HEXAGON } from "shared/const";
+import { HEXAGON } from "shared/const/assets";
 import { CellTerrain } from "shared/types";
 import { getTween } from "shared/utils";
-import Entity from "../Entity";
+import { Battle } from "../../Battle";
 import HexGrid from "./HexGrid";
 import { Hex, Layout } from "./HexInfrastructure";
 
@@ -11,12 +11,12 @@ export default class HexCell {
     private static readonly TWEEN_TIME = 0.5;
 
     public glow = false;
-    public part: UnionOperation;
+    public part?: UnionOperation;
     public size = 4;
     public qrs: Vector3;
     public terrain: CellTerrain;
     public height: number;
-    public entity?: Entity;
+    public entity?: Battle.Entity;
     public grid: HexGrid;
     public layout: Layout;
 
@@ -37,8 +37,19 @@ export default class HexCell {
         this.size = size;
         this.grid = initOptions.grid;
         this.layout = layout;
+    }
 
-        // Create the hex cell part
+    public static readonly directions = [
+        new Vector3(1, -1, 0),  // Direction 1
+        new Vector3(1, 0, -1),  // Direction 2
+        new Vector3(0, 1, -1),  // Direction 3
+        new Vector3(-1, 1, 0),  // Direction 4
+        new Vector3(-1, 0, 1),  // Direction 5
+        new Vector3(0, -1, 1),  // Direction 6
+    ];
+
+    public materialise() {
+        const { X: q, Y: r, Z: s } = this.qrs;
         const part = HEXAGON.Clone();
         part.Name = `HexCell(${q},${r},${s})`;
         part.Size = part.Size.mul(this.size);
@@ -53,15 +64,6 @@ export default class HexCell {
         part.Color = new Color3(1, 1, 1); // Set default color or based on terrain
         this.part = part;
     }
-
-    public static readonly directions = [
-        new Vector3(1, -1, 0),  // Direction 1
-        new Vector3(1, 0, -1),  // Direction 2
-        new Vector3(0, 1, -1),  // Direction 3
-        new Vector3(-1, 1, 0),  // Direction 4
-        new Vector3(-1, 0, 1),  // Direction 5
-        new Vector3(0, -1, 1),  // Direction 6
-    ];
 
     public findNeighbors(): HexCell[] {
         const neighbors: HexCell[] = [];
@@ -78,6 +80,9 @@ export default class HexCell {
     }
 
     public worldPosition(): Vector3 {
+        if (this.part === undefined) {
+            return new Vector3();
+        }
         return this.part.Position;
     }
 
@@ -150,10 +155,14 @@ export default class HexCell {
         return particle;
     }
 
-    public raiseHeight(newHeight: number): Promise<void> {
-        return new Promise((resolve) => {
+    public raiseHeight(newHeight: number): Promise<unknown> {
+        return new Promise((resolve, reject) => {
             if (newHeight < 0 || newHeight === this.height) {
-                resolve();
+                reject("Invalid height");
+                return;
+            }
+            else if (this.part === undefined) {
+                reject("Part not found");
                 return;
             }
 
@@ -202,7 +211,7 @@ export default class HexCell {
             particleTweenOut.Completed.Connect(() => {
                 particle.Destroy();
                 this.height = newHeight;
-                resolve();
+                resolve(void 0);
             });
         });
     }

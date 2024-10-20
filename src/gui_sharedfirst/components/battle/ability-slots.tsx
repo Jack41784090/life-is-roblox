@@ -1,12 +1,11 @@
 
 import Roact, { Element } from "@rbxts/roact";
 import { Battle } from "shared/class/battle/Battle";
-import Entity from "shared/class/battle/system/Entity";
 import { AbilitySet } from "shared/types/battle-types";
 import Ability1SlotElement from "./ability-1slot";
 
 interface AbilitySlotsElementProps {
-    cre: Entity;
+    cre: Battle.Entity;
     abilitySet: AbilitySet;
     gui: Battle.Gui;
 }

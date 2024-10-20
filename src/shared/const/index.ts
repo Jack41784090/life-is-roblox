@@ -1,4 +1,3 @@
-import { ReplicatedStorage } from "@rbxts/services";
 
 export const HOUR = 1000 * 60 * 60;
 export const NORM_CHAR_LIMIT = 2000;
@@ -73,7 +72,5 @@ export const MAX_READINESS = 100;
 export const DECAL_WITHINRANGE = 'rbxassetid://89793300852596';
 export const DECAL_OUTOFRANGE = 'rbxassetid://114570670961562';
 
-export const HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOperation;
 export const HEXAGON_MAGIC = 0.395;
 
-export const TILE_SIZE = 10

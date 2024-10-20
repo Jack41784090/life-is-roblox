@@ -32,12 +32,9 @@ export default class HexGrid {
         this.cellsQR = new QR<HexCell>(this.radius);
     }
 
-    async materialise() {
-        print("Materialising grid with radius");
+    public initialise() {
+        print("Initialising grid with radius");
         const grid = this;
-        const gridModel = new Instance("Model");
-        gridModel.Name = this.name;
-        gridModel.Parent = game.Workspace;
         const radius = this.radius;
 
         for (let q = -radius; q <= radius; q++) {
@@ -58,9 +55,26 @@ export default class HexGrid {
                         new Vector2(this.center.X, this.center.Y),
                     )
                 });
-                cell.part.Parent = gridModel;
                 this.cells.push(cell);
                 this.cellsQR.set(q, r, cell);
+            }
+        }
+    }
+
+    public materialise() {
+        print("Materialising grid with radius");
+        const gridModel = new Instance("Model");
+        gridModel.Name = this.name;
+        gridModel.Parent = game.Workspace;
+        const radius = this.radius;
+
+        for (let q = -radius; q <= radius; q++) {
+            for (let r = math.max(-radius, -q - radius); r <= math.min(radius, -q + radius); r++) {
+                const s = -q - r;
+                const cell = this.cellsQR.get(q, r);
+                if (cell) {
+                    cell.materialise();
+                }
             }
         }
     }

@@ -1,4 +1,4 @@
-import { DataStoreService, Players, ReplicatedStorage, TweenService, UserInputService, Workspace } from "@rbxts/services";
+import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { EntityStats, iAbility } from "shared/types/battle-types";
 import { remoteFunctionsMap } from "./events";
 
@@ -68,7 +68,7 @@ export function getCharacterModel(name: string, position: Vector3) {
 
 export function getDummyStats(): EntityStats {
     return {
-        id: "adalbrecht",
+        id: "entity_joanmadej",
         str: 1,
         dex: 1,
         acr: 1,
@@ -201,8 +201,18 @@ export function extractMapValues<T extends defined>(map: Map<any, T>) {
 }
 export function requestData(requester: Player, datastoreName: string, key: string) {
     const requestDataRemoteEvent = remoteFunctionsMap["RequestData"];
-    if (requestDataRemoteEvent) {
+    if (!requestDataRemoteEvent) return undefined;
+    if (RunService.IsClient()) {
         return requestDataRemoteEvent.InvokeServer(datastoreName, key);
+    }
+    else {
+        const datastore = getDatastore(datastoreName);
+        const [success, data] = pcall(() => datastore.GetAsync(key));
+        if (success) return data;
+        else {
+            warn(data);
+            return undefined;
+        }
     }
 }
 

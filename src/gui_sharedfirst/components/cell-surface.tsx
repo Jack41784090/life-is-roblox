@@ -20,7 +20,7 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
     }
 
     render() {
-        if (!playerGUI) {
+        if (!playerGUI || !this.props.cell.part) {
             return undefined;
         }
         return (
