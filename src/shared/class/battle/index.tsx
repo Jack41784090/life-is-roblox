@@ -1,14 +1,5 @@
 import Roact, { Portal } from "@rbxts/roact";
 import { Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import AbilitySetElement from "gui_sharedfirst/components/battle/ability-set-gui";
-import AbilitySlotsElement from "gui_sharedfirst/components/battle/ability-slots";
-import OPTElement from "gui_sharedfirst/components/battle/otherPlayersTurnScreen";
-import ButtonElement from "gui_sharedfirst/components/button";
-import ButtonFrameElement from "gui_sharedfirst/components/button-frame";
-import CellGlowSurfaceElement from "gui_sharedfirst/components/cell-glow-surface";
-import CellSurfaceElement from "gui_sharedfirst/components/cell-surface";
-import MenuFrameElement from "gui_sharedfirst/components/menu";
-import ReadinessBarElement from "gui_sharedfirst/components/readiness-bar";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
 import { AttackAction, BotType, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { getDummyStats, getPlayer, requestData } from "shared/utils";
@@ -19,6 +10,7 @@ import Entity from "./Entity";
 import HexCell from "./Hex/Cell";
 import HexGrid from "./Hex/Grid";
 import Pathfinding from "./Pathfinding";
+import { AbilitySetElement, AbilitySlotsElement, ButtonElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement, ReadinessBarElement, ButtonFrameElement } from "gui_sharedfirst";
 
 
 export type Config = {

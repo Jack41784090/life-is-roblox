@@ -1,7 +1,7 @@
 import Roact from "@rbxts/roact";
 import { TweenService } from "@rbxts/services";
 
-export interface ButtonElementProps {
+interface ButtonElementProps {
     text: string;
     size: number;
     position: number;

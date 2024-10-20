@@ -1,13 +1,10 @@
 import Roact from "@rbxts/roact";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
+import { ButtonElement, ButtonFrameElement, MenuFrameElement, TitleElement } from "gui_sharedfirst";
 import * as Battle from "shared/class/Battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
-import ButtonElement, { ButtonElementProps } from "./components/button";
-import ButtonFrameElement from "./components/button-frame";
-import MenuFrameElement from "./components/menu";
-import TitleElement from "./components/title";
 
 //#region 1. LOADING
 // Wait for the game to load
@@ -110,7 +107,13 @@ function enterStory() {
 }
 function mainMenuSetup() {
     const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui") as PlayerGui;
-    const mainMenuButtons: Omit<ButtonElementProps, "size" | "position">[] = [
+    const mainMenuButtons: Omit<{
+        text: string;
+        size: number;
+        position: number;
+        transparency?: number;
+        onclick: () => void;
+    }, "size" | "position">[] = [
         {
             text: "Play",
             onclick: () => {
