@@ -1,6 +1,6 @@
 import { ReplicatedStorage } from "@rbxts/services";
 import { EntityStatus } from "shared/types/battle-types";
-import { Entity } from ".";
+import Entity from ".";
 
 export default class AudioHandler {
     private idleSelectAudio: Sound[] = [];

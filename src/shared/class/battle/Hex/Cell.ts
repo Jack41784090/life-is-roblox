@@ -1,7 +1,7 @@
 import { HEXAGON } from "shared/const/assets";
 import { CellTerrain } from "shared/types";
 import { getTween } from "shared/utils";
-import { Entity } from "../Entity";
+import Entity from "../Entity";
 import HexGrid from "./Grid";
 import { Hex, Layout } from "./Layout";
 

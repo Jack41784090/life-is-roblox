@@ -10,7 +10,7 @@ import Expression from "./Expression";
 import TweenManager from "./TweenManager";
 
 
-export class Entity implements iEntity {
+export default class Entity implements iEntity {
     private battle: Battle.State;
 
     animationHandler?: AnimationHandler;

@@ -1,9 +1,9 @@
 
 import Roact, { Element } from "@rbxts/roact";
+import { Gui } from "shared/class/Battle";
+import Entity from "shared/class/Battle/Entity";
 import { AbilitySet } from "shared/types/battle-types";
 import Ability1SlotElement from "./ability-1slot";
-import { Entity } from "shared/class/Battle/Entity";
-import { Gui } from "shared/class/Battle";
 
 interface AbilitySlotsElementProps {
     cre: Entity;

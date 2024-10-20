@@ -1,4 +1,4 @@
-import { Entity } from ".";
+import Entity from ".";
 import Expression from "./Expression";
 
 export interface AnimationOptions {

@@ -1,5 +1,5 @@
 import { AbilityInitOptions, DamageType, iAbility, Potency, potencyMap } from "shared/types/battle-types";
-import { Entity } from "../Entity";
+import Entity from "../Entity";
 
 export type AbilityState = {
     acc: number;

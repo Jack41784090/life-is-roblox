@@ -15,7 +15,7 @@ import { getDummyStats, getPlayer, requestData } from "shared/utils";
 import { bindableEventsMap, remoteEventsMap } from "shared/utils/events";
 import * as Battle from '../Battle';
 import Ability, { AbilityState } from "./Ability";
-import { Entity } from "./Entity";
+import Entity from "./Entity";
 import HexCell from "./Hex/Cell";
 import HexGrid from "./Hex/Grid";
 import Pathfinding from "./Pathfinding";
