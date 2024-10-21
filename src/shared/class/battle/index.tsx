@@ -201,6 +201,7 @@ export class State {
         return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
     }
 }
+
 export class Session {
     public static New(config: Partial<Config>) {
         const participatingPlayers: Player[] = []
@@ -371,7 +372,7 @@ export class System extends State {
     currentRoundEntity?: Entity;
 
     protected override placeEntity(entity: Entity, cell: HexCell) {
-        entity.setCell(cell);
+        entity.setCell(cell, true);
         entity.initialiseCharacteristics();
     }
 
@@ -444,7 +445,6 @@ export class System extends State {
             this.round();
         }
     }
-
 
     private initializeEntitiesCharacteristics() {
         const allEntities = this.getAllEntities();

@@ -114,6 +114,13 @@ export default class Entity implements iEntity {
     }
 
     public initialiseCharacteristics(): Model | undefined {
+        if (this.isFeatureInitialised()) {
+            warn(`${this.name}: Entity features already initialised`);
+            return this.model;
+        }
+
+        print(`${this.name}: Initialising entity features`);
+
         this.initialiseModel();
         this.tweenHandler = new TweenManager();
         this.audioHandler = new AudioHandler(this);
@@ -128,9 +135,12 @@ export default class Entity implements iEntity {
         if (!primaryPart) {
             throw `PrimaryPart is not set for the model entity_${this.stats.id}`;
         }
-        if (!this.cell || !this.cell.part) {
-            warn(`${this.name}: positionModel: cell not defined.`)
-            return;
+        if (!this.cell?.part) {
+            warn(`${this.name}: positionModel: cell part not materialised.`)
+            this.cell?.materialise();
+            if (!this.cell?.part) {
+                return;
+            }
         }
         //#endregion
         const origin = model.WaitForChild("origin") as Part;
@@ -164,7 +174,7 @@ export default class Entity implements iEntity {
     //#endregion
 
     //#region cell move
-    setCell(cell: HexCell): HexCell | undefined {
+    setCell(cell: HexCell, materialise = false): HexCell | undefined {
         if (cell.isVacant() === false) {
             warn("HexCell is occupied");
             return;
@@ -176,6 +186,11 @@ export default class Entity implements iEntity {
         }
         this.cell = cell;
         cell.entity = this;
+
+        if (materialise) {
+            cell.materialise();
+        }
+
         return this.cell;
     }
     async moveToPosition(targetPosition: Vector3) {

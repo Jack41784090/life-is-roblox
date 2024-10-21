@@ -1,7 +1,7 @@
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
+import Entity from "shared/class/Battle/Entity";
 import { EntityStats, iAbility, Reality } from "shared/types/battle-types";
 import { remoteFunctionsMap } from "./events";
-import Entity from "shared/class/Battle/Entity";
 
 
 export function getPlayer(id?: number): Player | undefined {
@@ -69,7 +69,7 @@ export function getCharacterModel(name: string, position: Vector3) {
 
 export function getDummyStats(): EntityStats {
     return {
-        id: "entity_joanmadej",
+        id: "entity_adalbrecht",
         str: 1,
         dex: 1,
         acr: 1,
