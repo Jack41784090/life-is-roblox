@@ -1,6 +1,7 @@
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import { EntityStats, iAbility } from "shared/types/battle-types";
+import { EntityStats, iAbility, Reality } from "shared/types/battle-types";
 import { remoteFunctionsMap } from "./events";
+import Entity from "shared/class/Battle/Entity";
 
 
 export function getPlayer(id?: number): Player | undefined {
@@ -342,4 +343,30 @@ export class PriorityQueue<T extends defined> {
         }
     }
 
+}
+
+export function calculateRealityValue(reality: Reality, entity: Entity): number {
+    switch (reality) {
+        case Reality.HP:
+            return (entity.stats.end * 5) + (entity.stats.siz * 2);
+        case Reality.Force:
+            return (entity.stats.str * 2) + (entity.stats.spd * 1) + (entity.stats.siz * 1);
+        case Reality.Mana:
+            return (entity.stats.int * 3) + (entity.stats.spr * 2) + (entity.stats.fai * 1);
+        case Reality.Spirituality:
+            return (entity.stats.spr * 2) + (entity.stats.fai * 2) + (entity.stats.wil * 1);
+        case Reality.Divinity:
+            return (entity.stats.fai * 3) + (entity.stats.wil * 2) + (entity.stats.cha * 1);
+        case Reality.Precision:
+            return (entity.stats.dex * 2) + (entity.stats.acr * 1) + (entity.stats.spd * 1);
+        case Reality.Maneuver:
+            return (entity.stats.acr * 2) + (entity.stats.spd * 2) + (entity.stats.dex * 1);
+        case Reality.Convince:
+            return (entity.stats.cha * 2) + (entity.stats.beu * 1) + (entity.stats.int * 1);
+        case Reality.Bravery:
+            return (entity.stats.wil * 2) + (entity.stats.end * 1) + (entity.stats.fai * 1);
+        default:
+            warn(`Reality value for ${reality} not found`);
+            return 0;
+    }
 }

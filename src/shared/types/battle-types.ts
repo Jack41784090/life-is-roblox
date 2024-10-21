@@ -25,7 +25,7 @@ export enum Reality {
 export type EntityInitRequirements =
     Partial<iEntity> &
     {
-        stats: Omit<EntityStats, 'id'>, playerID: number, battle: State,
+        stats: Omit<EntityStats, 'id'>, playerID: number,
         hip: number,
         pos: number,
         org: number,

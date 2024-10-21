@@ -1,7 +1,6 @@
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
-import { extractMapValues } from "shared/utils";
-import * as Battle from '..';
+import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Ability from "../Ability";
 import HexCell from "../Hex/Cell";
 import AnimationHandler, { AnimationOptions } from "./AnimationHandler";
@@ -9,9 +8,9 @@ import AudioHandler from "./AudioHandler";
 import Expression from "./Expression";
 import TweenManager from "./TweenManager";
 
+print(calculateRealityValue)
 
 export default class Entity implements iEntity {
-    private battle: Battle.State;
 
     animationHandler?: AnimationHandler;
     audioHandler?: AudioHandler;
@@ -40,7 +39,6 @@ export default class Entity implements iEntity {
     animator?: Animator;
 
     constructor(options: EntityInitRequirements) {
-        this.battle = options.battle;
         this.playerID = options.playerID;
         this.team = options.team;
         this.stats = { ...options.stats, id: options.stats.id };
@@ -229,7 +227,7 @@ export default class Entity implements iEntity {
         return tween.Completed.Wait();
     }
 
-    async moveToCell(cell: HexCell, path?: Vector2[]): Promise<void> {
+    async moveToCell(cell: HexCell, path?: HexCell[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const primaryPart = humanoid?.RootPart;
         //#region
@@ -238,12 +236,12 @@ export default class Entity implements iEntity {
             return;
         }
         if (!path) {
-            path = [cell.qr()];
+            path = [cell];
         }
         //#endregion
 
         const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
-        for (const cell of path.mapFiltered(xy => this.battle.grid.getCell(xy.X, xy.Y))) {
+        for (const cell of path) {
             const targetPosition = cell.worldPosition();
             if (primaryPart.Position === targetPosition) continue;
             await this.moveToPosition(targetPosition);
@@ -303,8 +301,7 @@ export default class Entity implements iEntity {
         this.tweenHandler!.addTween(tween);
         return tween.Completed.Wait();
     }
-    private faceClosestEntity() {
-        const entities = this.battle.getAllEntities().filter(e => e !== this);
+    private faceClosestEntity(entities: Entity[]) {
         if (entities.size() === 0) {
             warn("No other entities found");
             return;
@@ -361,7 +358,7 @@ export default class Entity implements iEntity {
         print(`${this.name}: Changing HP by ${num}`);
 
         this.hip += num;
-        const maxHP = Battle.calculateRealityValue(Reality.HP, this);
+        const maxHP = calculateRealityValue(Reality.HP, this);
         const hpPercentage = 0.9 - math.clamp((this.hip / maxHP) * .9, 0, .9); print(hpPercentage)
         this.changeHPPoolSize(UDim2.fromScale(hpPercentage, hpPercentage));
     }
