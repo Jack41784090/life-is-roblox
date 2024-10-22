@@ -147,9 +147,9 @@ export class Session {
             switch (mes) {
                 case 'ReadyForReadinessCheck':
                     this.playersReadyForReadinessCheck.add(p);
-                    break;
-                case 'RequestWinner':
-                    this.requestWinner(p)
+                    if (this.playersReadyForReadinessCheck.size() === this.participatingPlayers.size()) {
+                        this.participatingPlayers.forEach(p => this.requestWinner(p));
+                    }
                     break;
             }
         });
@@ -596,6 +596,7 @@ export class System extends State {
 
         await this.gui.tweenToUpdateReadiness(this.getReadinessIcons());
         remoteEvent_Readiness.FireServer('ReadyForReadinessCheck');
+
         remoteEvent_Readiness.OnClientEvent.Once(async w => {
             const winner = this.getAllEntities().find(e => e.playerID === w as number);
             this.currentRoundEntity = winner;
