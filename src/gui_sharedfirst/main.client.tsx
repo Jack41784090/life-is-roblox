@@ -45,7 +45,7 @@ for (let i = 0; i < numberOfAssets; i++) {
         const asset = assets[i];
         ContentProvider.PreloadAsync([asset]);
         loadedAssets += 1;
-        updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
+        // updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
     })
     threads.push(thread);
 }
@@ -55,7 +55,7 @@ for (let i = 0; i < numberOfAssets; i++) {
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
-Roact.unmount(loadingScreen!);
+if (loadingScreen) Roact.unmount(loadingScreen);
 //#endregion
 
 //#region 2. MAIN MENU
@@ -114,28 +114,28 @@ function mainMenuSetup() {
         transparency?: number;
         onclick: () => void;
     }, "size" | "position">[] = [
-        {
-            text: "Play",
-            onclick: () => {
-                Roact.unmount(mainMenu);
-                enterPlayground();
+            {
+                text: "Play",
+                onclick: () => {
+                    Roact.unmount(mainMenu);
+                    enterPlayground();
+                },
             },
-        },
-        {
-            text: "Battle",
-            onclick: () => {
-                Roact.unmount(mainMenu);
-                enterBattle();
+            {
+                text: "Battle",
+                onclick: () => {
+                    Roact.unmount(mainMenu);
+                    enterBattle();
+                }
+            },
+            {
+                text: "Story",
+                onclick: () => {
+                    Roact.unmount(mainMenu);
+                    enterStory();
+                }
             }
-        },
-        {
-            text: "Story",
-            onclick: () => {
-                Roact.unmount(mainMenu);
-                enterStory();
-            }
-        }
-    ];
+        ];
     if (mainMenuButtons.size() === 0) {
         warn("No buttons provided");
         return;

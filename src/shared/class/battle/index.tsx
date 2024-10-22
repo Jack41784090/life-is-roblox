@@ -18,6 +18,7 @@ export type Config = {
     height: number;
     teamMap: Record<string, Player[]>;
 };
+
 type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 
 export const DEFAULT_WIDTH = 5;
@@ -29,9 +30,163 @@ export const TILE_SIZE = 10;
 export const remoteEvent_Attack: RemoteEvent = remoteEventsMap["Battle_Attack"]
 export const remoteEvent_Start: RemoteEvent = remoteEventsMap["Battle_Start"]
 export const remoteEvent_MoveEntity: RemoteEvent = remoteEventsMap["Battle_MoveEntity"]
+export const remoteEvent_Readiness: RemoteEvent = remoteEventsMap["Battle_Readiness"]
+type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
+
+export class Session {
+    public static New(config: Partial<Config>) {
+        const participatingPlayers: Player[] = []
+        if (config.teamMap) {
+            for (const [team, players] of pairs(config.teamMap)) {
+                players.forEach((player) => participatingPlayers.push(player));
+            }
+        }
+
+        const CONFIG = {
+            camera: undefined,
+            worldCenter: DEFAULT_WORLD_CENTER,
+            width: DEFAULT_WIDTH,
+            height: DEFAULT_HEIGHT,
+            teamMap: {},
+            ...config,
+        }
+        const serverState = new State(CONFIG.width, CONFIG.height, CONFIG.worldCenter, TILE_SIZE);
+        const controller = new Session(participatingPlayers, serverState, CONFIG);
+        for (const p of participatingPlayers) {
+            remoteEvent_Start.FireClient(p, config);
+        }
+
+        controller.setUpAttackReceiver();
+        controller.setUpMoveEntityReceiver();
+        controller.setUpReadinessReceiver();
+        return controller;
+    }
+
+    config: Config;
+    trueState: State;
+    participatingPlayers: Player[];
+
+    private constructor(players: Player[], battleState: State, config: Config) {
+        this.participatingPlayers = players;
+        this.trueState = battleState
+        this.config = config;
+        this.trueState.initializeNumbers(config.teamMap);
+    }
+
+    //#region Remote Event: Attack
+    private setUpAttackReceiver() {
+        if (RunService.IsClient()) return;
+        remoteEvent_Attack.OnServerEvent.Connect((player, _ability) => {
+            print(`Attack: ${player.Name} | Ability:`, _ability);
+            const abilityState = _ability as AbilityState;
+            if (!abilityState || (typeOf(abilityState['using']) !== 'number')) {
+                warn("Ability invalid on attack");
+                return;
+            }
+
+            const { using: _using, target: _target } = abilityState
+
+            const allEntities = this.trueState.getAllEntities(); print(allEntities)
+            const using = allEntities.find((e) => e.playerID === _using);
+            const target = allEntities.find((e) => e.playerID === _target);
+            if (!using || !target) {
+                warn("Using or target entity not found", using, target);
+                return;
+            }
+
+            const ability = new Ability({
+                ...abilityState,
+                using,
+                target,
+            });
+            const attackAction = { executed: false, ability };
+            const clashResult = this.trueState.clash(attackAction);
+            this.trueState.applyClash(attackAction, clashResult);
+
+            const usingPlayer = getPlayer(using.playerID);
+            const targetPlayer = getPlayer(target.playerID);
+            if (usingPlayer) remoteEvent_Attack.FireClient(usingPlayer, { ...clashResult, abilityState });
+            if (targetPlayer) remoteEvent_Attack.FireClient(targetPlayer, { ...clashResult, abilityState });
+        });
+    }
+    //#endregion
+
+    //#region Remote Event: Move Entity
+    private setUpMoveEntityReceiver() {
+        if (RunService.IsClient()) return;
+        remoteEvent_MoveEntity.OnServerEvent.Connect((player, _toCell) => {
+            print(`Move Entity: ${player.Name} to ${_toCell}`);
+            const destinationQR = _toCell as Vector2;
+            const entity = this.trueState.getAllEntities().find((e) => e.playerID === player.UserId);
+            if (!entity) {
+                warn("Entity not found");
+                return;
+            }
+            this.moveEntity(entity, destinationQR);
+        });
+    }
+
+    private moveEntity(entity: Entity, dest: Vector2) {
+        const toCell = this.trueState.grid.getCell(dest);
+        if (!toCell) {
+            warn("Destination cell not found");
+            return;
+        }
+        this.trueState.moveEntity(entity, toCell);
+    }
+    //#endregion
+
+    //#region Remote Event: Readiness
+    turnWinner?: Entity;
+    private playersReadyForReadinessCheck: Set<Player> = new Set();
+    private setUpReadinessReceiver() {
+        if (RunService.IsClient()) return;
+        remoteEvent_Readiness.OnServerEvent.Connect((p, _mes) => {
+            const mes = _mes as ReadinessRequestStatus;
+            print(`Readiness: ${p.Name} | ${mes}`);
+            switch (mes) {
+                case 'ReadyForReadinessCheck':
+                    this.playersReadyForReadinessCheck.add(p);
+                    break;
+                case 'RequestWinner':
+                    this.requestWinner(p)
+                    break;
+            }
+        });
+    }
+
+    private async requestWinner(p: Player) {
+        if (this.playersReadyForReadinessCheck.size() !== this.participatingPlayers.size()) {
+            print("Not all players are ready for readiness check.");
+            return;
+        }
+
+        if (this.turnWinner) {
+            remoteEvent_Readiness.FireClient(p, this.turnWinner.playerID);
+        }
+        else {
+            const winner = this.runReadinessGauntlet();
+            if (winner) {
+                this.turnWinner = winner;
+                remoteEvent_Readiness.FireClient(p, winner.playerID);
+            }
+        }
+    }
 
 
+    private runReadinessGauntlet() {
+        const winner = this.trueState.runReadinessGauntlet();
+        return winner;
+    }
 
+    //#endregion
+
+    private updateEntityStatsAfterRound(entity: Entity) {
+        print(`${entity.name} has ${entity.pos} readiness points`);
+        entity.pos /= 2;
+        print(`${entity.name} has ${entity.pos} readiness points`);
+    }
+}
 
 export class State {
     currentRoundEntityID?: number;
@@ -200,89 +355,13 @@ export class State {
     public getAllEntities(): Entity[] {
         return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
     }
-}
 
-export class Session {
-    public static New(config: Partial<Config>) {
-        const participatingPlayers: Player[] = []
-        if (config.teamMap) {
-            for (const [team, players] of pairs(config.teamMap)) {
-                players.forEach((player) => participatingPlayers.push(player));
-            }
-        }
-
-        const CONFIG = {
-            camera: undefined,
-            worldCenter: DEFAULT_WORLD_CENTER,
-            width: DEFAULT_WIDTH,
-            height: DEFAULT_HEIGHT,
-            teamMap: {},
-            ...config,
-        }
-        const serverState = new State(CONFIG.width, CONFIG.height, CONFIG.worldCenter, TILE_SIZE);
-        const controller = new Session(participatingPlayers, serverState, CONFIG);
-        for (const p of participatingPlayers) {
-            remoteEvent_Start.FireClient(p, config);
-        }
-
-        controller.setUpAttackReceiver();
-        controller.setUpMoveEntityReceiver();
-        return controller;
-    }
-
-    config: Config;
-    trueState: State;
-    participatingPlayers: Player[];
-
-    private constructor(players: Player[], battleState: State, config: Config) {
-        this.participatingPlayers = players;
-        this.trueState = battleState
-        this.config = config;
-        this.trueState.initializeNumbers(config.teamMap);
-    }
-
-    //#region Remote Event: Attack
-    private setUpAttackReceiver() {
-        remoteEvent_Attack.OnServerEvent.Connect((player, _ability) => {
-            print(`Attack: ${player.Name} | Ability:`, _ability);
-            const abilityState = _ability as AbilityState;
-            if (!abilityState || (typeOf(abilityState['using']) !== 'number')) {
-                warn("Ability invalid on attack");
-                return;
-            }
-
-            const { using: _using, target: _target } = abilityState
-
-            const allEntities = this.trueState.getAllEntities(); print(allEntities)
-            const using = allEntities.find((e) => e.playerID === _using);
-            const target = allEntities.find((e) => e.playerID === _target);
-            if (!using || !target) {
-                warn("Using or target entity not found", using, target);
-                return;
-            }
-
-            const ability = new Ability({
-                ...abilityState,
-                using,
-                target,
-            });
-            const attackAction = { executed: false, ability };
-            const clashResult = this.clash(attackAction);
-            this.applyClash(attackAction, clashResult);
-
-            const usingPlayer = getPlayer(using.playerID);
-            const targetPlayer = getPlayer(target.playerID);
-            if (usingPlayer) remoteEvent_Attack.FireClient(usingPlayer, { ...clashResult, abilityState });
-            if (targetPlayer) remoteEvent_Attack.FireClient(targetPlayer, { ...clashResult, abilityState });
-        });
-    }
-
-    private applyClash(attackAction: AttackAction, clashResult: ClashResult) {
+    public applyClash(attackAction: AttackAction, clashResult: ClashResult) {
         print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
         attackAction.ability.target.damage(clashResult.damage);
     }
 
-    private clash(attackAction: AttackAction): ClashResult {
+    public clash(attackAction: AttackAction): ClashResult {
         const { using: attacker, target, acc } = attackAction.ability;
         print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
 
@@ -310,37 +389,42 @@ export class Session {
         damage = math.clamp(damage, 0, 1000);
         return { damage, u_damage: damage, fate, roll: hitRoll };
     }
-    //#endregion
 
-    //#region Remote Event: Move Entity
-    setUpMoveEntityReceiver() {
-        remoteEvent_MoveEntity.OnServerEvent.Connect((player, _toCell) => {
-            print(`Move Entity: ${player.Name} to ${_toCell}`);
-            const destinationQR = _toCell as Vector2;
-            const entity = this.trueState.getAllEntities().find((e) => e.playerID === player.UserId);
-            if (!entity) {
-                warn("Entity not found");
-                return;
+    //#region Readiness Mechanics
+
+    private calculateReadinessIncrement(entity: Entity) {
+        return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
+    }
+
+    private iterateReadinessGauntlet(entities: Entity[]) {
+        for (const entity of entities) {
+            entity.pos += this.calculateReadinessIncrement(entity);
+            if (entity.pos >= 100) {
+                entity.pos = 100;
             }
-            this.moveEntity(entity, destinationQR);
-        });
+        }
     }
 
-    moveEntity(entity: Entity, dest: Vector2) {
-        const toCell = this.trueState.grid.getCell(dest);
-        if (!toCell) {
-            warn("Destination cell not found");
-            return;
+    public runReadinessGauntlet() {
+        const entities = this.getAllEntities();
+        if (entities.size() === 0) return;
+
+        while (!entities.some((e) => e.pos >= 100)) {
+            this.iterateReadinessGauntlet(entities);
         }
-        this.trueState.moveEntity(entity, toCell);
+
+        const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
+        return winner;
+    }
+
+    protected getReadinessIcons(): ReadinessIcon[] {
+        return this.getAllEntities().map((entity) => ({
+            iconID: entity.playerID,
+            iconUrl: "rbxassetid://18915919565",
+            readiness: entity.pos / 100,
+        }));
     }
     //#endregion
-
-    private updateEntityStatsAfterRound(entity: Entity) {
-        print(`${entity.name} has ${entity.pos} readiness points`);
-        entity.pos /= 2;
-        print(`${entity.name} has ${entity.pos} readiness points`);
-    }
 }
 
 export class Team {
@@ -498,6 +582,8 @@ export class System extends State {
                 using,
                 target,
             })
+            this.applyClash({ executed: false, ability }, cr);
+
             this.executeAttackSequence(ability);
         })
     }
@@ -507,47 +593,53 @@ export class System extends State {
 
         this.gui.clearAll()
         this.gui.updateMainUI('onlyReadinessBar', { readinessIcons: this.getReadinessIcons() });
-        this.currentRoundEntity = await this.runReadinessGauntlet();
-        if (!this.currentRoundEntity) {
-            warn("No entity found to start the next round");
-            await this.bcamera.enterHOI4Mode();
-            this.round();
-            return;
-        }
 
-        await this.bcamera.enterCharacterCenterMode();
-
-        await new Promise((resolve) => {
-            const cre = this.currentRoundEntity
-            //#region 
-            if (!cre) {
-                warn("No current round entity found");
+        await this.gui.tweenToUpdateReadiness(this.getReadinessIcons());
+        remoteEvent_Readiness.FireServer('ReadyForReadinessCheck');
+        remoteEvent_Readiness.OnClientEvent.Once(async w => {
+            const winner = this.getAllEntities().find(e => e.playerID === w as number);
+            this.currentRoundEntity = winner;
+            if (!this.currentRoundEntity) {
+                warn("No entity found to start the next round");
+                // await this.bcamera.enterHOI4Mode();
+                // this.round();
                 return;
             }
-            //#endregion
-            this.endTurn = () => {
-                resolve(void 0);
-                this.gui.clearAll();
-            }
 
-            this.setUpAttackRemoteEventReceiver();
+            await this.bcamera.enterCharacterCenterMode();
 
-            if (cre.playerID !== Players.LocalPlayer.UserId) {
-                // other player turn...
-                this.gui.mountOtherPlayersTurnGui();
-                if (cre.playerID === -1) {
-                    wait(2);
-                    this.endTurn(void 0);
+            await new Promise((resolve) => {
+                const cre = this.currentRoundEntity
+                //#region 
+                if (!cre) {
+                    warn("No current round entity found");
+                    return;
                 }
-            }
-            else {
-                this.gui.mountActionMenu(this.getCharacterMenuActions(cre));
-            }
-            cre.playAudio(EntityStatus.Idle);
-        });
+                //#endregion
+                this.endTurn = () => {
+                    resolve(void 0);
+                    this.gui.clearAll();
+                }
 
-        this.finalizeRound(this.currentRoundEntity);
-        this.round();
+                this.setUpAttackRemoteEventReceiver();
+
+                if (cre.playerID !== Players.LocalPlayer.UserId) {
+                    // other player turn...
+                    this.gui.mountOtherPlayersTurnGui();
+                    if (cre.playerID === -1) {
+                        wait(2);
+                        this.endTurn(void 0);
+                    }
+                }
+                else {
+                    this.gui.mountActionMenu(this.getCharacterMenuActions(cre));
+                }
+                cre.playAudio(EntityStatus.Idle);
+            });
+
+            this.finalizeRound(this.currentRoundEntity);
+            this.round();
+        })
     }
 
     private incrementTime() {
@@ -689,42 +781,6 @@ export class System extends State {
         if (targetAnimationTrack?.IsPlaying) await targetAnimationTrack?.Ended.Wait();
 
         attacker.playAudio(EntityStatus.Idle);
-    }
-    //#endregion
-
-    //#region Readiness Mechanics
-
-    private getReadinessIcons(): ReadinessIcon[] {
-        return this.getAllEntities().map((entity) => ({
-            iconID: entity.playerID,
-            iconUrl: "rbxassetid://18915919565",
-            readiness: entity.pos / 100,
-        }));
-    }
-
-    private calculateReadinessIncrement(entity: Entity) {
-        return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
-    }
-
-    private runReadinessGauntlet() {
-        const entities = this.getAllEntities();
-        if (entities.size() === 0) return;
-
-        while (!entities.some((e) => e.pos >= 100)) {
-            this.iterateReadinessGauntlet(entities);
-        }
-
-        const winner = entities.sort((a, b) => a.pos - b.pos > 0)[0];
-        return this.gui.tweenToUpdateReadiness(this.getReadinessIcons()).then(() => winner);
-    }
-
-    private iterateReadinessGauntlet(entities: Entity[]) {
-        for (const entity of entities) {
-            entity.pos += this.calculateReadinessIncrement(entity);
-            if (entity.pos >= 100) {
-                entity.pos = 100;
-            }
-        }
     }
     //#endregion
 }
