@@ -11,7 +11,6 @@ import TweenManager from "./TweenManager";
 print(calculateRealityValue)
 
 export default class Entity implements iEntity {
-
     animationHandler?: AnimationHandler;
     audioHandler?: AudioHandler;
     tweenHandler?: TweenManager;

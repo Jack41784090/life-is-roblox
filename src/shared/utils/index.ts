@@ -1,6 +1,6 @@
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import Entity from "shared/class/Battle/Entity";
-import { EntityStats, iAbility, Reality } from "shared/types/battle-types";
+import { AttackAction, EntityStats, iAbility, Reality } from "shared/types/battle-types";
 import { remoteFunctionsMap } from "./events";
 
 
@@ -369,4 +369,20 @@ export function calculateRealityValue(reality: Reality, entity: Entity): number 
             warn(`Reality value for ${reality} not found`);
             return 0;
     }
+}
+
+export function isAttackKills(attackerAction: AttackAction) {
+    const { ability, executed } = attackerAction
+    const { using, target } = ability
+
+    if (!attackerAction.clashResult) return false;
+
+    const { damage } = attackerAction.clashResult;
+
+    if (executed) {
+        return target.hip <= 0;
+    }
+
+    print(`IsAttackKills: ${target.hip} - ${damage} <= 0`);
+    return target.hip - damage <= 0;
 }

@@ -3,10 +3,11 @@ import { Players, ReplicatedStorage, RunService, TweenService, UserInputService,
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement, ReadinessBarElement } from "gui_sharedfirst";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
 import { AttackAction, BotType, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
-import { calculateRealityValue, getDummyStats, getPlayer, requestData } from "shared/utils";
+import { calculateRealityValue, getDummyStats, getPlayer, isAttackKills, requestData } from "shared/utils";
 import { bindableEventsMap, remoteEventsMap } from "shared/utils/events";
 import Ability, { AbilityState } from "./Ability";
 import Entity from "./Entity";
+import { AnimationType } from "./Entity/AnimationHandler";
 import HexCell from "./Hex/Cell";
 import HexGrid from "./Hex/Grid";
 import Pathfinding from "./Pathfinding";
@@ -99,9 +100,10 @@ export class Session {
                 using,
                 target,
             });
-            const attackAction = { executed: false, ability };
+            const attackAction: AttackAction = { executed: false, ability };
             const clashResult = this.trueState.clash(attackAction);
-            this.trueState.applyClash(attackAction, clashResult);
+            attackAction.clashResult = clashResult;
+            this.trueState.applyClash(attackAction);
 
             const usingPlayer = getPlayer(using.playerID);
             const targetPlayer = getPlayer(target.playerID);
@@ -343,7 +345,7 @@ export class State {
         const dummy = new Entity({
             stats: getDummyStats(),
             playerID: -1,
-            hip: 999,
+            hip: 0,
             pos: 0,
             org: 999,
             sta: 999,
@@ -356,8 +358,14 @@ export class State {
         return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
     }
 
-    public applyClash(attackAction: AttackAction, clashResult: ClashResult) {
+    public applyClash(attackAction: AttackAction) {
+        const clashResult = attackAction.clashResult;
+        if (!clashResult) {
+            warn("applyClash: Clash result not found");
+            return;
+        }
         print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
+        attackAction.executed = true;
         attackAction.ability.target.damage(clashResult.damage);
     }
 
@@ -567,24 +575,23 @@ export class System extends State {
     private setUpAttackRemoteEventReceiver() {
         if (RunService.IsServer()) return;
         this.attackRemoteEventReceived?.Disconnect();
-        this.attackRemoteEventReceived = remoteEvent_Attack.OnClientEvent.Connect((cr: ClashResult & { abilityState: AbilityState }) => {
-            print("Attack clash result received", cr);
+        this.attackRemoteEventReceived = remoteEvent_Attack.OnClientEvent.Connect((clashResult: ClashResult & { abilityState: AbilityState }) => {
+            print("Attack clash result received", clashResult);
 
-            const using = this.getAllEntities().find((e) => e.playerID === cr.abilityState.using);
-            const target = this.getAllEntities().find((e) => e.playerID === cr.abilityState.target);
+            const using = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.using);
+            const target = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.target);
 
             if (!using || !target) {
                 warn("Using or target entity not found", using, target);
                 return;
             }
             const ability = new Ability({
-                ...cr.abilityState,
+                ...clashResult.abilityState,
                 using,
                 target,
             })
-            this.applyClash({ executed: false, ability }, cr);
-
-            this.executeAttackSequence(ability);
+            this.applyClash({ executed: true, ability, clashResult });
+            this.executeAttackSequence({ executed: true, ability, clashResult });
         })
     }
 
@@ -682,15 +689,8 @@ export class System extends State {
 
     //#region Combat Mechanics
 
-    private async executeAttackSequence(ability: Ability) {
-        print(`Attack clicked: ${ability}`);
+    private async executeAttackSequence(attackAction: AttackAction) {
         //#region 
-        if (!ability.target.cell?.qr()) {
-            warn("Target cell not found");
-            return;
-        }
-        //#endregion
-        const attackAction: AttackAction = { executed: false, ability };
         this.exitMovementMode()
         await this.playAttackAnimation(attackAction);
         this.enterMovementMode();
@@ -731,58 +731,111 @@ export class System extends State {
 
     private async playAttackAnimation(attackAction: AttackAction) {
         const { using: attacker, target, animation } = attackAction.ability;
-        //#region 
+
         if (!attacker.model?.PrimaryPart || !target.model?.PrimaryPart) {
-            warn("Primary Part not found for attacker or target");
+            warn("[playAttackAnimation] PrimaryPart not found for attacker or target.");
             return;
         }
-        //#endregion
 
         await target.faceEntity(attacker);
 
-        const attackerAnimationTrack = attacker.playAnimation({
+        const attackAnimation = attacker.playAnimation({
             animation,
             priority: Enum.AnimationPriority.Action4,
             loop: false,
         });
-        const targetInitAnimationTrack = target.playAnimation({
+
+        const defendIdleAnimation = target.playAnimation({
             animation: "defend",
             priority: Enum.AnimationPriority.Action2,
             loop: false,
         });
 
-        let targetAnimationTrack: AnimationTrack | undefined;
+        if (!attackAnimation) {
+            warn("[playAttackAnimation] Attacker animation track not found.");
+            return;
+        }
 
-        const hitConnection = attackerAnimationTrack?.GetMarkerReachedSignal("Hit").Connect(() => {
-            targetAnimationTrack = target.playAnimation({
-                animation: "defend-hit",
-                priority: Enum.AnimationPriority.Action3,
-                loop: false,
-            });
-        });
+        try {
+            await this.waitForAnimationMarker(attackAnimation, "Hit");
+            target.animationHandler?.killAnimation(AnimationType.Idle);
 
-        const endConnection = attackerAnimationTrack?.Ended.Connect(() => {
-            hitConnection?.Disconnect();
-            endConnection?.Disconnect();
+            if (isAttackKills(attackAction)) {
+                defendIdleAnimation?.Stop();
+                target.playAnimation({
+                    animation: "death-idle",
+                    priority: Enum.AnimationPriority.Idle,
+                    loop: true,
+                })
+                const deathAnimation = target.playAnimation({
+                    animation: "death",
+                    priority: Enum.AnimationPriority.Action3,
+                    loop: false,
+                });
+            }
+            else {
+                defendIdleAnimation?.Stop();
+                const gotHitAnimation = target.playAnimation({
+                    animation: "defend-hit",
+                    priority: Enum.AnimationPriority.Action3,
+                    loop: false,
+                });
 
-            const transition = target.playAnimation({
-                animation: "defend->idle",
-                priority: Enum.AnimationPriority.Action4,
-                loop: false,
-            });
+                await this.waitForAnimationEnd(attackAnimation);
+                if (gotHitAnimation) await this.waitForAnimationEnd(gotHitAnimation);
 
-            target.animationHandler?.idleAnimationTrack?.Stop();
-            targetInitAnimationTrack?.Stop();
-            targetAnimationTrack?.Stop();
-            transition?.Stopped.Wait();
-        });
+                const transitionTrack = target.playAnimation({
+                    animation: "defend->idle",
+                    priority: Enum.AnimationPriority.Action4,
+                    loop: false,
+                });
 
-        if (targetInitAnimationTrack?.IsPlaying) await targetInitAnimationTrack?.Ended.Wait();
-        if (attackerAnimationTrack?.IsPlaying) await attackerAnimationTrack?.Ended.Wait();
-        if (targetAnimationTrack?.IsPlaying) await targetAnimationTrack?.Ended.Wait();
+                transitionTrack?.Ended.Wait();
+                target.playAnimation({
+                    animation: "idle",
+                    priority: Enum.AnimationPriority.Idle,
+                    loop: true,
+                })
+            }
+        } catch (error) {
+            warn(`[playAttackAnimation] Error during attack animation: ${error}`);
+        }
 
         attacker.playAudio(EntityStatus.Idle);
     }
+
+    /**
+     * Waits for a specific marker in an animation track.
+     * @param track The animation track to monitor.
+     * @param markerName The name of the marker to wait for.
+     */
+    private waitForAnimationMarker(track: AnimationTrack, markerName: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const connection = track.GetMarkerReachedSignal(markerName).Once(() => {
+                resolve();
+            });
+
+            wait(5);
+            if (connection.Connected) {
+                connection.Disconnect();
+                reject();
+            }
+        });
+    }
+
+    /**
+     * Waits for an animation track to end.
+     * @param track The animation track to monitor.
+     */
+    private waitForAnimationEnd(track: AnimationTrack): Promise<void> {
+        return new Promise((resolve) => {
+            const connection = track.Ended.Connect(() => {
+                connection.Disconnect();
+                resolve();
+            });
+        });
+    }
+
     //#endregion
 }
 

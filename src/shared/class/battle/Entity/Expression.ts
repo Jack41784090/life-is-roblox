@@ -75,29 +75,7 @@ export default class Expression {
         }
     }
 
-    blink() {
-        const animationHandler = this.entity.animationHandler;
-        const animator = animationHandler?.animator;
-        const blinkAnimation = animationHandler?.blinkAnimation;
-        const newBlinkTrack = blinkAnimation ? animator?.LoadAnimation(blinkAnimation) : undefined;
-
-        if (!animationHandler) {
-            warn(`${this.entity.name}: No animation handler found`);
-            return;
-        }
-        if (!blinkAnimation || !newBlinkTrack) {
-            warn(`${this.entity.name}: No blink animation found`, blinkAnimation, newBlinkTrack);
-            return;
-        }
-        if (!animator) {
-            warn(`${this.entity.name}: No animator found`);
-            return;
-        }
-
-        newBlinkTrack.Looped = false;
-        animationHandler.blinkAnimationTrack = newBlinkTrack;
-        animationHandler.blinkAnimationTrack.Play();
-
+    blink(newBlinkTrack: AnimationTrack) {
         // tween
         if (this.eyes) {
             // const closeEyeFrame = track.GetTimeOfKeyframe("CloseEye");

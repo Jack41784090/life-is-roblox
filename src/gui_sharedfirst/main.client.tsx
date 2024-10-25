@@ -147,7 +147,6 @@ function mainMenuSetup() {
             <ButtonFrameElement>
                 {mainMenuButtons.map((button, index) => (
                     <ButtonElement
-                        Key={index}
                         position={index * 1 / mainMenuButtons.size()}
                         size={1 / mainMenuButtons.size()}
                         onclick={button.onclick}

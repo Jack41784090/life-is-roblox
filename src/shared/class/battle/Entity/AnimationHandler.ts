@@ -1,129 +1,225 @@
 import Entity from ".";
 import Expression from "./Expression";
 
+export enum AnimationType {
+    Idle = "idle",
+    Blink = "blink",
+    Attack = "attack",
+    Hit = "hit",
+    Death = "death",
+    Victory = "victory",
+    Defeat = "defeat",
+}
+
 export interface AnimationOptions {
     animation: string;
     loop: boolean;
     priority?: Enum.AnimationPriority;
-    hold?: number,
+    hold?: number;
 }
 
 export default class AnimationHandler {
-    animator?: Animator;
-    idleBlinkingThread?: thread;
-    facingClosestEntityThread?: thread;
-
-    idleAnimationTrack?: AnimationTrack;
-    idleAnimation?: Animation;
-    blinkAnimationTrack?: AnimationTrack;
-    blinkAnimation?: Animation;
-
-    animationMap: Map<string, Animation> = new Map();
-
-    expression: Expression | undefined;
+    private animator?: Animator;
+    private idleBlinkingThread?: thread;
+    private idleAnimationTrack?: AnimationTrack;
+    private blinkAnimationTrack?: AnimationTrack;
+    private animationMap: Map<string, Animation> = new Map();
+    private expression?: Expression;
 
     constructor(private entity: Entity) {
-        print("Initialising animation handler");
-        const model = entity.model;
+        this.initialize();
+    }
+
+    /**
+     * Initializes the AnimationHandler by setting up the animator, loading animations,
+     * initializing expressions, and starting the idle animation.
+     */
+    private initialize(): void {
+        const model = this.entity.model;
         if (!model) {
-            warn("Model not found");
+            warn("[AnimationHandler] Model not found for entity.");
             return;
         }
 
-        this.animator = model.WaitForChild("Humanoid").WaitForChild("Animator") as Animator;
-
-        // load animations
-        const animationFolder = model.WaitForChild("anim") as Folder;
-        const allAnimations = animationFolder.GetChildren() as Animation[];
-        allAnimations.forEach((animation) => {
-            this.animationMap.set(animation.Name, animation);
-        });
-        this.idleAnimation = this.animationMap.get("idle");
-        this.blinkAnimation = this.animationMap.get("blink");
-        print(this.blinkAnimation)
-
-        if (this.idleAnimation) {
-            this.idleAnimationTrack = this.animator.LoadAnimation(this.idleAnimation);
-        }
-        else {
-            warn("Idle animation not found");
-        }
-        if (this.blinkAnimation) {
-            this.blinkAnimationTrack = this.animator.LoadAnimation(this.blinkAnimation);
-        }
-        else {
-            warn("Blink animation not found");
+        const humanoid = model.FindFirstChildOfClass("Humanoid") as Humanoid;
+        if (!humanoid) {
+            warn("[AnimationHandler] Humanoid not found in model.");
+            return;
         }
 
-        // expression
-        this.initialiseExpression();
+        this.animator = humanoid.FindFirstChildOfClass("Animator") as Animator;
+        if (!this.animator) {
+            warn("[AnimationHandler] Animator not found in humanoid.");
+            return;
+        }
 
-        // begin with idle animation
+        this.loadAnimations(model);
+        this.initializeExpression();
         this.playIdleAnimation();
     }
 
-    initialiseExpression() {
+    /**
+     * Loads animations from the model's 'anim' folder into the animation map.
+     * @param model The model containing the animations.
+     */
+    private loadAnimations(model: Model): void {
+        const animationFolder = model.FindFirstChild("anim") as Folder;
+        if (!animationFolder) {
+            warn("[AnimationHandler] Animation folder 'anim' not found in model.");
+            return;
+        }
+
+        animationFolder.GetChildren().forEach((child) => {
+            if (child.IsA("Animation")) {
+                this.animationMap.set(child.Name, child);
+            }
+        });
+
+        this.idleAnimationTrack = this.loadAnimationTrack("idle");
+        this.blinkAnimationTrack = this.loadAnimationTrack("blink");
+    }
+
+    /**
+     * Loads an animation track by name.
+     * @param animationName The name of the animation to load.
+     * @returns The loaded AnimationTrack, or undefined if not found.
+     */
+    private loadAnimationTrack(animationName: string): AnimationTrack | undefined {
+        const animation = this.animationMap.get(animationName);
+        if (!animation) {
+            warn(`[AnimationHandler] Animation '${animationName}' not found.`);
+            return undefined;
+        }
+        if (!this.animator) {
+            warn("[AnimationHandler] Animator is not initialized.");
+            return undefined;
+        }
+        return this.animator.LoadAnimation(animation);
+    }
+
+    /**
+     * Initializes the expression system and starts the blinking thread.
+     */
+    private initializeExpression(): void {
         this.expression = new Expression(this.entity);
+        this.startBlinking();
+    }
+
+    /**
+     * Starts the blinking loop.
+     */
+    private startBlinking(): void {
+        if (this.idleBlinkingThread) return; // Prevent multiple threads
+
         this.idleBlinkingThread = task.spawn(() => {
             while (true) {
                 wait(math.random(5, 10));
-                this.expression?.blink();
+                if (this.blinkAnimationTrack && this.expression) this.expression.blink(this.blinkAnimationTrack);
             }
-        })
+        });
     }
 
-    playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
-        const animationObj = this.animationMap.get(animation);
-        if (!animationObj) {
-            warn(`Animation ${animation} not found`);
-            return
+    /**
+     * Stops the blinking loop.
+     */
+    public stopBlinking(): void {
+        if (this.idleBlinkingThread) {
+            task.cancel(this.idleBlinkingThread);
+            this.idleBlinkingThread = undefined;
         }
-        const track = this.animator?.LoadAnimation(animationObj);
-        if (!this.animator || !track) {
-            warn(`Animator not loaded for ${animation}`);
-            return
-        }
+    }
+
+    /**
+     * Plays an animation based on the provided options.
+     * @param options The animation options.
+     * @returns The AnimationTrack if successfully played, undefined otherwise.
+     */
+    public playAnimation(options: AnimationOptions): AnimationTrack | undefined {
+        const { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop } = options;
+
+        const track = this.loadAnimationTrack(animation);
+        if (!track) return undefined;
 
         track.Looped = loop;
         track.Priority = priority;
         track.Play();
+
         if (hold > 0) {
-            task.spawn(() => {
-                const holdAnimation = this.animationMap.get(`${animation}-idle`)
-                if (!holdAnimation) {
-                    warn(`Hold animation ${animation}-idle not found`);
-                    return;
-                }
-                const holdTrack = this.animator?.LoadAnimation(holdAnimation);
-                if (!holdTrack) {
-                    warn(`Hold track not loaded for ${animation}-idle`);
-                    return;
-                }
-
-                track.Stopped.Wait();
-
-                holdTrack.Priority = Enum.AnimationPriority.Action4;
-                holdTrack.Looped = true;
-                holdTrack.Play();
-                wait(hold);
-                holdTrack.Stop();
-            })
+            this.playHoldAnimation(animation, hold);
         }
 
         return track;
     }
 
-    playIdleAnimation() {
-        print("Playing idle animation");
-        if (!this.idleAnimationTrack) {
-            warn("Idle animation track not found");
-            return;
-        }
-        this.playAnimation({ animation: "idle", loop: true, priority: Enum.AnimationPriority.Idle });
+    /**
+     * Plays a hold animation after the initial animation has stopped.
+     * @param animationName The base name of the animation.
+     * @param holdDuration The duration to hold the animation.
+     */
+    private playHoldAnimation(animationName: string, holdDuration: number): void {
+        task.spawn(() => {
+            const holdAnimationName = `${animationName}-idle`;
+            const holdTrack = this.loadAnimationTrack(holdAnimationName);
+            if (!holdTrack) return;
+
+            const initialTrack = this.loadAnimationTrack(animationName);
+            initialTrack?.Stopped.Wait();
+
+            holdTrack.Priority = Enum.AnimationPriority.Action4;
+            holdTrack.Looped = true;
+            holdTrack.Play();
+            wait(holdDuration);
+            holdTrack.Stop();
+        });
     }
 
-    playBlinkAnimation() {
-        print("Playing blink animation");
-        this.blinkAnimationTrack?.Play();
+    /**
+     * Plays the idle animation.
+     */
+    public playIdleAnimation(): void {
+        if (this.idleAnimationTrack) {
+            this.idleAnimationTrack.Looped = true;
+            this.idleAnimationTrack.Priority = Enum.AnimationPriority.Idle;
+            this.idleAnimationTrack.Play();
+        } else {
+            warn("[AnimationHandler] Idle animation track not found.");
+        }
+    }
+
+    /**
+     * Plays the blink animation.
+     */
+    public playBlinkAnimation(): void {
+        if (this.blinkAnimationTrack) {
+            this.blinkAnimationTrack.Play();
+        } else {
+            warn("[AnimationHandler] Blink animation track not found.");
+        }
+    }
+
+    public killAnimation(animationName: AnimationType): void {
+
+        let animation: AnimationTrack | undefined;
+        switch (animationName) {
+            case AnimationType.Idle:
+                animation = this.idleAnimationTrack;
+                break;
+            default:
+                return
+        }
+
+        animation?.Stop();
+        animation?.Destroy();
+    }
+
+    /**
+     * Cleans up the AnimationHandler by stopping animations and threads.
+     */
+    public destroy(): void {
+        this.stopBlinking();
+        this.idleAnimationTrack?.Stop();
+        this.blinkAnimationTrack?.Stop();
+        this.animationMap.clear();
+        this.expression = undefined;
     }
 }
