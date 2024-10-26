@@ -129,11 +129,7 @@ export default class Entity implements iEntity {
     }
 
     private positionModel(model: Model) {
-        const primaryPart = model.PrimaryPart;
         //#region
-        if (!primaryPart) {
-            throw `PrimaryPart is not set for the model entity_${this.stats.id}`;
-        }
         if (!this.cell?.part) {
             warn(`${this.name}: positionModel: cell part not materialised.`)
             this.cell?.materialise();
@@ -142,10 +138,8 @@ export default class Entity implements iEntity {
             }
         }
         //#endregion
-        const origin = model.WaitForChild("origin") as Part;
         const targetPosition = this.cell.part.Position;
-        primaryPart.Position = new Vector3(targetPosition.X, primaryPart.Position.Y, targetPosition.Z);
-        origin.Position = new Vector3(origin.Position.X, targetPosition.Y, origin.Position.Z);
+        model.PivotTo(new CFrame(targetPosition.X, 0, targetPosition.Z));
     }
     //#endregion
 

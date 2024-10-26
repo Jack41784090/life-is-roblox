@@ -1,4 +1,4 @@
-import { HEXAGON_MAGIC } from "shared/const";
+import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain } from "shared/types";
 import { QR } from "../../XY";
 import HexCell from "./Cell";
@@ -43,7 +43,7 @@ export default class HexGrid {
                 const cell = new HexCell({
                     qr: new Vector2(q, r),
                     size: this.size,
-                    height: 0.125,
+                    height: HEXAGON_HEIGHT,
                     terrain: CellTerrain.plains,
                     grid,
                     layout: new Layout(
