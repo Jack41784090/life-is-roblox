@@ -1,5 +1,5 @@
 
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 import Entity from "shared/class/Battle/Entity";
 import { iAbility } from "shared/types/battle-types";
 import { onInput } from "shared/utils";
@@ -14,7 +14,8 @@ interface Ability1SlotElementProps {
 interface Ability1SlotElementState {
     focus: boolean;
 }
-export default class Ability1SlotElement extends Roact.Component<Ability1SlotElementProps, Ability1SlotElementState> {
+@ReactComponent
+export default class Ability1SlotElement extends React.Component<Ability1SlotElementProps, Ability1SlotElementState> {
     onKeyClickScript: RBXScriptConnection;
 
     constructor(props: Ability1SlotElementProps) {
@@ -54,7 +55,7 @@ export default class Ability1SlotElement extends Roact.Component<Ability1SlotEle
         print("Rendering " + ability.name);
         return (
             <imagebutton
-                Key={`${key}-${ability.name}`}
+                key={`${key}-${ability.name}`}
                 Size={UDim2.fromScale(this.state.focus ? 0.25 : 0.2, 1)}
                 Image={ability.icon}
                 SizeConstraint={'RelativeXX'}

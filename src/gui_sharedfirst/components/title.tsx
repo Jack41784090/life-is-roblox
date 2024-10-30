@@ -1,4 +1,4 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 import { RunService } from "@rbxts/services";
 
 interface TitleElementProps {
@@ -7,7 +7,8 @@ interface TitleElementProps {
 interface TitleElementState {
     colour: Color3;
 }
-export default class TitleElement extends Roact.Component<TitleElementProps, TitleElementState> {
+@ReactComponent
+export default class TitleElement extends React.Component<TitleElementProps, TitleElementState> {
     private running: boolean = true;
     private connection: RBXScriptConnection | undefined;
 

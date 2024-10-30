@@ -1,4 +1,5 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
+import { createPortal } from "@rbxts/react-roblox";
 import { getPlayer } from "shared/utils";
 
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
@@ -11,7 +12,8 @@ interface AbilitySetElementProps {
 interface AbilitySetElementState {
     colour: Color3;
 }
-export default class AbilitySetElement extends Roact.Component<AbilitySetElementProps, AbilitySetElementState> {
+@ReactComponent
+export default class AbilitySetElement extends React.Component<AbilitySetElementProps, AbilitySetElementState> {
     constructor(props: AbilitySetElementProps) {
         super(props);
     }
@@ -22,15 +24,15 @@ export default class AbilitySetElement extends Roact.Component<AbilitySetElement
         }
 
         return (
-            <Roact.Portal target={playerGUI}>
+            createPortal(
                 <screengui
-                    Key={"AbilitySetScreenGui"}
+                    key={"AbilitySetScreenGui"}
                     ResetOnSpawn={false}
                     ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
                     IgnoreGuiInset={true}
                 >
                     <imagelabel
-                        Key={this.props.frameKey || "AbilitySet"}
+                        key={this.props.frameKey || "AbilitySet"}
                         AnchorPoint={new Vector2(1, 1)}
                         Size={UDim2.fromScale(0.3, 0)}
                         Position={UDim2.fromScale(1, 1)}
@@ -48,10 +50,9 @@ export default class AbilitySetElement extends Roact.Component<AbilitySetElement
                             HorizontalFlex={'SpaceAround'}
                         />
                         <uipadding PaddingBottom={new UDim(0.3)} />
-                        {this.props[Roact.Children]}
+                        {this.props.children}
                     </imagelabel>
-                </screengui>
-            </Roact.Portal>
+                </screengui>, playerGUI)
         );
     }
 }

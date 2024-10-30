@@ -1,25 +1,26 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 import { ReadinessIcon } from "shared/types/battle-types";
 
 interface ReadinessIconElementProps {
     icon: ReadinessIcon;
     index: number;
-    iconRef: Roact.Ref<Frame>;
+    iconRef: React.RefObject<Frame>;
 }
 interface ReadinessIconElementState { }
 
-export class ReadinessIconElement extends Roact.Component<ReadinessIconElementProps, ReadinessIconElementState> {
+@ReactComponent
+export class ReadinessIconElement extends React.Component<ReadinessIconElementProps, ReadinessIconElementState> {
     ilrPosChanged: RBXScriptConnection | undefined;
-    textLabelRef: Roact.Ref<TextLabel> | undefined;
+    textLabelRef: React.RefObject<TextLabel> | undefined;
 
     constructor(props: ReadinessIconElementProps) {
         super(props);
-        this.textLabelRef = Roact.createRef<TextLabel>();
+        this.textLabelRef = React.createRef<TextLabel>();
     }
 
     protected didMount(): void {
-        const ilr = this.props.iconRef.getValue();
-        const tlr = this.textLabelRef?.getValue();
+        const ilr = this.props.iconRef.current;
+        const tlr = this.textLabelRef?.current;
         this.ilrPosChanged = ilr?.GetPropertyChangedSignal('Position').Connect(() => {
             const readiness = ilr.Position.Y.Scale;
             if (tlr?.Text) tlr.Text = string.format("%.2f", readiness);
@@ -37,7 +38,7 @@ export class ReadinessIconElement extends Roact.Component<ReadinessIconElementPr
                 Position={UDim2.fromScale(0, this.props.icon.readiness)}
                 SizeConstraint={Enum.SizeConstraint.RelativeXX}
                 BackgroundTransparency={1}
-                Ref={this.props.iconRef}
+                ref={this.props.iconRef}
             >
                 <imagelabel
                     AnchorPoint={new Vector2(0.5, 0.5)}
@@ -46,13 +47,13 @@ export class ReadinessIconElement extends Roact.Component<ReadinessIconElementPr
                 />
                 <textlabel
                     AnchorPoint={new Vector2(0, 0.5)}
-                    Key={`Label${this.props.index}`}
+                    key={`Label${this.props.index}`}
                     Size={UDim2.fromScale(1, 1)}
                     Text={string.format("%.2f", this.props.icon.readiness)}
                     TextScaled={true}
                     BackgroundTransparency={1}
                     TextColor3={new Color3(1, 1, 1)}
-                    Ref={this.textLabelRef}
+                    ref={this.textLabelRef}
                 />
             </frame>
         );

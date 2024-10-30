@@ -1,10 +1,12 @@
-import Roact from "@rbxts/roact";
+import React from "@rbxts/react";
+import ReactRoblox, { createRoot } from "@rbxts/react-roblox";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
 import { ButtonElement, ButtonFrameElement, MenuFrameElement, TitleElement } from "gui_sharedfirst";
 import * as Battle from "shared/class/Battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
+import { ErrorBoundary } from "./components/_error-boundary";
 
 //#region 1. LOADING
 // Wait for the game to load
@@ -18,21 +20,31 @@ const numberOfAssets = assets.size();
 let loadedAssets = 0;  // Track the number of assets loaded
 
 // Function to update the loading screen
-let loadingScreen: Roact.Tree | undefined;
+let loadingScreen: ReactRoblox.Root | undefined;
 function updateLoadingScreen(loadedAssets: number) {
     if (loadingScreen) {
-        Roact.update(
-            loadingScreen,
-            <MenuFrameElement transparency={0} zIndex={5}>
-                <TitleElement text={`Loading ${loadedAssets}/${numberOfAssets} Assets...`} />
-            </MenuFrameElement>
+        loadingScreen.render(
+            <ErrorBoundary fallback={(e) => {
+                print("Error in loading screen", e);
+                return <></>
+            }}>
+
+                <MenuFrameElement transparency={0} zIndex={5}>
+                    <TitleElement text={`Loading ${loadedAssets}/${numberOfAssets} Assets...`} />
+                </MenuFrameElement>
+            </ErrorBoundary>
         );
     }
     else {
-        loadingScreen = Roact.mount(
-            <MenuFrameElement transparency={0}>
-                <TitleElement text={`Loading 0/${numberOfAssets} Assets...`} />
-            </MenuFrameElement>
+        loadingScreen = createRoot(playerGui);
+        loadingScreen.render(
+            <ErrorBoundary fallback={(e) => {
+                print("Error in loading screen", e);
+                return <></>
+            }}>
+                <MenuFrameElement transparency={0}>
+                    <TitleElement text={`Loading 0/${numberOfAssets} Assets...`} />
+                </MenuFrameElement></ErrorBoundary>
         );
     }
 }
@@ -45,17 +57,20 @@ for (let i = 0; i < numberOfAssets; i++) {
         const asset = assets[i];
         ContentProvider.PreloadAsync([asset]);
         loadedAssets += 1;
-        // updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
+        updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
     })
     threads.push(thread);
 }
 
 // Wait for all assets to be preloaded
-// while (loadedAssets < numberOfAssets) wait();
+while (loadedAssets < numberOfAssets) wait();
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
-if (loadingScreen) Roact.unmount(loadingScreen);
+if (loadingScreen) {
+    print("Unmounting loading screen");
+    loadingScreen.unmount();
+}
 //#endregion
 
 //#region 2. MAIN MENU
@@ -117,21 +132,21 @@ function mainMenuSetup() {
             {
                 text: "Play",
                 onclick: () => {
-                    Roact.unmount(mainMenu);
+                    mainMenu.unmount();
                     enterPlayground();
                 },
             },
             {
                 text: "Battle",
                 onclick: () => {
-                    Roact.unmount(mainMenu);
+                    mainMenu.unmount();
                     enterBattle();
                 }
             },
             {
                 text: "Story",
                 onclick: () => {
-                    Roact.unmount(mainMenu);
+                    mainMenu.unmount();
                     enterStory();
                 }
             }
@@ -141,21 +156,26 @@ function mainMenuSetup() {
         return;
     }
 
-    const mainMenu = Roact.mount(
-        <MenuFrameElement>
-            <TitleElement text="Epic Colndir Game!!!" />
-            <ButtonFrameElement>
-                {mainMenuButtons.map((button, index) => (
-                    <ButtonElement
-                        position={index * 1 / mainMenuButtons.size()}
-                        size={1 / mainMenuButtons.size()}
-                        onclick={button.onclick}
-                        text={button.text}
-                    />
-                ))}
-            </ButtonFrameElement>
-        </MenuFrameElement>,
-        playerGui // Mounting the UI in PlayerGui
+    const mainMenu = createRoot(playerGui);
+    mainMenu.render(
+        <ErrorBoundary fallback={(e) => {
+            print("Error in main menu", e);
+            return <></>
+        }}>
+            <MenuFrameElement>
+                <TitleElement text="Epic Colndir Game!!!" />
+                <ButtonFrameElement>
+                    {mainMenuButtons.map((button, index) => (
+                        <ButtonElement
+                            position={index * 1 / mainMenuButtons.size()}
+                            size={1 / mainMenuButtons.size()}
+                            onclick={button.onclick}
+                            text={button.text}
+                        />
+                    ))}
+                </ButtonFrameElement>
+            </MenuFrameElement>
+        </ErrorBoundary>
     );
 
     return mainMenu;

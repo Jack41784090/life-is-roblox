@@ -1,5 +1,5 @@
 
-import Roact, { Element } from "@rbxts/roact";
+import React, { Element, ReactComponent } from "@rbxts/react";
 import { Gui } from "shared/class/Battle";
 import Entity from "shared/class/Battle/Entity";
 import { AbilitySet } from "shared/types/battle-types";
@@ -11,7 +11,8 @@ interface AbilitySlotsElementProps {
     gui: Gui;
 }
 interface AbilitySlotsElementState { }
-export default class AbilitySlotsElement extends Roact.Component<AbilitySlotsElementProps, AbilitySlotsElementState> {
+@ReactComponent
+export default class AbilitySlotsElement extends React.Component<AbilitySlotsElementProps, AbilitySlotsElementState> {
     constructor(props: AbilitySlotsElementProps) {
         super(props);
     }

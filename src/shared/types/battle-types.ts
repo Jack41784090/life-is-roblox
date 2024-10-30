@@ -1,4 +1,3 @@
-import Roact from "@rbxts/roact";
 import Ability from "shared/class/Battle/Ability";
 import Entity from "shared/class/Battle/Entity";
 
@@ -55,7 +54,7 @@ export enum CharacterActionMenuAction {
 
 export type EntityActionOptions = {
     type: CharacterActionMenuAction,
-    ui: Roact.Tree
+    ui: ReactRoblox.Root
 }
 
 export type EntityStats = {
@@ -187,7 +186,7 @@ export type AbilityInitOptions = {
 
 export interface CharacterMenuAction {
     type: CharacterActionMenuAction,
-    run: (ui: Roact.Tree) => void;
+    run: (ui: ReactRoblox.Root) => void;
 }
 
 export enum EntityStatus {

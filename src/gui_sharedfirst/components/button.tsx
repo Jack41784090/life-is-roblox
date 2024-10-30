@@ -1,4 +1,4 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 import { TweenService } from "@rbxts/services";
 
 interface ButtonElementProps {
@@ -10,16 +10,17 @@ interface ButtonElementProps {
 }
 interface ButtonElementState { }
 
-export default class ButtonElement extends Roact.Component<ButtonElementProps, ButtonElementState> {
-    private buttonRef: Roact.Ref<TextButton>;
+@ReactComponent
+export default class ButtonElement extends React.Component<ButtonElementProps, ButtonElementState> {
+    private buttonRef: React.RefObject<TextButton>;
 
     constructor(props: ButtonElementProps) {
         super(props);
-        this.buttonRef = Roact.createRef<TextButton>();
+        this.buttonRef = React.createRef<TextButton>();
     }
 
     private tweenColor(targetColor: Color3) {
-        const button = this.buttonRef.getValue();
+        const button = this.buttonRef.current;
         if (button) {
             const tweenInfo = new TweenInfo(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
             const tween = TweenService.Create(button, tweenInfo, { BackgroundColor3: targetColor });
@@ -30,7 +31,7 @@ export default class ButtonElement extends Roact.Component<ButtonElementProps, B
     render() {
         return (
             <textbutton
-                Ref={this.buttonRef}
+                ref={this.buttonRef}
                 Text={this.props.text}
                 Position={new UDim2(0, 0, this.props.position, 0)}
                 Size={new UDim2(1, 0, this.props.size, 0)}

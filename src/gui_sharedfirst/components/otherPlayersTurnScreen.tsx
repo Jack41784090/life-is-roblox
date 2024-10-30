@@ -1,9 +1,11 @@
 
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
+import { createPortal } from "@rbxts/react-roblox";
 
 interface OPTElementProps { }
 interface OPTElementState { }
-export default class OPTElement extends Roact.Component<OPTElementProps, OPTElementState> {
+@ReactComponent
+export default class OPTElement extends React.Component<OPTElementProps, OPTElementState> {
     constructor(props: OPTElementProps) {
         super(props);
     }
@@ -14,8 +16,8 @@ export default class OPTElement extends Roact.Component<OPTElementProps, OPTElem
             return undefined;
         }
         return (
-            <Roact.Portal target={pgui}>
-                <screengui Key={'otherPlayersTurnGui'}>
+            createPortal(
+                <screengui key={'otherPlayersTurnGui'}>
                     <frame
                         BackgroundColor3={BrickColor.Red().Color}
                         BackgroundTransparency={.9}
@@ -28,8 +30,7 @@ export default class OPTElement extends Roact.Component<OPTElementProps, OPTElem
                             Text={'Other Players Turn'}
                         />
                     </frame>
-                </screengui>
-            </Roact.Portal>
+                </screengui>, pgui)
         )
     }
 }

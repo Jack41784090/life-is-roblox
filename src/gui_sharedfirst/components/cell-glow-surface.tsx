@@ -1,4 +1,4 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 import { RunService, TweenService } from "@rbxts/services";
 import HexCell from "shared/class/Battle/Hex/Cell";
 import { getPlayer } from "shared/utils";
@@ -12,8 +12,9 @@ interface CellGlowSurfaceElementState {
     transparency: number;
 }
 
-export default class CellGlowSurfaceElement extends Roact.Component<CellGlowSurfaceElementProps, CellGlowSurfaceElementState> {
-    private buttonRef: Roact.Ref<TextButton>;
+@ReactComponent
+export default class CellGlowSurfaceElement extends React.Component<CellGlowSurfaceElementProps, CellGlowSurfaceElementState> {
+    private buttonRef: React.RefObject<TextButton>;
     private running: boolean = true;
     private connection: RBXScriptConnection | undefined;
     state = {
@@ -23,11 +24,11 @@ export default class CellGlowSurfaceElement extends Roact.Component<CellGlowSurf
 
     constructor(props: CellGlowSurfaceElementProps) {
         super(props);
-        this.buttonRef = Roact.createRef<TextButton>();
+        this.buttonRef = React.createRef<TextButton>();
     }
 
     private tweenColor(targetColor: Color3, transparency: number, size: UDim2 = new UDim2(1, 0, 1, 0)) {
-        const button = this.buttonRef.getValue();
+        const button = this.buttonRef.current;
         if (button) {
             const tweenInfo = new TweenInfo(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
             const tween = TweenService.Create(button, tweenInfo, {
@@ -77,7 +78,7 @@ export default class CellGlowSurfaceElement extends Roact.Component<CellGlowSurf
         return (
             <surfacegui Adornee={this.props.cell.part} Face={"Top"}>
                 <textbutton
-                    Ref={this.buttonRef}
+                    ref={this.buttonRef}
                     BackgroundTransparency={this.state.transparency}
                     BackgroundColor3={HexCell.SELECTED_COLOUR}
                     Position={new UDim2(0.5, 0, 0.5, 0)}

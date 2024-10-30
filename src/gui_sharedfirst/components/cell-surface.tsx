@@ -1,4 +1,4 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 import HexCell from "shared/class/Battle/Hex/Cell";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
@@ -11,12 +11,13 @@ export interface CellSurfaceElementProps {
 }
 interface CellSurfaceElementState { }
 
-export default class CellSurfaceElement extends Roact.Component<CellSurfaceElementProps, CellSurfaceElementState> {
-    private buttonRef: Roact.Ref<TextButton>;
+@ReactComponent
+export default class CellSurfaceElement extends React.Component<CellSurfaceElementProps, CellSurfaceElementState> {
+    private buttonRef: React.RefObject<TextButton>;
 
     constructor(props: CellSurfaceElementProps) {
         super(props);
-        this.buttonRef = Roact.createRef<TextButton>();
+        this.buttonRef = React.createRef<TextButton>();
     }
 
     render() {
@@ -25,13 +26,13 @@ export default class CellSurfaceElement extends Roact.Component<CellSurfaceEleme
         }
         return (
             <surfacegui
-                Key={this.props.cell.part.Name}
+                key={this.props.cell.part.Name}
                 Adornee={this.props.cell.part}
                 Face={"Top"}
                 AlwaysOnTop={true}
             >
                 <textbutton
-                    Ref={this.buttonRef}
+                    ref={this.buttonRef}
                     Position={new UDim2(0.5, 0, 0.5, 0)}
                     AnchorPoint={new Vector2(0.5, 0.5)}
                     Size={new UDim2(.6, 0, .6, 0)}

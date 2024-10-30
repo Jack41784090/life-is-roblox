@@ -1,4 +1,5 @@
-import Roact, { Portal } from "@rbxts/roact";
+import React from "@rbxts/react";
+import { createRoot } from "@rbxts/react-roblox";
 import { Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement, ReadinessBarElement } from "gui_sharedfirst";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
@@ -537,8 +538,8 @@ export class System extends State {
         return [
             {
                 type: CharacterActionMenuAction.Move,
-                run: (tree: Roact.Tree) => {
-                    Roact.unmount(tree);
+                run: (tree: ReactRoblox.Root) => {
+                    tree.unmount();
                     this.bcamera.enterHOI4Mode(entity.cell?.worldPosition()).then(() => {
                         this.enterMovementMode();
                     });
@@ -546,8 +547,8 @@ export class System extends State {
             },
             {
                 type: CharacterActionMenuAction.EndTurn,
-                run: (tree: Roact.Tree) => {
-                    Roact.unmount(tree);
+                run: (tree: ReactRoblox.Root) => {
+                    tree.unmount();
                     this.endTurn?.(void 0);
                 },
             },
@@ -830,11 +831,12 @@ export class System extends State {
 }
 
 export class Gui {
-    private mainGui: Roact.Tree;
-    actionsGui: Roact.Tree | undefined;
-    glowPathGui: Roact.Tree | undefined;
-    abilitySlotGui: Roact.Tree | undefined;
-    otherPlayersTurnGui: Roact.Tree | undefined;
+    private playerGui = Players.LocalPlayer.FindFirstChildOfClass("PlayerGui") as PlayerGui;
+    private mainGui: ReactRoblox.Root;
+    public actionsGui: ReactRoblox.Root | undefined;
+    public glowPathGui: ReactRoblox.Root | undefined;
+    public abilitySlotGui: ReactRoblox.Root | undefined;
+    public otherPlayersTurnGui: ReactRoblox.Root | undefined;
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(icons: ReadinessIcon[], grid: HexGrid) {
@@ -855,7 +857,7 @@ export class Gui {
         }
 
         this.readinessIconMap = new Map(icons.map((icon) => {
-            const ref = Roact.createRef<Frame>();
+            const ref = React.createRef<Frame>();
             return [icon.iconID, ref];
         }));
     }
@@ -866,10 +868,10 @@ export class Gui {
      *  * `withSensitiveCells`: the readiness bar and the sensitive cells (surfacegui on cells)
      * 
      * @param mode 
-     * @returns the updated Roact tree
+     * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { readinessIcons: ReadinessIcon[], cre: Entity, grid: HexGrid }): Roact.Tree;
-    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): Roact.Tree;
+    updateMainUI(mode: 'withSensitiveCells', props: { readinessIcons: ReadinessIcon[], cre: Entity, grid: HexGrid }): ReactRoblox.Root;
+    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): ReactRoblox.Root;
     updateMainUI(mode: MainUIModes, props: {
         readinessIcons?: ReadinessIcon[]
         cre?: Entity
@@ -882,21 +884,25 @@ export class Gui {
                     warn(`No readiness icons provided for mode: ${mode}`);
                     return;
                 }
-                return Roact.update(this.mainGui,
-                    <MenuFrameElement transparency={1} Key={`BattleUI`}>
-                        <ReadinessBarElement icons={props.readinessIcons} ref={this.readinessIconMap} />
+                this.mainGui.render(
+                    <MenuFrameElement transparency={1} key={`BattleUI`}>
+                        <ReadinessBarElement icons={props.readinessIcons} refs={this.readinessIconMap} />
                     </MenuFrameElement>);
+                break;
             case 'withSensitiveCells':
                 if (!props.cre || !props.grid || !props.readinessIcons) {
                     warn(`No entity, grid or readiness icons provided for mode: ${mode}`);
                     return;
                 }
-                return Roact.update(this.mainGui,
-                    <MenuFrameElement transparency={1} Key={`BattleUI`}>
-                        <ReadinessBarElement icons={props.readinessIcons} ref={this.readinessIconMap} />
+                this.mainGui.render(
+                    <MenuFrameElement transparency={1} key={`BattleUI`}>
+                        <ReadinessBarElement icons={props.readinessIcons} refs={this.readinessIconMap} />
                         {this.createSensitiveCellElements(props.cre, props.grid)}
                     </MenuFrameElement>);
+                break;
         }
+
+        return this.mainGui
     }
 
     //#region UI Mounting Methods
@@ -910,12 +916,13 @@ export class Gui {
     mountActionMenu(actions: CharacterMenuAction[]) {
         print("Mounting action menu");
         this.unmountAndClear('actionsGui');
-        this.actionsGui = Roact.mount(
-            <MenuFrameElement Key={"ActionMenu"} transparency={1}>
+        this.actionsGui = createRoot(this.playerGui);
+        this.actionsGui.render(
+            <MenuFrameElement key={"ActionMenu"} transparency={1}>
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)}>
                     {actions.map((action, index) => (
                         <ButtonElement
-                            Key={action.type}
+                            key={action.type}
                             position={index / actions.size()}
                             size={1 / actions.size()}
                             onclick={() => {
@@ -933,12 +940,14 @@ export class Gui {
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBarElement
      * @returns the mounted Tree
      */
-    mountInitialUI(icons: ReadinessIcon[]): Roact.Tree {
-        return Roact.mount(
-            <MenuFrameElement Key={`BattleUI`} transparency={1}>
-                <ReadinessBarElement icons={icons} ref={this.readinessIconMap} />
+    mountInitialUI(icons: ReadinessIcon[]): ReactRoblox.Root {
+        const root = createRoot(this.playerGui);
+        root.render(
+            <MenuFrameElement key={`BattleUI`} transparency={1}>
+                <ReadinessBarElement icons={icons} refs={this.readinessIconMap} />
             </MenuFrameElement>
         );
+        return root;
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cell: HexCell, range: NumberRange): HexCell[] | undefined
@@ -946,20 +955,16 @@ export class Gui {
     mountOrUpdateGlow(_cells: HexCell[] | HexCell, range?: NumberRange) {
         const cellsToGlow = _cells instanceof HexCell ? _cells.findCellsWithinRange(range!) : _cells;
         const elements = cellsToGlow.mapFiltered((cell) => <CellGlowSurfaceElement cell={cell} />);
-        const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
-        if (!playerGUI) return;
 
-        if (playerGUI && this.glowPathGui) {
-            Roact.update(this.glowPathGui,
-                <Portal target={playerGUI}>
-                    <frame>{elements}</frame>
-                </Portal>
+        if (this.glowPathGui) {
+            this.glowPathGui.render(
+                <frame>{elements}</frame>
             );
         } else {
-            this.glowPathGui = Roact.mount(
-                <Portal target={playerGUI}>
-                    <frame>{elements}</frame>
-                </Portal>);
+            this.glowPathGui = createRoot(this.playerGui);
+            this.glowPathGui?.render(
+                <frame>{elements}</frame>
+            )
         }
 
         return cellsToGlow;
@@ -967,7 +972,8 @@ export class Gui {
 
     mountOtherPlayersTurnGui() {
         this.unmountAndClear('otherPlayersTurnGui');
-        this.otherPlayersTurnGui = Roact.mount(<OPTElement />);
+        this.otherPlayersTurnGui = createRoot(this.playerGui);
+        this.otherPlayersTurnGui.render(<OPTElement />);
     }
 
     mountAbilitySlots(cre: Entity) {
@@ -979,7 +985,8 @@ export class Gui {
         }
         //#endregion
         this.unmountAndClear('abilitySlotGui');
-        this.abilitySlotGui = Roact.mount(
+        this.abilitySlotGui = createRoot(this.playerGui);
+        this.abilitySlotGui.render(
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>
@@ -991,7 +998,7 @@ export class Gui {
         if (property !== undefined && typeOf(property) === 'table') {
             print(`Unmounting and clearing: ${propertyName as string}`);
             const [s, f] = pcall(() => {
-                Roact.unmount(property as Roact.Tree);
+                (property as ReactRoblox.Root).unmount();
                 this[propertyName] = undefined as unknown as this[typeof propertyName];
             });
             if (!s) {
@@ -1006,7 +1013,7 @@ export class Gui {
      * Get cell elements that are sensitive to mouse hover
      * @returns 
      */
-    private createSensitiveCellElements(cre: Entity, grid: HexGrid): Roact.Element | undefined {
+    private createSensitiveCellElements(cre: Entity, grid: HexGrid): React.Element | undefined {
         return <frame>
             {grid.cells.map((c) => (
                 <CellSurfaceElement
@@ -1150,10 +1157,10 @@ export class Gui {
     //#endregion
 
     //#region Readiness Bar Methods
-    readinessIconMap: Map<number, Roact.Ref<Frame>>;
+    readinessIconMap: Map<number, React.RefObject<Frame>>;
 
     private async updateSpecificReadinessIcon(iconID: number, readiness: number) {
-        const iconFrame = this.readinessIconMap.get(iconID)?.getValue();
+        const iconFrame = this.readinessIconMap.get(iconID)?.current;
         if (!iconFrame) {
             warn("No icon found for readiness update", iconID);
             return;
@@ -1179,7 +1186,7 @@ export class Gui {
         for (const icon of newReadinessIcons) {
             const ref = this.readinessIconMap.get(icon.iconID);
             if (!ref) continue;
-            const iconRef = ref.getValue();
+            const iconRef = ref.current;
             if (!iconRef) continue;
 
             const readiness = icon.readiness;

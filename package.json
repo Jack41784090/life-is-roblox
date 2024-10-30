@@ -6,7 +6,7 @@
   "devDependencies": {
     "@rbxts/compiler-types": "^3.0.0-types.0",
     "@rbxts/types": "^1.0.813",
-    "roblox-ts": "^2.3.0",
+    "roblox-ts": "^3.0.0",
     "typescript": "^5.5.4"
   },
   "scripts": {
@@ -18,7 +18,8 @@
   "license": "ISC",
   "dependencies": {
     "@rbxts/matter": "^0.8.5",
-    "@rbxts/roact": "^3.0.1",
+    "@rbxts/react": "^17.2.1",
+    "@rbxts/react-roblox": "^17.2.1",
     "@rbxts/services": "^1.5.5",
     "@rbxts/signal": "^1.1.1"
   }

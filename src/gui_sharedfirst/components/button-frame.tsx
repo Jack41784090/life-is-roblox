@@ -1,11 +1,12 @@
-import Roact from "@rbxts/roact";
+import React, { ReactComponent } from "@rbxts/react";
 
 interface ButtonFrameElementProps {
     position?: UDim2;
     size?: UDim2;
 }
 interface ButtonFrameElementState { }
-export default class ButtonFrameElement extends Roact.Component<ButtonFrameElementProps, ButtonFrameElementState> {
+@ReactComponent
+export default class ButtonFrameElement extends React.Component<ButtonFrameElementProps, ButtonFrameElementState> {
     constructor(props: ButtonFrameElementProps) {
         super(props);
     }
@@ -13,7 +14,7 @@ export default class ButtonFrameElement extends Roact.Component<ButtonFrameEleme
     render() {
         return (
             <frame
-                Key={"ButtonFrame"}
+                key={"ButtonFrame"}
                 Position={this.props.position ?? new UDim2(0.3, 0, 0.35, 0)}
                 Size={this.props.size ?? new UDim2(0.4, 0, 0.6, 0)}
                 BackgroundTransparency={0.25}
@@ -21,7 +22,7 @@ export default class ButtonFrameElement extends Roact.Component<ButtonFrameEleme
                 BorderColor3={new Color3(0, 0, 0)}
                 BorderSizePixel={2}
             >
-                {this.props[Roact.Children]}
+                {this.props.children}
             </frame>
         );
     }
