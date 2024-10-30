@@ -17,6 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@rbxts/matter": "^0.8.5",
     "@rbxts/roact": "^3.0.1",
     "@rbxts/services": "^1.5.5",
     "@rbxts/signal": "^1.1.1"
