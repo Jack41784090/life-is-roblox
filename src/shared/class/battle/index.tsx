@@ -3,7 +3,7 @@ import { Players, ReplicatedStorage, RunService, TweenService, UserInputService,
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement, ReadinessBarElement } from "gui_sharedfirst";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
 import { AttackAction, BotType, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
-import { calculateRealityValue, getDummyStats, getPlayer, isAttackKills, requestData } from "shared/utils";
+import { calculateRealityValue, getDummyStats, getPlayer, isAttackKills, requestData, warnWrongSideCall } from "shared/utils";
 import { bindableEventsMap, remoteEventsMap } from "shared/utils/events";
 import Ability, { AbilityState } from "./Ability";
 import Entity from "./Entity";
@@ -34,161 +34,6 @@ export const remoteEvent_MoveEntity: RemoteEvent = remoteEventsMap["Battle_MoveE
 export const remoteEvent_Readiness: RemoteEvent = remoteEventsMap["Battle_Readiness"]
 type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
 
-export class Session {
-    public static New(config: Partial<Config>) {
-        const participatingPlayers: Player[] = []
-        if (config.teamMap) {
-            for (const [team, players] of pairs(config.teamMap)) {
-                players.forEach((player) => participatingPlayers.push(player));
-            }
-        }
-
-        const CONFIG = {
-            camera: undefined,
-            worldCenter: DEFAULT_WORLD_CENTER,
-            width: DEFAULT_WIDTH,
-            height: DEFAULT_HEIGHT,
-            teamMap: {},
-            ...config,
-        }
-        const serverState = new State(CONFIG.width, CONFIG.height, CONFIG.worldCenter, TILE_SIZE);
-        const controller = new Session(participatingPlayers, serverState, CONFIG);
-        for (const p of participatingPlayers) {
-            remoteEvent_Start.FireClient(p, config);
-        }
-
-        controller.setUpAttackReceiver();
-        controller.setUpMoveEntityReceiver();
-        controller.setUpReadinessReceiver();
-        return controller;
-    }
-
-    config: Config;
-    trueState: State;
-    participatingPlayers: Player[];
-
-    private constructor(players: Player[], battleState: State, config: Config) {
-        this.participatingPlayers = players;
-        this.trueState = battleState
-        this.config = config;
-        this.trueState.initializeNumbers(config.teamMap);
-    }
-
-    //#region Remote Event: Attack
-    private setUpAttackReceiver() {
-        if (RunService.IsClient()) return;
-        remoteEvent_Attack.OnServerEvent.Connect((player, _ability) => {
-            print(`Attack: ${player.Name} | Ability:`, _ability);
-            const abilityState = _ability as AbilityState;
-            if (!abilityState || (typeOf(abilityState['using']) !== 'number')) {
-                warn("Ability invalid on attack");
-                return;
-            }
-
-            const { using: _using, target: _target } = abilityState
-
-            const allEntities = this.trueState.getAllEntities(); print(allEntities)
-            const using = allEntities.find((e) => e.playerID === _using);
-            const target = allEntities.find((e) => e.playerID === _target);
-            if (!using || !target) {
-                warn("Using or target entity not found", using, target);
-                return;
-            }
-
-            const ability = new Ability({
-                ...abilityState,
-                using,
-                target,
-            });
-            const attackAction: AttackAction = { executed: false, ability };
-            const clashResult = this.trueState.clash(attackAction);
-            attackAction.clashResult = clashResult;
-            this.trueState.applyClash(attackAction);
-
-            const usingPlayer = getPlayer(using.playerID);
-            const targetPlayer = getPlayer(target.playerID);
-            if (usingPlayer) remoteEvent_Attack.FireClient(usingPlayer, { ...clashResult, abilityState });
-            if (targetPlayer) remoteEvent_Attack.FireClient(targetPlayer, { ...clashResult, abilityState });
-        });
-    }
-    //#endregion
-
-    //#region Remote Event: Move Entity
-    private setUpMoveEntityReceiver() {
-        if (RunService.IsClient()) return;
-        remoteEvent_MoveEntity.OnServerEvent.Connect((player, _toCell) => {
-            print(`Move Entity: ${player.Name} to ${_toCell}`);
-            const destinationQR = _toCell as Vector2;
-            const entity = this.trueState.getAllEntities().find((e) => e.playerID === player.UserId);
-            if (!entity) {
-                warn("Entity not found");
-                return;
-            }
-            this.moveEntity(entity, destinationQR);
-        });
-    }
-
-    private moveEntity(entity: Entity, dest: Vector2) {
-        const toCell = this.trueState.grid.getCell(dest);
-        if (!toCell) {
-            warn("Destination cell not found");
-            return;
-        }
-        this.trueState.moveEntity(entity, toCell);
-    }
-    //#endregion
-
-    //#region Remote Event: Readiness
-    turnWinner?: Entity;
-    private playersReadyForReadinessCheck: Set<Player> = new Set();
-    private setUpReadinessReceiver() {
-        if (RunService.IsClient()) return;
-        remoteEvent_Readiness.OnServerEvent.Connect((p, _mes) => {
-            const mes = _mes as ReadinessRequestStatus;
-            print(`Readiness: ${p.Name} | ${mes}`);
-            switch (mes) {
-                case 'ReadyForReadinessCheck':
-                    this.playersReadyForReadinessCheck.add(p);
-                    if (this.playersReadyForReadinessCheck.size() === this.participatingPlayers.size()) {
-                        this.participatingPlayers.forEach(p => this.requestWinner(p));
-                    }
-                    break;
-            }
-        });
-    }
-
-    private async requestWinner(p: Player) {
-        if (this.playersReadyForReadinessCheck.size() !== this.participatingPlayers.size()) {
-            print("Not all players are ready for readiness check.");
-            return;
-        }
-
-        if (this.turnWinner) {
-            remoteEvent_Readiness.FireClient(p, this.turnWinner.playerID);
-        }
-        else {
-            const winner = this.runReadinessGauntlet();
-            if (winner) {
-                this.turnWinner = winner;
-                remoteEvent_Readiness.FireClient(p, winner.playerID);
-            }
-        }
-    }
-
-
-    private runReadinessGauntlet() {
-        const winner = this.trueState.runReadinessGauntlet();
-        return winner;
-    }
-
-    //#endregion
-
-    private updateEntityStatsAfterRound(entity: Entity) {
-        print(`${entity.name} has ${entity.pos} readiness points`);
-        entity.pos /= 2;
-        print(`${entity.name} has ${entity.pos} readiness points`);
-    }
-}
 
 export class State {
     currentRoundEntityID?: number;
@@ -214,6 +59,10 @@ export class State {
 
     //#region Debug Tools
     protected placeEntity(entity: Entity, cell: HexCell) {
+        if (RunService.IsClient()) {
+            warnWrongSideCall("placeEntity");
+            return;
+        }
         entity.setCell(cell);
     }
     //#endregion
@@ -233,7 +82,7 @@ export class State {
      * - If the destination cell is not vacant, the function attempts to find an adjacent vacant cell.
      * - The GUI is updated to reflect the calculated path.
      */
-    public async moveEntity(entity: Entity, toCell: HexCell, path?: Vector2[]): Promise<void> {
+    protected async moveEntity(entity: Entity, toCell: HexCell, path?: Vector2[]): Promise<void> {
         //#region 
         if (!entity.cell) {
             warn("moveEntity: Entity has no cell");
@@ -398,8 +247,6 @@ export class State {
         return { damage, u_damage: damage, fate, roll: hitRoll };
     }
 
-    //#region Readiness Mechanics
-
     private calculateReadinessIncrement(entity: Entity) {
         return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
     }
@@ -432,7 +279,147 @@ export class State {
             readiness: entity.pos / 100,
         }));
     }
+}
+
+export class Session extends State {
+    public static New(config: Partial<Config>) {
+        const participatingPlayers: Player[] = []
+        if (config.teamMap) {
+            for (const [team, players] of pairs(config.teamMap)) {
+                players.forEach((player) => participatingPlayers.push(player));
+            }
+        }
+
+        const CONFIG = {
+            camera: undefined,
+            worldCenter: DEFAULT_WORLD_CENTER,
+            width: DEFAULT_WIDTH,
+            height: DEFAULT_HEIGHT,
+            teamMap: {},
+            ...config,
+        }
+        const serverState = new State(CONFIG.width, CONFIG.height, CONFIG.worldCenter, TILE_SIZE);
+        const controller = new Session(participatingPlayers, serverState, CONFIG);
+        for (const p of participatingPlayers) {
+            remoteEvent_Start.FireClient(p, config);
+        }
+
+        controller.setUpAttackReceiver();
+        controller.setUpMoveEntityReceiver();
+        controller.setUpReadinessReceiver();
+        return controller;
+    }
+
+    config: Config;
+    participatingPlayers: Player[];
+
+    private constructor(players: Player[], battleState: State, config: Config) {
+        super(config.width, config.height, config.worldCenter, TILE_SIZE);
+        this.participatingPlayers = players;
+        this.config = config;
+    }
+
+    //#region Remote Event: Attack
+    private setUpAttackReceiver() {
+        if (RunService.IsClient()) return;
+        remoteEvent_Attack.OnServerEvent.Connect((player, _ability) => {
+            print(`Attack: ${player.Name} | Ability:`, _ability);
+            const abilityState = _ability as AbilityState;
+            if (!abilityState || (typeOf(abilityState['using']) !== 'number')) {
+                warn("Ability invalid on attack");
+                return;
+            }
+
+            const { using: _using, target: _target } = abilityState
+
+            const allEntities = this.getAllEntities(); print(allEntities)
+            const using = allEntities.find((e) => e.playerID === _using);
+            const target = allEntities.find((e) => e.playerID === _target);
+            if (!using || !target) {
+                warn("Using or target entity not found", using, target);
+                return;
+            }
+
+            const ability = new Ability({
+                ...abilityState,
+                using,
+                target,
+            });
+            const attackAction: AttackAction = { executed: false, ability };
+            const clashResult = this.clash(attackAction);
+            attackAction.clashResult = clashResult;
+            this.applyClash(attackAction);
+
+            const usingPlayer = getPlayer(using.playerID);
+            const targetPlayer = getPlayer(target.playerID);
+            if (usingPlayer) remoteEvent_Attack.FireClient(usingPlayer, { ...clashResult, abilityState });
+            if (targetPlayer) remoteEvent_Attack.FireClient(targetPlayer, { ...clashResult, abilityState });
+        });
+    }
     //#endregion
+
+    //#region Remote Event: Move Entity
+    private setUpMoveEntityReceiver() {
+        if (RunService.IsClient()) return;
+        remoteEvent_MoveEntity.OnServerEvent.Connect((player, _toCell) => {
+            print(`Move Entity: ${player.Name} to ${_toCell}`);
+            const destinationQR = _toCell as Vector2;
+            const entity = this.getAllEntities().find((e) => e.playerID === player.UserId);
+            if (!entity) {
+                warn("Entity not found");
+                return;
+            }
+
+            const toCell = this.grid.getCell(destinationQR)
+            if (toCell) this.moveEntity(entity, toCell);
+        });
+    }
+    //#endregion
+
+    //#region Remote Event: Readiness
+    turnWinner?: Entity;
+    private playersReadyForReadinessCheck: Set<Player> = new Set();
+    private setUpReadinessReceiver() {
+        if (RunService.IsClient()) return;
+        remoteEvent_Readiness.OnServerEvent.Connect((p, _mes) => {
+            const mes = _mes as ReadinessRequestStatus;
+            print(`Readiness: ${p.Name} | ${mes}`);
+            switch (mes) {
+                case 'ReadyForReadinessCheck':
+                    this.playersReadyForReadinessCheck.add(p);
+                    if (this.playersReadyForReadinessCheck.size() === this.participatingPlayers.size()) {
+                        this.participatingPlayers.forEach(p => this.requestWinner(p));
+                    }
+                    break;
+            }
+        });
+    }
+
+    private async requestWinner(p: Player) {
+        if (this.playersReadyForReadinessCheck.size() !== this.participatingPlayers.size()) {
+            print("Not all players are ready for readiness check.");
+            return;
+        }
+
+        if (this.turnWinner) {
+            remoteEvent_Readiness.FireClient(p, this.turnWinner.playerID);
+        }
+        else {
+            const winner = this.runReadinessGauntlet();
+            if (winner) {
+                this.turnWinner = winner;
+                remoteEvent_Readiness.FireClient(p, winner.playerID);
+            }
+        }
+    }
+
+    //#endregion
+
+    private updateEntityStatsAfterRound(entity: Entity) {
+        print(`${entity.name} has ${entity.pos} readiness points`);
+        entity.pos /= 2;
+        print(`${entity.name} has ${entity.pos} readiness points`);
+    }
 }
 
 export class Team {
@@ -573,7 +560,10 @@ export class System extends State {
     endTurn?: (value: unknown) => void
 
     private setUpAttackRemoteEventReceiver() {
-        if (RunService.IsServer()) return;
+        if (RunService.IsServer()) {
+            warnWrongSideCall("setUpAttackRemoteEventReceiver");
+            return
+        }
         this.attackRemoteEventReceived?.Disconnect();
         this.attackRemoteEventReceived = remoteEvent_Attack.OnClientEvent.Connect((clashResult: ClashResult & { abilityState: AbilityState }) => {
             print("Attack clash result received", clashResult);

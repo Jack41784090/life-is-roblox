@@ -386,3 +386,7 @@ export function isAttackKills(attackerAction: AttackAction) {
     print(`IsAttackKills: ${target.hip} - ${damage} <= 0`);
     return target.hip - damage <= 0;
 }
+
+export function warnWrongSideCall(method: string, mes = "called on the wrong side") {
+    warn(`${method}: ${mes}`);
+}
