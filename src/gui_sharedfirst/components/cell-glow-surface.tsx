@@ -1,6 +1,6 @@
 import React, { ReactComponent } from "@rbxts/react";
 import { RunService, TweenService } from "@rbxts/services";
-import HexCell from "shared/class/Battle/Hex/Cell";
+import HexCell from "shared/class/battle/Hex/Cell";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 

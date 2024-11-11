@@ -1,5 +1,5 @@
-import Ability from "shared/class/Battle/Ability";
-import Entity from "shared/class/Battle/Entity";
+import Ability from "shared/class/battle/Ability";
+import Entity from "shared/class/battle/Entity";
 
 export enum BotType {
     Player = 'player',

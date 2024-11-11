@@ -1,5 +1,5 @@
 import { StarterGui } from "@rbxts/services";
-import * as Battle from "shared/class/Battle";
+import * as Battle from "shared/class/battle";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);
 
 Battle.remoteEvent_Start.OnClientEvent.Connect((config: Partial<Battle.Config>) => {

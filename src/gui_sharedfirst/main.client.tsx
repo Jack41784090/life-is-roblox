@@ -2,7 +2,7 @@ import React from "@rbxts/react";
 import ReactRoblox, { createRoot } from "@rbxts/react-roblox";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
 import { ButtonElement, ButtonFrameElement, MenuFrameElement, TitleElement } from "gui_sharedfirst";
-import * as Battle from "shared/class/Battle";
+import * as Battle from "shared/class/battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";

@@ -1,6 +1,6 @@
 import { Players } from "@rbxts/services";
-import * as Battle from "shared/class/Battle";
-import HexGrid from "shared/class/Battle/Hex/Grid";
+import * as Battle from "shared/class/battle";
+import HexGrid from "shared/class/battle/Hex/Grid";
 import { disableCharacter, enableCharacter } from "shared/utils";
 import { remoteEventsMap } from "shared/utils/events";
 

@@ -1,6 +1,6 @@
 
 import React, { ReactComponent } from "@rbxts/react";
-import Entity from "shared/class/Battle/Entity";
+import Entity from "shared/class/battle/Entity";
 import { iAbility } from "shared/types/battle-types";
 import { onInput } from "shared/utils";
 import { bindableEventsMap } from "shared/utils/events";

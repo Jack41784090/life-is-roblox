@@ -1,5 +1,5 @@
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import Entity from "shared/class/Battle/Entity";
+import Entity from "shared/class/battle/Entity";
 import { AttackAction, EntityStats, iAbility, Reality } from "shared/types/battle-types";
 import { remoteFunctionsMap } from "./events";
 
