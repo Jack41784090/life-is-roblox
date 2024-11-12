@@ -1,27 +1,23 @@
 import React from "@rbxts/react";
-import { getTestButtons } from "shared/utils";
 import MainMenuBackground from "./components/background";
+import { Props as ButtonProps } from "./components/button";
 import MainMenuButtonSet from "./components/button_set";
 import MainMenuTitle from "./components/title";
 
-interface MenuFrameElementProps {
+interface Props {
     transparency?: number;
     zIndex?: number;
     backgroundColour?: Color3;
     screenUIKey?: string;
     frameKey?: string;
     title: string;
+    buttons: Array<ButtonProps>;
 }
 
-interface MenuFrameElementState {
-    colour: Color3;
-}
-
-function MainMenuElement({ frameKey, backgroundColour, transparency, zIndex, title }: MenuFrameElementProps) {
-    const buttons = getTestButtons()
-
+function MainMenuElement(props: Props) {
+    const { title, buttons } = props;
     return (
-        <MainMenuBackground frameKey={frameKey} backgroundColour={backgroundColour} transparency={transparency} zIndex={zIndex}>
+        <MainMenuBackground {...props}>
             <MainMenuTitle title={title} />
             <MainMenuButtonSet buttons={buttons} />
         </MainMenuBackground>

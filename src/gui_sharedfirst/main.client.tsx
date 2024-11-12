@@ -1,12 +1,13 @@
 import React from "@rbxts/react";
-import ReactRoblox, { createRoot } from "@rbxts/react-roblox";
+import ReactRoblox, { createPortal, createRoot } from "@rbxts/react-roblox";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
-import { ButtonElement, ButtonFrameElement, MenuFrameElement, TitleElement } from "gui_sharedfirst";
+import { MenuFrameElement, TitleElement } from "gui_sharedfirst";
 import * as Battle from "shared/class/battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
 import { ErrorBoundary } from "./components/_error-boundary";
+import MainMenuElement from "./new_components/menu_ui";
 
 //#region 1. LOADING
 // Wait for the game to load
@@ -121,65 +122,49 @@ function enterStory() {
     scene.playFromBeginning();
 }
 function mainMenuSetup() {
-    const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui") as PlayerGui;
+    print("Setting up main menu");
     const mainMenuButtons: Omit<{
         text: string;
         size: number;
         position: number;
         transparency?: number;
-        onclick: () => void;
+        onClick: () => void;
     }, "size" | "position">[] = [
             {
                 text: "Play",
-                onclick: () => {
+                onClick: () => {
                     mainMenu.unmount();
                     enterPlayground();
                 },
             },
             {
                 text: "Battle",
-                onclick: () => {
+                onClick: () => {
                     mainMenu.unmount();
                     enterBattle();
                 }
             },
             {
                 text: "Story",
-                onclick: () => {
+                onClick: () => {
                     mainMenu.unmount();
                     enterStory();
                 }
             }
         ];
-    if (mainMenuButtons.size() === 0) {
-        warn("No buttons provided");
-        return;
-    }
 
-    const mainMenu = createRoot(playerGui);
+    const mainMenu = createRoot(new Instance("Folder"));
     mainMenu.render(
-        <ErrorBoundary fallback={(e) => {
-            print("Error in main menu", e);
-            return <></>
-        }}>
-            <MenuFrameElement>
-                <TitleElement text="Epic Colndir Game!!!" />
-                <ButtonFrameElement>
-                    {mainMenuButtons.map((button, index) => (
-                        <ButtonElement
-                            position={index * 1 / mainMenuButtons.size()}
-                            size={1 / mainMenuButtons.size()}
-                            onclick={button.onclick}
-                            text={button.text}
-                        />
-                    ))}
-                </ButtonFrameElement>
-            </MenuFrameElement>
-        </ErrorBoundary>
+        createPortal(
+            <screengui key={"MainMenuScreengui"} IgnoreGuiInset={true}>
+                <MainMenuElement title="Condor" buttons={mainMenuButtons} />
+            </screengui>,
+            playerGui)
     );
 
     return mainMenu;
 }
+
 
 print("Initializing main menu");
 mainMenuCameraSetup();
