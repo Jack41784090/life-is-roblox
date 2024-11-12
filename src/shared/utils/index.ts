@@ -1,3 +1,6 @@
+import { useCamera, useDebounceState, useEventListener } from "@rbxts/pretty-react-hooks";
+import { useMemo } from "@rbxts/react";
+import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import Entity from "shared/class/battle/Entity";
 import { AttackAction, EntityStats, iAbility, Reality } from "shared/types/battle-types";
@@ -389,4 +392,135 @@ export function isAttackKills(attackerAction: AttackAction) {
 
 export function warnWrongSideCall(method: string, mes = "called on the wrong side") {
     warn(`${method}: ${mes}`);
+}
+
+interface ScaleFunction {
+    /**
+     * Scales `pixels` based on the current viewport size and rounds the result.
+     */
+    (pixels: number): number;
+    /**
+     * Scales `pixels` and rounds the result to the nearest even number.
+     */
+    even: (pixels: number) => number;
+    /**
+     * Scales a number based on the current viewport size without rounding.
+     */
+    scale: (percent: number) => number;
+    /**
+     * Scales `pixels` and rounds the result down.
+     */
+    floor: (pixels: number) => number;
+    /**
+     * Scales `pixels` and rounds the result up.
+     */
+    ceil: (pixels: number) => number;
+}
+
+const BASE_RESOLUTION = new Vector2(1280, 832);
+const MIN_SCALE = 0.75;
+const DOMINANT_AXIS = 0.5;
+
+/**
+ * @see https://discord.com/channels/476080952636997633/476080952636997635/1146857136358432900
+ */
+function calculateScale(viewport: Vector2) {
+    const width = math.log(viewport.X / BASE_RESOLUTION.X, 2);
+    const height = math.log(viewport.Y / BASE_RESOLUTION.Y, 2);
+    const centered = width + (height - width) * DOMINANT_AXIS;
+
+    return math.max(2 ** centered, MIN_SCALE);
+}
+
+export function usePx(): ScaleFunction {
+    const camera = useCamera();
+
+    const [scale, setScale] = useDebounceState(calculateScale(camera.ViewportSize), {
+        wait: 0.2,
+        leading: true,
+    });
+
+    useEventListener(camera.GetPropertyChangedSignal("ViewportSize"), () => {
+        setScale(calculateScale(camera.ViewportSize));
+    });
+
+    return useMemo(() => {
+        const api = {
+            even: (value: number) => math.round(value * scale * 0.5) * 2,
+            scale: (value: number) => value * scale,
+            floor: (value: number) => math.floor(value * scale),
+            ceil: (value: number) => math.ceil(value * scale),
+        };
+
+        setmetatable(api, {
+            __call: (_, value) => math.round((value as number) * scale),
+        });
+
+        return api as ScaleFunction;
+    }, [scale]);
+}
+
+/**
+ * @param color The color to brighten or darken
+ * @param brightness The amount to brighten or darken the color
+ * @param vibrancy How much saturation changes with brightness
+ */
+export function brighten(color: Color3, brightness: number, vibrancy = 0.5) {
+    const [h, s, v] = color.ToHSV();
+    return Color3.fromHSV(h, math.clamp(s - brightness * vibrancy, 0, 1), math.clamp(v + brightness, 0, 1));
+}
+
+/**
+ * @param color The color to saturate or desaturate
+ * @param saturation How much to add or remove from the color's saturation
+ */
+export function saturate(color: Color3, saturation: number) {
+    const [h, s, v] = color.ToHSV();
+    return Color3.fromHSV(h, math.clamp(s + saturation, 0, 1), v);
+}
+
+/**
+ * @returns How bright the color is
+ */
+export function getLuminance(color: Color3) {
+    return color.R * 0.299 + color.G * 0.587 + color.B * 0.114;
+}
+
+/**
+ * @returns Whether the color is bright, for determining foreground color
+ */
+export function isBright(color: Color3) {
+    return getLuminance(color) > 0.65;
+}
+
+export const springs = {
+    ...config.spring,
+    bubbly: { tension: 300, friction: 20, mass: 1.2 },
+    responsive: { tension: 600, friction: 34, mass: 0.7 },
+} satisfies { [config: string]: SpringOptions };
+
+export function getTestButtons() {
+    return [
+        {
+            text: "Play",
+            onClick: () => {
+                // print("Play button clicked!");
+            },
+            backgroundColor: Color3.fromRGB(0, 255, 0),
+        },
+        {
+            text: "Settings",
+            onClick: () => {
+                // print("Settings button clicked!");
+            },
+            backgroundColor: Color3.fromRGB(0, 0, 255),
+        },
+        {
+            text: "Exit",
+            onClick: () => {
+                // print("Exit button clicked!");
+            },
+            backgroundColor: Color3.fromRGB(255, 0, 0),
+        },
+    ]
 }
