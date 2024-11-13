@@ -1,29 +1,25 @@
 import { atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import { createPortal, createRoot } from "@rbxts/react-roblox";
-import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
+import { ContentProvider, ReplicatedFirst, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import * as Battle from "shared/class/battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
 import LoadingScreenElement from "./new_components/loading";
+import MainGui from "./new_components/main";
 import MainMenuElement from "./new_components/menu_ui";
 
 //#region 1. LOADING
 ReplicatedFirst.RemoveDefaultLoadingScreen();
-// while (!game.IsLoaded()) wait();
+while (!game.IsLoaded()) wait();
 
-const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui");
 const assets = game.GetDescendants();
 const numberOfAssets = assets.size();
 
 let loadedAssetCount = 0;
 const progressAtom = atom(0);
-const loadingScreen: ReactRoblox.Root = createRoot(playerGui);
-loadingScreen.render(
-    createPortal(<screengui IgnoreGuiInset={true} ><LoadingScreenElement progress={progressAtom} /></screengui>, playerGui)
-);
+MainGui.mount("LoadingScreen", <LoadingScreenElement progress={progressAtom} />);
 
 const threads: thread[] = [];
 print("Preloading assets");
@@ -47,10 +43,7 @@ checkProgress();
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
-if (loadingScreen) {
-    print("Unmounting loading screen");
-    loadingScreen.unmount();
-}
+MainGui.unmount("LoadingScreen");
 //#endregion
 
 //#region 2. MAIN MENU
@@ -66,7 +59,6 @@ function mainMenuCameraSetup() {
     assert(camPos.IsA("Part"), "campos1 is not a part");
     currentCamera.CameraType = Enum.CameraType.Scriptable;
     currentCamera.CFrame = camPos.CFrame;
-    print(currentCamera);
 }
 
 // Setup the main menu
@@ -112,36 +104,27 @@ function mainMenuSetup() {
             {
                 text: "Play",
                 onClick: () => {
-                    mainMenu.unmount();
+                    MainGui.unmount("MainMenu");
                     enterPlayground();
                 },
             },
             {
                 text: "Battle",
                 onClick: () => {
-                    mainMenu.unmount();
+                    MainGui.unmount("MainMenu");
                     enterBattle();
                 }
             },
             {
                 text: "Story",
                 onClick: () => {
-                    mainMenu.unmount();
+                    MainGui.unmount("MainMenu");
                     enterStory();
                 }
             }
         ];
 
-    const mainMenu = createRoot(new Instance("Folder"));
-    mainMenu.render(
-        createPortal(
-            <screengui key={"MainMenuScreengui"} IgnoreGuiInset={true}>
-                <MainMenuElement title="Condor" buttons={mainMenuButtons} />
-            </screengui>,
-            playerGui)
-    );
-
-    return mainMenu;
+    MainGui.mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
 }
 
 

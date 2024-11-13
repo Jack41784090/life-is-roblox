@@ -1,8 +1,8 @@
 import React from "@rbxts/react";
-import { createRoot } from "@rbxts/react-roblox";
 import { Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement, ReadinessBarElement } from "gui_sharedfirst";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
+import MainGui from "gui_sharedfirst/new_components/main";
+import { BATTLE_ABILITYSLOT_TAG, BATTLE_ACTIONMENU_TAG, BATTLE_GLOW_TAG, BATTLE_MAINGUI_TAG, BATTLE_OTHERTURN_TAG, DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
 import { AttackAction, BotType, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClashResultFate, EntityStats, EntityStatus, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, getPlayer, isAttackKills, requestData, warnWrongSideCall } from "shared/utils";
 import { bindableEventsMap, remoteEventsMap } from "shared/utils/events";
@@ -397,6 +397,7 @@ export class Session extends State {
     }
 
     private async requestWinner(p: Player) {
+        print(`Requesting winner for ${p.Name}`);
         if (this.playersReadyForReadinessCheck.size() !== this.participatingPlayers.size()) {
             print("Not all players are ready for readiness check.");
             return;
@@ -832,7 +833,6 @@ export class System extends State {
 
 export class Gui {
     private playerGui = Players.LocalPlayer.FindFirstChildOfClass("PlayerGui") as PlayerGui;
-    private mainGui: ReactRoblox.Root;
     public actionsGui: ReactRoblox.Root | undefined;
     public glowPathGui: ReactRoblox.Root | undefined;
     public abilitySlotGui: ReactRoblox.Root | undefined;
@@ -847,7 +847,7 @@ export class Gui {
 
     // Private constructor to prevent direct instantiation
     private constructor(icons: ReadinessIcon[], grid: HexGrid) {
-        this.mainGui = this.mountInitialUI(icons);
+        this.mountInitialUI(icons);
         const glowUpCellsEvent = bindableEventsMap["GlowUpCells"] as BindableEvent;
         if (glowUpCellsEvent) {
             glowUpCellsEvent.Event.Connect((vecs: Vector2[]) => {
@@ -870,8 +870,8 @@ export class Gui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { readinessIcons: ReadinessIcon[], cre: Entity, grid: HexGrid }): ReactRoblox.Root;
-    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): ReactRoblox.Root;
+    updateMainUI(mode: 'withSensitiveCells', props: { readinessIcons: ReadinessIcon[], cre: Entity, grid: HexGrid }): void;
+    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
     updateMainUI(mode: MainUIModes, props: {
         readinessIcons?: ReadinessIcon[]
         cre?: Entity
@@ -884,7 +884,8 @@ export class Gui {
                     warn(`No readiness icons provided for mode: ${mode}`);
                     return;
                 }
-                this.mainGui.render(
+                MainGui.mount(
+                    BATTLE_MAINGUI_TAG,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBarElement icons={props.readinessIcons} refs={this.readinessIconMap} />
                     </MenuFrameElement>);
@@ -894,15 +895,14 @@ export class Gui {
                     warn(`No entity, grid or readiness icons provided for mode: ${mode}`);
                     return;
                 }
-                this.mainGui.render(
+                MainGui.mount(
+                    BATTLE_MAINGUI_TAG,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBarElement icons={props.readinessIcons} refs={this.readinessIconMap} />
                         {this.createSensitiveCellElements(props.cre, props.grid)}
                     </MenuFrameElement>);
                 break;
         }
-
-        return this.mainGui
     }
 
     //#region UI Mounting Methods
@@ -916,8 +916,8 @@ export class Gui {
     mountActionMenu(actions: CharacterMenuAction[]) {
         print("Mounting action menu");
         this.unmountAndClear('actionsGui');
-        this.actionsGui = createRoot(this.playerGui);
-        this.actionsGui.render(
+        MainGui.mount(
+            BATTLE_ACTIONMENU_TAG,
             <MenuFrameElement key={"ActionMenu"} transparency={1}>
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)}>
                     {actions.map((action, index) => (
@@ -940,14 +940,11 @@ export class Gui {
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBarElement
      * @returns the mounted Tree
      */
-    mountInitialUI(icons: ReadinessIcon[]): ReactRoblox.Root {
-        const root = createRoot(this.playerGui);
-        root.render(
+    mountInitialUI(icons: ReadinessIcon[]) {
+        MainGui.mount(BATTLE_MAINGUI_TAG,
             <MenuFrameElement key={`BattleUI`} transparency={1}>
                 <ReadinessBarElement icons={icons} refs={this.readinessIconMap} />
-            </MenuFrameElement>
-        );
-        return root;
+            </MenuFrameElement>);
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cell: HexCell, range: NumberRange): HexCell[] | undefined
@@ -956,24 +953,14 @@ export class Gui {
         const cellsToGlow = _cells instanceof HexCell ? _cells.findCellsWithinRange(range!) : _cells;
         const elements = cellsToGlow.mapFiltered((cell) => <CellGlowSurfaceElement cell={cell} />);
 
-        if (this.glowPathGui) {
-            this.glowPathGui.render(
-                <frame>{elements}</frame>
-            );
-        } else {
-            this.glowPathGui = createRoot(this.playerGui);
-            this.glowPathGui?.render(
-                <frame>{elements}</frame>
-            )
-        }
+        MainGui.mount(BATTLE_GLOW_TAG, <frame key={'GlowingPath'}>{elements}</frame>)
 
         return cellsToGlow;
     }
 
     mountOtherPlayersTurnGui() {
         this.unmountAndClear('otherPlayersTurnGui');
-        this.otherPlayersTurnGui = createRoot(this.playerGui);
-        this.otherPlayersTurnGui.render(<OPTElement />);
+        MainGui.mount(BATTLE_OTHERTURN_TAG, <OPTElement />);
     }
 
     mountAbilitySlots(cre: Entity) {
@@ -985,12 +972,10 @@ export class Gui {
         }
         //#endregion
         this.unmountAndClear('abilitySlotGui');
-        this.abilitySlotGui = createRoot(this.playerGui);
-        this.abilitySlotGui.render(
+        MainGui.mount(BATTLE_ABILITYSLOT_TAG,
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
-            </AbilitySetElement>
-        );
+            </AbilitySetElement>);
     }
 
     unmountAndClear(propertyName: keyof this): void {
