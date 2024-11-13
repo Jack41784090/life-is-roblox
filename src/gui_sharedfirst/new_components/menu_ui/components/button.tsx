@@ -1,6 +1,7 @@
 import { useMotion } from '@rbxts/pretty-react-hooks';
 import * as React from 'react';
-import { springs, usePx } from 'shared/utils';
+import { CONDOR_BLOOD_RED } from 'shared/const';
+import { springs } from 'shared/utils';
 
 export interface Props {
     text: string;
@@ -8,7 +9,6 @@ export interface Props {
 }
 
 export function MainMenuButton({ text, onClick }: Props) {
-    const px = usePx();
     const [pressed, setPressed] = React.useState(false);
     const [hovered, setHovered] = React.useState(false);
     const [buttonPosition, buttonPositionMotion] = useMotion(0);
@@ -21,7 +21,7 @@ export function MainMenuButton({ text, onClick }: Props) {
         } else {
             buttonPositionMotion.spring(0, springs.responsive)
         }
-    }, [pressed, hovered, px]);
+    }, [pressed, hovered]);
 
     return (
         <textbutton
@@ -44,13 +44,13 @@ export function MainMenuButton({ text, onClick }: Props) {
                 MouseButton1Up: () => setPressed(false),
             }}
         >
-            <uistroke Color={Color3.fromRGB(140, 0, 0)} Thickness={3} />
+            <uistroke Color={CONDOR_BLOOD_RED} Thickness={3} />
             <frame
                 AnchorPoint={new Vector2(0, 1)}
                 Size={buttonPosition.map(v => UDim2.fromScale(text.size() / 15 * v, 0.05))}
                 BackgroundTransparency={0}
                 Position={UDim2.fromScale(0, 1)}
-                BackgroundColor3={Color3.fromRGB(140, 0, 0)}>
+                BackgroundColor3={CONDOR_BLOOD_RED}>
                 <uistroke Thickness={0} />
             </frame>
         </textbutton>

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { CONDOR_BLOOD_RED } from 'shared/const';
 
 interface MenuFrameElementProps {
     title: string
@@ -14,7 +15,7 @@ export function MainMenuTitle({ title }: MenuFrameElementProps) {
             Font={Enum.Font.Garamond}
         >
             <uicorner CornerRadius={new UDim(0, 8)} />
-            <uistroke Color={Color3.fromRGB(140, 0, 0)} Thickness={3} />
+            <uistroke Color={CONDOR_BLOOD_RED} Thickness={3} />
         </textlabel>
     );
 }
