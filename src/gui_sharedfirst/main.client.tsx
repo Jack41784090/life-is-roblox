@@ -1,16 +1,16 @@
+import { atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import ReactRoblox, { createPortal, createRoot } from "@rbxts/react-roblox";
+import { createPortal, createRoot } from "@rbxts/react-roblox";
 import { ContentProvider, Players, ReplicatedFirst, Workspace } from "@rbxts/services";
-import { MenuFrameElement, TitleElement } from "gui_sharedfirst";
+import { setInterval } from "@rbxts/set-timeout";
 import * as Battle from "shared/class/battle";
 import Scene from "shared/class/Scene";
 import { DialogueExpression } from "shared/types/scene-types";
 import { remoteEventsMap } from "shared/utils/events";
-import { ErrorBoundary } from "./components/_error-boundary";
+import LoadingScreenElement from "./new_components/loading";
 import MainMenuElement from "./new_components/menu_ui";
 
 //#region 1. LOADING
-// Wait for the game to load
 ReplicatedFirst.RemoveDefaultLoadingScreen();
 // while (!game.IsLoaded()) wait();
 
@@ -18,53 +18,32 @@ const playerGui = Players.LocalPlayer.WaitForChild("PlayerGui");
 const assets = game.GetDescendants();
 const numberOfAssets = assets.size();
 
-let loadedAssets = 0;  // Track the number of assets loaded
+let loadedAssetCount = 0;
+const progressAtom = atom(0);
+const loadingScreen: ReactRoblox.Root = createRoot(playerGui);
+loadingScreen.render(
+    createPortal(<screengui IgnoreGuiInset={true} ><LoadingScreenElement progress={progressAtom} /></screengui>, playerGui)
+);
 
-// Function to update the loading screen
-let loadingScreen: ReactRoblox.Root | undefined;
-function updateLoadingScreen(loadedAssets: number) {
-    if (loadingScreen) {
-        loadingScreen.render(
-            <ErrorBoundary fallback={(e) => {
-                print("Error in loading screen", e);
-                return <></>
-            }}>
-
-                <MenuFrameElement transparency={0} zIndex={5}>
-                    <TitleElement text={`Loading ${loadedAssets}/${numberOfAssets} Assets...`} />
-                </MenuFrameElement>
-            </ErrorBoundary>
-        );
-    }
-    else {
-        loadingScreen = createRoot(playerGui);
-        loadingScreen.render(
-            <ErrorBoundary fallback={(e) => {
-                print("Error in loading screen", e);
-                return <></>
-            }}>
-                <MenuFrameElement transparency={0}>
-                    <TitleElement text={`Loading 0/${numberOfAssets} Assets...`} />
-                </MenuFrameElement></ErrorBoundary>
-        );
-    }
-}
-
-// Preload assets and update the loading screen title
 const threads: thread[] = [];
 print("Preloading assets");
 for (let i = 0; i < numberOfAssets; i++) {
     const thread = task.spawn(() => {
         const asset = assets[i];
         ContentProvider.PreloadAsync([asset]);
-        loadedAssets += 1;
-        updateLoadingScreen(loadedAssets);  // Update the loading screen after each asset is loaded
+        loadedAssetCount++;
     })
     threads.push(thread);
 }
 
+const checkProgress = setInterval(() => {
+    print(`${loadedAssetCount / numberOfAssets * 100}% loaded`);
+    progressAtom(loadedAssetCount / numberOfAssets);
+}, .1);
+
 // Wait for all assets to be preloaded
-while (loadedAssets < numberOfAssets) wait();
+while (progressAtom() < 1) wait();
+checkProgress();
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
@@ -171,6 +150,3 @@ mainMenuCameraSetup();
 mainMenuSetup();
 //#endregion
 
-// const d = new Dialogue('');
-// wait(0.5)
-// d.speak('Hello, World!');
