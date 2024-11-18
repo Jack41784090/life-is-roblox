@@ -7,7 +7,7 @@ interface Props {
     frameKey?: string;
 }
 
-function LoadingScreenBackground({ frameKey, backgroundColour, transparency, zIndex, children }: React.PropsWithChildren<Props>) {
+function Background({ frameKey, backgroundColour, transparency, zIndex, children }: React.PropsWithChildren<Props>) {
     return (
         <frame
             key={frameKey || "MenuFrame"}
@@ -21,4 +21,4 @@ function LoadingScreenBackground({ frameKey, backgroundColour, transparency, zIn
     );
 }
 
-export = LoadingScreenBackground
+export = Background

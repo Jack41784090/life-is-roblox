@@ -1,7 +1,10 @@
-import Charm, { subscribe } from "@rbxts/charm";
-import React from "@rbxts/react";
-import LoadingScreenBackground from "./components/background";
-import LoadingScreenBar from "./components/bar";
+import Charm from "@rbxts/charm";
+import { useMotion } from "@rbxts/pretty-react-hooks";
+import React, { useEffect } from "@rbxts/react";
+import { useAtom } from "@rbxts/react-charm";
+import { springs } from "shared/utils";
+import Background from "./components/background";
+import Bar from "./components/bar";
 
 interface Props {
     progress: Charm.Atom<number>;
@@ -10,17 +13,23 @@ interface Props {
 function LoadingScreenElement(props: Props) {
     const { progress } = props;
 
-    const cleanUp = subscribe(progress, v => {
-        if (v === 1) {
-            // loading screen dissipates
-            cleanUp();
+    const value = useAtom(progress);
+    const [p, motion] = useMotion(value);
+
+    useEffect(() => {
+        const thicknessNow = p.getValue();
+        if (value > thicknessNow) {
+            motion.spring(value, springs.slow);
         }
-    })
+        if (value == 1) {
+            // done
+        }
+    }, [value]);
 
     return (
-        <LoadingScreenBackground {...props}>
-            <LoadingScreenBar progress={progress} />
-        </LoadingScreenBackground>
+        <Background {...props}>
+            <Bar progress={p} />
+        </Background>
     );
 }
 
