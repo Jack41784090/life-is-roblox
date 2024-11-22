@@ -9,3 +9,7 @@ export enum CellTerrain {
     mountains,
     plains,
 }
+
+export interface PlayerData {
+    readonly money: number;
+}

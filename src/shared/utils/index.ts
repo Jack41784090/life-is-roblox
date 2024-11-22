@@ -3,8 +3,8 @@ import { useMemo } from "@rbxts/react";
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import Entity from "shared/class/battle/Entity";
+import remotes from "shared/remote";
 import { AttackAction, EntityStats, iAbility, Reality } from "shared/types/battle-types";
-import { remoteFunctionsMap } from "./events";
 
 
 export function getPlayer(id?: number): Player | undefined {
@@ -204,10 +204,8 @@ export function extractMapValues<T extends defined>(map: Map<any, T>) {
     return va;
 }
 export function requestData(requester: Player, datastoreName: string, key: string) {
-    const requestDataRemoteEvent = remoteFunctionsMap["RequestData"];
-    if (!requestDataRemoteEvent) return undefined;
     if (RunService.IsClient()) {
-        return requestDataRemoteEvent.InvokeServer(datastoreName, key);
+        return remotes.requestData(datastoreName, key);
     }
     else {
         const datastore = getDatastore(datastoreName);
@@ -383,11 +381,11 @@ export function isAttackKills(attackerAction: AttackAction) {
     const { damage } = attackerAction.clashResult;
 
     if (executed) {
-        return target.hip <= 0;
+        return target.get('hip') <= 0;
     }
 
-    print(`IsAttackKills: ${target.hip} - ${damage} <= 0`);
-    return target.hip - damage <= 0;
+    print(`IsAttackKills: ${target.get('hip')} - ${damage} <= 0`);
+    return target.get('hip') - damage <= 0;
 }
 
 export function warnWrongSideCall(method: string, mes = "called on the wrong side") {
@@ -523,4 +521,69 @@ export function getTestButtons() {
             backgroundColor: Color3.fromRGB(255, 0, 0),
         },
     ]
+}
+
+import { AtomMap } from "@rbxts/charm-sync";
+
+type NestedAtomMap = {
+    readonly [K in string]: AtomMap;
+};
+
+type FlattenNestedAtoms<T extends NestedAtomMap> = {
+    readonly [K in keyof T as `${string & K}/${string & keyof T[K]}`]: T[K][Extract<keyof T[K], string>];
+};
+
+/**
+ * Assigns unique prefixes to each atom and flattens them into a single map.
+ * Should be passed to Charm's Sync API.
+ *
+ * @param maps The maps of atoms to flatten.
+ * @returns The flattened map of atoms.
+ */
+export function flattenAtoms<T extends NestedAtomMap>(maps: T): FlattenNestedAtoms<T>;
+
+export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtomMap> {
+    const flattened = {} as Writable<FlattenNestedAtoms<NestedAtomMap>>;
+
+    for (const [prefix, map] of pairs(maps)) {
+        for (const [key, atom] of pairs(map)) {
+            flattened[`${prefix}/${key}`] = atom;
+        }
+    }
+
+    return flattened;
+}
+
+import { SyncPayload } from "@rbxts/charm-sync";
+import { GlobalAtoms } from "shared/datastore";
+
+/**
+ * Filters the payload to only include the player's data.
+ *
+ * @param player The player to send the payload to.
+ * @param payload The payload to filter.
+ * @returns A new payload that only includes the player's data.
+ */
+export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {
+    if (payload.type === "init") {
+        return {
+            ...payload,
+            data: {
+                ...payload.data,
+                "ds/players": {
+                    [player.Name]: payload.data["ds/players"][player.Name],
+                },
+            },
+        };
+    }
+
+    return {
+        ...payload,
+        data: {
+            ...payload.data,
+            "ds/players": payload.data["ds/players"] && {
+                [player.Name]: payload.data["ds/players"][player.Name],
+            },
+        },
+    };
 }

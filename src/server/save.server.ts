@@ -115,53 +115,42 @@
 //     }
 // )
 
-import { DialogueExpression } from "shared/types/scene-types";
-import { getDatastore, saveCharacterStats } from "shared/utils";
-import { remoteFunctionsMap } from "shared/utils/events";
+import { Players } from "@rbxts/services";
+import { Database } from "shared/datastore";
+import remotes from "shared/remote";
+import { getDatastore } from "shared/utils";
 
-const saveCharacter = false;
-if (saveCharacter) {
-    saveCharacterStats({
-        id: 'entity_adalbrecht',
-        str: 9,
-        dex: 7,
-        acr: 6,
-        spd: 6,
-        siz: 5,
-        int: 2,
-        spr: 8,
-        fai: 5,
-        cha: 5,
-        beu: 5,
-        wil: 8,
-        end: 6,
-    }, true);
-}
-
-const requestDataRemoteFunction = remoteFunctionsMap["RequestData"]
-if (requestDataRemoteFunction) {
-    requestDataRemoteFunction.OnServerInvoke = (player: Player, ...args: unknown[]) => {
-        const datastoreName = args[0] as string;
-        const key = args[1] as string;
-
-        const datastore = getDatastore(datastoreName);
-        const [success, data] = pcall(() => datastore.GetAsync(key));
-        if (success) return data;
-        else {
-            warn(data);
-            return undefined;
-        }
+remotes.requestData.connect((player: Player, datastoreName, key) => {
+    const datastore = getDatastore(datastoreName);
+    const [success, data] = pcall(() => datastore.GetAsync(key));
+    if (success) return data;
+    else {
+        warn(data);
+        return undefined;
     }
-}
+})
 
-const scene = {
-    name: "Test Scene",
-    dialogues: [
-        {
-            speaker: "Adalbrecht",
-            text: "Hello, world!",
-            expression: DialogueExpression.Neutral,
-            effects: []
-        }
-    ]
-}
+Players.PlayerAdded.Connect(p => {
+    const db = Database.Get()
+    // db.setPlayerData(`${p.UserId}`, {
+    //     money: 100,
+    // })
+
+    // db.loadPlayerData(p).then(() => {
+    //     const playerData = db.getPlayerData(`${p.UserId}`);
+    //     print(playerData?.money)
+    // })
+})
+
+
+// const scene = {
+//     name: "Test Scene",
+//     dialogues: [
+//         {
+//             speaker: "Adalbrecht",
+//             text: "Hello, world!",
+//             expression: DialogueExpression.Neutral,
+//             effects: []
+//         }
+//     ]
+// }
