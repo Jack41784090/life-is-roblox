@@ -1,3 +1,4 @@
+import { atom, Atom } from "@rbxts/charm";
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
@@ -8,7 +9,6 @@ import AudioHandler from "./AudioHandler";
 import Expression from "./Expression";
 import TweenManager from "./TweenManager";
 
-print(calculateRealityValue)
 
 export default class Entity implements iEntity {
     animationHandler?: AnimationHandler;
@@ -23,10 +23,10 @@ export default class Entity implements iEntity {
     team?: string;
     name: string;
 
-    sta: number;
-    hip: number;
-    org: number;
-    pos: number;
+    private sta: Atom<number>;
+    private hip: Atom<number>;
+    private org: Atom<number>;
+    private pos: Atom<number>;
 
     armed: keyof typeof Enum.KeyCode | undefined;
     botType: BotType = BotType.Enemy;
@@ -41,10 +41,12 @@ export default class Entity implements iEntity {
         this.playerID = options.playerID;
         this.team = options.team;
         this.stats = { ...options.stats, id: options.stats.id };
-        this.sta = options.sta ?? 0;
-        this.hip = options.hip ?? 0;
-        this.org = options.org ?? 0;
-        this.pos = options.pos ?? 0;
+        this.sta = atom(options.sta ?? 0);
+        this.hip = atom(options.hip ?? 0);
+        this.org = atom(options.org ?? 0);
+        this.pos = atom(options.pos ?? 0);
+
+
         this.name = options.name ?? options.stats.id;
         this.botType = options.botType || BotType.Enemy;
         this.template = ReplicatedStorage.WaitForChild('Models').FindFirstChild(this.stats.id) as Model;
@@ -52,6 +54,20 @@ export default class Entity implements iEntity {
             throw `Entity template not found for "${this.stats.id}"`;
         }
 
+    }
+
+    //#region get stats
+    change(property: 'sta' | 'hip' | 'org' | 'pos', by: number) {
+        this[property](by);
+        return this[property];
+    }
+
+    get(property: 'sta' | 'hip' | 'org' | 'pos'): number {
+        return this[property]();
+    }
+
+    getState(property: 'sta' | 'hip' | 'org' | 'pos'): Atom<number> {
+        return this[property];
     }
 
     //#region play animation/audio
@@ -365,9 +381,9 @@ export default class Entity implements iEntity {
     changeHP(num: number) {
         print(`${this.name}: Changing HP by ${num}`);
 
-        this.hip += num;
+        this.hip = atom(this.hip() + num);
         const maxHP = calculateRealityValue(Reality.HP, this);
-        const hpPercentage = 0.9 - math.clamp((this.hip / maxHP) * .9, 0, .9); print(hpPercentage)
+        const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9); print(hpPercentage)
         this.changeHPPoolSize(UDim2.fromScale(hpPercentage, hpPercentage));
     }
     heal(num: number) {

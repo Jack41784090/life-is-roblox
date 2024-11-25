@@ -3,7 +3,6 @@ import React, { ReactComponent } from "@rbxts/react";
 import Entity from "shared/class/battle/Entity";
 import { iAbility } from "shared/types/battle-types";
 import { onInput } from "shared/utils";
-import { bindableEventsMap } from "shared/utils/events";
 
 interface Ability1SlotElementProps {
     cre: Entity;
@@ -39,10 +38,10 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
         const cre = this.props.cre;
         if (!cre.cell) return;
         const cells = cre.cell.findCellsWithinRange(range);
-        const event = bindableEventsMap["GlowUpCells"] as BindableEvent;
-        if (event) {
-            event.Fire(cells.map(c => c.qr()));
-        }
+        // const event = bindableEventsMap["GlowUpCells"] as BindableEvent;
+        // if (event) {
+        //     event.Fire(cells.map(c => c.qr()));
+        // }
     }
 
     protected willUnmount(): void {

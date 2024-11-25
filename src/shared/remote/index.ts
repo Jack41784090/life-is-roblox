@@ -1,6 +1,7 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, remote, Server } from "@rbxts/remo";
 import { GlobalAtoms } from "shared/datastore";
+import { Config } from "shared/types/battle-types";
 
 const remotes = createRemotes({
     loadCharacter: remote<Server>(),
@@ -11,6 +12,7 @@ const remotes = createRemotes({
 
 
     battle_Start: remote<Server>(),
+    battle_ClientBegin: remote<Client, [config: Partial<Config>]>(),
 
 })
 

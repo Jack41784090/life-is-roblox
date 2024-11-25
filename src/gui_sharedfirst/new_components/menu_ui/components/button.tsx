@@ -11,15 +11,15 @@ export interface Props {
 export function MainMenuButton({ text, onClick }: Props) {
     const [pressed, setPressed] = React.useState(false);
     const [hovered, setHovered] = React.useState(false);
-    const [buttonPosition, buttonPositionMotion] = useMotion(0);
+    const [charge, chargeMotion] = useMotion(0);
 
     React.useEffect(() => {
         if (pressed) {
-            buttonPositionMotion.spring(.65, springs.responsive);
+            chargeMotion.spring(.65, springs.responsive);
         } else if (hovered) {
-            buttonPositionMotion.spring(.5, springs.slow);
+            chargeMotion.spring(.5, springs.slow);
         } else {
-            buttonPositionMotion.spring(0, springs.responsive)
+            chargeMotion.spring(0, springs.responsive)
         }
     }, [pressed, hovered]);
 
@@ -47,7 +47,7 @@ export function MainMenuButton({ text, onClick }: Props) {
             <uistroke Color={CONDOR_BLOOD_RED} Thickness={3} />
             <frame
                 AnchorPoint={new Vector2(0, 1)}
-                Size={buttonPosition.map(v => UDim2.fromScale(text.size() / 15 * v, 0.05))}
+                Size={charge.map(v => UDim2.fromScale(text.size() / 15 * v, 0.05))}
                 BackgroundTransparency={0}
                 Position={UDim2.fromScale(0, 1)}
                 BackgroundColor3={CONDOR_BLOOD_RED}>

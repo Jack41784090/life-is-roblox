@@ -1,3 +1,4 @@
+import { Atom } from "@rbxts/charm";
 import Ability from "shared/class/battle/Ability";
 import Entity from "shared/class/battle/Entity";
 
@@ -42,9 +43,9 @@ export interface iEntity {
 }
 
 export type ReadinessIcon = {
-    iconID: number,
+    playerID: number,
     iconUrl: string;
-    readiness: number;
+    readiness: Atom<number>;
 }
 
 export enum CharacterActionMenuAction {
@@ -218,3 +219,23 @@ export interface ClashResult {
     fate: ClashResultFate,
     roll: number,
 }
+
+export type PlayerID = number
+
+
+export type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
+export type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
+
+export type Config = {
+    camera?: Camera,
+    worldCenter: Vector3,
+    width: number;
+    height: number;
+    teamMap: Record<string, Player[]>;
+};
+
+
+export const DEFAULT_WIDTH = 5;
+export const DEFAULT_HEIGHT = 5;
+export const DEFAULT_WORLD_CENTER = new Vector3(150, 0, 150);
+export const TILE_SIZE = 10;

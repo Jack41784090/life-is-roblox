@@ -2,12 +2,11 @@ import { atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { ContentProvider, ReplicatedFirst, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
-import * as Battle from "shared/class/battle";
 import Scene from "shared/class/Scene";
+import remotes from "shared/remote";
 import { DialogueExpression } from "shared/types/scene-types";
-import { remoteEventsMap } from "shared/utils/events";
 import LoadingScreenElement from "./new_components/loading";
-import MainGui from "./new_components/main";
+import GuiMothership from "./new_components/main";
 import MainMenuElement from "./new_components/menu_ui";
 
 //#region 1. LOADING
@@ -19,7 +18,7 @@ const numberOfAssets = assets.size();
 
 let loadedAssetCount = 0;
 const progressAtom = atom(0);
-MainGui.mount("LoadingScreen", <LoadingScreenElement progress={progressAtom} />);
+GuiMothership.mount("LoadingScreen", <LoadingScreenElement progress={progressAtom} />);
 
 const threads: thread[] = [];
 print("Preloading assets");
@@ -43,7 +42,7 @@ checkProgress();
 print("Preloading complete");
 
 // Remove the loading screen after preloading is complete
-MainGui.unmount("LoadingScreen");
+GuiMothership.unmount("LoadingScreen");
 //#endregion
 
 //#region 2. MAIN MENU
@@ -66,11 +65,10 @@ function enterPlayground() {
     if (Workspace.CurrentCamera) {
         Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom;
     }
-    const loadCharacterEvent = remoteEventsMap["LoadCharacterEvent"] as RemoteEvent;
-    loadCharacterEvent.FireServer();
+    remotes.loadCharacter();
 }
 function enterBattle() {
-    Battle.remoteEvent_Start.FireServer();
+    remotes.battle_Start();
 }
 function enterStory() {
     const scene = new Scene('scene');
@@ -104,27 +102,27 @@ function mainMenuSetup() {
             {
                 text: "Play",
                 onClick: () => {
-                    MainGui.unmount("MainMenu");
+                    GuiMothership.unmount("MainMenu");
                     enterPlayground();
                 },
             },
             {
                 text: "Battle",
                 onClick: () => {
-                    MainGui.unmount("MainMenu");
+                    GuiMothership.unmount("MainMenu");
                     enterBattle();
                 }
             },
             {
                 text: "Story",
                 onClick: () => {
-                    MainGui.unmount("MainMenu");
+                    GuiMothership.unmount("MainMenu");
                     enterStory();
                 }
             }
         ];
 
-    MainGui.mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
+    GuiMothership.mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
 }
 
 

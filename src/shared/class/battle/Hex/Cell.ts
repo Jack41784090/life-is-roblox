@@ -10,13 +10,14 @@ export default class HexCell {
     public static readonly SELECTED_COLOUR = new Color3(1, 58 / 255, 58 / 255);
     private static readonly TWEEN_TIME = 0.5;
 
+    public qrs: Vector3;
+    public terrain: CellTerrain;
+    public entity?: Entity;
+
     public glow = false;
     public part?: UnionOperation;
     public size = 4;
-    public qrs: Vector3;
-    public terrain: CellTerrain;
     public height: number;
-    public entity?: Entity;
     public grid: HexGrid;
     public layout: Layout;
 

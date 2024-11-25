@@ -63,9 +63,39 @@ export class Database {
 
     private datastore = {
         players: atom<PlayerDataMap>({}),
+        characters: atom<CharacterStatsMap>({}),
+        activeSessions: atom<ActiveSessionMap>({}),
     };
 
+    //#region Active Sessions Database
 
+    getActiveSession(id: string) {
+        return this.datastore.activeSessions()[id];
+    }
+
+    setActiveSession(id: string, session: Online) {
+        this.datastore.activeSessions((state) => ({
+            ...state,
+            [id]: session,
+        }));
+    }
+
+    deleteActiveSession(id: string) {
+        this.datastore.activeSessions((state) => ({
+            ...state,
+            [id]: undefined,
+        }));
+    }
+
+    updateActiveSession(id: string, updater: (session: Online) => Online) {
+        this.datastore.activeSessions((state) => ({
+            ...state,
+            [id]: state[id] && updater(state[id]),
+        }));
+    }
+
+
+    //#endregion
 
     //#region Player Database
     getPlayerData(id: string) {
@@ -122,6 +152,14 @@ export class Database {
 const atoms = Database.GlobalAtoms();
 export type GlobalAtoms = typeof atoms;
 
+type CharacterStatsMap = {
+    readonly [K in string]?: EntityStats;
+};
+
 type PlayerDataMap = {
     readonly [K in string]?: PlayerData;
+};
+
+type ActiveSessionMap = {
+    readonly [K in string]?: Online
 };

@@ -21,7 +21,7 @@ function LoadingScreenElement(props: Props) {
         if (value > thicknessNow) {
             motion.spring(value, springs.slow);
         }
-        if (value == 1) {
+        if (value === 1) {
             // done
         }
     }, [value]);

@@ -4,8 +4,8 @@ import { getPlayer } from "shared/utils";
 
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
-class MainGui {
-    public static instance: MainGui;
+class GuiMothership {
+    public static instance: GuiMothership;
     private root: ReactRoblox.Root;
     private children: Map<string, React.Element> = new Map();
 
@@ -20,26 +20,26 @@ class MainGui {
     }
 
     public static create() {
-        if (!MainGui.instance) {
-            MainGui.instance = new MainGui();
+        if (!GuiMothership.instance) {
+            GuiMothership.instance = new GuiMothership();
         }
-        return MainGui.instance;
+        return GuiMothership.instance;
     }
 
     public static mount(key: string, element: React.Element) {
-        if (!MainGui.instance) {
-            MainGui.instance = new MainGui();
+        if (!GuiMothership.instance) {
+            GuiMothership.instance = new GuiMothership();
         }
-        const instance = MainGui.instance;
+        const instance = GuiMothership.instance;
         instance.children.set(key, element);
         instance.root.render(instance.element());
     }
 
     public static unmount(key: string) {
-        if (!MainGui.instance) {
+        if (!GuiMothership.instance) {
             return;
         }
-        const instance = MainGui.instance;
+        const instance = GuiMothership.instance;
         instance.children.delete(key);
         instance.root.render(instance.element());
     }
@@ -65,4 +65,4 @@ class MainGui {
     }
 }
 
-export = MainGui
+export = GuiMothership

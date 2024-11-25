@@ -1,17 +1,15 @@
 import { Players } from "@rbxts/services";
 import * as Battle from "shared/class/battle";
 import HexGrid from "shared/class/battle/Hex/Grid";
+import remotes from "shared/remote";
 import { disableCharacter, enableCharacter } from "shared/utils";
-import { remoteEventsMap } from "shared/utils/events";
-
-const loadCharacterEvent = remoteEventsMap["LoadCharacterEvent"]
 
 Players.PlayerAdded.Connect((player) => {
     player.CharacterAppearanceLoaded.Connect((character) => {
         disableCharacter(character);
 
         // Listen for the remote event to re-enable interactivity
-        loadCharacterEvent.OnServerEvent.Connect((requestingPlayer) => {
+        remotes.loadCharacter.connect((requestingPlayer) => {
             if (requestingPlayer === player && character) {
                 enableCharacter(character);
             }
@@ -28,8 +26,8 @@ const hexGrid = new HexGrid({
 });
 hexGrid.materialise();
 
-Battle.remoteEvent_Start.OnServerEvent.Connect((p) => {
-    const battle = Battle.Session.New({
+remotes.battle_Start.connect((p) => {
+    const battle = Battle.Online.New({
         teamMap: {
             '1': [p],
         }
