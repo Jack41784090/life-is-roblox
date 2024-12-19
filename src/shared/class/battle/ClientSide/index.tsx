@@ -1,6 +1,6 @@
 import { atom } from "@rbxts/charm";
 import { client, SyncPayload } from "@rbxts/charm-sync";
-import { RunService, UserInputService } from "@rbxts/services";
+import { Players, RunService, UserInputService } from "@rbxts/services";
 import { MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
 import { ClientSideConfig, HexGridConfig } from "shared/types";
@@ -113,12 +113,10 @@ export default class ClientSide {
         const c4 = remotes.battle.ui.mount.actionMenu.connect(() => {
             this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity!));
         })
-
-
         remotes.battle_readinessSyncHydrate();
 
         this.cleanUp = () => {
-            cu1(); cu2(); cu3();
+            cu1(); cu2(); cu3(); c4();
         }
     }
 
@@ -181,17 +179,22 @@ export default class ClientSide {
         return [
             {
                 type: CharacterActionMenuAction.Move,
-                run: (tree: ReactRoblox.Root) => {
-                    tree.unmount();
-                    this.camera.enterHOI4Mode(entity.cell?.worldPosition()).then(() => {
-                        this.enterMovementMode();
-                    });
+                run: () => {
+                    remotes.battle.requestToAct().then(accessToken => {
+                        if (!accessToken.token) {
+                            warn(`${Players.LocalPlayer.Name} has received no access token`);
+                            return;
+                        }
+                        const action = 'move';
+                        const newAccessToken = { ...accessToken, action };
+                        remotes.battle.act(newAccessToken);
+                    })
                 },
             },
             {
                 type: CharacterActionMenuAction.EndTurn,
-                run: (tree: ReactRoblox.Root) => {
-                    tree.unmount();
+                run: () => {
+                    // tree.unmount();
                     // this.endTurn?.(void 0);
                 },
             },

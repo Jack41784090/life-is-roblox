@@ -12,11 +12,6 @@ import HexGrid from "../Hex/Grid";
 import Pathfinding from "../Pathfinding";
 
 export default class Gui {
-    private playerGui = Players.LocalPlayer.FindFirstChildOfClass("PlayerGui") as PlayerGui;
-    public actionsGui: ReactRoblox.Root | undefined;
-    public glowPathGui: ReactRoblox.Root | undefined;
-    public abilitySlotGui: ReactRoblox.Root | undefined;
-    public otherPlayersTurnGui: ReactRoblox.Root | undefined;
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(icons: ReadinessIcon[], grid: HexGrid) {
@@ -90,7 +85,6 @@ export default class Gui {
      */
     mountActionMenu(actions: CharacterMenuAction[]) {
         print("Mounting action menu");
-        this.unmountAndClear('actionsGui');
         GuiMothership.mount(
             BATTLE_ACTIONMENU_TAG,
             <MenuFrameElement key={"ActionMenu"} transparency={1} >
@@ -102,7 +96,7 @@ export default class Gui {
                                 position={index / actions.size()}
                                 size={1 / actions.size()}
                                 onclick={() => {
-                                    if (this.actionsGui) action.run(this.actionsGui)
+                                    action.run()
                                 }}
                                 text={action.type}
                                 transparency={0.9}
@@ -110,7 +104,6 @@ export default class Gui {
                         ))}
                 </ButtonFrameElement>
             </MenuFrameElement>);
-        return this.actionsGui;
     }
     /**
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBar
@@ -135,19 +128,15 @@ export default class Gui {
     }
 
     mountOtherPlayersTurnGui() {
-        this.unmountAndClear('otherPlayersTurnGui');
         GuiMothership.mount(BATTLE_OTHERTURN_TAG, <OPTElement />);
     }
 
     mountAbilitySlots(cre: Entity) {
         const mountingAbilitySet = cre.getAllAbilitySets().find(a => a !== undefined);
-        //#region 
         if (!mountingAbilitySet) {
             warn("No ability set found for entity");
             return;
         }
-        //#endregion
-        this.unmountAndClear('abilitySlotGui');
         GuiMothership.mount(BATTLE_ABILITYSLOT_TAG,
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
@@ -327,18 +316,7 @@ export default class Gui {
     }
 
     public clearAllLooseGui() {
-        if (this.abilitySlotGui) {
-            this.unmountAndClear('abilitySlotGui');
-        }
-        if (this.otherPlayersTurnGui) {
-            this.unmountAndClear('otherPlayersTurnGui');
-        }
-        if (this.actionsGui) {
-            this.unmountAndClear('actionsGui');
-        }
-        if (this.glowPathGui) {
-            this.unmountAndClear('glowPathGui');
-        }
+        GuiMothership.unmount([BATTLE_ABILITYSLOT_TAG, BATTLE_ACTIONMENU_TAG, BATTLE_GLOW_TAG, BATTLE_OTHERTURN_TAG]);
     }
 
     public clearAllLooseScript() {

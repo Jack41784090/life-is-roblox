@@ -35,13 +35,20 @@ class GuiMothership {
         instance.root.render(instance.element());
     }
 
-    public static unmount(key: string) {
+    public static unmount(key: string[]): void;
+    public static unmount(key: string): void;
+    public static unmount(key: string | string[]) {
         if (!GuiMothership.instance) {
             return;
         }
         const instance = GuiMothership.instance;
-        instance.children.delete(key);
-        instance.root.render(instance.element());
+        if (typeIs(key, "string")) {
+            instance.children.delete(key);
+        } else {
+            for (const k of key) {
+                instance.children.delete(k);
+            }
+        }
     }
 
     private element() {

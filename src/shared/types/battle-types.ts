@@ -186,7 +186,7 @@ export type AbilityInitOptions = {
 
 export interface CharacterMenuAction {
     type: CharacterActionMenuAction,
-    run: (ui: ReactRoblox.Root) => void;
+    run: () => void;
 }
 
 export enum EntityStatus {
