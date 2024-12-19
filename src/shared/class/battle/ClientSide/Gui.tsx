@@ -319,7 +319,6 @@ export default class Gui {
     }
     //#endregion
 
-
     //#region Clearing Methods
 
     public clearAll() {

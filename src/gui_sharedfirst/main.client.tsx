@@ -68,7 +68,8 @@ function enterPlayground() {
     remotes.loadCharacter();
 }
 function enterBattle() {
-    remotes.battle_Start();
+    print("Entering battle");
+    remotes.battle.start();
 }
 function enterStory() {
     const scene = new Scene('scene');
@@ -126,7 +127,6 @@ function mainMenuSetup() {
 }
 
 
-print("Initializing main menu");
 mainMenuCameraSetup();
 mainMenuSetup();
 //#endregion

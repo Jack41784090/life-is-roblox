@@ -21,6 +21,7 @@
     "@rbxts/charm-sync": "^0.1.1",
     "@rbxts/lapis": "^0.3.6",
     "@rbxts/matter": "^0.8.5",
+    "@rbxts/net": "^3.0.9",
     "@rbxts/pretty-react-hooks": "^0.6.1",
     "@rbxts/react": "^17.2.1",
     "@rbxts/react-charm": "^0.1.1",

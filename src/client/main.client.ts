@@ -1,15 +1,22 @@
-import { StarterGui } from "@rbxts/services";
+import { Players, StarterGui } from "@rbxts/services";
+import ClientSide from "shared/class/battle/ClientSide";
 import remotes from "shared/remote";
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/types/battle-types";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);
 
 remotes.battle_ClientBegin.connect((config) => {
     const { width, height, worldCenter, teamMap } = config;
     if (teamMap === undefined) return;
 
-    // width: width ?? Battle.DEFAULT_WIDTH,
-    // height: height ?? Battle.DEFAULT_HEIGHT,
-    // worldCenter: worldCenter ?? Battle.DEFAULT_WORLD_CENTER,
-    // teamMap: teamMap,
-    // camera: game.Workspace.CurrentCamera!
+    print("ClientBegin", config);
+
+    const clientSide = ClientSide.Create({
+        width: width ?? DEFAULT_WIDTH,
+        height: height ?? DEFAULT_HEIGHT,
+        worldCenter: worldCenter ?? DEFAULT_WORLD_CENTER,
+        camera: game.Workspace.CurrentCamera!,
+        client: Players.LocalPlayer,
+    });
 })
+
 

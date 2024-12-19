@@ -196,7 +196,7 @@ export function getMouseWorldPosition(camera: Camera, mouse: Mouse): Vector3 | u
     }
 }
 
-export function extractMapValues<T extends defined>(map: Map<any, T>) {
+export function extractMapValues<T extends defined>(map: Map<any, T> | Record<any, T>): T[] {
     const va: T[] = [];
     for (const [k, v] of pairs(map)) {
         va.push(v);

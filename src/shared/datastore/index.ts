@@ -73,7 +73,7 @@ export class Database {
         return this.datastore.activeSessions()[id];
     }
 
-    setActiveSession(id: string, session: Online) {
+    setActiveSession(id: string, session: string) {
         this.datastore.activeSessions((state) => ({
             ...state,
             [id]: session,
@@ -87,7 +87,7 @@ export class Database {
         }));
     }
 
-    updateActiveSession(id: string, updater: (session: Online) => Online) {
+    updateActiveSession(id: string, updater: (session: string) => string) {
         this.datastore.activeSessions((state) => ({
             ...state,
             [id]: state[id] && updater(state[id]),
@@ -161,5 +161,5 @@ type PlayerDataMap = {
 };
 
 type ActiveSessionMap = {
-    readonly [K in string]?: Online
+    readonly [K in string]?: string
 };

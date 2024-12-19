@@ -1,6 +1,6 @@
 import { atom, Atom } from "@rbxts/charm";
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
-import { AbilitySet, BotType, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { AbilitySet, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Ability from "../Ability";
 import HexCell from "../Hex/Cell";
@@ -11,28 +11,26 @@ import TweenManager from "./TweenManager";
 
 
 export default class Entity implements iEntity {
-    animationHandler?: AnimationHandler;
-    audioHandler?: AudioHandler;
-    tweenHandler?: TweenManager;
-
+    // server-controlled properties
     playerID: number;
-    iconURL?: ReadinessIcon;
-    cell: HexCell | undefined;
-
-    readonly stats: Readonly<EntityStats>;
+    stats: Readonly<EntityStats>;
     team?: string;
     name: string;
-
     private sta: Atom<number>;
     private hip: Atom<number>;
     private org: Atom<number>;
     private pos: Atom<number>;
+    armed?: keyof typeof Enum.KeyCode;
 
-    armed: keyof typeof Enum.KeyCode | undefined;
-    botType: BotType = BotType.Enemy;
+    // client-side properties
+    animationHandler?: AnimationHandler;
+    audioHandler?: AudioHandler;
+    tweenHandler?: TweenManager;
 
-    expression?: Expression;
+    iconURL?: ReadinessIcon;
+    cell?: HexCell;
     template: Readonly<Model>;
+    expression?: Expression;
     model?: Model;
     hpPool?: SurfaceGui;
     animator?: Animator;
@@ -48,7 +46,6 @@ export default class Entity implements iEntity {
 
 
         this.name = options.name ?? options.stats.id;
-        this.botType = options.botType || BotType.Enemy;
         this.template = ReplicatedStorage.WaitForChild('Models').FindFirstChild(this.stats.id) as Model;
         if (!this.template) {
             throw `Entity template not found for "${this.stats.id}"`;
@@ -69,6 +66,7 @@ export default class Entity implements iEntity {
     getState(property: 'sta' | 'hip' | 'org' | 'pos'): Atom<number> {
         return this[property];
     }
+    //#endregion
 
     //#region play animation/audio
     playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
@@ -273,10 +271,8 @@ export default class Entity implements iEntity {
         }
         moveTrack?.Stop();
         const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
-        if (!transitionTrack) return;
 
         this.setCell(cell);
-
         return new Promise((resolve) => {
             const scrp = transitionTrack?.Ended.Connect(() => {
                 scrp?.Disconnect();

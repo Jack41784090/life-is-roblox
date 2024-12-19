@@ -1,6 +1,6 @@
 
 import React, { Element, ReactComponent } from "@rbxts/react";
-import { Gui } from "shared/class/battle";
+import Gui from "shared/class/battle/ClientSide/Gui";
 import Entity from "shared/class/battle/Entity";
 import { AbilitySet } from "shared/types/battle-types";
 import Ability1SlotElement from "./ability-1slot";

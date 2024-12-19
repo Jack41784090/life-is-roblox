@@ -1,7 +1,8 @@
 import { Players } from "@rbxts/services";
-import * as Battle from "shared/class/battle";
+import Battle from "shared/class/battle";
 import HexGrid from "shared/class/battle/Hex/Grid";
 import remotes from "shared/remote";
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/types/battle-types";
 import { disableCharacter, enableCharacter } from "shared/utils";
 
 Players.PlayerAdded.Connect((player) => {
@@ -26,12 +27,17 @@ const hexGrid = new HexGrid({
 });
 hexGrid.materialise();
 
-remotes.battle_Start.connect((p) => {
-    const battle = Battle.Online.New({
+print("Connecting battle_Start")
+remotes.battle.start.connect((p) => {
+    // print("Battle Start", p);
+    Battle.Create({
+        width: DEFAULT_WIDTH,
+        height: DEFAULT_HEIGHT,
+        worldCenter: DEFAULT_WORLD_CENTER,
         teamMap: {
-            '1': [p],
+            'team1': [p],
         }
-    });
+    })
 })
 
 // find all cells and change height

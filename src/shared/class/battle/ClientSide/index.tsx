@@ -1,29 +1,66 @@
+import { atom } from "@rbxts/charm";
+import { client, SyncPayload } from "@rbxts/charm-sync";
 import { RunService, UserInputService } from "@rbxts/services";
-import { AttackAction, CharacterActionMenuAction, CharacterMenuAction, EntityStatus } from "shared/types/battle-types";
+import { MOVEMENT_COST } from "shared/const";
+import remotes from "shared/remote";
+import { ClientSideConfig, HexGridConfig } from "shared/types";
+import { AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ControlLocks, EntityReadinessMap, EntityStatus, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
+import Ability, { AbilityState } from "../Ability";
 import Entity from "../Entity";
 import { AnimationType } from "../Entity/AnimationHandler";
+import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
+import Pathfinding from "../Pathfinding";
 import BattleCam from "./BattleCamera";
 import Gui from "./Gui";
 
-
 export default class ClientSide {
+    private cleanUp?: () => void;
+
+    private time = 0;
+
+    public entities: Entity[] = [];
+    public currentRoundEntity?: Entity;
+
     public grid: HexGrid;
     public gui: Gui;
     public camera: BattleCam;
 
-    private constructor(worldCenter: Vector3, size: number, width: number, height: number, camera: Camera) {
+    private readinessSyncerClient;
+    private entitiesReadinessMapAtom = atom<EntityReadinessMap>({});
+    private controlLocks: ControlLocks = new Map();
+
+    private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
         const halfWidth = (width * size) / 2;
         const halfHeight = (height * size) / 2;
         const gridMin = new Vector2(worldCenter.X - halfWidth, worldCenter.Z - halfHeight);
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
-        this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
-        this.gui = Gui.Connect(this.getReadinessIcons(), this.grid);
-    }
 
-    attackRemoteEventReceived?: RBXScriptConnection;
-    escapeScript?: RBXScriptConnection;
+        this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
+        this.grid = new HexGrid({
+            center: new Vector2(0, 0),
+            radius: TILE_SIZE,
+            size: TILE_SIZE,
+            name: "Bat",
+        })
+        this.gui = Gui.Connect(this.getReadinessIcons(), this.grid);
+        this.readinessSyncerClient = client({
+            atoms: {
+                entitiesReadinessMap: this.entitiesReadinessMapAtom,
+            }
+        })
+
+        this.setUpRemotes();
+        UserInputService.InputBegan.Connect((io, gpe) => {
+            this.onInputBegan(io, gpe);
+        })
+
+        // this.initializeGraphics();
+        remotes.battle.requestMapUpdate().then(r => {
+            this.remote_updateMap(r);
+        })
+    }
 
     /**
      * Creates a new Battle instance with the provided configuration.
@@ -42,16 +79,73 @@ export default class ClientSide {
         worldCenter: Vector3,
         width: number;
         height: number;
-        teamMap: Record<string, Player[]>;
+        client: Player;
     }) {
         if (RunService.IsServer()) {
-            warnWrongSideCall("Create");
+            // Server-side Creation
+            remotes.battle_ClientBegin(config.client, config);
+        }
+        else {
+            // Client-side Creation
+            return new ClientSide({
+                ...config,
+                size: TILE_SIZE,
+            });
+        }
+    }
+
+    //#region Remote Communications
+    private setUpRemotes() {
+        if (RunService.IsServer()) {
+            warnWrongSideCall("setUpRemote")
             return;
         }
+        const cu1 = remotes.battle_UpdateMap.connect((hgc) => {
+            this.remote_updateMap(hgc);
+        })
+        const cu2 = remotes.battle_readinessSync.connect((payload) => {
+            this.remote_readinessSync(payload);
+        })
+        const cu3 = remotes.battle_AddEntity.connect((init, pos) => {
+            const entity = new Entity(init);
+            this.appendEntity(entity, pos.X, pos.Y);
+        })
+        const c4 = remotes.battle.ui.mount.actionMenu.connect(() => {
+            this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity!));
+        })
 
 
+        remotes.battle_readinessSyncHydrate();
 
-        return new ClientSide(config.worldCenter, 4, config.width, config.height, config.camera);
+        this.cleanUp = () => {
+            cu1(); cu2(); cu3();
+        }
+    }
+
+    private remote_readinessSync(payload: SyncPayload<{
+        entitiesReadinessMap: Charm.Atom<EntityReadinessMap>;
+    }>) {
+        this.readinessSyncerClient.sync(payload);
+    }
+
+    private remote_updateMap(c: HexGridConfig) {
+        this.grid = new HexGrid(c);
+        this.grid.initialise();
+        this.grid.materialise();
+    }
+    //#endregion
+
+    private getReadinessIcons() {
+        const crMap = this.entitiesReadinessMapAtom();
+        const readinessIcons: ReadinessIcon[] = [];
+        for (const [i, x] of pairs(crMap)) {
+            readinessIcons.push({
+                playerID: i,
+                iconUrl: '',
+                readiness: x
+            })
+        }
+        return readinessIcons;
     }
     /**
      * Initializes the grid by calling the materialise method on the grid object.
@@ -79,6 +173,10 @@ export default class ClientSide {
         allEntities.forEach((e) => e.initialiseCharacteristics());
     }
 
+    private getAllEntities() {
+        return this.entities;
+    }
+
     public getCharacterMenuActions(entity: Entity): CharacterMenuAction[] {
         return [
             {
@@ -100,31 +198,22 @@ export default class ClientSide {
         ];
     }
 
+    private realiseClashResult(clashResult: ClashResult & { abilityState: AbilityState }) {
+        print("Attack clash result received", clashResult);
 
-    private setUpAttackRemoteEventReceiver() {
-        if (RunService.IsServer()) {
-            warnWrongSideCall("setUpAttackRemoteEventReceiver");
-            return
+        const using = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.using);
+        const target = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.target);
+
+        if (!using || !target) {
+            warn("Using or target entity not found", using, target);
+            return;
         }
-        this.attackRemoteEventReceived?.Disconnect();
-        // this.attackRemoteEventReceived = remoteEvent_Attack.OnClientEvent.Connect((clashResult: ClashResult & { abilityState: AbilityState }) => {
-        //     print("Attack clash result received", clashResult);
-
-        //     const using = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.using);
-        //     const target = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.target);
-
-        //     if (!using || !target) {
-        //         warn("Using or target entity not found", using, target);
-        //         return;
-        //     }
-        //     const ability = new Ability({
-        //         ...clashResult.abilityState,
-        //         using,
-        //         target,
-        //     })
-        //     this.applyClash({ executed: true, ability, clashResult });
-        //     this.executeAttackSequence({ executed: true, ability, clashResult });
-        // })
+        const ability = new Ability({
+            ...clashResult.abilityState,
+            using,
+            target,
+        });
+        this.executeAttackSequence({ executed: true, ability, clashResult });
     }
 
     private async round() {
@@ -186,18 +275,80 @@ export default class ClientSide {
         print(`Round ${this.time + 1} has begun!`);
         return ++this.time;
     }
+
+    //#region ENTITY MANAGEMENT
+
+    private appendEntity(entity: Entity, x: number, y: number) {
+        const c = this.grid.getCell(x, y);
+        if (!c) {
+            warn(`No cell @${x},${y}`)
+            return undefined;
+        }
+        this.entities.push(entity);
+        entity.setCell(c);
+    }
     /**
-     * Set up a script that listens for the escape key (X) to cancel the current action
-     * @returns the script connection
+     * Moves an entity to a specified cell along a calculated path.
+     *
+     * @param entity - The entity to be moved.
+     * @param toCell - The destination cell to move the entity to.
+     * @param path - An optional pre-calculated path for the entity to follow. If not provided, a path will be calculated.
+     * @returns A promise that resolves when the entity has been moved.
+     *
+     * @remarks
+     * - If the entity does not have a current cell, a warning is logged and the function returns early.
+     * - The path is calculated using the entity's position and movement cost.
+     * - If no path is found, a warning is logged and the function returns early.
+     * - If the destination cell is not vacant, the function attempts to find an adjacent vacant cell.
+     * - The GUI is updated to reflect the calculated path.
      */
-    private setUpCancelCurrentActionScript(): RBXScriptConnection {
-        this.escapeScript?.Disconnect();
-        this.escapeScript = UserInputService.InputBegan.Connect((i, gpe) => {
-            if (i.KeyCode === Enum.KeyCode.X && !gpe) {
-                this.returnToSelections();
+    protected async moveEntity(entity: Entity, toCell: HexCell, path?: Vector2[]): Promise<void> {
+        //#region 
+        if (!entity.cell) {
+            warn("moveEntity: Entity has no cell");
+            return;
+        }
+        //#endregion
+        const lim = math.floor(entity.get('pos') / MOVEMENT_COST);
+        const calculatedPath =
+            path ??
+            new Pathfinding({
+                grid: this.grid,
+                start: entity.cell.qr(),
+                dest: toCell.qr(),
+                limit: lim,
+            }).begin();
+        if (calculatedPath.size() === 0) {
+            warn(`Move Entity: No path found from ${entity.cell.qr().X}, ${entity.cell.qr().Y} to ${toCell.qr().X}, ${toCell.qr().Y}`,);
+            return;
+        }
+        let destination = toCell;
+        if (!toCell.isVacant()) {
+            const adjacentCell = this.grid.getCell(calculatedPath[calculatedPath.size() - 1]);
+            if (adjacentCell?.isVacant()) {
+                destination = adjacentCell;
+            } else {
+                warn("Move Entity: Destination cell and adjacent cell are not vacant");
+                return;
             }
-        })
-        return this.escapeScript;
+        }
+
+        // this.gui.mountOrUpdateGlow(calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
+        return entity.moveToCell(destination, calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
+    }
+    //#endregion
+
+    //#region INPUTS
+
+    private onInputBegan(io: InputObject, gpe: boolean) {
+        if (!this.controlLocks.get(io.KeyCode)) {
+            // play "invalid input" audio
+            return;
+        }
+
+        if (io.KeyCode === Enum.KeyCode.X && !gpe) {
+            this.returnToSelections();
+        }
     }
     /**
      * Return to the selection screen after movement or canceling an action
@@ -211,18 +362,6 @@ export default class ClientSide {
         if (this.currentRoundEntity) {
             this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity));
         }
-    }
-
-    private finalizeRound(nextEntity: Entity) {
-        // this.updateEntityStatsAfterRound(nextEntity);
-        this.currentRoundEntity = undefined;
-    }
-
-    private async executeAttackSequence(attackAction: AttackAction) {
-        //#region 
-        this.exitMovementMode()
-        await this.playAttackAnimation(attackAction);
-        this.enterMovementMode();
     }
     /**
      * Enter movement mode
@@ -240,22 +379,31 @@ export default class ClientSide {
      */
     private enterMovementMode() {
         print("Entering movement mode");
-        this.escapeScript = this.setUpCancelCurrentActionScript();
-        const cre = this.currentRoundEntity;
-        if (cre) {
-            this.gui.mountAbilitySlots(cre);
-            this.gui.updateMainUI('withSensitiveCells', {
-                cre: cre!,
-                grid: this.grid,
-                readinessIcons: this.getReadinessIcons(),
-            });
+        this.controlLocks.set(Enum.KeyCode.X, true);
+        if (!this.currentRoundEntity) {
+            warn("EnterMovement detects no cre")
+            return;
         }
+        this.gui.mountAbilitySlots(this.currentRoundEntity);
+        this.gui.updateMainUI('withSensitiveCells', {
+            cre: this.currentRoundEntity,
+            grid: this.grid,
+            readinessIcons: this.getReadinessIcons(),
+        });
     }
 
     private exitMovementMode() {
-        this.escapeScript?.Disconnect();
+        this.controlLocks.delete(Enum.KeyCode.X);
         this.gui.clearAll();
         this.gui.updateMainUI('onlyReadinessBar', { readinessIcons: this.getReadinessIcons() });
+    }
+    //#endregion
+
+    //#region ANIMATIONS
+    private async executeAttackSequence(attackAction: AttackAction) {
+        this.exitMovementMode()
+        await this.playAttackAnimation(attackAction);
+        this.enterMovementMode();
     }
 
     private async playAttackAnimation(attackAction: AttackAction) {
@@ -337,7 +485,7 @@ export default class ClientSide {
      * @param track The animation track to monitor.
      * @param markerName The name of the marker to wait for.
      */
-    private waitForAnimationMarker(track: AnimationTrack, markerName: string): Promise<void> {
+    private async waitForAnimationMarker(track: AnimationTrack, markerName: string): Promise<void> {
         return new Promise((resolve, reject) => {
             const connection = track.GetMarkerReachedSignal(markerName).Once(() => {
                 resolve();
@@ -354,7 +502,7 @@ export default class ClientSide {
      * Waits for an animation track to end.
      * @param track The animation track to monitor.
      */
-    private waitForAnimationEnd(track: AnimationTrack): Promise<void> {
+    private async waitForAnimationEnd(track: AnimationTrack): Promise<void> {
         return new Promise((resolve) => {
             const connection = track.Ended.Connect(() => {
                 connection.Disconnect();
@@ -362,4 +510,5 @@ export default class ClientSide {
             });
         });
     }
+    //#endregion
 }

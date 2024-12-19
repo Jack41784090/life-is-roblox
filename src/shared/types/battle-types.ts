@@ -38,12 +38,11 @@ export interface iEntity {
     name: string,
 
     iconURL?: ReadinessIcon,
-    botType?: BotType,
     model?: Instance,
 }
 
 export type ReadinessIcon = {
-    playerID: number,
+    playerID: Readonly<number>,
     iconUrl: string;
     readiness: Atom<number>;
 }
@@ -239,3 +238,6 @@ export const DEFAULT_WIDTH = 5;
 export const DEFAULT_HEIGHT = 5;
 export const DEFAULT_WORLD_CENTER = new Vector3(150, 0, 150);
 export const TILE_SIZE = 10;
+
+export interface EntityReadinessMap { [key: number]: Atom<number> }
+export type ControlLocks = Map<Enum.KeyCode, boolean> 

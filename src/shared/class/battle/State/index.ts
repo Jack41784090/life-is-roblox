@@ -1,11 +1,9 @@
-import { RunService } from "@rbxts/services";
-import { MOVEMENT_COST } from "shared/const";
-import { AttackAction, BotType, ClashResult, ClashResultFate, EntityStats, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { Players, RunService } from "@rbxts/services";
+import { AttackAction, ClashResult, ClashResultFate, EntityStats, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData, warnWrongSideCall } from "shared/utils";
 import Entity from "../Entity";
 import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
-import Pathfinding from "../Pathfinding";
 
 
 export class Team {
@@ -23,6 +21,10 @@ export class Team {
                 this.members.push(member);
             }
         }
+    }
+
+    players() {
+        return this.members.mapFiltered((entity) => Players.GetPlayerByUserId(entity.playerID));
     }
 }
 
@@ -56,58 +58,6 @@ export default class State {
         entity.setCell(cell);
     }
     /**
-     * Moves an entity to a specified cell along a calculated path.
-     *
-     * @param entity - The entity to be moved.
-     * @param toCell - The destination cell to move the entity to.
-     * @param path - An optional pre-calculated path for the entity to follow. If not provided, a path will be calculated.
-     * @returns A promise that resolves when the entity has been moved.
-     *
-     * @remarks
-     * - If the entity does not have a current cell, a warning is logged and the function returns early.
-     * - The path is calculated using the entity's position and movement cost.
-     * - If no path is found, a warning is logged and the function returns early.
-     * - If the destination cell is not vacant, the function attempts to find an adjacent vacant cell.
-     * - The GUI is updated to reflect the calculated path.
-     */
-    protected async moveEntity(entity: Entity, toCell: HexCell, path?: Vector2[]): Promise<void> {
-        //#region 
-        if (!entity.cell) {
-            warn("moveEntity: Entity has no cell");
-            return;
-        }
-        //#endregion
-        const lim = math.floor(entity.get('pos') / MOVEMENT_COST);
-        const calculatedPath =
-            path ??
-            new Pathfinding({
-                grid: this.grid,
-                start: entity.cell.qr(),
-                dest: toCell.qr(),
-                limit: lim,
-            }).begin();
-        //#region 
-        if (calculatedPath.size() === 0) {
-            warn(`Move Entity: No path found from ${entity.cell.qr().X}, ${entity.cell.qr().Y} to ${toCell.qr().X}, ${toCell.qr().Y}`,);
-            return;
-        }
-        //#endregion
-        let destination = toCell;
-        if (!toCell.isVacant()) {
-            const adjacentCell = this.grid.getCell(calculatedPath[calculatedPath.size() - 1]);
-            if (adjacentCell?.isVacant()) {
-                destination = adjacentCell;
-            } else {
-                warn("Move Entity: Destination cell and adjacent cell are not vacant");
-                return;
-            }
-        }
-
-        // this.gui.mountOrUpdateGlow(calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
-        return entity.moveToCell(destination, calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
-    }
-
-    /**
      * Initializes the teams for the battle.
      *
      * @param teamMap - A record where the key is the team name and the value is an array of players belonging to that team.
@@ -123,7 +73,7 @@ export default class State {
      * - If the player's `UserId` is 0, the entity is marked as an enemy bot.
      * - The `characterID` is currently hardcoded as 'entity_adalbrecht' for temporary purposes.
      */
-    private initializeTeams(teamMap: Record<string, Player[]>) {
+    protected initializeTeams(teamMap: Record<string, Player[]>) {
         for (const [teamName, playerList] of pairs(teamMap)) {
             const members = playerList
                 .mapFiltered((player) => {
@@ -143,7 +93,6 @@ export default class State {
                         sta: 0,
                         name: player.Name,
                         team: teamName,
-                        botType: player.UserId === -1 ? BotType.Enemy : undefined,
                     });
                 })
                 .filter((entity): entity is Entity => entity !== undefined);
@@ -192,9 +141,12 @@ export default class State {
         this.placeEntity(dummy, this.grid.cells.find((c) => c.isVacant())!);
     }
 
-
     public getAllEntities(): Entity[] {
         return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
+    }
+
+    public getAllPlayers(): Player[] {
+        return this.teams.map((team) => team.players()).reduce<Player[]>((acc, val) => [...acc, ...val], []);
     }
 
     public applyClash(attackAction: AttackAction) {
@@ -254,7 +206,10 @@ export default class State {
 
     public runReadinessGauntlet() {
         const entities = this.getAllEntities();
-        if (entities.size() === 0) return;
+        if (entities.size() === 0) {
+            warn("Entity list is empty");
+            return;
+        }
 
         while (!entities.some((e) => e.get('pos') >= 100)) {
             this.iterateReadinessGauntlet(entities);

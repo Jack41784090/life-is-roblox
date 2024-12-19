@@ -1,5 +1,5 @@
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
-import { CellTerrain } from "shared/types";
+import { CellTerrain, HexGridConfig } from "shared/types";
 import { QR } from "../../XY";
 import HexCell from "./Cell";
 import { Layout } from "./Layout";
@@ -12,12 +12,7 @@ export default class HexGrid {
     name: string;
     radius: number;
 
-    constructor({ center, radius, size, name }: {
-        center: Vector2;
-        radius: number;
-        size: number;
-        name: string;
-    }) {
+    constructor({ center, radius, size, name }: HexGridConfig) {
         if (size <= 0) {
             throw ("Cell size must be a positive number.");
         }
@@ -88,6 +83,15 @@ export default class HexGrid {
         } else if (typeOf(q) === 'Vector2') {
             const v = q as Vector2;
             return this.cellsQR.get(v.X, v.Y);
+        }
+    }
+
+    info(): HexGridConfig {
+        return {
+            center: this.center,
+            radius: this.radius,
+            size: this.size,
+            name: this.name,
         }
     }
 }
