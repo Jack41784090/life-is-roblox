@@ -28,7 +28,7 @@ const hexGrid = new HexGrid({
 hexGrid.materialise();
 
 print("Connecting battle_Start")
-remotes.battle.start.connect((p) => {
+remotes.battle.request.connect((p) => {
     // print("Battle Start", p);
     Battle.Create({
         width: DEFAULT_WIDTH,

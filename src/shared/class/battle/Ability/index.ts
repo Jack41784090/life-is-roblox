@@ -1,4 +1,4 @@
-import { AbilityInitOptions, DamageType, iAbility, Potency, potencyMap } from "shared/types/battle-types";
+import { AbilityConfig, DamageType, iAbility, Potency, potencyMap } from "shared/types/battle-types";
 import Entity from "../Entity";
 
 export type AbilityState = {
@@ -52,7 +52,7 @@ export default class Ability implements iAbility {
     readonly using: Entity;
     readonly target: Entity;
 
-    constructor(opt: AbilityInitOptions) {
+    constructor(opt: AbilityConfig) {
         this.acc = opt.acc;
         this.name = opt.name;
         this.description = opt.description;

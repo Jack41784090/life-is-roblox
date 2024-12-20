@@ -214,7 +214,7 @@ export default class Gui {
         else {
             mouse.Icon = ''
             const pf = new Pathfinding({
-                grid: enteringCell.grid,
+                grid: enteringCell.gridRef,
                 start: currentCell.qr(),
                 dest: enteringCell.qr(),
                 limit: math.floor(cre.get('pos') / MOVEMENT_COST),
@@ -222,7 +222,7 @@ export default class Gui {
             })
             if (!pf) return;
             const path = pf.begin();
-            return this.mountOrUpdateGlow(path.mapFiltered((qr) => enteringCell.grid.getCell(qr)));
+            return this.mountOrUpdateGlow(path.mapFiltered((qr) => enteringCell.gridRef.getCell(qr)));
         }
 
         // 2. Move readiness icon to forecast post-move position
@@ -293,14 +293,14 @@ export default class Gui {
     private clickedOnEmptyCell(cre: Entity, cell: HexCell) {
         if (cre.cell) {
             const pf = new Pathfinding({
-                grid: cell.grid,
+                grid: cell.gridRef,
                 start: cre.cell.qr(),
                 dest: cell.qr(),
                 limit: math.floor(cre.get('pos') / MOVEMENT_COST),
                 hexagonal: true,
             })
             const path = pf?.begin();
-            return cre.moveToCell(cell, path.mapFiltered((qr) => cell.grid.getCell(qr)));
+            return cre.moveToCell(cell, path.mapFiltered((qr) => cell.gridRef.getCell(qr)));
         }
         else {
             return Promise.resolve();

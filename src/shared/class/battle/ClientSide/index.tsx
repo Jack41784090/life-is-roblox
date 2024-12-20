@@ -1,10 +1,10 @@
 import { atom } from "@rbxts/charm";
 import { client, SyncPayload } from "@rbxts/charm-sync";
 import { Players, RunService, UserInputService } from "@rbxts/services";
+import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { ClientSideConfig, HexGridConfig } from "shared/types";
-import { AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ControlLocks, EntityReadinessMap, EntityStatus, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
+import { AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, EntityReadinessMap, EntityStatus, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
 import Ability, { AbilityState } from "../Ability";
 import Entity from "../Entity";
@@ -16,8 +16,7 @@ import BattleCam from "./BattleCamera";
 import Gui from "./Gui";
 
 export default class ClientSide {
-    private cleanUp?: () => void;
-
+    private remotees: Array<() => void> = [];
     private time = 0;
 
     public entities: Entity[] = [];
@@ -52,14 +51,8 @@ export default class ClientSide {
         })
 
         this.setUpRemotes();
-        UserInputService.InputBegan.Connect((io, gpe) => {
-            this.onInputBegan(io, gpe);
-        })
-
-        // this.initializeGraphics();
-        remotes.battle.requestMapUpdate().then(r => {
-            this.remote_updateMap(r);
-        })
+        this.initialiseInputControl();
+        this.initialiseGraphics();
     }
 
     /**
@@ -83,7 +76,7 @@ export default class ClientSide {
     }) {
         if (RunService.IsServer()) {
             // Server-side Creation
-            remotes.battle_ClientBegin(config.client, config);
+            remotes.battle.createClient(config.client, config);
         }
         else {
             // Client-side Creation
@@ -100,76 +93,114 @@ export default class ClientSide {
             warnWrongSideCall("setUpRemote")
             return;
         }
-        const cu1 = remotes.battle_UpdateMap.connect((hgc) => {
-            this.remote_updateMap(hgc);
-        })
-        const cu2 = remotes.battle_readinessSync.connect((payload) => {
-            this.remote_readinessSync(payload);
-        })
-        const cu3 = remotes.battle_AddEntity.connect((init, pos) => {
-            const entity = new Entity(init);
-            this.appendEntity(entity, pos.X, pos.Y);
-        })
-        const c4 = remotes.battle.ui.mount.actionMenu.connect(() => {
-            this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity!));
-        })
+        this.cleanUpRemotes();
+        this.remotees = [
+            remotes.battle_readinessSync.connect((payload) => {
+                this.updateReadiness(payload);
+            }),
+            remotes.battle.ui.mount.actionMenu.connect(() => {
+                this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity!));
+            }),
+            remotes.battle.ui.movementMode.connect(activate => {
+                if (activate) this.enterMovementMode();
+                else this.exitMovementMode();
+            }),
+        ]
         remotes.battle_readinessSyncHydrate();
-
-        this.cleanUp = () => {
-            cu1(); cu2(); cu3(); c4();
-        }
     }
 
-    private remote_readinessSync(payload: SyncPayload<{
+    private cleanUpRemotes() {
+        this.remotees.forEach(r => r());
+    }
+
+    private updateReadiness(payload: SyncPayload<{
         entitiesReadinessMap: Charm.Atom<EntityReadinessMap>;
     }>) {
         this.readinessSyncerClient.sync(payload);
     }
 
-    private remote_updateMap(c: HexGridConfig) {
-        this.grid = new HexGrid(c);
-        this.grid.initialise();
+    private async updateEntities() {
+        const updates = await remotes.battle.requestSync.entities();
+        for (const update of updates) {
+            const existing = this.entities.find(e => e.playerID === update.playerID);
+            if (existing) {
+                existing.update(update);
+            }
+            else {
+                const validate = t.interface({
+                    playerID: t.number,
+                    stats: t.interface({
+                        // id: t.string,
+                        str: t.number,
+                        dex: t.number,
+                        acr: t.number,
+                        spd: t.number,
+                        siz: t.number,
+                        int: t.number,
+                        spr: t.number,
+                        fai: t.number,
+                        cha: t.number,
+                        beu: t.number,
+                        wil: t.number,
+                        end: t.number,
+                    }),
+                    hip: t.number,
+                    pos: t.number,
+                    org: t.number,
+                    sta: t.number,
+                    qr: t.Vector2,
+                })
+                const passed = validate(update);
+                if (passed) {
+                    const entity = new Entity({
+                        playerID: update.playerID,
+                        stats: update.stats,
+                        hip: update.hip,
+                        pos: update.pos,
+                        org: update.org,
+                        sta: update.sta,
+                    })
+                    this.appendEntity(entity, update.qr);
+                    entity.initialiseCharacteristics()
+                }
+                else {
+                    warn("New Entity Update, failed validation", update);
+                }
+            }
+        }
+    }
+
+    private async updateGrid() {
+        const r = await remotes.battle.requestSync.map();
+        this.grid.update(r);
         this.grid.materialise();
+        return r;
     }
     //#endregion
 
-    private getReadinessIcons() {
-        const crMap = this.entitiesReadinessMapAtom();
-        const readinessIcons: ReadinessIcon[] = [];
-        for (const [i, x] of pairs(crMap)) {
-            readinessIcons.push({
-                playerID: i,
-                iconUrl: '',
-                readiness: x
-            })
-        }
-        return readinessIcons;
+    //#region Updates
+    private initialiseInputControl() {
+        UserInputService.InputBegan.Connect((io, gpe) => {
+            this.onInputBegan(io, gpe);
+        })
     }
     /**
-     * Initializes the grid by calling the materialise method on the grid object.
-     * This method sets up the grid for further operations.
-     */
-    private initializeGrid() {
-        this.grid.materialise();
-    }
-    /**
-     * Initializes the camera by setting it to HOI4 mode.
+     * initialises the camera by setting it to HOI4 mode.
      * This method configures the camera to enter a specific mode
      * defined by the `enterHOI4Mode` method of the `camera` object.
      */
-    private initializeCamera() {
+    private initialiseCamera() {
         this.camera.enterHOI4Mode();
     }
 
-    private initializeGraphics() {
-        this.initializeCamera();
-        this.initializeGrid();
+    private initialiseGraphics() {
+        this.initialiseCamera();
+        this.updateGrid();
+        this.updateEntities();
     }
+    //#endregion
 
-    private initializeEntitiesCharacteristics() {
-        const allEntities = this.getAllEntities();
-        allEntities.forEach((e) => e.initialiseCharacteristics());
-    }
+    //#region Unmanaged
 
     private getAllEntities() {
         return this.entities;
@@ -188,6 +219,7 @@ export default class ClientSide {
                         const action = 'move';
                         const newAccessToken = { ...accessToken, action };
                         remotes.battle.act(newAccessToken);
+                        this.enterMovementMode();
                     })
                 },
             },
@@ -199,6 +231,19 @@ export default class ClientSide {
                 },
             },
         ];
+    }
+
+    private getReadinessIcons() {
+        const crMap = this.entitiesReadinessMapAtom();
+        const readinessIcons: ReadinessIcon[] = [];
+        for (const [i, x] of pairs(crMap)) {
+            readinessIcons.push({
+                playerID: i,
+                iconUrl: '',
+                readiness: x
+            })
+        }
+        return readinessIcons;
     }
 
     private realiseClashResult(clashResult: ClashResult & { abilityState: AbilityState }) {
@@ -218,77 +263,20 @@ export default class ClientSide {
         });
         this.executeAttackSequence({ executed: true, ability, clashResult });
     }
-
-    private async round() {
-        const r = this.incrementTime();
-
-        this.gui.clearAll()
-        this.gui.updateMainUI('onlyReadinessBar', { readinessIcons: this.getReadinessIcons() });
-
-        // remoteEvent_Readiness.FireServer('ReadyForReadinessCheck');
-
-        // remoteEvent_Readiness.OnClientEvent.Once(async w => {
-        //     const winner = this.getAllEntities().find(e => e.playerID === w as number);
-        //     this.currentRoundEntity = winner;
-        //     print(`${Players.LocalPlayer.Name} has received winner: ${winner?.name}`);
-        //     if (!this.currentRoundEntity) {
-        //         warn("No entity found to start the next round");
-        //         // await this.camera.enterHOI4Mode();
-        //         // this.round();
-        //         return;
-        //     }
-
-        //     await this.camera.enterCharacterCenterMode();
-
-        //     await new Promise((resolve) => {
-        //         const cre = this.currentRoundEntity
-        //         //#region 
-        //         if (!cre) {
-        //             warn("No current round entity found");
-        //             return;
-        //         }
-        //         //#endregion
-        //         this.endTurn = () => {
-        //             resolve(void 0);
-        //             this.gui.clearAll();
-        //         }
-
-        //         this.setUpAttackRemoteEventReceiver();
-
-        //         if (cre.playerID !== Players.LocalPlayer.UserId) {
-        //             // other player turn...
-        //             this.gui.mountOtherPlayersTurnGui();
-        //             if (cre.playerID === -1) {
-        //                 wait(2);
-        //                 this.endTurn(void 0);
-        //             }
-        //         }
-        //         else {
-        //             this.gui.mountActionMenu(this.getCharacterMenuActions(cre));
-        //         }
-        //         cre.playAudio(EntityStatus.Idle);
-        //     });
-
-        //     this.finalizeRound(this.currentRoundEntity);
-        //     this.round();
-        // })
-    }
-
-    private incrementTime() {
-        print(`Round ${this.time + 1} has begun!`);
-        return ++this.time;
-    }
+    //#endregion
 
     //#region ENTITY MANAGEMENT
 
-    private appendEntity(entity: Entity, x: number, y: number) {
-        const c = this.grid.getCell(x, y);
+    private appendEntity(entity: Entity, qr: Vector2): HexCell
+    private appendEntity(entity: Entity, x: number, y: number): HexCell
+    private appendEntity(entity: Entity, x: Vector2 | number, y?: number) {
+        const c = typeOf(x) === "Vector2" ? this.grid.getCell(x as Vector2) : this.grid.getCell(x as number, y!);
         if (!c) {
             warn(`No cell @${x},${y}`)
             return undefined;
         }
         this.entities.push(entity);
-        entity.setCell(c);
+        return entity.setCell(c);
     }
     /**
      * Moves an entity to a specified cell along a calculated path.

@@ -1,6 +1,6 @@
 import { atom, Atom } from "@rbxts/charm";
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
-import { AbilitySet, EntityInitRequirements, EntityStats, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { AbilitySet, EntityInit, EntityStats, EntityStatsUpdate, EntityStatus, EntityUpdate, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Ability from "../Ability";
 import HexCell from "../Hex/Cell";
@@ -13,7 +13,7 @@ import TweenManager from "./TweenManager";
 export default class Entity implements iEntity {
     // server-controlled properties
     playerID: number;
-    stats: Readonly<EntityStats>;
+    stats: EntityStats;
     team?: string;
     name: string;
     private sta: Atom<number>;
@@ -35,7 +35,9 @@ export default class Entity implements iEntity {
     hpPool?: SurfaceGui;
     animator?: Animator;
 
-    constructor(options: EntityInitRequirements) {
+    constructor(options: EntityInit) {
+        print(options);
+
         this.playerID = options.playerID;
         this.team = options.team;
         this.stats = { ...options.stats, id: options.stats.id };
@@ -51,6 +53,23 @@ export default class Entity implements iEntity {
             throw `Entity template not found for "${this.stats.id}"`;
         }
 
+    }
+
+    info(): EntityUpdate {
+        return {
+            playerID: this.playerID,
+            stats: {
+                ...this.stats,
+            },
+            team: this.team,
+            name: this.name,
+            armed: this.armed,
+            sta: this.sta(),
+            hip: this.hip(),
+            org: this.org(),
+            pos: this.pos(),
+            qr: this.cell?.qr(),
+        }
     }
 
     //#region get stats
@@ -126,6 +145,20 @@ export default class Entity implements iEntity {
         poolFrame.Size = UDim2.fromScale(0, 0);
     }
 
+    private changeHPPoolSize(size: UDim2) {
+        if (!this.isFeatureInitialised()) {
+            warn(this.name + " changePoolSize: Entity features not initialised");
+            return;
+        }
+
+        const hpPoolFrame = this.hpPool?.WaitForChild("Pool") as Frame;
+        this.tweenHandler!.addTween(TweenService.Create(
+            hpPoolFrame,
+            new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            { Size: size }
+        ));
+    }
+
     public initialiseCharacteristics(): Model | undefined {
         if (this.isFeatureInitialised()) {
             warn(`${this.name}: Entity features already initialised`);
@@ -143,7 +176,6 @@ export default class Entity implements iEntity {
     }
 
     private positionModel(model: Model) {
-        //#region
         if (!this.cell?.part) {
             warn(`${this.name}: positionModel: cell part not materialised.`)
             this.cell?.materialise();
@@ -151,7 +183,6 @@ export default class Entity implements iEntity {
                 return;
             }
         }
-        //#endregion
         const targetPosition = this.cell.part.Position;
         model.PivotTo(new CFrame(targetPosition.X, 0, targetPosition.Z));
     }
@@ -181,26 +212,25 @@ export default class Entity implements iEntity {
     //#endregion
 
     //#region cell move
-    setCell(cell: HexCell, materialise = false): HexCell | undefined {
+
+    public setCell(cell: HexCell, materialise = false): HexCell | undefined {
         if (cell.isVacant() === false) {
             warn("HexCell is occupied");
             return;
         }
 
         print(`${this.name}: Setting cell to ${cell.qrs}`);
-        if (this.cell) {
-            this.cell.entity = undefined;
-        }
+        if (this.cell) this.cell.entity = undefined;
         this.cell = cell;
         cell.entity = this;
 
         if (materialise) {
             cell.materialise();
         }
-
         return this.cell;
     }
-    async moveToPosition(targetPosition: Vector3) {
+
+    public async moveToPosition(targetPosition: Vector3) {
         const modelPrimaryPart = this.model?.PrimaryPart;
 
         //#region
@@ -249,10 +279,9 @@ export default class Entity implements iEntity {
         return tween.Completed.Wait();
     }
 
-    async moveToCell(cell: HexCell, path?: HexCell[]): Promise<void> {
+    public async moveToCell(cell: HexCell, path?: HexCell[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         const primaryPart = humanoid?.RootPart;
-        //#region
         if (!primaryPart || !humanoid) {
             warn("Model not materialised", primaryPart, humanoid);
             return;
@@ -260,7 +289,6 @@ export default class Entity implements iEntity {
         if (!path) {
             path = [cell];
         }
-        //#endregion
 
         const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
         for (const cell of path) {
@@ -356,25 +384,8 @@ export default class Entity implements iEntity {
     }
     //#endregion
 
-    //#region hp pool
-    changeHPPoolSize(size: UDim2) {
-        if (!this.isFeatureInitialised()) {
-            warn(this.name + " changePoolSize: Entity features not initialised");
-            return;
-        }
-
-        const hpPoolFrame = this.hpPool?.WaitForChild("Pool") as Frame;
-        this.tweenHandler!.addTween(TweenService.Create(
-            hpPoolFrame,
-            new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-            { Size: size }
-        ));
-    }
-
-    //#endregion
-
-    //#region number manipulation
-    changeHP(num: number) {
+    //#region Modifying
+    public changeHP(num: number) {
         print(`${this.name}: Changing HP by ${num}`);
 
         this.hip = atom(this.hip() + num);
@@ -382,13 +393,33 @@ export default class Entity implements iEntity {
         const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9); print(hpPercentage)
         this.changeHPPoolSize(UDim2.fromScale(hpPercentage, hpPercentage));
     }
-    heal(num: number) {
+    public heal(num: number) {
         if (num < 0) return;
         this.changeHP(num);
     }
-    damage(num: number) {
+    public damage(num: number) {
         if (num < 0) return;
         this.changeHP(-num);
+    }
+    public updateStats(u: EntityStatsUpdate) {
+        for (const [stat, value] of pairs(u)) {
+            if (this.stats[stat] === undefined) {
+                warn(`Stat ${stat} not found`);
+                continue;
+            }
+            if (typeOf(stat) === 'string' && typeOf(value) === 'number') {
+                this.stats[stat] = value;
+            }
+        }
+    }
+    public update(u: EntityUpdate) {
+        if (u.stats) this.updateStats(u.stats);
+        for (const [k, v] of pairs(u)) {
+            if (this[k as keyof this] === undefined) continue;
+            if (typeOf(v) === typeOf(this[k as keyof this])) {
+                this[k as keyof this] = v as unknown as any;
+            }
+        }
     }
     //#endregion
 }

@@ -58,7 +58,7 @@ export default class State {
         entity.setCell(cell);
     }
     /**
-     * Initializes the teams for the battle.
+     * initialises the teams for the battle.
      *
      * @param teamMap - A record where the key is the team name and the value is an array of players belonging to that team.
      *
@@ -73,7 +73,7 @@ export default class State {
      * - If the player's `UserId` is 0, the entity is marked as an enemy bot.
      * - The `characterID` is currently hardcoded as 'entity_adalbrecht' for temporary purposes.
      */
-    protected initializeTeams(teamMap: Record<string, Player[]>) {
+    protected initialiseTeams(teamMap: Record<string, Player[]>) {
         for (const [teamName, playerList] of pairs(teamMap)) {
             const members = playerList
                 .mapFiltered((player) => {
@@ -100,7 +100,7 @@ export default class State {
         }
     }
 
-    private initializeEntitiesPositions() {
+    private initialiseEntitiesPositions() {
         const allEntities = this.getAllEntities();
         const vacantCells = this.grid.cells.filter((cell) => cell.isVacant());
 
@@ -121,14 +121,19 @@ export default class State {
         }
     }
 
-    public initializeNumbers(teamMap: Record<string, Player[]>) {
+    /**
+     * Initializes various components of the battle state, including the grid, teams, entity positions, and (temporarily) testing dummies.
+     *
+     * @param teamMap - A record mapping team names to arrays of players.
+     */
+    public initialiseNumbers(teamMap: Record<string, Player[]>) {
         this.grid.initialise();
-        this.initializeTeams(teamMap);
-        this.initializeEntitiesPositions();
-        this.initializeTestingDummies(); // temp
+        this.initialiseTeams(teamMap);
+        this.initialiseEntitiesPositions();
+        this.initialiseTestingDummies(); // temp
     }
 
-    private initializeTestingDummies() {
+    private initialiseTestingDummies() {
         const dummy = new Entity({
             stats: getDummyStats(),
             playerID: -1,

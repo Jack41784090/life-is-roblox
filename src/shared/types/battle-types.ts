@@ -1,14 +1,12 @@
 import { Atom } from "@rbxts/charm";
 import Ability from "shared/class/battle/Ability";
+import Gui from "shared/class/battle/ClientSide/Gui";
 import Entity from "shared/class/battle/Entity";
+import HexGrid from "shared/class/battle/Hex/Grid";
 
-export enum BotType {
-    Player = 'player',
-    Enemy = 'enemy',
-}
+
 
 export type ClashResultFate = "Miss" | "Hit" | "CRIT"
-
 export enum Reality {
     HP = 'hp',
     Force = 'force',
@@ -21,42 +19,15 @@ export enum Reality {
     Bravery = 'bravery',
 }
 
-export type EntityInitRequirements =
-    Partial<iEntity> &
-    {
-        stats: Omit<EntityStats, 'id'>, playerID: number,
-        hip: number,
-        pos: number,
-        org: number,
-        sta: number,
-    } // requirements: everything is optional exceot stats
 
 export interface iEntity {
     readonly playerID: number;
     stats: EntityStats,
     team?: string,
     name: string,
-
     iconURL?: ReadinessIcon,
     model?: Instance,
 }
-
-export type ReadinessIcon = {
-    playerID: Readonly<number>,
-    iconUrl: string;
-    readiness: Atom<number>;
-}
-
-export enum CharacterActionMenuAction {
-    EndTurn = 'endTurn',
-    Move = 'move',
-}
-
-export type EntityActionOptions = {
-    type: CharacterActionMenuAction,
-    ui: ReactRoblox.Root
-}
-
 export type EntityStats = {
     id: string;
     str: number;
@@ -72,7 +43,37 @@ export type EntityStats = {
     wil: number;
     end: number;
 };
+export type EntityStatsNoID = Omit<EntityStats, 'id'>;
+export type EntityInitHardRequirements = {
+    playerID: number;
+    stats: EntityStats;
+    hip: number;
+    pos: number;
+    org: number;
+    sta: number;
+}
+export type EntityInit = Partial<iEntity> & EntityInitHardRequirements;
+export type EntityStatsUpdate = Partial<EntityStatsNoID>;
+export type EntityUpdate = Partial<
+    EntityInitHardRequirements & {
+        name: string;
+        team: string;
+        armed: keyof typeof Enum.KeyCode;
+        qr: Vector2;
+    }>;
 
+export type ReadinessIcon = {
+    playerID: Readonly<number>,
+    iconUrl: string;
+    readiness: Atom<number>;
+}
+
+export enum CharacterActionMenuAction {
+    EndTurn = 'endTurn',
+    Move = 'move',
+}
+
+//#region Abilities
 export enum Potency {
     Strike = 'strike',
     Slash = 'slash',
@@ -85,7 +86,19 @@ export enum Potency {
     Spiritual = 'spiritual',
     TheWay = 'theWay',
 }
-
+export type AbilityConfig = {
+    name: string;
+    description: string;
+    acc: number;
+    cost: { pos: number; mana: number; };
+    range: NumberRange;
+    potencies: Map<Potency, number>;
+    damageType: Map<DamageType, number>;
+    using: Entity;
+    target: Entity;
+    animation: string;
+    icon: string;
+}
 export interface iAbility {
     animation: string,
     name: string;
@@ -108,13 +121,24 @@ export interface iAbility {
 
     // effects: Effect[];
 }
-
 export type AbilityKey = Enum.KeyCode.Q | Enum.KeyCode.W | Enum.KeyCode.E | Enum.KeyCode.R;
-
 export type AbilitySet = {
     [key in keyof typeof Enum.KeyCode]?: iAbility;
 };
-
+export enum DamageType {
+    Blunt = 'blunt',
+    Pierce = 'pierce',
+    Slash = 'slash',
+    Poison = 'poison',
+    Fire = 'fire',
+    Frost = 'frost',
+    Electric = 'electric',
+    Psychic = 'psychic',
+    Spiritual = 'spiritual',
+    Divine = 'divine',
+    Necrotic = 'necrotic',
+    Arcane = 'arcane',
+}
 export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
     [Potency.Strike]: [
         ['str', 1]
@@ -154,35 +178,10 @@ export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
         ['wil', .1],
     ],
 }
+//#endregion
 
-export enum DamageType {
-    Blunt = 'blunt',
-    Pierce = 'pierce',
-    Slash = 'slash',
-    Poison = 'poison',
-    Fire = 'fire',
-    Frost = 'frost',
-    Electric = 'electric',
-    Psychic = 'psychic',
-    Spiritual = 'spiritual',
-    Divine = 'divine',
-    Necrotic = 'necrotic',
-    Arcane = 'arcane',
-}
 
-export type AbilityInitOptions = {
-    name: string;
-    description: string;
-    acc: number;
-    cost: { pos: number; mana: number; };
-    range: NumberRange;
-    potencies: Map<Potency, number>;
-    damageType: Map<DamageType, number>;
-    using: Entity;
-    target: Entity;
-    animation: string;
-    icon: string;
-}
+
 
 export interface CharacterMenuAction {
     type: CharacterActionMenuAction,
@@ -240,4 +239,47 @@ export const DEFAULT_WORLD_CENTER = new Vector3(150, 0, 150);
 export const TILE_SIZE = 10;
 
 export interface EntityReadinessMap { [key: number]: Atom<number> }
-export type ControlLocks = Map<Enum.KeyCode, boolean> 
+export type ControlLocks = Map<Enum.KeyCode, boolean>
+
+export type CellType = {
+    material: Enum.Material;
+    name: string;
+    height: number;
+}
+export enum CellTerrain {
+    hills,
+    mountains,
+    plains,
+}
+
+export interface PlayerData {
+    readonly money: number;
+}
+
+export interface HexGridConfig {
+    center: Vector2;
+    radius: number;
+    size: number;
+    name: string;
+}
+
+export interface HexCellConfig {
+    qr: Vector2;
+    size: number;
+    height: number;
+    terrain: CellTerrain;
+    gridRef: HexGrid;
+}
+
+export interface ClientSideConfig {
+    worldCenter: Vector3, size: number, width: number, height: number, camera: Camera
+}
+
+export interface AccessToken {
+    readonly userId: number;
+    readonly allowed: boolean;
+    readonly token?: string;
+    readonly action?: string;
+}
+
+export type GuiFunction = keyof Gui

@@ -69,7 +69,7 @@ function enterPlayground() {
 }
 function enterBattle() {
     print("Entering battle");
-    remotes.battle.start();
+    remotes.battle.request();
 }
 function enterStory() {
     const scene = new Scene('scene');
@@ -128,6 +128,7 @@ function mainMenuSetup() {
 
 
 mainMenuCameraSetup();
-mainMenuSetup();
+enterBattle();
+// mainMenuSetup();
 //#endregion
 

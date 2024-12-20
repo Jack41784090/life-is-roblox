@@ -27,14 +27,14 @@ export default class AnimationHandler {
     private expression?: Expression;
 
     constructor(private entity: Entity) {
-        this.initialize();
+        this.initialise();
     }
 
     /**
-     * Initializes the AnimationHandler by setting up the animator, loading animations,
+     * initialises the AnimationHandler by setting up the animator, loading animations,
      * initializing expressions, and starting the idle animation.
      */
-    private initialize(): void {
+    private initialise(): void {
         const model = this.entity.model;
         if (!model) {
             warn("[AnimationHandler] Model not found for entity.");
@@ -54,7 +54,7 @@ export default class AnimationHandler {
         }
 
         this.loadAnimations(model);
-        this.initializeExpression();
+        this.initialiseExpression();
         this.playIdleAnimation();
     }
 
@@ -91,16 +91,16 @@ export default class AnimationHandler {
             return undefined;
         }
         if (!this.animator) {
-            warn("[AnimationHandler] Animator is not initialized.");
+            warn("[AnimationHandler] Animator is not initialised.");
             return undefined;
         }
         return this.animator.LoadAnimation(animation);
     }
 
     /**
-     * Initializes the expression system and starts the blinking thread.
+     * initialises the expression system and starts the blinking thread.
      */
-    private initializeExpression(): void {
+    private initialiseExpression(): void {
         this.expression = new Expression(this.entity);
         this.startBlinking();
     }

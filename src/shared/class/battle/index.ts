@@ -17,7 +17,7 @@ class Battle extends State {
 
     private cleanUp;
 
-    static Create(config: Partial<Config>) {
+    public static Create(config: Partial<Config>) {
         if (RunService.IsServer()) {
             print("Creating Battle with ", config)
             if (!config.teamMap) {
@@ -41,21 +41,25 @@ class Battle extends State {
                 serverSyncConnection();
                 remoteHydrateConnection();
             }
-            remotes.battle.requestMapUpdate.onRequest(p => {
+            remotes.battle.requestSync.map.onRequest(p => {
                 const config = battle.grid.info();
                 return config;
             })
+            remotes.battle.requestSync.entities.onRequest(p => {
+                const entities = battle.getAllEntities();
+                return entities.map(e => e.info());
+            })
 
-            // 2. Extract Players playing from teamMap
-            battle.initializeTeams(config.teamMap);
+            // 2. Initialise state
+            battle.initialiseNumbers(config.teamMap);
 
             // 3. Initalise ClientSide for each Player
             battle.getAllPlayers().forEach(p => {
                 print(`Initialising ClientSide for ${p.Name}`)
-                remotes.battle_ClientBegin(p, config);
+                remotes.battle.createClient(p, config);
             })
 
-            // 4
+            // 4. Start the battle
             battle.round();
         }
         else {
@@ -115,7 +119,11 @@ class Battle extends State {
             }
         })
         const promise = remotes.battle.act.promise((p, s) => {
-            const { token, action } = s;
+            const { token, action, allowed } = s;
+            if (!allowed) {
+                warn("Disallowed")
+                return false;
+            }
             if (token !== accessCode) {
                 warn("Invalid access code")
                 return false;
@@ -131,6 +139,7 @@ class Battle extends State {
 
         await promise;
         print("Promise resolved", promise)
+        this.round()
     }
 }
 

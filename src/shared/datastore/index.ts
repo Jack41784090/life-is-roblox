@@ -2,8 +2,7 @@ import { atom, effect } from "@rbxts/charm";
 import { Collection, createCollection } from "@rbxts/lapis";
 import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { PlayerData } from "shared/types";
-import { EntityStats } from "shared/types/battle-types";
+import { EntityStats, PlayerData } from "shared/types/battle-types";
 import { flattenAtoms, getDummyStats } from "shared/utils";
 
 

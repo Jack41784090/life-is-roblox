@@ -1,10 +1,9 @@
 import { HEXAGON } from "shared/const/assets";
-import { CellTerrain } from "shared/types";
+import { CellTerrain, HexCellConfig } from "shared/types/battle-types";
 import { getTween } from "shared/utils";
 import Entity from "../Entity";
 import HexGrid from "./Grid";
-import { Hex, Layout } from "./Layout";
-
+import { Hex } from "./Layout";
 
 export default class HexCell {
     public static readonly SELECTED_COLOUR = new Color3(1, 58 / 255, 58 / 255);
@@ -14,30 +13,19 @@ export default class HexCell {
     public terrain: CellTerrain;
     public entity?: Entity;
 
-    public glow = false;
     public part?: UnionOperation;
     public size = 4;
     public height: number;
-    public grid: HexGrid;
-    public layout: Layout;
+    public gridRef: HexGrid;
 
-    constructor(initOptions: {
-        qr: Vector2;
-        size: number;
-        height: number;
-        terrain: CellTerrain;
-        grid: HexGrid;
-        layout: Layout; // Pass the layout instance here
-    }) {
-        const { qr: qrs, size, height, terrain, layout } = initOptions;
+    constructor({ qr: qrs, size, height, terrain, gridRef }: HexCellConfig) {
         const { X: q, Y: r } = qrs;
         const s = -q - r;
         this.qrs = new Vector3(q, r, s);
         this.terrain = terrain;
         this.height = height;
         this.size = size;
-        this.grid = initOptions.grid;
-        this.layout = layout;
+        this.gridRef = gridRef;
     }
 
     public static readonly directions = [
@@ -49,32 +37,42 @@ export default class HexCell {
         new Vector3(0, -1, 1),  // Direction 6
     ];
 
+    //#region Modifying
     public materialise() {
         const { X: q, Y: r, Z: s } = this.qrs;
-        const part = HEXAGON.Clone();
+        const part = this.part || HEXAGON.Clone();
+        this.part = part;
+
         part.Name = `HexCell(${q},${r},${s})`;
         part.Size = part.Size.mul(this.size);
 
         // Convert the hex QR to world XY using the layout instance
-        const worldPosition = this.layout.hexToPixel(new Hex(q, r, s));
+        const worldPosition = this.gridRef.layout.hexToPixel(new Hex(q, r, s));
         part.Position = new Vector3(worldPosition.X, this.height, worldPosition.Y);
 
         part.Anchored = true;
         part.Material = Enum.Material.Pebble;
         part.Parent = game.Workspace;
         part.Color = new Color3(1, 1, 1); // Set default color or based on terrain
-        this.part = part;
     }
 
-    public findNeighbors(): HexCell[] {
-        const neighbors: HexCell[] = [];
-        for (const direction of HexCell.directions) {
-            const neighborPos = this.qrs.add(direction);  // Add the direction vector to current qrs
-            const neighbor = this.grid.getCell(neighborPos.X, neighborPos.Y);
-            if (neighbor) neighbors.push(neighbor);
-        }
-        return neighbors;
+    public destroy() {
+        this.entity?.model?.Destroy();
+        this.entity = undefined;
+        this.part?.Destroy();
+        this.part = undefined;
     }
+
+    public update(config: Partial<HexCellConfig>) {
+        for (const [x, y] of pairs(config)) {
+            if (typeOf(y) === typeOf(this[x])) {
+                this[x as keyof this] = y as unknown as any;
+            }
+        }
+    }
+    //#endregion
+
+    //#region Get Info
 
     public qr(): Vector2 {
         return new Vector2(this.qrs.X, this.qrs.Y);
@@ -85,6 +83,16 @@ export default class HexCell {
             return new Vector3();
         }
         return this.part.Position;
+    }
+
+    public findNeighbors(): HexCell[] {
+        const neighbors: HexCell[] = [];
+        for (const direction of HexCell.directions) {
+            const neighborPos = this.qrs.add(direction);  // Add the direction vector to current qrs
+            const neighbor = this.gridRef.getCell(neighborPos.X, neighborPos.Y);
+            if (neighbor) neighbors.push(neighbor);
+        }
+        return neighbors;
     }
 
     public findCellsWithinRange(range: NumberRange): HexCell[]
@@ -108,7 +116,7 @@ export default class HexCell {
     public findCellsWithinDistance(distance: number): HexCell[] {
         // print(`Finding cells within distance ${distance} of ${this.qrs}`);
         const thisHex = new Hex(this.qrs.X, this.qrs.Y, this.qrs.Z);
-        const cells = this.grid.cells.sort((a, b) => {
+        const cells = this.gridRef.cells.sort((a, b) => {
             const aHex = new Hex(a.qrs.X, a.qrs.Y, a.qrs.Z);
             const bHex = new Hex(b.qrs.X, b.qrs.Y, b.qrs.Z);
             return aHex.distance(thisHex) < bHex.distance(thisHex)
@@ -136,7 +144,12 @@ export default class HexCell {
         return hex.distance(thisHex) >= range.Min && hex.distance(thisHex) <= range.Max;
     }
 
+    public isVacant(): boolean {
+        return this.entity === undefined;
+    }
+    //#endregion
 
+    //#region ANIMATIONS
     private createMoveParticle(): ParticleEmitter {
         const particle = new Instance("ParticleEmitter");
         particle.Parent = this.part;
@@ -216,8 +229,5 @@ export default class HexCell {
             });
         });
     }
-
-    public isVacant(): boolean {
-        return this.entity === undefined;
-    }
+    //#endregion
 }

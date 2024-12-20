@@ -64,7 +64,6 @@ export default class CellGlowSurfaceElement extends React.Component<CellGlowSurf
     }
 
     protected willUnmount(): void {
-        this.props.cell.glow = false;
         this.running = false;
         if (this.connection) {
             this.connection.Disconnect();

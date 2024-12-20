@@ -91,7 +91,7 @@ export default class Pathfinding {
             print(`Starting @${start} to ${dest}`);
         }
 
-        // 1. initialize frontier
+        // 1. initialise frontier
         this.frontier.enqueue(this.newNode({
             coord: start,
             distanceTravelled: 0
