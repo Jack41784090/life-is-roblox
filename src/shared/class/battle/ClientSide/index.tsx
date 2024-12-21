@@ -1,17 +1,14 @@
-import { atom } from "@rbxts/charm";
-import { client, SyncPayload } from "@rbxts/charm-sync";
 import { Players, RunService, UserInputService } from "@rbxts/services";
-import { t } from "@rbxts/t";
 import { GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, EntityReadinessMap, EntityStatus, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, EntityStatus, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
 import Ability, { AbilityState } from "../Ability";
 import Entity from "../Entity";
 import { AnimationType } from "../Entity/AnimationHandler";
 import HexCell from "../Hex/Cell";
-import HexGrid from "../Hex/Grid";
 import Pathfinding from "../Pathfinding";
+import State, { Team } from "../State";
 import BattleCam from "./BattleCamera";
 import Gui from "./Gui";
 
@@ -21,16 +18,12 @@ export default class ClientSide {
 
     private remotees: Array<() => void> = [];
 
-    public entities: Entity[] = [];
-    public grid: HexGrid;
     public gui: Gui;
     public camera: BattleCam;
 
-    private readinessSyncerClient;
-    private entitiesReadinessMapAtom = atom<EntityReadinessMap>({});
-    private controlLocks: ControlLocks = new Map();
+    private state: State;
 
-    public model: Model;
+    private controlLocks: ControlLocks = new Map();
 
     private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
         const halfWidth = (width * size) / 2;
@@ -39,21 +32,15 @@ export default class ClientSide {
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
 
         this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
-        this.grid = new HexGrid({
-            center: new Vector2(0, 0),
-            radius: TILE_SIZE,
-            size: TILE_SIZE,
-            name: "Bat",
-        })
-        this.gui = Gui.Connect(this.getReadinessIcons(), this.grid);
-        this.readinessSyncerClient = client({
-            atoms: {
-                entitiesReadinessMap: this.entitiesReadinessMapAtom,
-            }
-        })
+        this.state = new State({
+            width,
+            height,
+            worldCenter,
+            teamMap: {},
+        });
+        this.gui = Gui.Connect(this.getReadinessIcons(), this.state.grid);
         this.initialiser = this.initialiseGraphics()!;
         // this.initialiser = Promise.resolve();
-        this.model = new Instance("Model");
     }
 
     /**
@@ -101,9 +88,6 @@ export default class ClientSide {
         }
         this.cleanUpRemotes();
         this.remotees = [
-            remotes.battle_readinessSync.connect((payload) => {
-                this.updateReadiness(payload);
-            }),
             remotes.battle.ui.mount.actionMenu.connect(() => {
                 this.localEntity().andThen(e => {
                     if (!e) return;
@@ -118,7 +102,6 @@ export default class ClientSide {
                 this.requestUpdateGrid();
             })
         ]
-        remotes.battle_readinessSyncHydrate();
     }
 
     private cleanUpRemotes() {
@@ -128,67 +111,25 @@ export default class ClientSide {
 
     //#region Updates
 
-    private updateReadiness(payload: SyncPayload<{
-        entitiesReadinessMap: Charm.Atom<EntityReadinessMap>;
-    }>) {
-        this.readinessSyncerClient.sync(payload);
-    }
-
     private async requestUpdateEntities() {
-        const updates = await remotes.battle.requestSync.entities();
-        for (const update of updates) {
-            const existing = this.entities.find(e => e.playerID === update.playerID);
-            if (existing) {
-                existing.update(update);
-            }
-            else {
-                const validate = t.interface({
-                    playerID: t.number,
-                    stats: t.interface({
-                        // id: t.string,
-                        str: t.number,
-                        dex: t.number,
-                        acr: t.number,
-                        spd: t.number,
-                        siz: t.number,
-                        int: t.number,
-                        spr: t.number,
-                        fai: t.number,
-                        cha: t.number,
-                        beu: t.number,
-                        wil: t.number,
-                        end: t.number,
-                    }),
-                    hip: t.number,
-                    pos: t.number,
-                    org: t.number,
-                    sta: t.number,
-                    qr: t.Vector2,
-                })
-                const passed = validate(update);
-                if (passed) {
-                    const entity = new Entity({
-                        playerID: update.playerID,
-                        stats: update.stats,
-                        hip: update.hip,
-                        pos: update.pos,
-                        org: update.org,
-                        sta: update.sta,
-                    })
-                    this.appendEntity(entity, update.qr);
-                    entity.initialiseCharacteristics()
-                }
-                else {
-                    warn("New Entity Update, failed validation", update);
-                }
-            }
-        }
-        return updates;
+        const teamStates = await remotes.battle.requestSync.team();
+
+        // 1. Numerically sync
+        this.state.sync({
+            teams: teamStates,
+        });
+
+        // 2. Graphically sync
+
+
+        return teamStates;
     }
 
     private async requestUpdateGrid() {
         const r = await remotes.battle.requestSync.map();
-        this.grid.update(r);
+        this.state.sync({
+            grid: r,
+        })
         return r;
     }
 
@@ -220,34 +161,27 @@ export default class ClientSide {
     //#endregion
 
     //#region Unmanaged
-
-    private async getAction(access: AccessToken) {
-
-    }
-
-    private getAllEntities() {
-        return this.entities;
-    }
-
     private getReadinessIcons() {
-        const crMap = this.entitiesReadinessMapAtom();
-        const readinessIcons: ReadinessIcon[] = [];
-        for (const [i, x] of pairs(crMap)) {
-            readinessIcons.push({
-                playerID: i,
-                iconUrl: '',
-                readiness: x
-            })
-        }
-        return readinessIcons;
+        // const crMap = this.entitiesReadinessMapAtom();
+        // const readinessIcons: ReadinessIcon[] = [];
+        // for (const [i, x] of pairs(crMap)) {
+        //     readinessIcons.push({
+        //         playerID: i,
+        //         iconUrl: '',
+        //         readiness: x
+        //     })
+        // }
+        // return readinessIcons;
+
+        return [];
     }
     //#endregion
 
-    //#region ENTITY MANAGEMENT
+    //#region Entity Management
     private async localEntity() {
         const localPlayer = Players.LocalPlayer;
         await this.initialiser;
-        const e = this.entities.find(e => e.playerID === localPlayer.UserId);
+        const e = this.state.findEntity(localPlayer.UserId);
         if (!e) {
             warn("Local entity not found");
             return;
@@ -258,12 +192,9 @@ export default class ClientSide {
     private appendEntity(entity: Entity, qr: Vector2): HexCell
     private appendEntity(entity: Entity, x: number, y: number): HexCell
     private appendEntity(entity: Entity, x: Vector2 | number, y?: number) {
-        const c = typeOf(x) === "Vector2" ? this.grid.getCell(x as Vector2) : this.grid.getCell(x as number, y!);
-        if (!c) {
-            warn(`No cell @${x},${y}`)
-            return undefined;
-        }
-        this.entities.push(entity);
+        const c = typeOf(x) === "Vector2" ? this.state.grid.getCell(x as Vector2) : this.state.grid.getCell(x as number, y!);
+        assert(c, "Cell not found");
+        this.state.teams.push(new Team(entity.team ?? `${entity.playerID}`, [entity]));
         return entity.setCell(c);
     }
     /**
@@ -292,7 +223,7 @@ export default class ClientSide {
         const calculatedPath =
             path ??
             new Pathfinding({
-                grid: this.grid,
+                grid: this.state.grid,
                 start: entity.cell.qr(),
                 dest: toCell.qr(),
                 limit: lim,
@@ -303,7 +234,7 @@ export default class ClientSide {
         }
         let destination = toCell;
         if (!toCell.isVacant()) {
-            const adjacentCell = this.grid.getCell(calculatedPath[calculatedPath.size() - 1]);
+            const adjacentCell = this.state.grid.getCell(calculatedPath[calculatedPath.size() - 1]);
             if (adjacentCell?.isVacant()) {
                 destination = adjacentCell;
             } else {
@@ -313,7 +244,7 @@ export default class ClientSide {
         }
 
         // this.gui.mountOrUpdateGlow(calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
-        return entity.moveToCell(destination, calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
+        return entity.moveToCell(destination, calculatedPath.mapFiltered((v) => this.state.grid.getCell(v)));
     }
     //#endregion
 
@@ -372,16 +303,16 @@ export default class ClientSide {
      *    - Mount the ability slots for the current entity.
      */
     private async enterMovementMode(accessToken: AccessToken) {
-        print("Entering movement mode", this.grid);
-        const cre = this.entities.find(e => e.playerID === accessToken.userId);
+        print("Entering movement mode", this.state.grid);
+        const cre = this.state.findEntity(accessToken.userId);
         if (!cre) return;
         this.controlLocks.set(Enum.KeyCode.X, true);
         this.gui.unmountAndClear(GuiTag.ActionMenu);
         this.gui.mountAbilitySlots(cre);
         this.gui.updateMainUI('withSensitiveCells', {
             cre,
-            entities: this.entities,
-            grid: this.grid,
+            entities: this.state.getAllEntities(),
+            grid: this.state.grid,
             readinessIcons: this.getReadinessIcons(),
             accessToken
         });
@@ -391,7 +322,7 @@ export default class ClientSide {
         this.controlLocks.delete(Enum.KeyCode.X);
         this.gui.clearAll();
         this.gui.updateMainUI('onlyReadinessBar', {
-            entities: this.entities,
+            entities: this.state.getAllEntities(),
             readinessIcons: this.getReadinessIcons(),
             accessToken
         });
@@ -399,7 +330,7 @@ export default class ClientSide {
 
     //#endregion
 
-    //#region INPUTS
+    //#region Inputs
 
     private onInputBegan(io: InputObject, gpe: boolean) {
         if (!this.controlLocks.get(io.KeyCode)) {
@@ -418,13 +349,14 @@ export default class ClientSide {
     }
     //#endregion
 
-    //#region ANIMATIONS
+    //#region Animations
 
     private realiseClashResult(clashResult: ClashResult & { abilityState: AbilityState }) {
         print("Attack clash result received", clashResult);
 
-        const using = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.using);
-        const target = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.target);
+        const allEntities = this.state.getAllEntities();
+        const using = allEntities.find((e) => e.playerID === clashResult.abilityState.using);
+        const target = allEntities.find((e) => e.playerID === clashResult.abilityState.target);
 
         if (!using || !target) {
             warn("Using or target entity not found", using, target);

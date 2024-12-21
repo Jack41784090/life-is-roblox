@@ -53,13 +53,14 @@ export type EntityInitHardRequirements = {
 }
 export type EntityInit = Partial<iEntity> & EntityInitHardRequirements;
 export type EntityStatsUpdate = Partial<EntityStatsNoID>;
-export type EntityState = Partial<
-    EntityInitHardRequirements & {
-        name: string;
-        team: string;
-        armed: keyof typeof Enum.KeyCode;
-        qr: Vector2;
-    }>;
+export type EntityState = EntityInitHardRequirements & {
+    name: string;
+    team?: string;
+    armed?: keyof typeof Enum.KeyCode;
+    qr?: Vector2;
+}
+
+export type TeamState = { name: string; members: EntityState[] };
 
 export type ReadinessIcon = {
     playerID: Readonly<number>,
@@ -287,6 +288,8 @@ export interface HexCellConfig {
 export type HexCellState = Omit<HexCellConfig, 'gridRef'> & {
     entity?: PlayerID;
 }
+
+export type StateState = { grid: ReturnType<HexGrid["info"]>; teams: { name: string; members: ReturnType<Entity["info"]>[] }[] };
 
 export interface ClientSideConfig {
     worldCenter: Vector3,

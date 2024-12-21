@@ -1,8 +1,7 @@
-import { Players, RunService } from "@rbxts/services";
-import { AttackAction, ClashResult, ClashResultFate, EntityStats, ReadinessIcon, Reality } from "shared/types/battle-types";
-import { calculateRealityValue, getDummyStats, requestData, warnWrongSideCall } from "shared/utils";
+import { Players } from "@rbxts/services";
+import { AttackAction, ClashResult, ClashResultFate, Config, EntityStats, HexGridState, ReadinessIcon, Reality, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
+import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Entity from "../Entity";
-import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
 
 
@@ -26,37 +25,80 @@ export class Team {
     players() {
         return this.members.mapFiltered((entity) => Players.GetPlayerByUserId(entity.playerID));
     }
+
+    sync(state: TeamState) {
+        for (const entity of this.members) {
+            const otherEntity = state.members.find((e) => e.playerID === entity.playerID);
+            if (otherEntity) {
+                entity.update(otherEntity);
+            }
+        }
+    }
 }
 
 export default class State {
-    currentRoundEntityID?: number;
-    time: number = -1;
     teams: Team[] = [];
-
     grid: HexGrid;
-    gridMin: Vector2;
-    gridMax: Vector2;
 
-    constructor(width: number, height: number, worldCenter: Vector3, size: number) {
+    constructor({ width, worldCenter, height }: Config) {
         this.grid = new HexGrid({
             radius: math.floor(width / 2),
             center: new Vector2(worldCenter.X, worldCenter.Z),
-            size,
+            size: TILE_SIZE,
             name: "BattleGrid",
         });
-        const halfWidth = (width * size) / 2;
-        const halfHeight = (height * size) / 2;
-        this.gridMin = new Vector2(worldCenter.X - halfWidth, worldCenter.Z - halfHeight);
-        this.gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
     }
 
-    protected placeEntity(entity: Entity, cell: HexCell) {
-        if (RunService.IsClient()) {
-            warnWrongSideCall("placeEntity");
-            return;
-        }
-        entity.setCell(cell);
+    //#region Syncronisation
+    public teamInfo(): TeamState[] {
+        return this.teams.map((team) => ({
+            name: team.name,
+            members: team.members.map((entity) => entity.info()),
+        }));
     }
+
+    public gridInfo() {
+        return this.grid.info();
+    }
+
+    public info(): StateState {
+        return {
+            grid: this.gridInfo(),
+            teams: this.teamInfo(),
+        };
+    }
+
+    public syncGrid(grid: HexGridState) {
+        this.grid.update(grid);
+    }
+
+    public syncTeams(teamStates: TeamState[]) {
+        for (const state of teamStates) {
+            const team = this.teams.find((t) => t.name === state.name);
+            if (team) team.sync(state);
+            else {
+                warn(`Team [${state.name}] not found`);
+                const newTeam = new Team(state.name, state.members.map((entity) => {
+                    return new Entity(entity);
+                }));
+                this.teams.push(newTeam);
+            }
+        }
+    }
+
+    public sync(other: Partial<StateState>) {
+        print(`Syncing state with`, other);
+
+        // 1. Update grid
+        if (other.grid) this.syncGrid(other.grid);
+
+        // 2. Update teams
+        if (other.teams) this.syncTeams(other.teams);
+    }
+
+    //#endregion
+
+    //#region Initialisation
     /**
      * initialises the teams for the battle.
      *
@@ -120,7 +162,6 @@ export default class State {
             }
         }
     }
-
     /**
      * Initializes various components of the battle state, including the grid, teams, entity positions, and (temporarily) testing dummies.
      *
@@ -143,7 +184,13 @@ export default class State {
             sta: 999,
         })
         this.teams.push(new Team("Test", [dummy]));
-        this.placeEntity(dummy, this.grid.cells.find((c) => c.isVacant())!);
+        dummy.setCell(this.grid.cells.find((c) => c.isVacant())!);
+    }
+    //#endregion
+
+    //#region Find Info
+    public findEntity(playerID: number): Entity | undefined {
+        return this.getAllEntities().find((entity) => entity.playerID === playerID);
     }
 
     public getAllEntities(): Entity[] {
@@ -153,7 +200,9 @@ export default class State {
     public getAllPlayers(): Player[] {
         return this.teams.map((team) => team.players()).reduce<Player[]>((acc, val) => [...acc, ...val], []);
     }
+    //#endregion
 
+    //#region Clash
     public applyClash(attackAction: AttackAction) {
         const clashResult = attackAction.clashResult;
         if (!clashResult) {
@@ -193,12 +242,9 @@ export default class State {
         damage = math.clamp(damage, 0, 1000);
         return { damage, u_damage: damage, fate, roll: hitRoll };
     }
+    //#endregion
 
-    public findEntity(playerID: number): Entity | undefined {
-        return this.getAllEntities().find((entity) => entity.playerID === playerID);
-    }
-
-    //#region readiness
+    //#region Readiness
     private calculateReadinessIncrement(entity: Entity) {
         return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
     }

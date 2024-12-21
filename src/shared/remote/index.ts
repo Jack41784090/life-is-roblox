@@ -1,9 +1,8 @@
-import Charm from "@rbxts/charm";
 import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
 import { GlobalAtoms } from "shared/datastore";
-import { AccessToken, ActionType, Config, EntityReadinessMap, EntityState, HexGridConfig } from "shared/types/battle-types";
+import { AccessToken, ActionType, Config, HexGridState, TeamState } from "shared/types/battle-types";
 
 const remotes = createRemotes({
     loadCharacter: remote<Server>(),
@@ -12,22 +11,12 @@ const remotes = createRemotes({
     init: remote<Server>(),
     sync: remote<Client, [payload: SyncPayload<GlobalAtoms>]>(),
 
-    battle_readinessSyncHydrate: remote<Server>(),
-    battle_readinessSync: remote<Client, [payload: SyncPayload<{
-        entitiesReadinessMap: Charm.Atom<EntityReadinessMap>;
-    }>]>(),
-
     battle: namespace({
         // #region Client => Server
         request: remote<Server>(),
         requestSync: namespace({
-            map: remote<Server>().returns<HexGridConfig>(t.interface({
-                center: t.Vector2,
-                radius: t.number,
-                size: t.number,
-                name: t.string,
-            })),
-            entities: remote<Server>().returns<EntityState[]>(),
+            map: remote<Server>().returns<HexGridState>(),
+            team: remote<Server>().returns<TeamState[]>(),
         }),
         requestToAct: remote<Server>().returns<AccessToken>(t.interface({
             userId: t.number,

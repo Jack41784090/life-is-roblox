@@ -39,7 +39,6 @@ export default class HexCell {
     //#region Modifying
     public materialise() {
         const { X: q, Y: r, Z: s } = this.qrs;
-        warn(this.part === undefined, "Part already exists for this cell", this);
         const part = this.part || HEXAGON.Clone();
         this.part = part;
 
