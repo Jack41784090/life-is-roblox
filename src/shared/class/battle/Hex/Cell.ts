@@ -1,7 +1,6 @@
 import { HEXAGON } from "shared/const/assets";
-import { CellTerrain, HexCellConfig } from "shared/types/battle-types";
+import { CellTerrain, HexCellConfig, HexCellState, PlayerID } from "shared/types/battle-types";
 import { getTween } from "shared/utils";
-import Entity from "../Entity";
 import HexGrid from "./Grid";
 import { Hex } from "./Layout";
 
@@ -11,7 +10,7 @@ export default class HexCell {
 
     public qrs: Vector3;
     public terrain: CellTerrain;
-    public entity?: Entity;
+    public entity?: PlayerID;
 
     public part?: UnionOperation;
     public size = 4;
@@ -40,11 +39,12 @@ export default class HexCell {
     //#region Modifying
     public materialise() {
         const { X: q, Y: r, Z: s } = this.qrs;
+        warn(this.part === undefined, "Part already exists for this cell", this);
         const part = this.part || HEXAGON.Clone();
         this.part = part;
 
         part.Name = `HexCell(${q},${r},${s})`;
-        part.Size = part.Size.mul(this.size);
+        part.Size = HEXAGON.Size.mul(this.size);
 
         // Convert the hex QR to world XY using the layout instance
         const worldPosition = this.gridRef.layout.hexToPixel(new Hex(q, r, s));
@@ -52,22 +52,24 @@ export default class HexCell {
 
         part.Anchored = true;
         part.Material = Enum.Material.Pebble;
-        part.Parent = game.Workspace;
+        part.Parent = this.gridRef.model;
         part.Color = new Color3(1, 1, 1); // Set default color or based on terrain
+
+        print(`Materialised cell ${this.qrs} at ${part.Position}`, this);
     }
 
     public destroy() {
-        this.entity?.model?.Destroy();
-        this.entity = undefined;
+        // this.entity?.model?.Destroy();
+        // this.entity = undefined;
+        warn(`Destroying cell ${this.qrs}`);
         this.part?.Destroy();
         this.part = undefined;
     }
 
-    public update(config: Partial<HexCellConfig>) {
+    public update(config: Partial<HexCellState>) {
+        print(`Updating cell ${this.qrs} with config`, config);
         for (const [x, y] of pairs(config)) {
-            if (typeOf(y) === typeOf(this[x])) {
-                this[x as keyof this] = y as unknown as any;
-            }
+            this[x as keyof this] = y as unknown as any;
         }
     }
     //#endregion
@@ -146,6 +148,16 @@ export default class HexCell {
 
     public isVacant(): boolean {
         return this.entity === undefined;
+    }
+
+    public info(): HexCellState {
+        return {
+            qr: this.qr(),
+            size: this.size,
+            height: this.height,
+            terrain: this.terrain,
+            entity: this.entity,
+        }
     }
     //#endregion
 

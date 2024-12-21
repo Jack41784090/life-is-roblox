@@ -4,13 +4,13 @@ import remotes from "shared/remote";
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/types/battle-types";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);
 
-remotes.battle.createClient.connect((config) => {
+remotes.battle.createClient.connect(async (config) => {
     const { width, height, worldCenter, teamMap } = config;
     if (teamMap === undefined) return;
 
     print("ClientBegin", config);
 
-    const clientSide = ClientSide.Create({
+    const clientSide = await ClientSide.Create({
         width: width ?? DEFAULT_WIDTH,
         height: height ?? DEFAULT_HEIGHT,
         worldCenter: worldCenter ?? DEFAULT_WORLD_CENTER,

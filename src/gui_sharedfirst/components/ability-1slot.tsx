@@ -51,7 +51,6 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
     render() {
         const ability = this.props.ability;
         const key = this.props.key;
-        print("Rendering " + ability.name);
         return (
             <imagebutton
                 key={`${key}-${ability.name}`}

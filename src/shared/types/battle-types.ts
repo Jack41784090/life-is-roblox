@@ -1,6 +1,5 @@
 import { Atom } from "@rbxts/charm";
 import Ability from "shared/class/battle/Ability";
-import Gui from "shared/class/battle/ClientSide/Gui";
 import Entity from "shared/class/battle/Entity";
 import HexGrid from "shared/class/battle/Hex/Grid";
 
@@ -54,7 +53,7 @@ export type EntityInitHardRequirements = {
 }
 export type EntityInit = Partial<iEntity> & EntityInitHardRequirements;
 export type EntityStatsUpdate = Partial<EntityStatsNoID>;
-export type EntityUpdate = Partial<
+export type EntityState = Partial<
     EntityInitHardRequirements & {
         name: string;
         team: string;
@@ -203,12 +202,24 @@ export enum BattleStatus {
 }
 
 export interface BattleAction {
+    actionType: ActionType,
     executed: boolean,
+    by: PlayerID,
+    against?: PlayerID,
+}
+
+export enum ActionType {
+    Move = 'move',
+    Attack = 'attack',
 }
 export interface AttackAction extends BattleAction {
     ability: Ability,
     clashResult?: ClashResult,
     abilityEffectString?: string,
+}
+export interface MoveAction extends BattleAction {
+    from: Vector2,
+    to: Vector2,
 }
 
 export interface ClashResult {
@@ -262,6 +273,9 @@ export interface HexGridConfig {
     size: number;
     name: string;
 }
+export type HexGridState = HexGridConfig & {
+    cells: Omit<HexCellConfig, 'gridRef'>[];
+}
 
 export interface HexCellConfig {
     qr: Vector2;
@@ -270,16 +284,34 @@ export interface HexCellConfig {
     terrain: CellTerrain;
     gridRef: HexGrid;
 }
+export type HexCellState = Omit<HexCellConfig, 'gridRef'> & {
+    entity?: PlayerID;
+}
 
 export interface ClientSideConfig {
-    worldCenter: Vector3, size: number, width: number, height: number, camera: Camera
+    worldCenter: Vector3,
+    size: number,
+    width: number,
+    height: number,
+    camera: Camera
 }
 
 export interface AccessToken {
     readonly userId: number;
     readonly allowed: boolean;
     readonly token?: string;
-    readonly action?: string;
+    action?: BattleAction;
+    newState?: HexGridState;
 }
 
-export type GuiFunction = keyof Gui
+export type ActionValidator = {
+    winningClient: Player, client: Player, declaredAccess: AccessToken, trueAccessCode: string
+}
+
+export type UpdateMainUIConfig = {
+    readinessIcons?: ReadinessIcon[]
+    cre?: Entity
+    entities: Entity[]
+    grid?: HexGrid
+    accessToken: AccessToken
+}

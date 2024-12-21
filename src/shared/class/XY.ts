@@ -38,7 +38,16 @@ export default class XY<T> {
         }
     }
 
-    reset() {
+    reset(cleanUp: (arg: T) => void) {
+        for (let x = 0; x < this.width; x++) {
+            for (let y = 0; y < this.height; y++) {
+                const value = this.get(x, y);
+                if (value !== undefined) {
+                    cleanUp(value);
+                }
+            }
+        }
+
         this.dictionary = {};
     }
 
@@ -57,5 +66,18 @@ export class QR<T> extends XY<T> {
 
     isValidCoordinate(q: number, r: number) {
         return super.isValidCoordinate(math.abs(q), math.abs(r));
+    }
+
+    reset(cleanUp: (arg: T) => void): void {
+        const radius = this.radius;
+
+        for (let q = -radius; q <= radius; q++) {
+            for (let r = math.max(-radius, -q - radius); r <= math.min(radius, -q + radius); r++) {
+                const value = this.get(q, r);
+                if (value !== undefined) {
+                    cleanUp(value);
+                }
+            }
+        }
     }
 }

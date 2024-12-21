@@ -33,6 +33,7 @@ class GuiMothership {
         const instance = GuiMothership.instance;
         instance.children.set(key, element);
         instance.root.render(instance.element());
+        // print("Mounting", key, instance.children);
     }
 
     public static unmount(key: string[]): void;
@@ -49,6 +50,7 @@ class GuiMothership {
                 instance.children.delete(k);
             }
         }
+        print("Unmounting", key, instance.children);
     }
 
     private element() {

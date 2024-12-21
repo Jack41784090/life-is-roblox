@@ -78,8 +78,10 @@ export const HEXAGON_HEIGHT = 0.425
 
 export const CONDOR_BLOOD_RED = Color3.fromRGB(140, 0, 0);
 
-export const BATTLE_MAINGUI_TAG = 'BattleMainGui';
-export const BATTLE_ACTIONMENU_TAG = 'BattleActionMenu';
-export const BATTLE_GLOW_TAG = 'BattleGlow';
-export const BATTLE_OTHERTURN_TAG = 'BattleTarget';
-export const BATTLE_ABILITYSLOT_TAG = 'BattleAbilitySlot';
+export enum GuiTag {
+    MainGui = 'BattleMainGui',
+    ActionMenu = 'BattleActionMenu',
+    Glow = 'BattleGlow',
+    OtherTurn = 'BattleTarget',
+    AbilitySlot = 'BattleAbilitySlot',
+}

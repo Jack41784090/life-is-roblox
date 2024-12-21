@@ -3,9 +3,9 @@ import { Players } from "@rbxts/services";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { BATTLE_ABILITYSLOT_TAG, BATTLE_ACTIONMENU_TAG, BATTLE_GLOW_TAG, BATTLE_MAINGUI_TAG, BATTLE_OTHERTURN_TAG, DECAL_OUTOFRANGE, DECAL_WITHINRANGE, MOVEMENT_COST } from "shared/const";
-import { CharacterMenuAction, MainUIModes, ReadinessIcon } from "shared/types/battle-types";
-import Ability from "../Ability";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
+import remotes from "shared/remote";
+import { AccessToken, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, UpdateMainUIConfig } from "shared/types/battle-types";
 import Entity from "../Entity";
 import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
@@ -40,36 +40,33 @@ export default class Gui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { readinessIcons: ReadinessIcon[], cre: Entity, grid: HexGrid }): void;
-    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
-    updateMainUI(mode: MainUIModes, props: {
-        readinessIcons?: ReadinessIcon[]
-        cre?: Entity
-        grid?: HexGrid
-    } = {}) {
-        print(`Updating main UI with mode: ${mode}`);
+    updateMainUI(mode: 'withSensitiveCells', props: UpdateMainUIConfig): void;
+    updateMainUI(mode: 'onlyReadinessBar', props: UpdateMainUIConfig): void;
+    updateMainUI(mode: MainUIModes, props: UpdateMainUIConfig) {
+        const { readinessIcons, cre, grid, accessToken } = props
+        print(`Updating main UI with mode: ${mode}`, props);
         switch (mode) {
             case 'onlyReadinessBar':
-                if (!props.readinessIcons) {
+                if (!readinessIcons) {
                     warn(`No readiness icons provided for mode: ${mode}`);
                     return;
                 }
                 GuiMothership.mount(
-                    BATTLE_MAINGUI_TAG,
+                    GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
-                        <ReadinessBar icons={props.readinessIcons} />
+                        <ReadinessBar icons={readinessIcons} />
                     </MenuFrameElement>);
                 break;
             case 'withSensitiveCells':
-                if (!props.cre || !props.grid || !props.readinessIcons) {
+                if (!cre || !grid || !readinessIcons) {
                     warn(`No entity, grid or readiness icons provided for mode: ${mode}`);
                     return;
                 }
                 GuiMothership.mount(
-                    BATTLE_MAINGUI_TAG,
+                    GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
-                        <ReadinessBar icons={props.readinessIcons} />
-                        {this.createSensitiveCellElements(props.cre, props.grid)}
+                        <ReadinessBar icons={readinessIcons} />
+                        {this.createSensitiveCellElements(props)}
                     </MenuFrameElement>);
                 break;
         }
@@ -84,9 +81,8 @@ export default class Gui {
      * @returns 
      */
     mountActionMenu(actions: CharacterMenuAction[]) {
-        print("Mounting action menu");
         GuiMothership.mount(
-            BATTLE_ACTIONMENU_TAG,
+            GuiTag.ActionMenu,
             <MenuFrameElement key={"ActionMenu"} transparency={1} >
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)} >
                     {
@@ -110,7 +106,7 @@ export default class Gui {
      * @returns the mounted Tree
      */
     mountInitialUI(icons: ReadinessIcon[]) {
-        GuiMothership.mount(BATTLE_MAINGUI_TAG,
+        GuiMothership.mount(GuiTag.MainGui,
             <MenuFrameElement key={`BattleUI`} transparency={1} >
                 <ReadinessBar icons={icons} />
             </MenuFrameElement>);
@@ -122,13 +118,13 @@ export default class Gui {
         const cellsToGlow = _cells instanceof HexCell ? _cells.findCellsWithinRange(range!) : _cells;
         const elements = cellsToGlow.mapFiltered((cell) => <CellGlowSurfaceElement cell={cell} />);
 
-        GuiMothership.mount(BATTLE_GLOW_TAG, <frame key={'GlowingPath'}>{elements}</frame>)
+        GuiMothership.mount(GuiTag.Glow, <frame key={'GlowingPath'}>{elements}</frame>)
 
         return cellsToGlow;
     }
 
     mountOtherPlayersTurnGui() {
-        GuiMothership.mount(BATTLE_OTHERTURN_TAG, <OPTElement />);
+        GuiMothership.mount(GuiTag.OtherTurn, <OPTElement />);
     }
 
     mountAbilitySlots(cre: Entity) {
@@ -137,24 +133,15 @@ export default class Gui {
             warn("No ability set found for entity");
             return;
         }
-        GuiMothership.mount(BATTLE_ABILITYSLOT_TAG,
+        GuiMothership.mount(GuiTag.AbilitySlot,
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>);
     }
 
-    unmountAndClear(propertyName: keyof this): void {
-        const property = this[propertyName];
-        if (property !== undefined && typeOf(property) === 'table') {
-            print(`Unmounting and clearing: ${propertyName as string}`);
-            const [s, f] = pcall(() => {
-                (property as ReactRoblox.Root).unmount();
-                this[propertyName] = undefined as unknown as this[typeof propertyName];
-            });
-            if (!s) {
-                warn(`Failed to unmount: ${f}`);
-            }
-        }
+
+    unmountAndClear(tag: GuiTag) {
+        GuiMothership.unmount(tag);
     }
     //#endregion
 
@@ -163,17 +150,17 @@ export default class Gui {
      * Get cell elements that are sensitive to mouse hover
      * @returns 
      */
-    private createSensitiveCellElements(cre: Entity, grid: HexGrid): React.Element | undefined {
-        return <frame>
+    private createSensitiveCellElements(props: UpdateMainUIConfig): React.Element | undefined {
+        return <frame key={'SensitiveCells'}>
             {
-                grid.cells.map((c) => (
-                    <CellSurfaceElement
+                props.grid!.cells.map((c) => {
+                    // print(c);
+                    return <CellSurfaceElement
                         cell={c}
-                        onEnter={() => this.handleCellEnter(cre, c)}
-                        onclick={() => this.handleCellClick(cre, c)
-                        }
+                        onEnter={() => this.handleCellEnter(props, c)}
+                        onclick={() => this.handleCellClick(props, c)}
                     />
-                ))}
+                })}
         </frame>;
     }
     /**
@@ -189,14 +176,18 @@ export default class Gui {
      * 4. If the cell is out of range, it mounts or updates the glow effect with a different icon.
      * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
      */
-    private handleCellEnter(cre: Entity, enteringCell: HexCell) {
+    private handleCellEnter({ cre, entities }: UpdateMainUIConfig, enteringCell: HexCell) {
+        assert(cre, "Entity is not defined");
+        assert(entities, "Entities are not defined");
+        assert(cre.cell, "Entity has no cell");
+
         const currentCell = cre.cell;
-        if (!currentCell) return;
+        const occupyingEntity = enteringCell.entity ? entities.find(e => e.playerID === enteringCell.entity) : undefined;
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
-        if (cre.armed && !enteringCell.isVacant()) {
-            cre.faceEntity(enteringCell.entity!);
+        if (cre.armed && occupyingEntity) {
+            cre.faceEntity(occupyingEntity);
             const ability = cre.getEquippedAbilitySet()[cre.armed];
             if (!ability) {
                 mouse.Icon = '';
@@ -236,13 +227,13 @@ export default class Gui {
      * @param cre - The entity that initiated the click event.
      * @param clickedCell - The cell that was clicked.
      */
-    private handleCellClick(cre: Entity, clickedCell: HexCell) {
+    private handleCellClick({ cre, entities, accessToken }: UpdateMainUIConfig, clickedCell: HexCell) {
+        assert(cre, "Entity is not defined");
         if (clickedCell.isVacant()) {
-            this.clickedOnEmptyCell(cre, clickedCell);
+            this.clickedOnEmptyCell(cre, clickedCell, accessToken);
         }
         else {
-            const entityClicked = clickedCell.entity!;
-            this.clickedOnEntity(cre, entityClicked);
+            this.clickedOnEntity(cre, clickedCell, accessToken);
         }
     }
     /**
@@ -261,7 +252,7 @@ export default class Gui {
      * - The target entity has no cell.
      * - The current entity has no cell.
      */
-    private clickedOnEntity(cre: Entity, entity: Entity) {
+    private clickedOnEntity(cre: Entity, clickedOnCell: HexCell, accessToken: AccessToken) {
         if (cre.armed) {
             const keyed = cre.armed;
             const iability = cre.getEquippedAbilitySet()[keyed];
@@ -270,37 +261,41 @@ export default class Gui {
                 warn(`clickedOnEntity: ${keyed} has no ability keyed`)
                 return;
             }
-            if (!entity.cell) {
-                warn("clickedOnEntity: Entity has no cell");
-                return;
-            }
             if (!cre.cell) {
                 warn("clickedOnEntity: Current entity has no cell");
                 return;
             }
             //#endregion
-            if (entity.cell.isWithinRangeOf(cre.cell, iability.range)) {
-                const ability = new Ability({
-                    ...iability,
-                    using: cre,
-                    target: entity,
-                });
+            if (clickedOnCell.isWithinRangeOf(cre.cell, iability.range)) {
+                // const ability = new Ability({
+                //     ...iability,
+                //     using: cre,
+                //     target: entity,
+                // });
                 // remoteEvent_Attack.FireServer(ability.getState());
             }
         }
     }
 
-    private clickedOnEmptyCell(cre: Entity, cell: HexCell) {
+    private clickedOnEmptyCell(cre: Entity, cell: HexCell, accessToken: AccessToken) {
         if (cre.cell) {
+            const start = cre.cell.qr();
+            const dest = cell.qr();
             const pf = new Pathfinding({
                 grid: cell.gridRef,
-                start: cre.cell.qr(),
-                dest: cell.qr(),
+                start,
+                dest,
                 limit: math.floor(cre.get('pos') / MOVEMENT_COST),
                 hexagonal: true,
             })
             const path = pf?.begin();
-            return cre.moveToCell(cell, path.mapFiltered((qr) => cell.gridRef.getCell(qr)));
+            cre.moveToCell(cell, path.mapFiltered((qr) => cell.gridRef.getCell(qr))).then(() => {
+                accessToken.newState = cell.gridRef.info();
+                const ourAction = accessToken.action as MoveAction;
+                ourAction.to = dest
+                ourAction.from = start;
+                remotes.battle.act(accessToken);
+            })
         }
         else {
             return Promise.resolve();
@@ -316,7 +311,9 @@ export default class Gui {
     }
 
     public clearAllLooseGui() {
-        GuiMothership.unmount([BATTLE_ABILITYSLOT_TAG, BATTLE_ACTIONMENU_TAG, BATTLE_GLOW_TAG, BATTLE_OTHERTURN_TAG]);
+        for (const [x, tag] of pairs(GuiTag)) {
+            GuiMothership.unmount(tag);
+        }
     }
 
     public clearAllLooseScript() {

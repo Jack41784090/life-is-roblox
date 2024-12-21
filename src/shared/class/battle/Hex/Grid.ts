@@ -1,5 +1,6 @@
+import { RunService } from "@rbxts/services";
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
-import { CellTerrain, HexCellConfig, HexGridConfig } from "shared/types/battle-types";
+import { CellTerrain, HexCellState, HexGridConfig, HexGridState } from "shared/types/battle-types";
 import { QR } from "../../XY";
 import HexCell from "./Cell";
 import { Layout } from "./Layout";
@@ -15,13 +16,12 @@ export default class HexGrid {
     name: string;
     radius: number;
 
-    constructor({ center, radius, size, name }: HexGridConfig) {
-        if (size <= 0) {
-            throw ("Cell size must be a positive number.");
-        }
-        if (radius <= 0) {
-            throw ("Radius must be a positive number.");
-        }
+    constructor(config: HexGridConfig) {
+        const { center, size, radius, name } = config;
+        assert(size > 0, "Cell size must be a positive number.");
+        assert(radius > 0, "Radius must be a positive number.");
+
+        print("Creating grid with", config);
 
         this.radius = radius;
         this.center = center;
@@ -48,7 +48,7 @@ export default class HexGrid {
      * that define the hexagonal grid structure. Model is not yet initialised.
      */
     public initialise() {
-        print("Initialising grid with radius");
+        print("Initialising grid", this);
         const grid = this;
         const radius = this.radius;
 
@@ -70,7 +70,7 @@ export default class HexGrid {
      * Materialises the grid by creating a model in the game workspace and iterating through the grid cells.
      */
     public materialise() {
-        print("Materialising grid with radius");
+        print("Materialising grid", this);
         const gridModel = this.model || new Instance("Model");
         gridModel.Name = this.name;
         gridModel.Parent = game.Workspace;
@@ -87,9 +87,9 @@ export default class HexGrid {
         }
     }
 
-    getCell(v: Vector2): HexCell | undefined
-    getCell(q: number, r: number): HexCell | undefined
-    getCell(q: number | Vector2, r?: number): HexCell | undefined {
+    public getCell(v: Vector2): HexCell | undefined
+    public getCell(q: number, r: number): HexCell | undefined
+    public getCell(q: number | Vector2, r?: number): HexCell | undefined {
         if (typeOf(q) === 'number') {
             const x = q as number;
             return this.cellsQR.get(x, r as number);
@@ -99,16 +99,26 @@ export default class HexGrid {
         }
     }
 
-    info(): HexGridConfig {
+    public info(): HexGridState {
         return {
             center: this.center,
             radius: this.radius,
             size: this.size,
             name: this.name,
+            cells: this.cells.map(c => c.info())
         }
     }
 
-    updateCell(q: number, r: number, config: Partial<HexCellConfig>) {
+    public updateAllCells(config: HexCellState[]) {
+        this.cells = config.map(c => {
+            const newCell = this.cellsQR.get(c.qr) || new HexCell({ ...c, gridRef: this });
+            this.cellsQR.set(c.qr.X, c.qr.Y, newCell);
+            newCell.update(c);
+            return newCell;
+        })
+    }
+
+    public updateOneCell(q: number, r: number, config: Partial<HexCellState>) {
         const cell = this.cellsQR.get(q, r);
         if (cell) {
             cell.update(config)
@@ -118,35 +128,55 @@ export default class HexGrid {
         }
     }
 
-    update(config: Partial<HexGridConfig>) {
+    public updateCenter(center: Vector2) {
+        this.center = center;
+        this.layout = new Layout(
+            Layout.pointy,
+            new Vector2(
+                HEXAGON_MAGIC * this.size,
+                HEXAGON_MAGIC * this.size
+            ),
+            new Vector2(this.center.X, this.center.Y),
+        );
+    }
+
+    public updateRadius(radius: number) {
+        if (this.radius === radius) return;
+
+        this.radius = radius;
+
+        this.cellsQR.reset((cell) => cell.destroy());
+        this.cellsQR = new QR<HexCell>(this.radius);
+        this.cells = [];
+    }
+
+    /**
+     * radius + cells:  complete change
+     * cells:           individual cell change
+     * center:          change layout
+     * 
+     * @param config 
+     */
+    public update(config: Partial<HexGridState>) {
+        print("Updating grid with ", config);
         for (const [x, y] of pairs(config)) {
-            if (typeOf(y) === typeOf(this[x])) {
-                this[x as keyof this] = y as unknown as any;
-            }
+            if (typeOf(y) === typeOf(this[x])) this[x as keyof this] = y as unknown as any;
+        }
 
-            if (x === 'radius') {
-                this.cellsQR.reset();
-                this.cellsQR = new QR<HexCell>(this.radius);
-                this.initialise();
-            }
-            if (x === 'center') {
-                this.layout = new Layout(
-                    Layout.pointy,
-                    new Vector2(
-                        HEXAGON_MAGIC * this.size,
-                        HEXAGON_MAGIC * this.size
-                    ),
-                    new Vector2(this.center.X, this.center.Y),
-                )
+        if (config.center) {
+            this.updateCenter(config.center);
+        }
 
-                this.cellsQR.reset();
-                this.cellsQR = new QR<HexCell>(this.radius);
-                this.initialise();
-            }
+        if (config.cells && config.radius) {
+            this.updateRadius(config.radius);
+            this.updateAllCells(config.cells);
+        }
+        else if (config.radius) {
+            this.updateRadius(config.radius);
         }
 
         // this.cells.clear(); this.cellsQR.reset();
         // this.initialise();
-        // this.materialise();
+        if (RunService.IsClient()) this.materialise();
     }
 }

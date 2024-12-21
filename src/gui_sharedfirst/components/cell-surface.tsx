@@ -1,7 +1,5 @@
 import React, { ReactComponent } from "@rbxts/react";
 import HexCell from "shared/class/battle/Hex/Cell";
-import { getPlayer } from "shared/utils";
-const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
 export interface CellSurfaceElementProps {
     onclick?: () => void;
@@ -21,9 +19,7 @@ export default class CellSurfaceElement extends React.Component<CellSurfaceEleme
     }
 
     render() {
-        if (!playerGUI || !this.props.cell.part) {
-            return undefined;
-        }
+        assert(this.props.cell.part, "CellSurfaceElement requires a part to render");
         return (
             <surfacegui
                 key={this.props.cell.part.Name}

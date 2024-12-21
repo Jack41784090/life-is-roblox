@@ -1,6 +1,6 @@
 import { atom, Atom } from "@rbxts/charm";
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
-import { AbilitySet, EntityInit, EntityStats, EntityStatsUpdate, EntityStatus, EntityUpdate, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
+import { AbilitySet, EntityInit, EntityState, EntityStats, EntityStatsUpdate, EntityStatus, iAbility, iEntity, ReadinessIcon, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Ability from "../Ability";
 import HexCell from "../Hex/Cell";
@@ -36,8 +36,6 @@ export default class Entity implements iEntity {
     animator?: Animator;
 
     constructor(options: EntityInit) {
-        print(options);
-
         this.playerID = options.playerID;
         this.team = options.team;
         this.stats = { ...options.stats, id: options.stats.id };
@@ -55,7 +53,7 @@ export default class Entity implements iEntity {
 
     }
 
-    info(): EntityUpdate {
+    info(): EntityState {
         return {
             playerID: this.playerID,
             stats: {
@@ -222,7 +220,7 @@ export default class Entity implements iEntity {
         print(`${this.name}: Setting cell to ${cell.qrs}`);
         if (this.cell) this.cell.entity = undefined;
         this.cell = cell;
-        cell.entity = this;
+        cell.entity = this.playerID;
 
         if (materialise) {
             cell.materialise();
@@ -290,6 +288,8 @@ export default class Entity implements iEntity {
             path = [cell];
         }
 
+        print(`${this.name}: Moving to cell ${cell.qrs}`);
+
         const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
         for (const cell of path) {
             const targetPosition = cell.worldPosition();
@@ -302,8 +302,8 @@ export default class Entity implements iEntity {
 
         this.setCell(cell);
         return new Promise((resolve) => {
-            const scrp = transitionTrack?.Ended.Connect(() => {
-                scrp?.Disconnect();
+            transitionTrack?.Ended.Once(() => {
+                print(`${this.name}: Movement complete`);
                 resolve();
             });
         });
@@ -412,7 +412,7 @@ export default class Entity implements iEntity {
             }
         }
     }
-    public update(u: EntityUpdate) {
+    public update(u: EntityState) {
         if (u.stats) this.updateStats(u.stats);
         for (const [k, v] of pairs(u)) {
             if (this[k as keyof this] === undefined) continue;

@@ -3,7 +3,7 @@ import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
 import { GlobalAtoms } from "shared/datastore";
-import { AccessToken, Config, EntityReadinessMap, EntityUpdate, HexGridConfig } from "shared/types/battle-types";
+import { AccessToken, ActionType, Config, EntityReadinessMap, EntityState, HexGridConfig } from "shared/types/battle-types";
 
 const remotes = createRemotes({
     loadCharacter: remote<Server>(),
@@ -27,22 +27,29 @@ const remotes = createRemotes({
                 size: t.number,
                 name: t.string,
             })),
-            entities: remote<Server>().returns<EntityUpdate[]>(),
+            entities: remote<Server>().returns<EntityState[]>(),
         }),
         requestToAct: remote<Server>().returns<AccessToken>(t.interface({
             userId: t.number,
             allowed: t.boolean,
             token: t.optional(t.string),
-            action: t.optional(t.string),
+            action: t.optional(
+                t.interface({
+                    actionType: t.literal(ActionType.Move, ActionType.Attack),
+                    by: t.number,
+                    against: t.optional(t.number),
+                    executed: t.boolean,
+                })),
         })),
-        act: remote<Server, [action: AccessToken]>(), //#endregion
+        act: remote<Server, [action: AccessToken]>().returns<AccessToken>(),
+        end: remote<Server, [access: AccessToken]>(), //#endregion
 
         //#region Server => Client
         forceUpdate: remote<Client>(),
         ui: namespace({
-            movementMode: remote<Client, [activate: boolean]>(),
             mount: namespace({
                 actionMenu: remote<Client>(),
+                otherPlayersTurn: remote<Client>(),
             })
         }),
         createClient: remote<Client, [config: Partial<Config>]>(), //#endregion

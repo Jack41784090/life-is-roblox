@@ -2,9 +2,9 @@ import { atom } from "@rbxts/charm";
 import { client, SyncPayload } from "@rbxts/charm-sync";
 import { Players, RunService, UserInputService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { MOVEMENT_COST } from "shared/const";
+import { GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, EntityReadinessMap, EntityStatus, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, EntityReadinessMap, EntityStatus, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
 import Ability, { AbilityState } from "../Ability";
 import Entity from "../Entity";
@@ -16,12 +16,12 @@ import BattleCam from "./BattleCamera";
 import Gui from "./Gui";
 
 export default class ClientSide {
+    private initialised: boolean = false;
+    private initialiser: Promise<void>;
+
     private remotees: Array<() => void> = [];
-    private time = 0;
 
     public entities: Entity[] = [];
-    public currentRoundEntity?: Entity;
-
     public grid: HexGrid;
     public gui: Gui;
     public camera: BattleCam;
@@ -29,6 +29,8 @@ export default class ClientSide {
     private readinessSyncerClient;
     private entitiesReadinessMapAtom = atom<EntityReadinessMap>({});
     private controlLocks: ControlLocks = new Map();
+
+    public model: Model;
 
     private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
         const halfWidth = (width * size) / 2;
@@ -49,10 +51,9 @@ export default class ClientSide {
                 entitiesReadinessMap: this.entitiesReadinessMapAtom,
             }
         })
-
-        this.setUpRemotes();
-        this.initialiseInputControl();
-        this.initialiseGraphics();
+        this.initialiser = this.initialiseGraphics()!;
+        // this.initialiser = Promise.resolve();
+        this.model = new Instance("Model");
     }
 
     /**
@@ -80,10 +81,15 @@ export default class ClientSide {
         }
         else {
             // Client-side Creation
-            return new ClientSide({
+            const cs = new ClientSide({
                 ...config,
                 size: TILE_SIZE,
             });
+
+            cs.setUpRemotes();
+            cs.initialiseInputControl();
+
+            return cs;
         }
     }
 
@@ -99,12 +105,18 @@ export default class ClientSide {
                 this.updateReadiness(payload);
             }),
             remotes.battle.ui.mount.actionMenu.connect(() => {
-                this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity!));
+                this.localEntity().andThen(e => {
+                    if (!e) return;
+                    this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                })
             }),
-            remotes.battle.ui.movementMode.connect(activate => {
-                if (activate) this.enterMovementMode();
-                else this.exitMovementMode();
+            remotes.battle.ui.mount.otherPlayersTurn.connect(() => {
+                this.gui.mountOtherPlayersTurnGui();
             }),
+            remotes.battle.forceUpdate.connect(() => {
+                this.requestUpdateEntities();
+                this.requestUpdateGrid();
+            })
         ]
         remotes.battle_readinessSyncHydrate();
     }
@@ -112,6 +124,9 @@ export default class ClientSide {
     private cleanUpRemotes() {
         this.remotees.forEach(r => r());
     }
+    //#endregion
+
+    //#region Updates
 
     private updateReadiness(payload: SyncPayload<{
         entitiesReadinessMap: Charm.Atom<EntityReadinessMap>;
@@ -119,7 +134,7 @@ export default class ClientSide {
         this.readinessSyncerClient.sync(payload);
     }
 
-    private async updateEntities() {
+    private async requestUpdateEntities() {
         const updates = await remotes.battle.requestSync.entities();
         for (const update of updates) {
             const existing = this.entities.find(e => e.playerID === update.playerID);
@@ -168,17 +183,15 @@ export default class ClientSide {
                 }
             }
         }
+        return updates;
     }
 
-    private async updateGrid() {
+    private async requestUpdateGrid() {
         const r = await remotes.battle.requestSync.map();
         this.grid.update(r);
-        this.grid.materialise();
         return r;
     }
-    //#endregion
 
-    //#region Updates
     private initialiseInputControl() {
         UserInputService.InputBegan.Connect((io, gpe) => {
             this.onInputBegan(io, gpe);
@@ -194,43 +207,26 @@ export default class ClientSide {
     }
 
     private initialiseGraphics() {
+        if (this.initialised) return;
+
         this.initialiseCamera();
-        this.updateGrid();
-        this.updateEntities();
+        return Promise.all([
+            this.requestUpdateGrid(),
+            this.requestUpdateEntities(),
+        ]).then(() => {
+            this.initialised = true;
+        })
     }
     //#endregion
 
     //#region Unmanaged
 
-    private getAllEntities() {
-        return this.entities;
+    private async getAction(access: AccessToken) {
+
     }
 
-    public getCharacterMenuActions(entity: Entity): CharacterMenuAction[] {
-        return [
-            {
-                type: CharacterActionMenuAction.Move,
-                run: () => {
-                    remotes.battle.requestToAct().then(accessToken => {
-                        if (!accessToken.token) {
-                            warn(`${Players.LocalPlayer.Name} has received no access token`);
-                            return;
-                        }
-                        const action = 'move';
-                        const newAccessToken = { ...accessToken, action };
-                        remotes.battle.act(newAccessToken);
-                        this.enterMovementMode();
-                    })
-                },
-            },
-            {
-                type: CharacterActionMenuAction.EndTurn,
-                run: () => {
-                    // tree.unmount();
-                    // this.endTurn?.(void 0);
-                },
-            },
-        ];
+    private getAllEntities() {
+        return this.entities;
     }
 
     private getReadinessIcons() {
@@ -245,27 +241,19 @@ export default class ClientSide {
         }
         return readinessIcons;
     }
-
-    private realiseClashResult(clashResult: ClashResult & { abilityState: AbilityState }) {
-        print("Attack clash result received", clashResult);
-
-        const using = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.using);
-        const target = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.target);
-
-        if (!using || !target) {
-            warn("Using or target entity not found", using, target);
-            return;
-        }
-        const ability = new Ability({
-            ...clashResult.abilityState,
-            using,
-            target,
-        });
-        this.executeAttackSequence({ executed: true, ability, clashResult });
-    }
     //#endregion
 
     //#region ENTITY MANAGEMENT
+    private async localEntity() {
+        const localPlayer = Players.LocalPlayer;
+        await this.initialiser;
+        const e = this.entities.find(e => e.playerID === localPlayer.UserId);
+        if (!e) {
+            warn("Local entity not found");
+            return;
+        }
+        return e;
+    }
 
     private appendEntity(entity: Entity, qr: Vector2): HexCell
     private appendEntity(entity: Entity, x: number, y: number): HexCell
@@ -329,17 +317,31 @@ export default class ClientSide {
     }
     //#endregion
 
-    //#region INPUTS
+    //#region UI Movement
 
-    private onInputBegan(io: InputObject, gpe: boolean) {
-        if (!this.controlLocks.get(io.KeyCode)) {
-            // play "invalid input" audio
-            return;
-        }
-
-        if (io.KeyCode === Enum.KeyCode.X && !gpe) {
-            this.returnToSelections();
-        }
+    public getCharacterMenuActions(entity: Entity): CharacterMenuAction[] {
+        return [
+            {
+                type: CharacterActionMenuAction.Move,
+                run: () => {
+                    remotes.battle.requestToAct().then(async accessToken => {
+                        if (!accessToken.token) {
+                            warn(`${Players.LocalPlayer.Name} has received no access token`);
+                            return;
+                        }
+                        const newAccessToken = { ...accessToken, action: { actionType: ActionType.Move, by: entity.playerID, executed: false } };
+                        this.enterMovementMode(newAccessToken);
+                    })
+                },
+            },
+            {
+                type: CharacterActionMenuAction.EndTurn,
+                run: () => {
+                    // tree.unmount();
+                    // this.endTurn?.(void 0);
+                },
+            },
+        ];
     }
     /**
      * Return to the selection screen after movement or canceling an action
@@ -347,12 +349,13 @@ export default class ClientSide {
      *  2. The camera is centered on the current entity
      *  3. going back to the action selection screen
      */
-    private async returnToSelections() {
-        this.exitMovementMode()
+    private async returnToSelections(accessToken: AccessToken) {
+        this.exitMovementMode(accessToken)
         await this.camera.enterCharacterCenterMode()
-        if (this.currentRoundEntity) {
-            this.gui.mountActionMenu(this.getCharacterMenuActions(this.currentRoundEntity));
-        }
+        await this.localEntity().then(e => {
+            if (!e) return;
+            this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+        })
     }
     /**
      * Enter movement mode
@@ -368,33 +371,76 @@ export default class ClientSide {
      *    - Re-render the UI to include sensitive cells.
      *    - Mount the ability slots for the current entity.
      */
-    private enterMovementMode() {
-        print("Entering movement mode");
+    private async enterMovementMode(accessToken: AccessToken) {
+        print("Entering movement mode", this.grid);
+        const cre = this.entities.find(e => e.playerID === accessToken.userId);
+        if (!cre) return;
         this.controlLocks.set(Enum.KeyCode.X, true);
-        if (!this.currentRoundEntity) {
-            warn("EnterMovement detects no cre")
-            return;
-        }
-        this.gui.mountAbilitySlots(this.currentRoundEntity);
+        this.gui.unmountAndClear(GuiTag.ActionMenu);
+        this.gui.mountAbilitySlots(cre);
         this.gui.updateMainUI('withSensitiveCells', {
-            cre: this.currentRoundEntity,
+            cre,
+            entities: this.entities,
             grid: this.grid,
             readinessIcons: this.getReadinessIcons(),
+            accessToken
         });
     }
 
-    private exitMovementMode() {
+    private exitMovementMode(accessToken: AccessToken) {
         this.controlLocks.delete(Enum.KeyCode.X);
         this.gui.clearAll();
-        this.gui.updateMainUI('onlyReadinessBar', { readinessIcons: this.getReadinessIcons() });
+        this.gui.updateMainUI('onlyReadinessBar', {
+            entities: this.entities,
+            readinessIcons: this.getReadinessIcons(),
+            accessToken
+        });
+    }
+
+    //#endregion
+
+    //#region INPUTS
+
+    private onInputBegan(io: InputObject, gpe: boolean) {
+        if (!this.controlLocks.get(io.KeyCode)) {
+            // play "invalid input" audio
+            return;
+        }
+
+        // switch (io.KeyCode) {
+        //     case Enum.KeyCode.X:
+        //         if (!gpe) {
+        //             const entity = this.currentRoundEntity();
+        //             if (entity) this.returnToSelections(entity);
+        //         };
+        //         break;
+        // }
     }
     //#endregion
 
     //#region ANIMATIONS
+
+    private realiseClashResult(clashResult: ClashResult & { abilityState: AbilityState }) {
+        print("Attack clash result received", clashResult);
+
+        const using = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.using);
+        const target = this.getAllEntities().find((e) => e.playerID === clashResult.abilityState.target);
+
+        if (!using || !target) {
+            warn("Using or target entity not found", using, target);
+            return;
+        }
+        const ability = new Ability({
+            ...clashResult.abilityState,
+            using,
+            target,
+        });
+        this.executeAttackSequence({ actionType: ActionType.Attack, by: using.playerID, executed: true, ability, clashResult });
+    }
+
     private async executeAttackSequence(attackAction: AttackAction) {
-        this.exitMovementMode()
+        // this.exitMovementMode()
         await this.playAttackAnimation(attackAction);
-        this.enterMovementMode();
     }
 
     private async playAttackAnimation(attackAction: AttackAction) {

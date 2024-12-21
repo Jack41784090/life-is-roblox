@@ -2,7 +2,7 @@ import { atom, Atom } from "@rbxts/charm";
 import { server } from "@rbxts/charm-sync";
 import { RunService } from "@rbxts/services";
 import remotes from "shared/remote";
-import { Config, DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER, EntityReadinessMap } from "shared/types/battle-types";
+import { ActionValidator, Config, DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER, EntityReadinessMap } from "shared/types/battle-types";
 import { warnWrongSideCall } from "shared/utils";
 import { TILE_SIZE } from '../../types/battle-types';
 import { IDGenerator } from "../IDGenerator";
@@ -81,6 +81,42 @@ class Battle extends State {
         });
     }
 
+    private validate({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator) {
+        const { token, action, allowed } = declaredAccess
+        const players = this.getAllPlayers();
+
+        assert(players.find(p => p.UserId === client.UserId), "Player not found")
+        assert(allowed, "Disallowed")
+        assert(token === trueAccessCode, "Invalid access code");
+        assert(action, "No action chosen");
+        assert(client.UserId === winningClient.UserId, "Not the winning player");
+
+    }
+
+    private validateActionRequest({ winningClient, requestClient }: {
+        winningClient: Player,
+        requestClient: Player,
+    }) {
+        assert(winningClient.UserId === requestClient.UserId, "Not the winning player")
+        return true;
+    }
+
+    private validateEnd({ client, declaredAccess, trueAccessCode, winningClient }: ActionValidator) {
+        this.validate({ declaredAccess, client, trueAccessCode, winningClient });
+        return true;
+    }
+
+    private validateAction({ client, declaredAccess, trueAccessCode, winningClient }: ActionValidator) {
+        this.validate({ declaredAccess, client, trueAccessCode, winningClient });
+
+        const { action } = declaredAccess;
+        // Check the possibility of claimed action
+
+        assert(declaredAccess.newState, "No new state provided")
+
+        return true;
+    }
+
     async round() {
         // 1. Readiness
         print(`1. Running readiness gauntlet`)
@@ -91,8 +127,8 @@ class Battle extends State {
         }
 
         const players = this.getAllPlayers();
-        const winningPlayer = players.find(p => p.UserId === winnerEntity.playerID)
-        if (!winningPlayer) {
+        const winningClient = players.find(p => p.UserId === winnerEntity.playerID)
+        if (!winningClient) {
             warn("No winning player found")
             return;
         }
@@ -100,41 +136,56 @@ class Battle extends State {
         // 2. Update Player UI's
         print(`2. Updating UI for all`)
         players.forEach(p => {
-            remotes.battle.ui.mount.actionMenu(p);
+            if (p.UserId === winningClient.UserId) {
+                remotes.battle.ui.mount.actionMenu(p);
+            }
+            else {
+                remotes.battle.ui.mount.otherPlayersTurn(p);
+            }
         });
 
         const accessCode = IDGenerator.generateID();
         remotes.battle.requestToAct.onRequest(p => {
-            if (p.UserId !== winningPlayer.UserId) {
-                return {
-                    userId: p.UserId,
-                    allowed: false,
-                    token: undefined,
-                }
+            try {
+                this.validateActionRequest({ winningClient, requestClient: p })
+                return { userId: p.UserId, allowed: true, token: accessCode }
             }
-            return {
-                userId: p.UserId,
-                allowed: true,
-                token: accessCode,
+            catch (e) {
+                return { userId: p.UserId, allowed: false }
             }
         })
-        const promise = remotes.battle.act.promise((p, s) => {
-            const { token, action, allowed } = s;
-            if (!allowed) {
-                warn("Disallowed")
+        remotes.battle.act.onRequest((p, access) => {
+            try {
+                this.validateAction({
+                    client: p,
+                    declaredAccess: access,
+                    trueAccessCode: accessCode,
+                    winningClient: winningClient,
+                })
+                this.grid.update(access.newState!);
+                remotes.battle.forceUpdate(p);
+                return access;
+            }
+            catch (e) {
+                print("Invalid action", e)
+                return { userId: p.UserId, allowed: false }
+            }
+        })
+        const promise = remotes.battle.end.promise((p, s) => {
+            try {
+                this.validateEnd({
+                    client: p,
+                    declaredAccess: s,
+                    trueAccessCode: accessCode,
+                    winningClient: winningClient,
+                })
+                print(`Received end response: ${s} from ${p.Name}`)
+                return true;
+            }
+            catch (e) {
+                print("Invalid end", e)
                 return false;
             }
-            if (token !== accessCode) {
-                warn("Invalid access code")
-                return false;
-            }
-            if (!action) {
-                warn("No action chosen")
-                return false;
-            }
-
-            print(`Received response: ${s} from ${p.Name}`)
-            return s.userId === winningPlayer.UserId;
         })
 
         await promise;
