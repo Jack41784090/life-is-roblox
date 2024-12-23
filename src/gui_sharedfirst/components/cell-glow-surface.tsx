@@ -1,11 +1,12 @@
 import React, { ReactComponent } from "@rbxts/react";
 import { RunService, TweenService } from "@rbxts/services";
-import HexCell from "shared/class/battle/Hex/Cell";
+import HexCellGraphics from "shared/class/battle/Hex/Cell/Graphics";
+import { SELECTED_COLOUR } from "shared/const";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");
 
 export interface CellGlowSurfaceElementProps {
-    cell: HexCell
+    cell: HexCellGraphics
 }
 interface CellGlowSurfaceElementState {
     size: UDim2;
@@ -79,7 +80,7 @@ export default class CellGlowSurfaceElement extends React.Component<CellGlowSurf
                 <textbutton
                     ref={this.buttonRef}
                     BackgroundTransparency={this.state.transparency}
-                    BackgroundColor3={HexCell.SELECTED_COLOUR}
+                    BackgroundColor3={SELECTED_COLOUR}
                     Position={new UDim2(0.5, 0, 0.5, 0)}
                     AnchorPoint={new Vector2(0.5, 0.5)}
                     Size={this.state.size}

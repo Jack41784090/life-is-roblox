@@ -3,13 +3,15 @@ import { Players } from "@rbxts/services";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, UpdateMainUIConfig } from "shared/types/battle-types";
 import Entity from "../Entity";
 import HexCell from "../Hex/Cell";
+import HexCellGraphics from "../Hex/Cell/Graphics";
 import HexGrid from "../Hex/Grid";
 import Pathfinding from "../Pathfinding";
+import EntityCellGraphicsTuple from "./EHCG/Tuple";
 
 export default class Gui {
 
@@ -41,16 +43,13 @@ export default class Gui {
      * @returns the updated React tree
      */
     updateMainUI(mode: 'withSensitiveCells', props: UpdateMainUIConfig): void;
-    updateMainUI(mode: 'onlyReadinessBar', props: UpdateMainUIConfig): void;
+    updateMainUI(mode: 'onlyReadinessBar', props: Omit<UpdateMainUIConfig, 'roundEntityPosition'>): void;
     updateMainUI(mode: MainUIModes, props: UpdateMainUIConfig) {
-        const { readinessIcons, cre, grid, accessToken } = props
         print(`Updating main UI with mode: ${mode}`, props);
+        const { readinessIcons, } = props;
         switch (mode) {
             case 'onlyReadinessBar':
-                if (!readinessIcons) {
-                    warn(`No readiness icons provided for mode: ${mode}`);
-                    return;
-                }
+                assert(readinessIcons, `No readiness icons provided for mode: ${mode}`);
                 GuiMothership.mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
@@ -58,10 +57,7 @@ export default class Gui {
                     </MenuFrameElement>);
                 break;
             case 'withSensitiveCells':
-                if (!cre || !grid || !readinessIcons) {
-                    warn(`No entity, grid or readiness icons provided for mode: ${mode}`);
-                    return;
-                }
+                assert(readinessIcons, `Readiness icons are not defined for mode: ${mode}`);
                 GuiMothership.mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
@@ -112,14 +108,9 @@ export default class Gui {
             </MenuFrameElement>);
     }
     // Highlight the cells along a path
-    mountOrUpdateGlow(cell: HexCell, range: NumberRange): HexCell[] | undefined
-    mountOrUpdateGlow(path: HexCell[]): HexCell[] | undefined
-    mountOrUpdateGlow(_cells: HexCell[] | HexCell, range?: NumberRange) {
-        const cellsToGlow = _cells instanceof HexCell ? _cells.findCellsWithinRange(range!) : _cells;
+    mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
         const elements = cellsToGlow.mapFiltered((cell) => <CellGlowSurfaceElement cell={cell} />);
-
         GuiMothership.mount(GuiTag.Glow, <frame key={'GlowingPath'}>{elements}</frame>)
-
         return cellsToGlow;
     }
 
@@ -153,12 +144,12 @@ export default class Gui {
     private createSensitiveCellElements(props: UpdateMainUIConfig): React.Element | undefined {
         return <frame key={'SensitiveCells'}>
             {
-                props.grid!.cells.map((c) => {
+                props.EHCGMS.tuples().map((t) => {
                     // print(c);
                     return <CellSurfaceElement
-                        cell={c}
-                        onEnter={() => this.handleCellEnter(props, c)}
-                        onclick={() => this.handleCellClick(props, c)}
+                        cell={t.cell}
+                        onEnter={() => this.handleCellEnter(props, t)}
+                        onclick={() => this.handleCellClick(props, t)}
                     />
                 })}
         </frame>;
@@ -167,7 +158,7 @@ export default class Gui {
      * Handles the event when an entity enters a new cell.
      *
      * @param cre - The entity that is entering the cell.
-     * @param enteringCell - The cell that the entity is entering.
+     * @param tuple - The cell that the entity is entering.
      *
      * This function performs the following actions:
      * 1. Changes the mouse icon based on whether the cell is vacant and within range.
@@ -176,44 +167,51 @@ export default class Gui {
      * 4. If the cell is out of range, it mounts or updates the glow effect with a different icon.
      * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
      */
-    private handleCellEnter({ cre, entities }: UpdateMainUIConfig, enteringCell: HexCell) {
-        assert(cre, "Entity is not defined");
-        assert(entities, "Entities are not defined");
-        assert(cre.cell, "Entity has no cell");
-
-        const currentCell = cre.cell;
-        const occupyingEntity = enteringCell.entity ? entities.find(e => e.playerID === enteringCell.entity) : undefined;
+    private handleCellEnter({ roundEntityPosition: currentQR, state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
+        assert(currentQR, "Current QR is not defined");
+        const currentCell = state.grid.getCell(currentQR);
+        assert(currentCell, "Current cell is not defined");
+        const oe = state.findEntity(tuple.cell.qrs);
+        const oeG = tuple.entity
+        const cre = state.findEntity(currentQR);
+        assert(cre, `Entity is not defined @${currentQR}`);
+        const creG = EHCGMS.findTupleByEntity(cre)?.entity;
+        assert(creG, "EntityGraphics is not defined");
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
-        if (cre.armed && occupyingEntity) {
-            cre.faceEntity(occupyingEntity);
+        if (cre.armed && oe?.qr && oeG) {
+            creG.faceEntity(oeG);
             const ability = cre.getEquippedAbilitySet()[cre.armed];
-            if (!ability) {
-                mouse.Icon = '';
-                return;
-            }
-            else if (enteringCell.isWithinRangeOf(currentCell, ability.range)) {
-                mouse.Icon = DECAL_WITHINRANGE;
-                return this.mountOrUpdateGlow(currentCell, ability.range);
+            const glowHexCells = [] as HexCellGraphics[];
+            if (ability) {
+                if (state.grid.getCell(oe.qr)?.isWithinRangeOf(currentCell, ability.range)) {
+                    mouse.Icon = DECAL_WITHINRANGE;
+                }
+                else {
+                    mouse.Icon = DECAL_OUTOFRANGE;
+                }
+                const inrange = currentCell.findCellsWithinRange(ability.range);
+                inrange.mapFiltered((cell) => EHCGMS.positionTuple(cell.qr())).forEach(t => glowHexCells.push(t.cell))
             }
             else {
-                mouse.Icon = DECAL_OUTOFRANGE;
-                return this.mountOrUpdateGlow(currentCell, ability.range);
+                mouse.Icon = '';
             }
+            return this.mountOrUpdateGlow(glowHexCells);
         }
         else {
+            // Hovering over an empty cell / CRE has no ability selected
             mouse.Icon = ''
             const pf = new Pathfinding({
-                grid: enteringCell.gridRef,
+                grid: state.grid,
                 start: currentCell.qr(),
-                dest: enteringCell.qr(),
-                limit: math.floor(cre.get('pos') / MOVEMENT_COST),
+                dest: tuple.cell.qr,
+                // limit: math.floor(cre.get('pos') / MOVEMENT_COST),
                 hexagonal: true,
             })
             if (!pf) return;
             const path = pf.begin();
-            return this.mountOrUpdateGlow(path.mapFiltered((qr) => enteringCell.gridRef.getCell(qr)));
+            return this.mountOrUpdateGlow(path.mapFiltered((qr) => EHCGMS.positionTuple(qr).cell));
         }
 
         // 2. Move readiness icon to forecast post-move position
@@ -225,15 +223,14 @@ export default class Gui {
      * Handles the click event on a cell within the battle GUI.
      *
      * @param cre - The entity that initiated the click event.
-     * @param clickedCell - The cell that was clicked.
+     * @param tuple - The cell that was clicked.
      */
-    private handleCellClick({ cre, entities, accessToken }: UpdateMainUIConfig, clickedCell: HexCell) {
-        assert(cre, "Entity is not defined");
-        if (clickedCell.isVacant()) {
-            this.clickedOnEmptyCell(cre, clickedCell, accessToken);
+    private handleCellClick(props: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
+        if (tuple.entity) {
+            // this.clickedOnEntity(cre, clickedCell, accessToken);
         }
         else {
-            this.clickedOnEntity(cre, clickedCell, accessToken);
+            this.clickedOnEmptyCell(props, tuple, props.accessToken);
         }
     }
     /**
@@ -256,50 +253,47 @@ export default class Gui {
         if (cre.armed) {
             const keyed = cre.armed;
             const iability = cre.getEquippedAbilitySet()[keyed];
-            //#region
-            if (!iability) {
-                warn(`clickedOnEntity: ${keyed} has no ability keyed`)
-                return;
-            }
-            if (!cre.cell) {
-                warn("clickedOnEntity: Current entity has no cell");
-                return;
-            }
-            //#endregion
-            if (clickedOnCell.isWithinRangeOf(cre.cell, iability.range)) {
-                // const ability = new Ability({
-                //     ...iability,
-                //     using: cre,
-                //     target: entity,
-                // });
-                // remoteEvent_Attack.FireServer(ability.getState());
-            }
+            // if (clickedOnCell.isWithinRangeOf(cre.cell, iability.range)) {
+            // const ability = new Ability({
+            //     ...iability,
+            //     using: cre,
+            //     target: entity,
+            // });
+            // remoteEvent_Attack.FireServer(ability.getState());
+            // }
         }
     }
 
-    private clickedOnEmptyCell(cre: Entity, cell: HexCell, accessToken: AccessToken) {
-        if (cre.cell) {
-            const start = cre.cell.qr();
-            const dest = cell.qr();
-            const pf = new Pathfinding({
-                grid: cell.gridRef,
-                start,
-                dest,
-                limit: math.floor(cre.get('pos') / MOVEMENT_COST),
-                hexagonal: true,
-            })
-            const path = pf?.begin();
-            cre.moveToCell(cell, path.mapFiltered((qr) => cell.gridRef.getCell(qr))).then(() => {
-                accessToken.newState = cell.gridRef.info();
-                const ourAction = accessToken.action as MoveAction;
-                ourAction.to = dest
-                ourAction.from = start;
-                remotes.battle.act(accessToken);
-            })
-        }
-        else {
-            return Promise.resolve();
-        }
+    private clickedOnEmptyCell({ roundEntityPosition, EHCGMS, state }: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
+        const start = roundEntityPosition;
+        const dest = emptyTuple.cell.qr;
+        const pf = new Pathfinding({
+            grid: state.grid,
+            start,
+            dest,
+            // limit: math.floor(cre.get('pos') / MOVEMENT_COST),
+            hexagonal: true,
+        })
+        const creG = EHCGMS.positionTuple(start).entity;
+        assert(creG, "EntityGraphics is not at start position");
+
+        const destinationCellGraphics = EHCGMS.positionTuple(dest).cell;
+        const path = pf?.begin().map(qr => EHCGMS.positionTuple(qr).cell);
+        return creG.moveToCell(destinationCellGraphics, path).then(t => {
+            const ourAction = accessToken.action as MoveAction;
+            ourAction.to = dest
+            ourAction.from = start;
+
+            const cre = state.findEntity(start)
+            assert(cre, "Entity is not defined");
+            state.grid.moveEntityToCell(cre, dest.X, dest.Y);
+            print('cre', cre)
+
+            accessToken.newState = state.info();
+            remotes.battle.act(accessToken);
+
+            return t;
+        });
     }
     //#endregion
 

@@ -40,7 +40,8 @@ class Battle {
 
     private setUpRemotes() {
         remotes.battle.requestSync.map.onRequest(p => {
-            return this.state.gridInfo();
+            const gi = this.state.gridInfo(); warn(gi)
+            return gi;
         })
         remotes.battle.requestSync.team.onRequest(p => {
             return this.state.teamInfo();
@@ -128,7 +129,7 @@ class Battle {
                     trueAccessCode: accessCode,
                     winningClient: winningClient,
                 })
-                this.state.grid.update(access.newState!);
+                this.state.sync(access.newState!)
                 remotes.battle.forceUpdate(p);
                 return access;
             }

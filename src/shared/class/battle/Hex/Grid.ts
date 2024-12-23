@@ -2,8 +2,9 @@ import { RunService } from "@rbxts/services";
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain, HexCellState, HexGridConfig, HexGridState } from "shared/types/battle-types";
 import { QR } from "../../XY";
+import Entity from "../Entity";
 import HexCell from "./Cell";
-import { Layout } from "./Layout";
+import { Hex, Layout } from "./Layout";
 
 export default class HexGrid {
     model?: Model;
@@ -36,6 +37,11 @@ export default class HexGrid {
             ),
             new Vector2(this.center.X, this.center.Y),
         )
+        if (RunService.IsClient()) {
+            this.model = new Instance("Model");
+            this.model.Name = `BattleGrid-${this.name}`;
+            this.model.Parent = game.Workspace;
+        }
     }
     /**
      * Initializes the hexagonal grid with the specified radius.
@@ -66,26 +72,6 @@ export default class HexGrid {
             }
         }
     }
-    /**
-     * Materialises the grid by creating a model in the game workspace and iterating through the grid cells.
-     */
-    public materialise() {
-        print("Materialising grid", this);
-        const gridModel = this.model || new Instance("Model");
-        gridModel.Name = this.name;
-        gridModel.Parent = game.Workspace;
-        this.model = gridModel;
-
-        const radius = this.radius;
-        for (let q = -radius; q <= radius; q++) {
-            for (let r = math.max(-radius, -q - radius); r <= math.min(radius, -q + radius); r++) {
-                const cell = this.cellsQR.get(q, r);
-                if (cell) {
-                    cell.materialise();
-                }
-            }
-        }
-    }
 
     public getCell(v: Vector2): HexCell | undefined
     public getCell(q: number, r: number): HexCell | undefined
@@ -95,7 +81,7 @@ export default class HexGrid {
             return this.cellsQR.get(x, r as number);
         } else if (typeOf(q) === 'Vector2') {
             const v = q as Vector2;
-            return this.cellsQR.get(v.X, v.Y);
+            return this.cellsQR.get(v);
         }
     }
 
@@ -145,11 +131,10 @@ export default class HexGrid {
 
         this.radius = radius;
 
-        this.cellsQR.reset((cell) => cell.destroy());
+        this.cellsQR.reset(() => { });
         this.cellsQR = new QR<HexCell>(this.radius);
         this.cells = [];
     }
-
     /**
      * radius + cells:  complete change
      * cells:           individual cell change
@@ -177,6 +162,24 @@ export default class HexGrid {
 
         // this.cells.clear(); this.cellsQR.reset();
         // this.initialise();
-        if (RunService.IsClient()) this.materialise();
+        // if (RunService.IsClient()) this.materialise();
+    }
+
+    public moveEntityToCell(entity: Entity, q: number, r: number) {
+        const cell = this.getCell(q, r);
+        if (cell) {
+            cell.entity = entity.playerID;
+            entity.setCell(q, r);
+        }
+        else {
+            warn(`Failed to move entity to cell ${q}, ${r}, cell not found`);
+        }
+    }
+
+    public qrsToWorldPosition(qrs: Vector2): Vector3
+    public qrsToWorldPosition(qrs: Vector3): Vector3
+    public qrsToWorldPosition(qrs: Vector2 | Vector3): Vector3 {
+        const { X, Y } = this.layout.hexToPixel(new Hex(qrs.X, qrs.Y, -qrs.X - qrs.Y))
+        return new Vector3(X, HEXAGON_HEIGHT, Y);
     }
 }

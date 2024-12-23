@@ -25,7 +25,7 @@ const hexGrid = new HexGrid({
     size: 10,
     name: "FunGrid"
 });
-hexGrid.materialise();
+// hexGrid.materialise();
 
 print("Connecting battle_Start")
 remotes.battle.request.connect((p) => {

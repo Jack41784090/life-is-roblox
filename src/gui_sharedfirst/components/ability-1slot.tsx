@@ -24,7 +24,7 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
             if (input.KeyCode.Name === this.props.key) {
                 this.setState({ focus: true });
                 const cre = this.props.cre;
-                if (!cre.cell) return;
+                // if (!cre.cell) return;
                 this.glowUpRange(this.props.ability.range);
                 cre.armed = this.props.key;
             }
@@ -36,8 +36,8 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
 
     glowUpRange(range: NumberRange) {
         const cre = this.props.cre;
-        if (!cre.cell) return;
-        const cells = cre.cell.findCellsWithinRange(range);
+        // if (!cre.cell) return;
+        // const cells = cre.cell.findCellsWithinRange(range);
         // const event = bindableEventsMap["GlowUpCells"] as BindableEvent;
         // if (event) {
         //     event.Fire(cells.map(c => c.qr()));

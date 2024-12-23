@@ -56,8 +56,8 @@ export function disableCharacter(character: Model) {
     }
 }
 
-export function getCharacterModel(name: string, position: Vector3) {
-    const humanoidTemplate = ReplicatedStorage.WaitForChild(name) as Model;
+export function getCharacterModel(name: string, position: Vector3 = new Vector3()) {
+    const humanoidTemplate = ReplicatedStorage.WaitForChild('Models').FindFirstChild(name) as Model;
     if (humanoidTemplate) {
         const humanoidClone = humanoidTemplate.Clone();
         const humanoidRootPart = humanoidClone.WaitForChild("HumanoidRootPart") as BasePart;
@@ -212,7 +212,7 @@ export function requestData(requester: Player, datastoreName: string, key: strin
         const [success, data] = pcall(() => datastore.GetAsync(key));
         if (success) return data;
         else {
-            warn(data);
+            warn(data); // error code
             return undefined;
         }
     }
@@ -586,4 +586,9 @@ export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>)
             },
         },
     };
+}
+
+const models = ReplicatedStorage.WaitForChild("Models") as Folder;
+export function getModelTemplateByID(id: string) {
+    return models.FindFirstChild(id) as Model | undefined;
 }

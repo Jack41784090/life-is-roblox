@@ -1,7 +1,9 @@
 import { Atom } from "@rbxts/charm";
 import Ability from "shared/class/battle/Ability";
+import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
 import Entity from "shared/class/battle/Entity";
 import HexGrid from "shared/class/battle/Hex/Grid";
+import State from "shared/class/battle/State";
 
 
 
@@ -26,6 +28,7 @@ export interface iEntity {
     name: string,
     iconURL?: ReadinessIcon,
     model?: Instance,
+    qr?: Vector2;
 }
 export type EntityStats = {
     id: string;
@@ -304,7 +307,7 @@ export interface AccessToken {
     readonly allowed: boolean;
     readonly token?: string;
     action?: BattleAction;
-    newState?: HexGridState;
+    newState?: StateState;
 }
 
 export type ActionValidator = {
@@ -312,9 +315,9 @@ export type ActionValidator = {
 }
 
 export type UpdateMainUIConfig = {
-    readinessIcons?: ReadinessIcon[]
-    cre?: Entity
-    entities: Entity[]
-    grid?: HexGrid
-    accessToken: AccessToken
+    readinessIcons: ReadinessIcon[]
+    roundEntityPosition: Vector2,
+    EHCGMS: EntityHexCellGraphicsMothership,
+    state: State,
+    accessToken: AccessToken,
 }

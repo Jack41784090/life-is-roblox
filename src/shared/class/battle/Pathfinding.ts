@@ -53,16 +53,16 @@ export default class Pathfinding {
 
     public constructor({ grid, start, dest, method = 'lowest', limit = math.huge, verbose = false, hexagonal = false }: {
         grid: HexGrid,
-        start: Vector2,
-        dest: Vector2,
+        start: Vector2 | Vector3,
+        dest: Vector2 | Vector3,
         method?: 'lowest' | 'highest',
         limit?: number,
         verbose?: boolean
         hexagonal?: boolean
     }) {
         this.grid = grid;
-        this.start = start;
-        this.destination = dest;
+        this.start = start as Vector2;
+        this.destination = dest as Vector2;
         this.priorityFunction = (a: PathfindNode) => a.totalCost;
         this.limit = limit;
         this.method = method;

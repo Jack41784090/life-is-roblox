@@ -1,5 +1,5 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import Entity from "../Entity";
+import EntityGraphics from "../Entity/Graphics";
 
 export default class BattleCam {
     // Camera-Related Information
@@ -10,7 +10,7 @@ export default class BattleCam {
     private gridMin: Vector2;
     private gridMax: Vector2;
 
-    private cre?: Entity;
+    private focusedChar?: EntityGraphics;
     private camera: Camera;
     private mode: "HOI4" | "CHAR_CENTER" | "ANIMATION" = "HOI4";
     private panningEnabled: boolean = true;
@@ -95,7 +95,7 @@ export default class BattleCam {
     async enterCharacterCenterMode() {
         print('Setting up Character Center Camera Pan');
         this.panningEnabled = false;
-        const model = this.cre?.model;
+        const model = this.focusedChar?.model;
         const primPart = model?.PrimaryPart;
         const camOriPart = model?.FindFirstChild("cam-ori") as BasePart;
         //#region
@@ -148,7 +148,7 @@ export default class BattleCam {
     private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
         // Assume model is available and valid (add proper checks in production code)
 
-        const model = this.cre?.model;
+        const model = this.focusedChar?.model;
         if (model?.PrimaryPart === undefined) {
             warn("Model not found!");
             return;

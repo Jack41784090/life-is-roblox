@@ -1,20 +1,17 @@
 import { Players, RunService, UserInputService } from "@rbxts/services";
-import { GuiTag, MOVEMENT_COST } from "shared/const";
+import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, EntityStatus, TILE_SIZE } from "shared/types/battle-types";
-import { isAttackKills, warnWrongSideCall } from "shared/utils";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, TILE_SIZE } from "shared/types/battle-types";
+import { warnWrongSideCall } from "shared/utils";
 import Ability, { AbilityState } from "../Ability";
 import Entity from "../Entity";
-import { AnimationType } from "../Entity/AnimationHandler";
-import HexCell from "../Hex/Cell";
-import Pathfinding from "../Pathfinding";
-import State, { Team } from "../State";
+import State from "../State";
 import BattleCam from "./BattleCamera";
+import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import Gui from "./Gui";
 
 export default class ClientSide {
-    private initialised: boolean = false;
-    private initialiser: Promise<void>;
+    private graphicsInitialised: ReturnType<ClientSide["initialiseGraphics"]>;
 
     private remotees: Array<() => void> = [];
 
@@ -22,6 +19,7 @@ export default class ClientSide {
     public camera: BattleCam;
 
     private state: State;
+    private EHCGMS: EntityHexCellGraphicsMothership;
 
     private controlLocks: ControlLocks = new Map();
 
@@ -38,9 +36,10 @@ export default class ClientSide {
             worldCenter,
             teamMap: {},
         });
+        this.EHCGMS = new EntityHexCellGraphicsMothership(math.floor(width / 2), height, size, this.state.grid);
+
         this.gui = Gui.Connect(this.getReadinessIcons(), this.state.grid);
-        this.initialiser = this.initialiseGraphics()!;
-        // this.initialiser = Promise.resolve();
+        this.graphicsInitialised = this.initialiseGraphics();
     }
 
     /**
@@ -81,6 +80,7 @@ export default class ClientSide {
     }
 
     //#region Remote Communications
+
     private setUpRemotes() {
         if (RunService.IsServer()) {
             warnWrongSideCall("setUpRemote")
@@ -90,8 +90,7 @@ export default class ClientSide {
         this.remotees = [
             remotes.battle.ui.mount.actionMenu.connect(() => {
                 this.localEntity().andThen(e => {
-                    if (!e) return;
-                    this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                    if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
                 })
             }),
             remotes.battle.ui.mount.otherPlayersTurn.connect(() => {
@@ -118,9 +117,7 @@ export default class ClientSide {
         this.state.sync({
             teams: teamStates,
         });
-
-        // 2. Graphically sync
-
+        this.EHCGMS.syncTeams(teamStates);
 
         return teamStates;
     }
@@ -130,6 +127,7 @@ export default class ClientSide {
         this.state.sync({
             grid: r,
         })
+        this.EHCGMS.syncGrid(r);
         return r;
     }
 
@@ -148,15 +146,11 @@ export default class ClientSide {
     }
 
     private initialiseGraphics() {
-        if (this.initialised) return;
-
         this.initialiseCamera();
         return Promise.all([
             this.requestUpdateGrid(),
             this.requestUpdateEntities(),
-        ]).then(() => {
-            this.initialised = true;
-        })
+        ]);
     }
     //#endregion
 
@@ -178,73 +172,12 @@ export default class ClientSide {
     //#endregion
 
     //#region Entity Management
-    private async localEntity() {
+    private async localEntity(): Promise<Entity | undefined> {
         const localPlayer = Players.LocalPlayer;
-        await this.initialiser;
+        await this.graphicsInitialised;
         const e = this.state.findEntity(localPlayer.UserId);
-        if (!e) {
-            warn("Local entity not found");
-            return;
-        }
+        if (!e) return;
         return e;
-    }
-
-    private appendEntity(entity: Entity, qr: Vector2): HexCell
-    private appendEntity(entity: Entity, x: number, y: number): HexCell
-    private appendEntity(entity: Entity, x: Vector2 | number, y?: number) {
-        const c = typeOf(x) === "Vector2" ? this.state.grid.getCell(x as Vector2) : this.state.grid.getCell(x as number, y!);
-        assert(c, "Cell not found");
-        this.state.teams.push(new Team(entity.team ?? `${entity.playerID}`, [entity]));
-        return entity.setCell(c);
-    }
-    /**
-     * Moves an entity to a specified cell along a calculated path.
-     *
-     * @param entity - The entity to be moved.
-     * @param toCell - The destination cell to move the entity to.
-     * @param path - An optional pre-calculated path for the entity to follow. If not provided, a path will be calculated.
-     * @returns A promise that resolves when the entity has been moved.
-     *
-     * @remarks
-     * - If the entity does not have a current cell, a warning is logged and the function returns early.
-     * - The path is calculated using the entity's position and movement cost.
-     * - If no path is found, a warning is logged and the function returns early.
-     * - If the destination cell is not vacant, the function attempts to find an adjacent vacant cell.
-     * - The GUI is updated to reflect the calculated path.
-     */
-    protected async moveEntity(entity: Entity, toCell: HexCell, path?: Vector2[]): Promise<void> {
-        //#region 
-        if (!entity.cell) {
-            warn("moveEntity: Entity has no cell");
-            return;
-        }
-        //#endregion
-        const lim = math.floor(entity.get('pos') / MOVEMENT_COST);
-        const calculatedPath =
-            path ??
-            new Pathfinding({
-                grid: this.state.grid,
-                start: entity.cell.qr(),
-                dest: toCell.qr(),
-                limit: lim,
-            }).begin();
-        if (calculatedPath.size() === 0) {
-            warn(`Move Entity: No path found from ${entity.cell.qr().X}, ${entity.cell.qr().Y} to ${toCell.qr().X}, ${toCell.qr().Y}`,);
-            return;
-        }
-        let destination = toCell;
-        if (!toCell.isVacant()) {
-            const adjacentCell = this.state.grid.getCell(calculatedPath[calculatedPath.size() - 1]);
-            if (adjacentCell?.isVacant()) {
-                destination = adjacentCell;
-            } else {
-                warn("Move Entity: Destination cell and adjacent cell are not vacant");
-                return;
-            }
-        }
-
-        // this.gui.mountOrUpdateGlow(calculatedPath.mapFiltered((v) => this.grid.getCell(v)));
-        return entity.moveToCell(destination, calculatedPath.mapFiltered((v) => this.state.grid.getCell(v)));
     }
     //#endregion
 
@@ -260,7 +193,15 @@ export default class ClientSide {
                             warn(`${Players.LocalPlayer.Name} has received no access token`);
                             return;
                         }
-                        const newAccessToken = { ...accessToken, action: { actionType: ActionType.Move, by: entity.playerID, executed: false } };
+                        const newAccessToken = {
+                            ...accessToken,
+                            action: {
+                                actionType: ActionType.Move,
+                                to: entity.playerID,
+                                by: entity.playerID,
+                                executed: false
+                            }
+                        };
                         this.enterMovementMode(newAccessToken);
                     })
                 },
@@ -310,10 +251,10 @@ export default class ClientSide {
         this.gui.unmountAndClear(GuiTag.ActionMenu);
         this.gui.mountAbilitySlots(cre);
         this.gui.updateMainUI('withSensitiveCells', {
-            cre,
-            entities: this.state.getAllEntities(),
-            grid: this.state.grid,
             readinessIcons: this.getReadinessIcons(),
+            roundEntityPosition: cre.qr!,
+            EHCGMS: this.EHCGMS,
+            state: this.state,
             accessToken
         });
     }
@@ -322,7 +263,8 @@ export default class ClientSide {
         this.controlLocks.delete(Enum.KeyCode.X);
         this.gui.clearAll();
         this.gui.updateMainUI('onlyReadinessBar', {
-            entities: this.state.getAllEntities(),
+            EHCGMS: this.EHCGMS,
+            state: this.state,
             readinessIcons: this.getReadinessIcons(),
             accessToken
         });
@@ -371,83 +313,77 @@ export default class ClientSide {
     }
 
     private async executeAttackSequence(attackAction: AttackAction) {
-        // this.exitMovementMode()
         await this.playAttackAnimation(attackAction);
     }
 
-    private async playAttackAnimation(attackAction: AttackAction) {
-        const { using: attacker, target, animation } = attackAction.ability;
+    private async playAttackAnimation(aa: AttackAction) {
+        // const { using, target, animation } = aa.ability;
 
-        if (!attacker.model?.PrimaryPart || !target.model?.PrimaryPart) {
-            warn("[playAttackAnimation] PrimaryPart not found for attacker or target.");
-            return;
-        }
+        // await target.faceEntity(attacker);
 
-        await target.faceEntity(attacker);
+        // const attackAnimation = attacker.playAnimation({
+        //     animation,
+        //     priority: Enum.AnimationPriority.Action4,
+        //     loop: false,
+        // });
 
-        const attackAnimation = attacker.playAnimation({
-            animation,
-            priority: Enum.AnimationPriority.Action4,
-            loop: false,
-        });
+        // const defendIdleAnimation = target.playAnimation({
+        //     animation: "defend",
+        //     priority: Enum.AnimationPriority.Action2,
+        //     loop: false,
+        // });
 
-        const defendIdleAnimation = target.playAnimation({
-            animation: "defend",
-            priority: Enum.AnimationPriority.Action2,
-            loop: false,
-        });
+        // if (!attackAnimation) {
+        //     warn("[playAttackAnimation] Attacker animation track not found.");
+        //     return;
+        // }
 
-        if (!attackAnimation) {
-            warn("[playAttackAnimation] Attacker animation track not found.");
-            return;
-        }
+        // try {
+        //     await this.waitForAnimationMarker(attackAnimation, "Hit");
+        //     target.animationHandler?.killAnimation(AnimationType.Idle);
 
-        try {
-            await this.waitForAnimationMarker(attackAnimation, "Hit");
-            target.animationHandler?.killAnimation(AnimationType.Idle);
+        //     if (isAttackKills(attackAction)) {
+        //         defendIdleAnimation?.Stop();
+        //         target.playAnimation({
+        //             animation: "death-idle",
+        //             priority: Enum.AnimationPriority.Idle,
+        //             loop: true,
+        //         })
+        //         const deathAnimation = target.playAnimation({
+        //             animation: "death",
+        //             priority: Enum.AnimationPriority.Action3,
+        //             loop: false,
+        //         });
+        //     }
+        //     else {
+        //         defendIdleAnimation?.Stop();
+        //         const gotHitAnimation = target.playAnimation({
+        //             animation: "defend-hit",
+        //             priority: Enum.AnimationPriority.Action3,
+        //             loop: false,
+        //         });
 
-            if (isAttackKills(attackAction)) {
-                defendIdleAnimation?.Stop();
-                target.playAnimation({
-                    animation: "death-idle",
-                    priority: Enum.AnimationPriority.Idle,
-                    loop: true,
-                })
-                const deathAnimation = target.playAnimation({
-                    animation: "death",
-                    priority: Enum.AnimationPriority.Action3,
-                    loop: false,
-                });
-            }
-            else {
-                defendIdleAnimation?.Stop();
-                const gotHitAnimation = target.playAnimation({
-                    animation: "defend-hit",
-                    priority: Enum.AnimationPriority.Action3,
-                    loop: false,
-                });
+        //         await this.waitForAnimationEnd(attackAnimation);
+        //         if (gotHitAnimation) await this.waitForAnimationEnd(gotHitAnimation);
 
-                await this.waitForAnimationEnd(attackAnimation);
-                if (gotHitAnimation) await this.waitForAnimationEnd(gotHitAnimation);
+        //         const transitionTrack = target.playAnimation({
+        //             animation: "defend->idle",
+        //             priority: Enum.AnimationPriority.Action4,
+        //             loop: false,
+        //         });
 
-                const transitionTrack = target.playAnimation({
-                    animation: "defend->idle",
-                    priority: Enum.AnimationPriority.Action4,
-                    loop: false,
-                });
+        //         transitionTrack?.Ended.Wait();
+        //         target.playAnimation({
+        //             animation: "idle",
+        //             priority: Enum.AnimationPriority.Idle,
+        //             loop: true,
+        //         })
+        //     }
+        // } catch (error) {
+        //     warn(`[playAttackAnimation] Error during attack animation: ${error}`);
+        // }
 
-                transitionTrack?.Ended.Wait();
-                target.playAnimation({
-                    animation: "idle",
-                    priority: Enum.AnimationPriority.Idle,
-                    loop: true,
-                })
-            }
-        } catch (error) {
-            warn(`[playAttackAnimation] Error during attack animation: ${error}`);
-        }
-
-        attacker.playAudio(EntityStatus.Idle);
+        // attacker.playAudio(EntityStatus.Idle);
     }
     /**
      * Waits for a specific marker in an animation track.

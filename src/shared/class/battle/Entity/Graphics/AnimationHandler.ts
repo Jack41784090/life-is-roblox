@@ -1,4 +1,4 @@
-import Entity from ".";
+import EntityGraphics from ".";
 import Expression from "./Expression";
 
 export enum AnimationType {
@@ -26,7 +26,7 @@ export default class AnimationHandler {
     private animationMap: Map<string, Animation> = new Map();
     private expression?: Expression;
 
-    constructor(private entity: Entity) {
+    constructor(private entity: EntityGraphics) {
         this.initialise();
     }
 

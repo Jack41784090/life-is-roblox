@@ -94,6 +94,8 @@ export default class State {
 
         // 2. Update teams
         if (other.teams) this.syncTeams(other.teams);
+
+        print(`Synced state`, this);
     }
 
     //#endregion
@@ -152,13 +154,13 @@ export default class State {
         }
 
         for (const entity of allEntities) {
-            if (entity.cell) continue;
+            if (entity.qr) continue;
 
             const i = math.random(0, vacantCells.size() - 1)
             const randomCell = vacantCells[i];
             if (randomCell) {
                 vacantCells.remove(i)
-                entity.setCell(randomCell);
+                entity.setCell(randomCell.qr());
             }
         }
     }
@@ -184,13 +186,27 @@ export default class State {
             sta: 999,
         })
         this.teams.push(new Team("Test", [dummy]));
-        dummy.setCell(this.grid.cells.find((c) => c.isVacant())!);
+        dummy.setCell(this.grid.cells.find((c) => c.isVacant())!.qr());
     }
     //#endregion
 
     //#region Find Info
-    public findEntity(playerID: number): Entity | undefined {
-        return this.getAllEntities().find((entity) => entity.playerID === playerID);
+    public findEntity(qr: Vector3): Entity | undefined;
+    public findEntity(qr: Vector2): Entity | undefined;
+    public findEntity(playerID: number): Entity | undefined
+    public findEntity(qr: Vector2 | number | Vector3): Entity | undefined {
+        // const allEntities = this.getAllEntities();
+        let condition: (entity: Entity) => boolean;
+        if (typeIs(qr, 'Vector2') || typeIs(qr, 'Vector3')) {
+            condition = (entity) => entity.qr !== undefined && entity.qr.X === qr.X && entity.qr.Y === qr.Y;
+        } else if (typeIs(qr, 'number')) {
+            condition = (entity) => entity.playerID === qr;
+        }
+
+        for (const t of this.teams) {
+            const entity = t.members.find(e => condition(e));
+            if (entity) return entity;
+        }
     }
 
     public getAllEntities(): Entity[] {

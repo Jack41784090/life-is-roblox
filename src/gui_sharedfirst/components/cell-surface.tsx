@@ -1,11 +1,11 @@
 import React, { ReactComponent } from "@rbxts/react";
-import HexCell from "shared/class/battle/Hex/Cell";
+import HexCellGraphics from "shared/class/battle/Hex/Cell/Graphics";
 
 export interface CellSurfaceElementProps {
     onclick?: () => void;
     onEnter?: () => void;
     onLeave?: () => void;
-    cell: HexCell
+    cell: HexCellGraphics
 }
 interface CellSurfaceElementState { }
 

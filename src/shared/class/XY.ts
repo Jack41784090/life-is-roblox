@@ -13,23 +13,46 @@ export default class XY<T> {
         }
     }
 
-    set(x: number, y: number, value: T): void
-    set(vec: Vector2, value: T): void
-    set(x: number | Vector2, y: number | T, value?: T) {
-        if (typeIs(x, "Vector2")) {
+    delete(vec: Vector2): void
+    delete(vec: Vector3): void
+    delete(x: number, y: number): void
+    delete(x: number | Vector2 | Vector3, y?: number) {
+        if (typeIs(x, "Vector2") || typeIs(x, "Vector3")) {
             const vec = x as Vector2;
-            value = y as T;
             if (this.isValidCoordinate(vec.X, vec.Y)) {
-                this.dictionary[`${vec.X},${vec.Y}`] = value
-            };
+                delete this.dictionary[`${vec.X},${vec.Y}`];
+            }
         } else if (this.isValidCoordinate(x as number, y as number)) {
-            this.dictionary[`${x},${y}`] = value;
+            delete this.dictionary[`${x},${y}`];
         }
     }
 
+    set(x: number, y: number, value: T): T
+    set(vec: Vector2, value: T): T
+    set(vec: Vector3, value: T): T
+    set(x: number | Vector2 | Vector3, y: number | T, value?: T) {
+        let coordX: number;
+        let coordY: number;
+        if (typeIs(x, "Vector2") || typeIs(x, "Vector3")) {
+            const vec = x as Vector2;
+            coordX = vec.X;
+            coordY = vec.Y;
+            value = y as T;
+        } else {
+            coordX = x as number;
+            coordY = y as number;
+        }
+
+        if (this.isValidCoordinate(coordX, coordY)) {
+            this.dictionary[`${coordX},${coordY}`] = value;
+        }
+        return value
+    }
+
+    get(vec: Vector3): T | undefined
     get(vec: Vector2): T | undefined
     get(x: number, y: number): T | undefined
-    get(x: number | Vector2, y?: number) {
+    get(x: number | Vector2 | Vector3, y?: number) {
         if (typeIs(x, "Vector2")) {
             const vec = x as Vector2;
             return this.dictionary[`${vec.X},${vec.Y}`];
@@ -53,6 +76,14 @@ export default class XY<T> {
 
     isValidCoordinate(x: number, y: number) {
         return x >= 0 && x < this.width && y >= 0 && y < this.height;
+    }
+
+    values() {
+        const values = [];
+        for (const [key, value] of pairs(this.dictionary)) {
+            values.push(value);
+        }
+        return values;
     }
 }
 
