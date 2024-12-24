@@ -1,7 +1,8 @@
 import { Players } from "@rbxts/services";
-import { AttackAction, ClashResult, ClashResultFate, Config, EntityStats, HexGridState, ReadinessIcon, Reality, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
+import { AttackAction, ClashResult, ClashResultFate, EntityStats, HexGridState, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Entity from "../Entity";
+import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
 
 
@@ -37,16 +38,40 @@ export class Team {
 }
 
 export default class State {
+    moveEntityToCell(cre: Entity, X: number, Y: number): void;
+    moveEntityToCell(cre: Entity, qr: Vector2): void;
+    moveEntityToCell(cre: Entity, qr: Vector3): void;
+    moveEntityToCell(cre: Entity, X: number | Vector2 | Vector3, Y?: number): void {
+        let cell: HexCell | undefined;
+
+        if (typeIs(X, "number") && typeIs(Y, "number")) {
+            cell = this.grid.getCell(new Vector2(X, Y));
+        } else if (typeIs(X, "Vector2")) {
+            cell = this.grid.getCell(X);
+        } else if (typeIs(X, "Vector3")) {
+            cell = this.grid.getCell(new Vector2(X.X, X.Y));
+        }
+
+        if (!cell) {
+            warn(`Cell [${X}, ${Y}] not found`);
+            return;
+        }
+
+        cre.setCell(cell.qr());
+        cell.entity = cre.playerID;
+    }
+    creID: number | undefined;
     teams: Team[] = [];
     grid: HexGrid;
 
-    constructor({ width, worldCenter, height }: Config) {
+    constructor({ width, worldCenter, teamMap }: StateConfig) {
         this.grid = new HexGrid({
             radius: math.floor(width / 2),
             center: new Vector2(worldCenter.X, worldCenter.Z),
             size: TILE_SIZE,
             name: "BattleGrid",
         });
+        this.initialiseNumbers(teamMap);
     }
 
     //#region Syncronisation
@@ -63,6 +88,7 @@ export default class State {
 
     public info(): StateState {
         return {
+            cre: this.creID,
             grid: this.gridInfo(),
             teams: this.teamInfo(),
         };
@@ -94,6 +120,9 @@ export default class State {
 
         // 2. Update teams
         if (other.teams) this.syncTeams(other.teams);
+
+        // 3 Update CRE
+        if (other.cre) this.creID = other.cre;
 
         print(`Synced state`, this);
     }
@@ -209,12 +238,25 @@ export default class State {
         }
     }
 
+    public getCell(qr: Vector2): HexCell | undefined {
+        return this.grid.getCell(qr);
+    }
+
     public getAllEntities(): Entity[] {
         return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
     }
 
     public getAllPlayers(): Player[] {
         return this.teams.map((team) => team.players()).reduce<Player[]>((acc, val) => [...acc, ...val], []);
+    }
+
+    public findCREPosition() {
+        if (!this.creID) {
+            warn("CRE ID not found");
+            return undefined;
+        }
+        const cre = this.findEntity(this.creID);
+        return cre?.qr;
     }
     //#endregion
 

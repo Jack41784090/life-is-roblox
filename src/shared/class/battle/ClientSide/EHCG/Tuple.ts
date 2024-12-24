@@ -14,13 +14,13 @@ export default class EntityCellGraphicsTuple {
         }
     }
 
-    couple(entity: EntityGraphics, resetPosition = true) {
+    couple(entity: EntityGraphics) {
         const oldEntity = this.decouple();
 
         this.entity = entity;
         const targetPosition = this.cell.part.Position;
         this.entity.model.Parent = this.cell.part;
-        if (resetPosition) this.entity.model.PivotTo(new CFrame(targetPosition.X, 0, targetPosition.Z));
+        this.entity.moveToPosition(targetPosition);
 
         return oldEntity;
     }
@@ -28,6 +28,8 @@ export default class EntityCellGraphicsTuple {
     decouple() {
         if (!this.entity) return;
         this.entity.model.Parent = undefined;
-        return this.entity;
+        const e = this.entity
+        this.entity = undefined;
+        return e;
     }
 }

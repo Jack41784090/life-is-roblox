@@ -25,12 +25,10 @@ class Battle {
         assert(config.teamMap, "No team map provided")
         this.state = new State({
             width: config.width ?? 10,
-            height: config.height ?? 10,
             worldCenter: config.worldCenter ?? new Vector3(),
             teamMap: config.teamMap ?? new Map(),
         });
         this.setUpRemotes();
-        this.state.initialiseNumbers(config.teamMap);
         this.state.getAllPlayers().forEach(p => {
             print(`Initialising ClientSide for ${p.Name}`)
             remotes.battle.createClient(p, config);
@@ -45,6 +43,9 @@ class Battle {
         })
         remotes.battle.requestSync.team.onRequest(p => {
             return this.state.teamInfo();
+        })
+        remotes.battle.requestSync.state.onRequest(p => {
+            return this.state.info();
         })
     }
 
@@ -94,6 +95,7 @@ class Battle {
         }
 
         const players = this.state.getAllPlayers();
+        this.state.creID = winnerEntity.playerID;
         const winningClient = players.find(p => p.UserId === winnerEntity.playerID)
         if (!winningClient) {
             warn("No winning player found")

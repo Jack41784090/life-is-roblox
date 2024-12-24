@@ -1,5 +1,6 @@
 import { Entity } from "@rbxts/matter";
 import { TweenService } from "@rbxts/services";
+import { setInterval } from "@rbxts/set-timeout";
 import { EntityStatus } from "shared/types/battle-types";
 import EntityCellGraphicsTuple from "../../ClientSide/EHCG/Tuple";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
@@ -110,8 +111,13 @@ export default class EntityGraphics {
         moveTrack?.Stop();
         const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
 
+        const i = setInterval(() => {
+            print(transitionTrack?.IsPlaying);
+        }, 1)
+
         return new Promise((resolve) => {
             transitionTrack?.Ended.Once(() => {
+                i();
                 print(`${this.name}: Movement complete`);
                 resolve(new EntityCellGraphicsTuple(cell, this));
             });

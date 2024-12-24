@@ -292,7 +292,11 @@ export type HexCellState = Omit<HexCellConfig, 'gridRef'> & {
     entity?: PlayerID;
 }
 
-export type StateState = { grid: ReturnType<HexGrid["info"]>; teams: { name: string; members: ReturnType<Entity["info"]>[] }[] };
+export type StateState = {
+    cre?: number,
+    grid: ReturnType<HexGrid["info"]>;
+    teams: { name: string; members: ReturnType<Entity["info"]>[] }[]
+};
 
 export interface ClientSideConfig {
     worldCenter: Vector3,
@@ -300,6 +304,19 @@ export interface ClientSideConfig {
     width: number,
     height: number,
     camera: Camera
+}
+
+export interface StateConfig {
+    teamMap: Record<string, Player[]>;
+    width: number;
+    worldCenter: Vector3;
+}
+
+export type UpdateMainUIConfig = {
+    readinessIcons: ReadinessIcon[]
+    EHCGMS: EntityHexCellGraphicsMothership,
+    state: State,
+    accessToken: AccessToken,
 }
 
 export interface AccessToken {
@@ -311,13 +328,8 @@ export interface AccessToken {
 }
 
 export type ActionValidator = {
-    winningClient: Player, client: Player, declaredAccess: AccessToken, trueAccessCode: string
-}
-
-export type UpdateMainUIConfig = {
-    readinessIcons: ReadinessIcon[]
-    roundEntityPosition: Vector2,
-    EHCGMS: EntityHexCellGraphicsMothership,
-    state: State,
-    accessToken: AccessToken,
+    winningClient: Player,
+    client: Player,
+    declaredAccess: AccessToken,
+    trueAccessCode: string
 }

@@ -2,7 +2,7 @@ import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
 import { GlobalAtoms } from "shared/datastore";
-import { AccessToken, ActionType, Config, HexGridState, TeamState } from "shared/types/battle-types";
+import { AccessToken, ActionType, Config, HexGridState, StateState, TeamState } from "shared/types/battle-types";
 
 const remotes = createRemotes({
     loadCharacter: remote<Server>(),
@@ -17,6 +17,7 @@ const remotes = createRemotes({
         requestSync: namespace({
             map: remote<Server>().returns<HexGridState>(),
             team: remote<Server>().returns<TeamState[]>(),
+            state: remote<Server>().returns<StateState>(),
         }),
         requestToAct: remote<Server>().returns<AccessToken>(t.interface({
             userId: t.number,

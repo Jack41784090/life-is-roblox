@@ -43,7 +43,7 @@ export default class Gui {
      * @returns the updated React tree
      */
     updateMainUI(mode: 'withSensitiveCells', props: UpdateMainUIConfig): void;
-    updateMainUI(mode: 'onlyReadinessBar', props: Omit<UpdateMainUIConfig, 'roundEntityPosition'>): void;
+    updateMainUI(mode: 'onlyReadinessBar', props: UpdateMainUIConfig): void;
     updateMainUI(mode: MainUIModes, props: UpdateMainUIConfig) {
         print(`Updating main UI with mode: ${mode}`, props);
         const { readinessIcons, } = props;
@@ -167,7 +167,8 @@ export default class Gui {
      * 4. If the cell is out of range, it mounts or updates the glow effect with a different icon.
      * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
      */
-    private handleCellEnter({ roundEntityPosition: currentQR, state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
+    private handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
+        const currentQR = state.findCREPosition();
         assert(currentQR, "Current QR is not defined");
         const currentCell = state.grid.getCell(currentQR);
         assert(currentCell, "Current cell is not defined");
@@ -264,8 +265,9 @@ export default class Gui {
         }
     }
 
-    private clickedOnEmptyCell({ roundEntityPosition, EHCGMS, state }: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
-        const start = roundEntityPosition;
+    private clickedOnEmptyCell({ EHCGMS, state }: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
+        const start = state.findCREPosition();
+        assert(start, "Start position is not defined");
         const dest = emptyTuple.cell.qr;
         const pf = new Pathfinding({
             grid: state.grid,
@@ -277,6 +279,7 @@ export default class Gui {
         const creG = EHCGMS.positionTuple(start).entity;
         assert(creG, "EntityGraphics is not at start position");
 
+        this.unmountAndClear(GuiTag.Glow)
         const destinationCellGraphics = EHCGMS.positionTuple(dest).cell;
         const path = pf?.begin().map(qr => EHCGMS.positionTuple(qr).cell);
         return creG.moveToCell(destinationCellGraphics, path).then(t => {
@@ -286,7 +289,7 @@ export default class Gui {
 
             const cre = state.findEntity(start)
             assert(cre, "Entity is not defined");
-            state.grid.moveEntityToCell(cre, dest.X, dest.Y);
+            state.moveEntityToCell(cre, dest.X, dest.Y);
             print('cre', cre)
 
             accessToken.newState = state.info();

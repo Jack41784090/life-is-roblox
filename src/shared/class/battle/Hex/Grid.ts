@@ -2,7 +2,6 @@ import { RunService } from "@rbxts/services";
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain, HexCellState, HexGridConfig, HexGridState } from "shared/types/battle-types";
 import { QR } from "../../XY";
-import Entity from "../Entity";
 import HexCell from "./Cell";
 import { Hex, Layout } from "./Layout";
 
@@ -76,13 +75,18 @@ export default class HexGrid {
     public getCell(v: Vector2): HexCell | undefined
     public getCell(q: number, r: number): HexCell | undefined
     public getCell(q: number | Vector2, r?: number): HexCell | undefined {
+        let x = 0, y = 0;
         if (typeOf(q) === 'number') {
-            const x = q as number;
-            return this.cellsQR.get(x, r as number);
+            x = q as number;
+            y = r as number;
         } else if (typeOf(q) === 'Vector2') {
             const v = q as Vector2;
-            return this.cellsQR.get(v);
+            x = v.X;
+            y = v.Y;
         }
+
+        const cell = this.cellsQR.get(x, y);
+        return cell
     }
 
     public info(): HexGridState {
@@ -95,7 +99,7 @@ export default class HexGrid {
         }
     }
 
-    public updateAllCells(config: HexCellState[]) {
+    private updateAllCells(config: HexCellState[]) {
         this.cells = config.map(c => {
             const newCell = this.cellsQR.get(c.qr) || new HexCell({ ...c, gridRef: this });
             this.cellsQR.set(c.qr.X, c.qr.Y, newCell);
@@ -104,7 +108,7 @@ export default class HexGrid {
         })
     }
 
-    public updateOneCell(q: number, r: number, config: Partial<HexCellState>) {
+    private updateOneCell(q: number, r: number, config: Partial<HexCellState>) {
         const cell = this.cellsQR.get(q, r);
         if (cell) {
             cell.update(config)
@@ -114,7 +118,7 @@ export default class HexGrid {
         }
     }
 
-    public updateCenter(center: Vector2) {
+    private updateCenter(center: Vector2) {
         this.center = center;
         this.layout = new Layout(
             Layout.pointy,
@@ -126,7 +130,7 @@ export default class HexGrid {
         );
     }
 
-    public updateRadius(radius: number) {
+    private updateRadius(radius: number) {
         if (this.radius === radius) return;
 
         this.radius = radius;
@@ -163,17 +167,6 @@ export default class HexGrid {
         // this.cells.clear(); this.cellsQR.reset();
         // this.initialise();
         // if (RunService.IsClient()) this.materialise();
-    }
-
-    public moveEntityToCell(entity: Entity, q: number, r: number) {
-        const cell = this.getCell(q, r);
-        if (cell) {
-            cell.entity = entity.playerID;
-            entity.setCell(q, r);
-        }
-        else {
-            warn(`Failed to move entity to cell ${q}, ${r}, cell not found`);
-        }
     }
 
     public qrsToWorldPosition(qrs: Vector2): Vector3

@@ -32,7 +32,6 @@ export default class ClientSide {
         this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
         this.state = new State({
             width,
-            height,
             worldCenter,
             teamMap: {},
         });
@@ -111,15 +110,12 @@ export default class ClientSide {
     //#region Updates
 
     private async requestUpdateEntities() {
-        const teamStates = await remotes.battle.requestSync.team();
-
-        // 1. Numerically sync
+        const r = await remotes.battle.requestSync.team();
         this.state.sync({
-            teams: teamStates,
+            teams: r,
         });
-        this.EHCGMS.syncTeams(teamStates);
-
-        return teamStates;
+        this.EHCGMS.syncTeams(r);
+        return r;
     }
 
     private async requestUpdateGrid() {
@@ -128,6 +124,14 @@ export default class ClientSide {
             grid: r,
         })
         this.EHCGMS.syncGrid(r);
+        return r;
+    }
+
+    private async requestUpdateState() {
+        const r = await remotes.battle.requestSync.state();
+        this.state.sync(r);
+        this.EHCGMS.syncTeams(r.teams);
+        this.EHCGMS.syncGrid(r.grid);
         return r;
     }
 
@@ -148,8 +152,7 @@ export default class ClientSide {
     private initialiseGraphics() {
         this.initialiseCamera();
         return Promise.all([
-            this.requestUpdateGrid(),
-            this.requestUpdateEntities(),
+            this.requestUpdateState(),
         ]);
     }
     //#endregion
@@ -251,10 +254,9 @@ export default class ClientSide {
         this.gui.unmountAndClear(GuiTag.ActionMenu);
         this.gui.mountAbilitySlots(cre);
         this.gui.updateMainUI('withSensitiveCells', {
-            readinessIcons: this.getReadinessIcons(),
-            roundEntityPosition: cre.qr!,
             EHCGMS: this.EHCGMS,
             state: this.state,
+            readinessIcons: this.getReadinessIcons(),
             accessToken
         });
     }

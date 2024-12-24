@@ -132,7 +132,7 @@ export default class EntityHexCellGraphicsMothership {
         }
         const entity = playerTuple.decouple()!;
         const newTuple = this.positionTuple(newQR)
-        newTuple.couple(entity, false);
+        newTuple.couple(entity);
         this.addTuple(playerID, newTuple);
     }
 

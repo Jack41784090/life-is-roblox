@@ -41,8 +41,6 @@ export default class HexCell {
                 this.entity = y as number;
             }
         }
-
-        print(this);
     }
     //#endregion
 
