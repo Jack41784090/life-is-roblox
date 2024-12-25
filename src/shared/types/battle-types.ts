@@ -239,12 +239,13 @@ export type PlayerID = number
 export type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 export type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
 
+export type TeamMap = Record<string, Player[]>;
 export type Config = {
     camera?: Camera,
     worldCenter: Vector3,
     width: number;
     height: number;
-    teamMap: Record<string, Player[]>;
+    teamMap: TeamMap
 };
 
 

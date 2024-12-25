@@ -84,6 +84,7 @@ export enum GuiTag {
     Glow = 'BattleGlow',
     OtherTurn = 'BattleTarget',
     AbilitySlot = 'BattleAbilitySlot',
+    WaitingRoom = 'BattleWaitingRoom',
 }
 
 

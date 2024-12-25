@@ -1,6 +1,7 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
+import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import { AccessToken, ActionType, Config, HexGridState, StateState, TeamState } from "shared/types/battle-types";
 
@@ -13,6 +14,7 @@ const remotes = createRemotes({
 
     battle: namespace({
         // #region Client => Server
+        requestRoom: remote<Server>(),
         request: remote<Server>(),
         requestSync: namespace({
             map: remote<Server>().returns<HexGridState>(),
@@ -37,14 +39,14 @@ const remotes = createRemotes({
         //#region Server => Client
         forceUpdate: remote<Client>(),
         ui: namespace({
+            unmount: remote<Client, [tag: GuiTag]>(),
+            startRoom: remote<Client, [arg: Player[]]>(),
             mount: namespace({
                 actionMenu: remote<Client>(),
                 otherPlayersTurn: remote<Client>(),
             })
         }),
         createClient: remote<Client, [config: Partial<Config>]>(), //#endregion
-
-
     }),
 }, loggerMiddleware)
 

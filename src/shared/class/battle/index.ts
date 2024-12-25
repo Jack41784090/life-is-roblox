@@ -22,11 +22,12 @@ class Battle {
     private state: State;
 
     private constructor(config: Partial<Config>) {
+        print(`Creation of Battle with config: `, config)
         assert(config.teamMap, "No team map provided")
         this.state = new State({
             width: config.width ?? 10,
             worldCenter: config.worldCenter ?? new Vector3(),
-            teamMap: config.teamMap ?? new Map(),
+            teamMap: config.teamMap,
         });
         this.setUpRemotes();
         this.state.getAllPlayers().forEach(p => {
@@ -38,7 +39,7 @@ class Battle {
 
     private setUpRemotes() {
         remotes.battle.requestSync.map.onRequest(p => {
-            const gi = this.state.gridInfo(); warn(gi)
+            const gi = this.state.gridInfo();
             return gi;
         })
         remotes.battle.requestSync.team.onRequest(p => {
@@ -132,7 +133,7 @@ class Battle {
                     winningClient: winningClient,
                 })
                 this.state.sync(access.newState!)
-                remotes.battle.forceUpdate(p);
+                this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
                 return access;
             }
             catch (e) {

@@ -265,7 +265,8 @@ export default class Gui {
         }
     }
 
-    private clickedOnEmptyCell({ EHCGMS, state }: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
+    private clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
+        const { state, EHCGMS } = props;
         const start = state.findCREPosition();
         assert(start, "Start position is not defined");
         const dest = emptyTuple.cell.qr;
@@ -279,7 +280,8 @@ export default class Gui {
         const creG = EHCGMS.positionTuple(start).entity;
         assert(creG, "EntityGraphics is not at start position");
 
-        this.unmountAndClear(GuiTag.Glow)
+        this.updateMainUI('onlyReadinessBar', props);
+
         const destinationCellGraphics = EHCGMS.positionTuple(dest).cell;
         const path = pf?.begin().map(qr => EHCGMS.positionTuple(qr).cell);
         return creG.moveToCell(destinationCellGraphics, path).then(t => {
@@ -293,7 +295,9 @@ export default class Gui {
             print('cre', cre)
 
             accessToken.newState = state.info();
-            remotes.battle.act(accessToken);
+            remotes.battle.act(accessToken).then(() => {
+                this.updateMainUI('withSensitiveCells', props);
+            });
 
             return t;
         });

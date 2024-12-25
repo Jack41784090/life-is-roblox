@@ -24,7 +24,14 @@ export class Team {
     }
 
     players() {
-        return this.members.mapFiltered((entity) => Players.GetPlayerByUserId(entity.playerID));
+        const playerSet = new Set<Player>();
+        for (const entity of this.members) {
+            const player = Players.GetPlayerByUserId(entity.playerID);
+            if (player) {
+                playerSet.add(player);
+            }
+        }
+        return playerSet;
     }
 
     sync(state: TeamState) {
@@ -168,9 +175,9 @@ export default class State {
                         team: teamName,
                     });
                 })
-                .filter((entity): entity is Entity => entity !== undefined);
             this.teams.push(new Team(teamName, members));
         }
+        print("Initialised teams", this.teams);
     }
 
     private initialiseEntitiesPositions() {
@@ -208,7 +215,7 @@ export default class State {
     private initialiseTestingDummies() {
         const dummy = new Entity({
             stats: getDummyStats(),
-            playerID: -1,
+            playerID: -4178,
             hip: 0,
             pos: 0,
             org: 999,
@@ -242,12 +249,24 @@ export default class State {
         return this.grid.getCell(qr);
     }
 
-    public getAllEntities(): Entity[] {
-        return this.teams.map((team) => team.members).reduce<Entity[]>((acc, val) => [...acc, ...val], []);
+    public getAllEntities() {
+        const entitySet = new Set<Entity>();
+        for (const team of this.teams) {
+            for (const member of team.members) {
+                entitySet.add(member);
+            }
+        }
+        return [...entitySet]
     }
 
-    public getAllPlayers(): Player[] {
-        return this.teams.map((team) => team.players()).reduce<Player[]>((acc, val) => [...acc, ...val], []);
+    public getAllPlayers() {
+        const playerSet = new Set<Player>();
+        for (const team of this.teams) {
+            for (const player of team.players()) {
+                playerSet.add(player);
+            }
+        }
+        return [...playerSet];
     }
 
     public findCREPosition() {

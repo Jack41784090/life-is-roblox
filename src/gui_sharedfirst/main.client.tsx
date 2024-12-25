@@ -3,11 +3,13 @@ import React from "@rbxts/react";
 import { ContentProvider, ReplicatedFirst, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import Scene from "shared/class/Scene";
+import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { DialogueExpression } from "shared/types/scene-types";
 import LoadingScreenElement from "./new_components/loading";
 import GuiMothership from "./new_components/main";
 import MainMenuElement from "./new_components/menu_ui";
+import WaitingRoomElement from "./new_components/waiting_room";
 
 //#region 1. LOADING
 ReplicatedFirst.RemoveDefaultLoadingScreen();
@@ -120,15 +122,33 @@ function mainMenuSetup() {
                     GuiMothership.unmount("MainMenu");
                     enterStory();
                 }
+            },
+            {
+                text: "Multiplayer",
+                onClick: () => {
+                    GuiMothership.unmount("MainMenu");
+                    remotes.battle.requestRoom();
+                }
             }
         ];
 
     GuiMothership.mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
 }
 
+remotes.battle.ui.unmount.connect(tag => GuiMothership.unmount(tag));
+remotes.battle.ui.startRoom.connect(s => {
+    print("Start Room", s);
+    GuiMothership.mount(GuiTag.WaitingRoom, <WaitingRoomElement
+        players={s}
+        readyButtonClicked={() => {
+            enterBattle();
+        }}
+    />)
+})
+
 
 mainMenuCameraSetup();
-enterBattle();
-// mainMenuSetup();
+// enterBattle();
+mainMenuSetup();
 //#endregion
 

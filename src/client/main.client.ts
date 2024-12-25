@@ -18,5 +18,3 @@ remotes.battle.createClient.connect(async (config) => {
         client: Players.LocalPlayer,
     });
 })
-
-
