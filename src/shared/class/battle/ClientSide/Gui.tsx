@@ -11,6 +11,8 @@ import HexCell from "../Hex/Cell";
 import HexCellGraphics from "../Hex/Cell/Graphics";
 import HexGrid from "../Hex/Grid";
 import Pathfinding from "../Pathfinding";
+import State from "../State";
+import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import EntityCellGraphicsTuple from "./EHCG/Tuple";
 
 export default class Gui {
@@ -18,20 +20,12 @@ export default class Gui {
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(icons: ReadinessIcon[], grid: HexGrid) {
         const ui = new Gui(icons, grid);
-        // remoteEventsMap["GuiStart"].FireAllClients(icons); // temp, should use icons playerID
         return ui
     }
 
     // Private constructor to prevent direct instantiation
     private constructor(icons: ReadinessIcon[], grid: HexGrid) {
         this.mountInitialUI(icons);
-        // const glowUpCellsEvent = bindableEventsMap["GlowUpCells"] as BindableEvent;
-        // if (glowUpCellsEvent) {
-        //     glowUpCellsEvent.Event.Connect((vecs: Vector2[]) => {
-        //         const cells = vecs.mapFiltered((qr) => grid.getCell(qr));
-        //         this.mountOrUpdateGlow(cells);
-        //     });
-        // }
     }
 
     /**
@@ -42,11 +36,11 @@ export default class Gui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: UpdateMainUIConfig): void;
-    updateMainUI(mode: 'onlyReadinessBar', props: UpdateMainUIConfig): void;
-    updateMainUI(mode: MainUIModes, props: UpdateMainUIConfig) {
+    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
+    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
+    updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
         print(`Updating main UI with mode: ${mode}`, props);
-        const { readinessIcons, } = props;
+        const { readinessIcons, state, EHCGMS, accessToken } = props;
         switch (mode) {
             case 'onlyReadinessBar':
                 assert(readinessIcons, `No readiness icons provided for mode: ${mode}`);
@@ -57,12 +51,15 @@ export default class Gui {
                     </MenuFrameElement>);
                 break;
             case 'withSensitiveCells':
+                assert(state, `State is not defined for mode: ${mode}`);
+                assert(EHCGMS, `EntityHexCellGraphicsMothership is not defined for mode: ${mode}`);
                 assert(readinessIcons, `Readiness icons are not defined for mode: ${mode}`);
+                assert(accessToken, `Access token is not defined for mode: ${mode}`);
                 GuiMothership.mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={readinessIcons} />
-                        {this.createSensitiveCellElements(props)}
+                        {this.createSensitiveCellElements({ state, EHCGMS, readinessIcons, accessToken })}
                     </MenuFrameElement>);
                 break;
         }
@@ -81,19 +78,18 @@ export default class Gui {
             GuiTag.ActionMenu,
             <MenuFrameElement key={"ActionMenu"} transparency={1} >
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)} >
-                    {
-                        actions.map((action, index) => (
-                            <ButtonElement
-                                key={action.type}
-                                position={index / actions.size()}
-                                size={1 / actions.size()}
-                                onclick={() => {
-                                    action.run()
-                                }}
-                                text={action.type}
-                                transparency={0.9}
-                            />
-                        ))}
+                    {actions.map((action, index) => (
+                        <ButtonElement
+                            key={action.type}
+                            position={index / actions.size()}
+                            size={1 / actions.size()}
+                            onclick={() => {
+                                action.run()
+                            }}
+                            text={action.type}
+                            transparency={0.9}
+                        />
+                    ))}
                 </ButtonFrameElement>
             </MenuFrameElement>);
     }
@@ -102,10 +98,7 @@ export default class Gui {
      * @returns the mounted Tree
      */
     mountInitialUI(icons: ReadinessIcon[]) {
-        GuiMothership.mount(GuiTag.MainGui,
-            <MenuFrameElement key={`BattleUI`} transparency={1} >
-                <ReadinessBar icons={icons} />
-            </MenuFrameElement>);
+        this.updateMainUI('onlyReadinessBar', { readinessIcons: icons });
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
@@ -291,7 +284,7 @@ export default class Gui {
 
             const cre = state.findEntity(start)
             assert(cre, "Entity is not defined");
-            state.moveEntityToCell(cre, dest.X, dest.Y);
+            state.setCell(cre, dest.X, dest.Y);
             print('cre', cre)
 
             accessToken.newState = state.info();

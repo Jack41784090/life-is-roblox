@@ -15,9 +15,9 @@ export class Team {
         this.members = members;
     }
 
-    push(...members: Entity[]) {
+    addMembers(...members: Entity[]) {
         for (const member of members) {
-            if (!this.members.some((m) => m.stats.id === member.stats.id)) {
+            if (this.members.every(m => m.stats && m.stats.id !== member.stats.id)) {
                 this.members.push(member);
             }
         }
@@ -33,22 +33,27 @@ export class Team {
         }
         return playerSet;
     }
-
-    sync(state: TeamState) {
-        for (const entity of this.members) {
-            const otherEntity = state.members.find((e) => e.playerID === entity.playerID);
-            if (otherEntity) {
-                entity.update(otherEntity);
-            }
-        }
-    }
 }
 
 export default class State {
-    moveEntityToCell(cre: Entity, X: number, Y: number): void;
-    moveEntityToCell(cre: Entity, qr: Vector2): void;
-    moveEntityToCell(cre: Entity, qr: Vector3): void;
-    moveEntityToCell(cre: Entity, X: number | Vector2 | Vector3, Y?: number): void {
+    creID: number | undefined;
+    teams: Team[] = [];
+    grid: HexGrid;
+
+    constructor({ width, worldCenter, teamMap }: StateConfig) {
+        this.grid = new HexGrid({
+            radius: math.floor(width / 2),
+            center: new Vector2(worldCenter.X, worldCenter.Z),
+            size: TILE_SIZE,
+            name: "BattleGrid",
+        });
+        this.initialiseNumbers(teamMap);
+    }
+
+    public setCell(cre: Entity, X: number, Y: number): void;
+    public setCell(cre: Entity, qr: Vector2): void;
+    public setCell(cre: Entity, qr: Vector3): void;
+    public setCell(cre: Entity, X: number | Vector2 | Vector3, Y?: number): void {
         let cell: HexCell | undefined;
 
         if (typeIs(X, "number") && typeIs(Y, "number")) {
@@ -66,19 +71,6 @@ export default class State {
 
         cre.setCell(cell.qr());
         cell.entity = cre.playerID;
-    }
-    creID: number | undefined;
-    teams: Team[] = [];
-    grid: HexGrid;
-
-    constructor({ width, worldCenter, teamMap }: StateConfig) {
-        this.grid = new HexGrid({
-            radius: math.floor(width / 2),
-            center: new Vector2(worldCenter.X, worldCenter.Z),
-            size: TILE_SIZE,
-            name: "BattleGrid",
-        });
-        this.initialiseNumbers(teamMap);
     }
 
     //#region Syncronisation
@@ -101,17 +93,25 @@ export default class State {
         };
     }
 
-    public syncGrid(grid: HexGridState) {
+    private syncGrid(grid: HexGridState) {
         this.grid.update(grid);
     }
 
-    public syncTeams(teamStates: TeamState[]) {
-        for (const state of teamStates) {
-            const team = this.teams.find((t) => t.name === state.name);
-            if (team) team.sync(state);
+    private syncTeams(newTeamsStates: TeamState[]) {
+        const ourTeams = this.teams;
+        for (const newTeamState of newTeamsStates) {
+            const existingTeam = ourTeams.find(t => t.name === newTeamState.name);
+            if (existingTeam) {
+                for (const entity of existingTeam.members) {
+                    const updatingEntityState = newTeamState.members.find((e) => e.playerID === entity.playerID);
+                    if (updatingEntityState) {
+                        entity.update(updatingEntityState);
+                    }
+                }
+            }
             else {
-                warn(`Team [${state.name}] not found`);
-                const newTeam = new Team(state.name, state.members.map((entity) => {
+                warn(`Team [${newTeamState.name}] not found`);
+                const newTeam = new Team(newTeamState.name, newTeamState.members.map((entity) => {
                     return new Entity(entity);
                 }));
                 this.teams.push(newTeam);

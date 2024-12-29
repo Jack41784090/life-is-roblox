@@ -29,11 +29,11 @@ class Battle {
             worldCenter: config.worldCenter ?? new Vector3(),
             teamMap: config.teamMap,
         });
-        this.setUpRemotes();
         this.state.getAllPlayers().forEach(p => {
             print(`Initialising ClientSide for ${p.Name}`)
             remotes.battle.createClient(p, config);
         })
+        this.setUpRemotes();
         this.round();
     }
 

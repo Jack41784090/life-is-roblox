@@ -265,10 +265,7 @@ export default class ClientSide {
         this.controlLocks.delete(Enum.KeyCode.X);
         this.gui.clearAll();
         this.gui.updateMainUI('onlyReadinessBar', {
-            EHCGMS: this.EHCGMS,
-            state: this.state,
             readinessIcons: this.getReadinessIcons(),
-            accessToken
         });
     }
 
