@@ -72,32 +72,7 @@ export default class HexGrid {
         }
     }
 
-    public getCell(v: Vector2): HexCell | undefined
-    public getCell(q: number, r: number): HexCell | undefined
-    public getCell(q: number | Vector2, r?: number): HexCell | undefined {
-        let x = 0, y = 0;
-        if (typeOf(q) === 'number') {
-            x = q as number;
-            y = r as number;
-        } else if (typeOf(q) === 'Vector2') {
-            const v = q as Vector2;
-            x = v.X;
-            y = v.Y;
-        }
-
-        const cell = this.cellsQR.get(x, y);
-        return cell
-    }
-
-    public info(): HexGridState {
-        return {
-            center: this.center,
-            radius: this.radius,
-            size: this.size,
-            name: this.name,
-            cells: this.cells.map(c => c.info())
-        }
-    }
+    //#region Sync
 
     private updateAllCells(config: HexCellState[]) {
         this.cells = config.map(c => {
@@ -168,11 +143,54 @@ export default class HexGrid {
         // this.initialise();
         // if (RunService.IsClient()) this.materialise();
     }
+    //#endregion
 
-    public qrsToWorldPosition(qrs: Vector2): Vector3
-    public qrsToWorldPosition(qrs: Vector3): Vector3
-    public qrsToWorldPosition(qrs: Vector2 | Vector3): Vector3 {
+    //#region Get
+    public findDistance(a: Vector2, b: Vector2): number
+    public findDistance(a: HexCell, b: HexCell): number
+    public findDistance(a: Vector3, b: Vector3): number
+    public findDistance(a: Vector2 | HexCell | Vector3, b: Vector2 | HexCell | Vector3): number {
+        const A = typeIs(a, 'Vector2') || typeIs(a, 'Vector3') ? a as Vector2 : (a as HexCell).qr();
+        const B = typeIs(b, 'Vector2') || typeIs(b, 'Vector3') ? b as Vector2 : (b as HexCell).qr();
+
+        const AHEX = new Hex(A.X, A.Y, -A.X - A.Y);
+        const BHEX = new Hex(B.X, B.Y, -B.X - B.Y);
+
+        return AHEX.distance(BHEX);
+    }
+
+    public findWorldPositionFromQRS(qrs: Vector2): Vector3
+    public findWorldPositionFromQRS(qrs: Vector3): Vector3
+    public findWorldPositionFromQRS(qrs: Vector2 | Vector3): Vector3 {
         const { X, Y } = this.layout.hexToPixel(new Hex(qrs.X, qrs.Y, -qrs.X - qrs.Y))
         return new Vector3(X, HEXAGON_HEIGHT, Y);
     }
+
+    public getCell(v: Vector2): HexCell | undefined
+    public getCell(q: number, r: number): HexCell | undefined
+    public getCell(q: number | Vector2, r?: number): HexCell | undefined {
+        let x = 0, y = 0;
+        if (typeOf(q) === 'number') {
+            x = q as number;
+            y = r as number;
+        } else if (typeOf(q) === 'Vector2') {
+            const v = q as Vector2;
+            x = v.X;
+            y = v.Y;
+        }
+
+        const cell = this.cellsQR.get(x, y);
+        return cell
+    }
+
+    public info(): HexGridState {
+        return {
+            center: this.center,
+            radius: this.radius,
+            size: this.size,
+            name: this.name,
+            cells: this.cells.map(c => c.info())
+        }
+    }
+    //#endregion
 }

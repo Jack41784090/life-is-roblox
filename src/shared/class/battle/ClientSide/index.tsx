@@ -199,7 +199,7 @@ export default class ClientSide {
                         const newAccessToken = {
                             ...accessToken,
                             action: {
-                                actionType: ActionType.Move,
+                                type: ActionType.Move,
                                 to: entity.playerID,
                                 by: entity.playerID,
                                 executed: false
@@ -308,7 +308,7 @@ export default class ClientSide {
             using,
             target,
         });
-        this.executeAttackSequence({ actionType: ActionType.Attack, by: using.playerID, executed: true, ability, clashResult });
+        this.executeAttackSequence({ type: ActionType.Attack, by: using.playerID, executed: true, ability, clashResult });
     }
 
     private async executeAttackSequence(attackAction: AttackAction) {

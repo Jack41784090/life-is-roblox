@@ -73,7 +73,7 @@ export default class EntityHexCellGraphicsMothership {
             new HexCellGraphics({
                 qr: qr,
                 parent: this.grid.model,
-                worldPosition: this.grid.qrsToWorldPosition(qr),
+                worldPosition: this.grid.findWorldPositionFromQRS(qr),
                 height: this.height,
                 size: this.size,
             })

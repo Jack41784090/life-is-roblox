@@ -1,4 +1,5 @@
 import { CellTerrain, HexCellConfig, HexCellState, PlayerID } from "shared/types/battle-types";
+import Entity from "../../Entity";
 import HexGrid from "../Grid";
 import { Hex } from "../Layout";
 
@@ -30,6 +31,9 @@ export default class HexCell {
     ];
 
     //#region Modifying
+    public pairWith(cre: Entity) {
+        this.entity = cre.playerID;
+    }
 
     public update(config: Partial<HexCellState>) {
         print(`Updating cell ${this.qrs} with config`, config);

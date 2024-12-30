@@ -1,12 +1,10 @@
 import { RunService } from "@rbxts/services";
+import { MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { ActionValidator, Config } from "shared/types/battle-types";
+import { ActionValidator, Config, MoveAction } from "shared/types/battle-types";
 import { warnWrongSideCall } from "shared/utils";
 import { IDGenerator } from "../IDGenerator";
-import Entity from "./Entity";
 import State from "./State";
-
-type EntityMap = Map<string, Entity>;
 
 class Battle {
     public static Create(config: Partial<Config>) {
@@ -75,13 +73,38 @@ class Battle {
         return true;
     }
 
+    private checkMovementPossibility(action: MoveAction) {
+        const { from, to } = action;
+        const grid = this.state.grid;
+        const fromCell = grid.getCell(from);
+        const toCell = grid.getCell(to);
+
+        print(grid)
+
+        assert(fromCell, "No from cell found")
+        assert(toCell, "No to cell found")
+
+        const fromEntityID = fromCell.entity;
+        const toEntityID = toCell.entity;
+
+        assert(fromEntityID, "No entity found in from cell")
+        assert(!toEntityID, "Entity already present in to cell")
+
+        const fromEntity = this.state.findEntity(fromEntityID);
+        assert(fromEntity, "Invalid entity ID")
+
+        const costOfMovement = MOVEMENT_COST * this.state.findDistance(from, to);
+        const currentPosture = fromEntity.get('pos');
+        assert(currentPosture >= costOfMovement, "Not enough posture to move")
+
+        return true;
+    }
+
     private validateAction({ client, declaredAccess, trueAccessCode, winningClient }: ActionValidator) {
         this.validate({ declaredAccess, client, trueAccessCode, winningClient });
 
         const { action } = declaredAccess;
-        // Check the possibility of claimed action
-
-        assert(declaredAccess.newState, "No new state provided")
+        this.checkMovementPossibility(action as MoveAction);
 
         return true;
     }
@@ -132,13 +155,13 @@ class Battle {
                     trueAccessCode: accessCode,
                     winningClient: winningClient,
                 })
-                this.state.sync(access.newState!)
+                this.state.commit(access.action!);
                 this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
                 return access;
             }
             catch (e) {
                 print("Invalid action", e)
-                return { userId: p.UserId, allowed: false }
+                return { userId: p.UserId, allowed: false, mes: e as string }
             }
         })
         const promise = remotes.battle.end.promise((p, s) => {
@@ -163,7 +186,5 @@ class Battle {
         this.round()
     }
 }
-
-
 
 export default Battle

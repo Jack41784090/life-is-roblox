@@ -206,7 +206,7 @@ export enum BattleStatus {
 }
 
 export interface BattleAction {
-    actionType: ActionType,
+    type: ActionType,
     executed: boolean,
     by: PlayerID,
     against?: PlayerID,
@@ -325,7 +325,7 @@ export interface AccessToken {
     readonly allowed: boolean;
     readonly token?: string;
     action?: BattleAction;
-    newState?: StateState;
+    mes?: string;
 }
 
 export type ActionValidator = {

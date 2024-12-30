@@ -226,8 +226,27 @@ export function countObjectKeys(object: object) {
     return count;
 }
 
-export function get2DEuclidDistance(a: Vector3, b: Vector3) {
-    return math.sqrt(math.pow(a.X - b.X, 2) + math.pow(a.Z - b.Z, 2));
+export function get2DManhattanDistance(a: Vector3, b: Vector3): number;
+export function get2DManhattanDistance(a: Vector2, b: Vector2): number;
+export function get2DManhattanDistance(a: Vector2 | Vector3, b: Vector2 | Vector3): number {
+    if (typeIs(a, "Vector3") && typeIs(b, "Vector3")) {
+        return math.abs(a.X - b.X) + math.abs(a.Z - b.Z);
+    } else if (typeIs(a, "Vector2") && typeIs(b, "Vector2")) {
+        return math.abs(a.X - b.X) + math.abs(a.Y - b.Y);
+    } else {
+        throw "Invalid arguments: both arguments must be either Vector2 or Vector3";
+    }
+}
+export function get2DEuclidDistance(a: Vector3, b: Vector3): number;
+export function get2DEuclidDistance(a: Vector2, b: Vector2): number;
+export function get2DEuclidDistance(a: Vector2 | Vector3, b: Vector2 | Vector3): number {
+    if (typeIs(a, "Vector3") && typeIs(b, "Vector3")) {
+        return math.sqrt(math.pow(a.X - b.X, 2) + math.pow(a.Z - b.Z, 2));
+    } else if (typeIs(a, "Vector2") && typeIs(b, "Vector2")) {
+        return math.sqrt(math.pow(a.X - b.X, 2) + math.pow(a.Y - b.Y, 2));
+    } else {
+        throw "Invalid arguments: both arguments must be either Vector2 or Vector3";
+    }
 }
 
 export class PriorityQueue<T extends defined> {

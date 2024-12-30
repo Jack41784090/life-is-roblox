@@ -1,5 +1,6 @@
 import { Players } from "@rbxts/services";
-import { AttackAction, ClashResult, ClashResultFate, EntityStats, HexGridState, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
+import { t } from "@rbxts/t";
+import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityStats, HexGridState, MoveAction, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Entity from "../Entity";
 import HexCell from "../Hex/Cell";
@@ -53,24 +54,25 @@ export default class State {
     public setCell(cre: Entity, X: number, Y: number): void;
     public setCell(cre: Entity, qr: Vector2): void;
     public setCell(cre: Entity, qr: Vector3): void;
-    public setCell(cre: Entity, X: number | Vector2 | Vector3, Y?: number): void {
+    public setCell(cre: Entity, cell: HexCell): void;
+    public setCell(cre: Entity, X: number | Vector2 | Vector3 | HexCell, Y?: number): void {
         let cell: HexCell | undefined;
-
         if (typeIs(X, "number") && typeIs(Y, "number")) {
             cell = this.grid.getCell(new Vector2(X, Y));
         } else if (typeIs(X, "Vector2")) {
             cell = this.grid.getCell(X);
         } else if (typeIs(X, "Vector3")) {
             cell = this.grid.getCell(new Vector2(X.X, X.Y));
+        } else {
+            cell = X as HexCell;
         }
-
         if (!cell) {
             warn(`Cell [${X}, ${Y}] not found`);
             return;
         }
 
         cre.setCell(cell.qr());
-        cell.entity = cre.playerID;
+        cell.pairWith(cre);
     }
 
     //#region Syncronisation
@@ -132,6 +134,90 @@ export default class State {
         if (other.cre) this.creID = other.cre;
 
         print(`Synced state`, this);
+    }
+
+    public commit(action: BattleAction) {
+        switch (action.type) {
+            case ActionType.Attack:
+                this.applyClash(action as AttackAction);
+                break;
+            case ActionType.Move:
+                assert(t.interface({
+                    from: t.Vector2,
+                    to: t.Vector2,
+                })(action), "Invalid move action");
+                this.move(action as MoveAction);
+                break;
+            default:
+                warn("Invalid action type", action.type);
+        }
+    }
+
+    public move(moveAction: MoveAction) {
+        const { from, to } = moveAction;
+        const fromCell = this.grid.getCell(from);
+        const toCell = this.grid.getCell(to);
+        if (!toCell) {
+            warn("No to cell found");
+            return;
+        }
+        const fromEntityID = fromCell?.entity;
+        const toEntityID = toCell?.entity;
+        if (!fromEntityID) {
+            warn("No entity found in from cell");
+            return;
+        }
+        if (toEntityID) {
+            warn("Entity already present in to cell");
+            return;
+        }
+        const fromEntity = this.findEntity(fromEntityID);
+        if (!fromEntity) {
+            warn("Invalid entity ID");
+            return;
+        }
+        fromCell.entity = undefined;
+        this.setCell(fromEntity, toCell);
+    }
+
+    public applyClash(attackAction: AttackAction) {
+        const clashResult = attackAction.clashResult;
+        if (!clashResult) {
+            warn("applyClash: Clash result not found");
+            return;
+        }
+        print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
+        attackAction.executed = true;
+        attackAction.ability.target.damage(clashResult.damage);
+    }
+
+    public clash(attackAction: AttackAction): ClashResult {
+        const { using: attacker, target, acc } = attackAction.ability;
+        print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
+
+        let fate: ClashResultFate = "Miss";
+        let damage = 0;
+
+        const hitRoll = math.random(1, 100);
+        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target);
+        const critChance = calculateRealityValue(Reality.Precision, attacker);
+
+        const abilityDamage = attackAction.ability.calculateDamage();
+        const minDamage = abilityDamage * 0.5;
+        const maxDamage = abilityDamage;
+
+        if (hitRoll <= hitChance) {
+            if (hitRoll <= hitChance * 0.1 + critChance) {
+                damage = math.random((minDamage + maxDamage) / 2, maxDamage) * 2;
+                fate = "CRIT";
+            } else {
+                damage = math.random(minDamage, maxDamage);
+                fate = "Hit";
+            }
+        }
+
+        damage = math.clamp(damage, 0, 1000);
+        return { damage, u_damage: damage, fate, roll: hitRoll };
     }
 
     //#endregion
@@ -196,9 +282,11 @@ export default class State {
             const randomCell = vacantCells[i];
             if (randomCell) {
                 vacantCells.remove(i)
-                entity.setCell(randomCell.qr());
+                this.setCell(entity, randomCell);
             }
         }
+
+        print("Initialising entities positions", allEntities);
     }
     /**
      * Initializes various components of the battle state, including the grid, teams, entity positions, and (temporarily) testing dummies.
@@ -245,6 +333,13 @@ export default class State {
         }
     }
 
+    public findDistance(a: Vector2, b: Vector2): number
+    public findDistance(a: HexCell, b: HexCell): number
+    public findDistance(a: Vector3, b: Vector3): number
+    public findDistance(a: Vector2 | HexCell | Vector3, b: Vector2 | HexCell | Vector3): number {
+        return this.grid.findDistance(a as Vector2, b as Vector2);
+    }
+
     public getCell(qr: Vector2): HexCell | undefined {
         return this.grid.getCell(qr);
     }
@@ -269,55 +364,13 @@ export default class State {
         return [...playerSet];
     }
 
-    public findCREPosition() {
+    public getCREPosition() {
         if (!this.creID) {
             warn("CRE ID not found");
             return undefined;
         }
         const cre = this.findEntity(this.creID);
         return cre?.qr;
-    }
-    //#endregion
-
-    //#region Clash
-    public applyClash(attackAction: AttackAction) {
-        const clashResult = attackAction.clashResult;
-        if (!clashResult) {
-            warn("applyClash: Clash result not found");
-            return;
-        }
-        print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
-        attackAction.executed = true;
-        attackAction.ability.target.damage(clashResult.damage);
-    }
-
-    public clash(attackAction: AttackAction): ClashResult {
-        const { using: attacker, target, acc } = attackAction.ability;
-        print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
-
-        let fate: ClashResultFate = "Miss";
-        let damage = 0;
-
-        const hitRoll = math.random(1, 100);
-        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target);
-        const critChance = calculateRealityValue(Reality.Precision, attacker);
-
-        const abilityDamage = attackAction.ability.calculateDamage();
-        const minDamage = abilityDamage * 0.5;
-        const maxDamage = abilityDamage;
-
-        if (hitRoll <= hitChance) {
-            if (hitRoll <= hitChance * 0.1 + critChance) {
-                damage = math.random((minDamage + maxDamage) / 2, maxDamage) * 2;
-                fate = "CRIT";
-            } else {
-                damage = math.random(minDamage, maxDamage);
-                fate = "Hit";
-            }
-        }
-
-        damage = math.clamp(damage, 0, 1000);
-        return { damage, u_damage: damage, fate, roll: hitRoll };
     }
     //#endregion
 

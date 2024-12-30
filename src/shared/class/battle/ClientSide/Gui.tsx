@@ -161,7 +161,7 @@ export default class Gui {
      * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
      */
     private handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
-        const currentQR = state.findCREPosition();
+        const currentQR = state.getCREPosition();
         assert(currentQR, "Current QR is not defined");
         const currentCell = state.grid.getCell(currentQR);
         assert(currentCell, "Current cell is not defined");
@@ -258,9 +258,9 @@ export default class Gui {
         }
     }
 
-    private clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
+    private async clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
         const { state, EHCGMS } = props;
-        const start = state.findCREPosition();
+        const start = state.getCREPosition();
         assert(start, "Start position is not defined");
         const dest = emptyTuple.cell.qr;
         const pf = new Pathfinding({
@@ -277,23 +277,18 @@ export default class Gui {
 
         const destinationCellGraphics = EHCGMS.positionTuple(dest).cell;
         const path = pf?.begin().map(qr => EHCGMS.positionTuple(qr).cell);
-        return creG.moveToCell(destinationCellGraphics, path).then(t => {
-            const ourAction = accessToken.action as MoveAction;
-            ourAction.to = dest
-            ourAction.from = start;
 
-            const cre = state.findEntity(start)
-            assert(cre, "Entity is not defined");
-            state.setCell(cre, dest.X, dest.Y);
-            print('cre', cre)
+        const endTuple = await creG.moveToCell(destinationCellGraphics, path)
+        const ourAction = accessToken.action as MoveAction;
+        ourAction.to = dest
+        ourAction.from = start;
 
-            accessToken.newState = state.info();
-            remotes.battle.act(accessToken).then(() => {
-                this.updateMainUI('withSensitiveCells', props);
-            });
-
-            return t;
-        });
+        const ac = await remotes.battle.act(accessToken)
+        if (!ac.allowed) {
+            warn("Action not allowed", ac.mes);
+            // return;
+        }
+        this.updateMainUI('withSensitiveCells', props);
     }
     //#endregion
 

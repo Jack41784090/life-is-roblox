@@ -27,7 +27,7 @@ const remotes = createRemotes({
             token: t.optional(t.string),
             action: t.optional(
                 t.interface({
-                    actionType: t.literal(ActionType.Move, ActionType.Attack),
+                    type: t.literal(ActionType.Move, ActionType.Attack),
                     by: t.number,
                     against: t.optional(t.number),
                     executed: t.boolean,
