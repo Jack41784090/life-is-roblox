@@ -100,7 +100,10 @@ export default class EntityHexCellGraphicsMothership {
                 if (playerTuple) {
                     print(`Existing: ${entityState.playerID} => ${newQR}`);
                     const oldQR = playerTuple.cell.qr;
-                    if (newQR === oldQR) continue;
+                    if (newQR === oldQR) {
+                        print(`||=> Player ${entityState.playerID} is already at ${newQR}`);
+                        continue;
+                    }
                     this.repositionPlayer(entityState.playerID, newQR);
                 }
                 // 2. entity is a new player => create a new tuple for him
@@ -137,6 +140,7 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     async moveEntity(start: Vector2, dest: Vector2) {
+        print(`Moving entity from ${start} to ${dest}`);
         const tuple = this.tupleQR.get(start);
         const entity = tuple?.decouple();
         if (!entity) {

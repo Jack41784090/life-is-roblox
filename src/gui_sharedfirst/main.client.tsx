@@ -148,7 +148,7 @@ remotes.battle.ui.startRoom.connect(s => {
 
 
 mainMenuCameraSetup();
-// enterBattle();
-mainMenuSetup();
+enterBattle();
+// mainMenuSetup();
 //#endregion
 

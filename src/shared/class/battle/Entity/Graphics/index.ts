@@ -135,7 +135,9 @@ export default class EntityGraphics {
         assert(targetPosition, "Target position not found");
 
         const lookAtCFrame = CFrame.lookAt(modelPrimaryPart.Position, targetPosition);
-        if (modelPrimaryPart.CFrame.LookVector.Dot(lookAtCFrame.LookVector) > 0.999) {
+        const dot = modelPrimaryPart.CFrame.LookVector.Dot(lookAtCFrame.LookVector);
+        if (dot !== dot || dot > 0.999) {
+            warn(dot);
             // print("Already facing the entity", modelPrimaryPart.CFrame.LookVector, lookAtCFrame.LookVector);
             return;
         }

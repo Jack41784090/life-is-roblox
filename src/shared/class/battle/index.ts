@@ -148,6 +148,8 @@ class Battle {
             }
         })
         remotes.battle.act.onRequest((p, access) => {
+            print(`Received action request from ${p.Name}`, access)
+            let er: unknown | undefined;
             try {
                 this.validateAction({
                     client: p,
@@ -155,13 +157,23 @@ class Battle {
                     trueAccessCode: accessCode,
                     winningClient: winningClient,
                 })
-                this.state.commit(access.action!);
-                this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
-                return access;
             }
             catch (e) {
-                print("Invalid action", e)
-                return { userId: p.UserId, allowed: false, mes: e as string }
+                er = e;
+            }
+
+            if (er) {
+                warn("Error", er)
+            }
+            else {
+                this.state.commit(access.action!);
+            }
+            this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
+            return {
+                userId: p.UserId,
+                allowed: er === undefined,
+                token: accessCode,
+                action: access.action,
             }
         })
         const promise = remotes.battle.end.promise((p, s) => {

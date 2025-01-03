@@ -5,7 +5,8 @@ import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, UpdateMainUIConfig } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, UpdateMainUIConfig } from "shared/types/battle-types";
+import Ability from "../Ability";
 import Entity from "../Entity";
 import HexCell from "../Hex/Cell";
 import HexCellGraphics from "../Hex/Cell/Graphics";
@@ -16,6 +17,7 @@ import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import EntityCellGraphicsTuple from "./EHCG/Tuple";
 
 export default class Gui {
+    animating?: Promise<unknown>;
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(icons: ReadinessIcon[], grid: HexGrid) {
@@ -221,6 +223,7 @@ export default class Gui {
      */
     private handleCellClick(props: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
         if (tuple.entity) {
+            const { state, accessToken } = props;
             // this.clickedOnEntity(cre, clickedCell, accessToken);
         }
         else {
@@ -247,14 +250,21 @@ export default class Gui {
         if (cre.armed) {
             const keyed = cre.armed;
             const iability = cre.getEquippedAbilitySet()[keyed];
-            // if (clickedOnCell.isWithinRangeOf(cre.cell, iability.range)) {
-            // const ability = new Ability({
-            //     ...iability,
-            //     using: cre,
-            //     target: entity,
-            // });
-            // remoteEvent_Attack.FireServer(ability.getState());
-            // }
+            if (!iability) {
+                warn("No ability keyed");
+                return;
+            }
+            const ability = new Ability({
+                ...iability
+            })
+            accessToken.action = {
+                type: ActionType.Attack,
+                ability,
+                by: cre.playerID,
+                against: clickedOnCell.entity,
+                executed: false,
+            } as AttackAction
+            remotes.battle.act(accessToken);
         }
     }
 
@@ -275,18 +285,18 @@ export default class Gui {
 
         this.updateMainUI('onlyReadinessBar', props);
 
-        const destinationCellGraphics = EHCGMS.positionTuple(dest).cell;
-        const path = pf?.begin().map(qr => EHCGMS.positionTuple(qr).cell);
-
-        const endTuple = await creG.moveToCell(destinationCellGraphics, path)
         const ourAction = accessToken.action as MoveAction;
         ourAction.to = dest
         ourAction.from = start;
 
         const ac = await remotes.battle.act(accessToken)
-        if (!ac.allowed) {
+        if (ac.allowed) {
+            const destinationCellGraphics = EHCGMS.positionTuple(dest).cell;
+            const path = pf?.begin().map(qr => EHCGMS.positionTuple(qr).cell);
+            this.animating = creG.moveToCell(destinationCellGraphics, path)
+        }
+        else {
             warn("Action not allowed", ac.mes);
-            // return;
         }
         this.updateMainUI('withSensitiveCells', props);
     }

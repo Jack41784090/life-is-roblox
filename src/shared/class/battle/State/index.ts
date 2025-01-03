@@ -137,6 +137,7 @@ export default class State {
     }
 
     public commit(action: BattleAction) {
+        print(`Committing action`, action);
         switch (action.type) {
             case ActionType.Attack:
                 this.applyClash(action as AttackAction);

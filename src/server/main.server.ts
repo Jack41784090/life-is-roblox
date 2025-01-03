@@ -32,8 +32,17 @@ const hexGrid = new HexGrid({
 print("Connecting battle_Start")
 remotes.battle.request.connect((p) => {
     print("Battle Start", p);
-    extractMapValues(room.players).forEach(players => {
-        players.forEach(p => {
+
+    const teamMap = room.players;
+    const players = extractMapValues(teamMap);
+
+    if (players.size() < 2) {
+        players.push([p]);
+        teamMap[p.Name] = [p];
+    }
+
+    players.forEach(_p => {
+        _p.forEach(p => {
             remotes.battle.ui.unmount(p, GuiTag.WaitingRoom);
         });
     });
@@ -41,7 +50,7 @@ remotes.battle.request.connect((p) => {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT,
         worldCenter: DEFAULT_WORLD_CENTER,
-        teamMap: room.players,
+        teamMap: teamMap,
     })
 })
 

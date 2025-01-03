@@ -6,7 +6,7 @@ import { onInput } from "shared/utils";
 
 interface Ability1SlotElementProps {
     cre: Entity;
-    key: keyof typeof Enum.KeyCode;
+    abKey: keyof typeof Enum.KeyCode;
     ability: iAbility;
     focus: boolean;
 }
@@ -19,29 +19,20 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
 
     constructor(props: Ability1SlotElementProps) {
         super(props);
+        print(props);
         this.setState({ focus: this.props.focus });
         this.onKeyClickScript = onInput(Enum.UserInputType.Keyboard, (input: InputObject) => {
-            if (input.KeyCode.Name === this.props.key) {
+            // print(input.KeyCode.Name, this.props.key, input.KeyCode.Name === this.props.key);
+            if (input.KeyCode.Name === this.props.abKey) {
+                print(`clicked ${this.props.abKey}`);
                 this.setState({ focus: true });
                 const cre = this.props.cre;
-                // if (!cre.cell) return;
-                this.glowUpRange(this.props.ability.range);
-                cre.armed = this.props.key;
+                cre.armed = this.props.abKey;
             }
             else if (this.state.focus) {
                 this.setState({ focus: false });
             }
         });
-    }
-
-    glowUpRange(range: NumberRange) {
-        const cre = this.props.cre;
-        // if (!cre.cell) return;
-        // const cells = cre.cell.findCellsWithinRange(range);
-        // const event = bindableEventsMap["GlowUpCells"] as BindableEvent;
-        // if (event) {
-        //     event.Fire(cells.map(c => c.qr()));
-        // }
     }
 
     protected willUnmount(): void {
@@ -50,7 +41,7 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
 
     render() {
         const ability = this.props.ability;
-        const key = this.props.key;
+        const key = this.props.abKey;
         return (
             <imagebutton
                 key={`${key}-${ability.name}`}

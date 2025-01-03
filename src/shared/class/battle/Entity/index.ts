@@ -1,7 +1,7 @@
 import { atom, Atom } from "@rbxts/charm";
+import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { AbilitySet, EntityInit, EntityState, EntityStats, EntityStatsUpdate, iAbility, iEntity, Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
-import Ability from "../Ability";
 
 
 export default class Entity implements iEntity {
@@ -66,16 +66,16 @@ export default class Entity implements iEntity {
     getAllAbilitySets(): Array<AbilitySet> {
         const allAbilities = this.getAllAbilities();
         const setOne: AbilitySet = {
-            'Q': allAbilities[0],
-            'W': allAbilities[0],
-            'E': allAbilities[0],
-            'R': allAbilities[0],
+            'Q': allAbilities[0] as Required<iAbility>,
+            'W': allAbilities[0] as Required<iAbility>,
+            'E': allAbilities[0] as Required<iAbility>,
+            'R': allAbilities[0] as Required<iAbility>,
         };
         return [setOne];
     }
 
     getAllAbilities(): Array<iAbility> {
-        const uniPhysAbilities = extractMapValues(Ability.UNIVERSAL_PHYS);
+        const uniPhysAbilities = extractMapValues(UNIVERSAL_PHYS);
         return uniPhysAbilities;
     }
 

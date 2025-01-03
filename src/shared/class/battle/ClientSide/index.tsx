@@ -96,8 +96,7 @@ export default class ClientSide {
                 this.gui.mountOtherPlayersTurnGui();
             }),
             remotes.battle.forceUpdate.connect(() => {
-                this.requestUpdateEntities();
-                this.requestUpdateGrid();
+                this.requestUpdateState();
             })
         ]
     }
@@ -114,6 +113,7 @@ export default class ClientSide {
         this.state.sync({
             teams: r,
         });
+        await this.gui.animating;
         this.EHCGMS.syncTeams(r);
         return r;
     }
@@ -123,6 +123,7 @@ export default class ClientSide {
         this.state.sync({
             grid: r,
         })
+        await this.gui.animating;
         this.EHCGMS.syncGrid(r);
         return r;
     }
@@ -130,6 +131,7 @@ export default class ClientSide {
     private async requestUpdateState() {
         const r = await remotes.battle.requestSync.state();
         this.state.sync(r);
+        await this.gui.animating;
         this.EHCGMS.syncTeams(r.teams);
         this.EHCGMS.syncGrid(r.grid);
         return r;

@@ -124,9 +124,10 @@ export interface iAbility {
 
     // effects: Effect[];
 }
-export type AbilityKey = Enum.KeyCode.Q | Enum.KeyCode.W | Enum.KeyCode.E | Enum.KeyCode.R;
+type RequiredAbility = Required<iAbility>;
+
 export type AbilitySet = {
-    [key in keyof typeof Enum.KeyCode]?: iAbility;
+    [key in keyof typeof Enum.KeyCode]?: RequiredAbility;
 };
 export enum DamageType {
     Blunt = 'blunt',

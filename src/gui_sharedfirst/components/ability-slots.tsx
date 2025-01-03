@@ -19,11 +19,12 @@ export default class AbilitySlotsElement extends React.Component<AbilitySlotsEle
 
     render() {
         const abilitySet = this.props.abilitySet;
+        print(abilitySet)
         const abilityButtons: (Element | undefined)[] = [
-            abilitySet['Q'] ? <Ability1SlotElement cre={this.props.cre} key={'Q'} ability={abilitySet['Q']} focus={false} /> : undefined,
-            abilitySet['W'] ? <Ability1SlotElement cre={this.props.cre} key={'W'} ability={abilitySet['W']} focus={false} /> : undefined,
-            abilitySet['E'] ? <Ability1SlotElement cre={this.props.cre} key={'E'} ability={abilitySet['E']} focus={false} /> : undefined,
-            abilitySet['R'] ? <Ability1SlotElement cre={this.props.cre} key={'R'} ability={abilitySet['R']} focus={false} /> : undefined
+            abilitySet['Q'] ? <Ability1SlotElement cre={this.props.cre} abKey={'Q'} ability={abilitySet['Q']} focus={false} /> : undefined,
+            abilitySet['W'] ? <Ability1SlotElement cre={this.props.cre} abKey={'W'} ability={abilitySet['W']} focus={false} /> : undefined,
+            abilitySet['E'] ? <Ability1SlotElement cre={this.props.cre} abKey={'E'} ability={abilitySet['E']} focus={false} /> : undefined,
+            abilitySet['R'] ? <Ability1SlotElement cre={this.props.cre} abKey={'R'} ability={abilitySet['R']} focus={false} /> : undefined
         ];
 
 
