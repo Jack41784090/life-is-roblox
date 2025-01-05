@@ -3,7 +3,7 @@ import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, TILE_SIZE } from "shared/types/battle-types";
 import { warnWrongSideCall } from "shared/utils";
-import Ability, { AbilityState } from "../Ability";
+import { AbilityState } from "../Ability";
 import Entity from "../Entity";
 import State from "../State";
 import BattleCam from "./BattleCamera";
@@ -37,7 +37,7 @@ export default class ClientSide {
         });
         this.EHCGMS = new EntityHexCellGraphicsMothership(math.floor(width / 2), height, size, this.state.grid);
 
-        this.gui = Gui.Connect(this.getReadinessIcons(), this.state.grid);
+        this.gui = Gui.Connect(this.getReadinessIcons());
         this.graphicsInitialised = this.initialiseGraphics();
     }
 
@@ -249,7 +249,7 @@ export default class ClientSide {
      *    - Mount the ability slots for the current entity.
      */
     private async enterMovementMode(accessToken: AccessToken) {
-        print("Entering movement mode", this.state.grid);
+        print("Entering movement mode");
         const cre = this.state.findEntity(accessToken.userId);
         if (!cre) return;
         this.controlLocks.set(Enum.KeyCode.X, true);
@@ -305,12 +305,13 @@ export default class ClientSide {
             warn("Using or target entity not found", using, target);
             return;
         }
-        const ability = new Ability({
-            ...clashResult.abilityState,
-            using,
-            target,
+        this.executeAttackSequence({
+            type: ActionType.Attack, by: using.playerID, executed: true, ability: {
+                ...clashResult.abilityState,
+                using: using.info(),
+                target: target.info(),
+            }, clashResult
         });
-        this.executeAttackSequence({ type: ActionType.Attack, by: using.playerID, executed: true, ability, clashResult });
     }
 
     private async executeAttackSequence(attackAction: AttackAction) {

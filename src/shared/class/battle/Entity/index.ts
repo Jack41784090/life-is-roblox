@@ -66,10 +66,10 @@ export default class Entity implements iEntity {
     getAllAbilitySets(): Array<AbilitySet> {
         const allAbilities = this.getAllAbilities();
         const setOne: AbilitySet = {
-            'Q': allAbilities[0] as Required<iAbility>,
-            'W': allAbilities[0] as Required<iAbility>,
-            'E': allAbilities[0] as Required<iAbility>,
-            'R': allAbilities[0] as Required<iAbility>,
+            'Q': allAbilities[0],
+            'W': allAbilities[0],
+            'E': allAbilities[0],
+            'R': allAbilities[0],
         };
         return [setOne];
     }
@@ -90,7 +90,7 @@ export default class Entity implements iEntity {
         print(`${this.name}: Changing HP by ${num}`);
 
         this.hip = atom(this.hip() + num);
-        const maxHP = calculateRealityValue(Reality.HP, this);
+        const maxHP = calculateRealityValue(Reality.HP, this.stats);
         const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9); print(hpPercentage)
     }
     public heal(num: number) {

@@ -1,5 +1,4 @@
 import { Atom } from "@rbxts/charm";
-import Ability from "shared/class/battle/Ability";
 import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
 import Entity from "shared/class/battle/Entity";
 import HexGrid from "shared/class/battle/Hex/Grid";
@@ -97,8 +96,8 @@ export type AbilityConfig = {
     range: NumberRange;
     potencies: Map<Potency, number>;
     damageType: Map<DamageType, number>;
-    using: Entity;
-    target: Entity;
+    using: EntityInit;
+    target: EntityInit;
     animation: string;
     icon: string;
 }
@@ -127,7 +126,7 @@ export interface iAbility {
 type RequiredAbility = Required<iAbility>;
 
 export type AbilitySet = {
-    [key in keyof typeof Enum.KeyCode]?: RequiredAbility;
+    [key in keyof typeof Enum.KeyCode]?: iAbility;
 };
 export enum DamageType {
     Blunt = 'blunt',
@@ -218,7 +217,7 @@ export enum ActionType {
     Attack = 'attack',
 }
 export interface AttackAction extends BattleAction {
-    ability: Ability,
+    ability: AbilityConfig,
     clashResult?: ClashResult,
     abilityEffectString?: string,
 }

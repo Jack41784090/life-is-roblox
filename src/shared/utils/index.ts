@@ -2,7 +2,6 @@ import { useCamera, useDebounceState, useEventListener } from "@rbxts/pretty-rea
 import { useMemo } from "@rbxts/react";
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import Entity from "shared/class/battle/Entity";
 import remotes from "shared/remote";
 import { AttackAction, EntityStats, iAbility, Reality } from "shared/types/battle-types";
 
@@ -365,26 +364,26 @@ export class PriorityQueue<T extends defined> {
 
 }
 
-export function calculateRealityValue(reality: Reality, entity: Entity): number {
+export function calculateRealityValue(reality: Reality, stats: EntityStats): number {
     switch (reality) {
         case Reality.HP:
-            return (entity.stats.end * 5) + (entity.stats.siz * 2);
+            return (stats.end * 5) + (stats.siz * 2);
         case Reality.Force:
-            return (entity.stats.str * 2) + (entity.stats.spd * 1) + (entity.stats.siz * 1);
+            return (stats.str * 2) + (stats.spd * 1) + (stats.siz * 1);
         case Reality.Mana:
-            return (entity.stats.int * 3) + (entity.stats.spr * 2) + (entity.stats.fai * 1);
+            return (stats.int * 3) + (stats.spr * 2) + (stats.fai * 1);
         case Reality.Spirituality:
-            return (entity.stats.spr * 2) + (entity.stats.fai * 2) + (entity.stats.wil * 1);
+            return (stats.spr * 2) + (stats.fai * 2) + (stats.wil * 1);
         case Reality.Divinity:
-            return (entity.stats.fai * 3) + (entity.stats.wil * 2) + (entity.stats.cha * 1);
+            return (stats.fai * 3) + (stats.wil * 2) + (stats.cha * 1);
         case Reality.Precision:
-            return (entity.stats.dex * 2) + (entity.stats.acr * 1) + (entity.stats.spd * 1);
+            return (stats.dex * 2) + (stats.acr * 1) + (stats.spd * 1);
         case Reality.Maneuver:
-            return (entity.stats.acr * 2) + (entity.stats.spd * 2) + (entity.stats.dex * 1);
+            return (stats.acr * 2) + (stats.spd * 2) + (stats.dex * 1);
         case Reality.Convince:
-            return (entity.stats.cha * 2) + (entity.stats.beu * 1) + (entity.stats.int * 1);
+            return (stats.cha * 2) + (stats.beu * 1) + (stats.int * 1);
         case Reality.Bravery:
-            return (entity.stats.wil * 2) + (entity.stats.end * 1) + (entity.stats.fai * 1);
+            return (stats.wil * 2) + (stats.end * 1) + (stats.fai * 1);
         default:
             warn(`Reality value for ${reality} not found`);
             return 0;
@@ -400,11 +399,11 @@ export function isAttackKills(attackerAction: AttackAction) {
     const { damage } = attackerAction.clashResult;
 
     if (executed) {
-        return target.get('hip') <= 0;
+        return target.hip <= 0;
     }
 
-    print(`IsAttackKills: ${target.get('hip')} - ${damage} <= 0`);
-    return target.get('hip') - damage <= 0;
+    print(`IsAttackKills: ${target.hip} - ${damage} <= 0`);
+    return target.hip - damage <= 0;
 }
 
 export function warnWrongSideCall(method: string, mes = "called on the wrong side") {

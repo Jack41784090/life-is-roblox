@@ -38,8 +38,8 @@ export default class Ability implements iAbility {
         this.description = opt.description;
         this.cost = opt.cost;
         this.potencies = opt.potencies;
-        this.using = opt.using;
-        this.target = opt.target;
+        this.using = new Entity(opt.using);
+        this.target = new Entity(opt.target);
         this.damageType = opt.damageType;
         this.range = opt.range;
         this.animation = opt.animation;

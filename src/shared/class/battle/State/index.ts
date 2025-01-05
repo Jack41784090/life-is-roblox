@@ -2,6 +2,7 @@ import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityStats, HexGridState, MoveAction, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
+import Ability from "../Ability";
 import Entity from "../Entity";
 import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
@@ -36,9 +37,12 @@ export class Team {
     }
 }
 
+type Tuple = [Vector2, Entity];
+
 export default class State {
     creID: number | undefined;
-    teams: Team[] = [];
+    participantMap: Map<number, Tuple> = new Map();
+    private teams: Team[] = [];
     grid: HexGrid;
 
     constructor({ width, worldCenter, teamMap }: StateConfig) {
@@ -71,6 +75,7 @@ export default class State {
             return;
         }
 
+        this.participantMap.set(cre.playerID, [cell.qr(), cre]);
         cre.setCell(cell.qr());
         cell.pairWith(cre);
     }
@@ -140,7 +145,10 @@ export default class State {
         print(`Committing action`, action);
         switch (action.type) {
             case ActionType.Attack:
-                this.applyClash(action as AttackAction);
+                const aAction = action as AttackAction;
+                const clashResult = this.clash(action as AttackAction);
+                aAction.clashResult = clashResult;
+                this.applyClash(aAction);
                 break;
             case ActionType.Move:
                 assert(t.interface({
@@ -189,10 +197,16 @@ export default class State {
         }
         print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
         attackAction.executed = true;
-        attackAction.ability.target.damage(clashResult.damage);
+
+        const attacker = this.findEntity(attackAction.by);
+        const target = attackAction.against ? this.findEntity(attackAction.against) : undefined;
+        if (target) {
+            target.damage(clashResult.damage);
+        }
     }
 
     public clash(attackAction: AttackAction): ClashResult {
+        print(`Clashing`, attackAction);
         const { using: attacker, target, acc } = attackAction.ability;
         print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
 
@@ -200,10 +214,11 @@ export default class State {
         let damage = 0;
 
         const hitRoll = math.random(1, 100);
-        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target);
-        const critChance = calculateRealityValue(Reality.Precision, attacker);
+        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target.stats);
+        const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
 
-        const abilityDamage = attackAction.ability.calculateDamage();
+        const ability = new Ability(attackAction.ability);
+        const abilityDamage = ability.calculateDamage();
         const minDamage = abilityDamage * 0.5;
         const maxDamage = abilityDamage;
 
@@ -245,7 +260,7 @@ export default class State {
             const members = playerList
                 .mapFiltered((player) => {
                     // const characterID = player.Character ? player.Character.Name : "default_character";
-                    const characterID = 'entity_adalbrecht'; // temp
+                    const characterID = 'entity_adalbrecht'; // TODO: temp
                     const characterStats = requestData(player, "characterStats", characterID) as EntityStats;
                     if (!characterStats) {
                         warn(`Character [${characterID}] not found for [${player.Name}]`);
@@ -372,6 +387,14 @@ export default class State {
         }
         const cre = this.findEntity(this.creID);
         return cre?.qr;
+    }
+
+    public getCRE() {
+        if (!this.creID) {
+            warn("CRE ID not found");
+            return undefined;
+        }
+        return this.findEntity(this.creID);
     }
     //#endregion
 

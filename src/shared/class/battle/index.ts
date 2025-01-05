@@ -1,7 +1,7 @@
 import { RunService } from "@rbxts/services";
 import { MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { ActionValidator, Config, MoveAction } from "shared/types/battle-types";
+import { ActionType, ActionValidator, Config, MoveAction } from "shared/types/battle-types";
 import { warnWrongSideCall } from "shared/utils";
 import { IDGenerator } from "../IDGenerator";
 import State from "./State";
@@ -75,11 +75,8 @@ class Battle {
 
     private checkMovementPossibility(action: MoveAction) {
         const { from, to } = action;
-        const grid = this.state.grid;
-        const fromCell = grid.getCell(from);
-        const toCell = grid.getCell(to);
-
-        print(grid)
+        const fromCell = this.state.getCell(from);
+        const toCell = this.state.getCell(to);
 
         assert(fromCell, "No from cell found")
         assert(toCell, "No to cell found")
@@ -104,7 +101,7 @@ class Battle {
         this.validate({ declaredAccess, client, trueAccessCode, winningClient });
 
         const { action } = declaredAccess;
-        this.checkMovementPossibility(action as MoveAction);
+        if (action?.type === ActionType.Move) this.checkMovementPossibility(action as MoveAction);
 
         return true;
     }

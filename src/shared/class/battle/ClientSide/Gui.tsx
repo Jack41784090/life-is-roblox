@@ -6,11 +6,8 @@ import GuiMothership from "gui_sharedfirst/new_components/main";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, UpdateMainUIConfig } from "shared/types/battle-types";
-import Ability from "../Ability";
 import Entity from "../Entity";
-import HexCell from "../Hex/Cell";
 import HexCellGraphics from "../Hex/Cell/Graphics";
-import HexGrid from "../Hex/Grid";
 import Pathfinding from "../Pathfinding";
 import State from "../State";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
@@ -20,13 +17,13 @@ export default class Gui {
     animating?: Promise<unknown>;
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
-    static Connect(icons: ReadinessIcon[], grid: HexGrid) {
-        const ui = new Gui(icons, grid);
+    static Connect(icons: ReadinessIcon[]) {
+        const ui = new Gui(icons);
         return ui
     }
 
     // Private constructor to prevent direct instantiation
-    private constructor(icons: ReadinessIcon[], grid: HexGrid) {
+    private constructor(icons: ReadinessIcon[]) {
         this.mountInitialUI(icons);
     }
 
@@ -42,6 +39,7 @@ export default class Gui {
     updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
     updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
         print(`Updating main UI with mode: ${mode}`, props);
+        // this.creID = props.state?.creID;
         const { readinessIcons, state, EHCGMS, accessToken } = props;
         switch (mode) {
             case 'onlyReadinessBar':
@@ -219,15 +217,18 @@ export default class Gui {
      * Handles the click event on a cell within the battle GUI.
      *
      * @param cre - The entity that initiated the click event.
-     * @param tuple - The cell that was clicked.
+     * @param clickedtuple - The cell that was clicked.
      */
-    private handleCellClick(props: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
-        if (tuple.entity) {
-            const { state, accessToken } = props;
-            // this.clickedOnEntity(cre, clickedCell, accessToken);
+    private handleCellClick(props: UpdateMainUIConfig, clickedtuple: EntityCellGraphicsTuple) {
+        print("Cell clicked", clickedtuple);
+        if (clickedtuple.entity) {
+            print(props.state)
+            const clickedOnEntity = props.state.findEntity(clickedtuple.cell.qr);
+            assert(clickedOnEntity, "Clicked on entity is not defined");
+            this.clickedOnEntity(props, clickedOnEntity, props.accessToken);
         }
         else {
-            this.clickedOnEmptyCell(props, tuple, props.accessToken);
+            this.clickedOnEmptyCell(props, clickedtuple, props.accessToken);
         }
     }
     /**
@@ -246,7 +247,11 @@ export default class Gui {
      * - The target entity has no cell.
      * - The current entity has no cell.
      */
-    private clickedOnEntity(cre: Entity, clickedOnCell: HexCell, accessToken: AccessToken) {
+    private clickedOnEntity(props: UpdateMainUIConfig, clickedOn: Entity, accessToken: AccessToken) {
+        print("Clicked on entity", clickedOn);
+        const { state } = props;
+        const cre = state.getCRE();
+        assert(cre, "Current entity is not defined");
         if (cre.armed) {
             const keyed = cre.armed;
             const iability = cre.getEquippedAbilitySet()[keyed];
@@ -254,14 +259,15 @@ export default class Gui {
                 warn("No ability keyed");
                 return;
             }
-            const ability = new Ability({
-                ...iability
-            })
             accessToken.action = {
                 type: ActionType.Attack,
-                ability,
+                ability: {
+                    ...iability,
+                    using: cre.info(),
+                    target: clickedOn.info(),
+                },
                 by: cre.playerID,
-                against: clickedOnCell.entity,
+                against: clickedOn.playerID,
                 executed: false,
             } as AttackAction
             remotes.battle.act(accessToken);
@@ -269,6 +275,7 @@ export default class Gui {
     }
 
     private async clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
+        print("Clicked on empty cell", emptyTuple);
         const { state, EHCGMS } = props;
         const start = state.getCREPosition();
         assert(start, "Start position is not defined");
