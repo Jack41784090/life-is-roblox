@@ -218,8 +218,7 @@ export enum ActionType {
 }
 export interface AttackAction extends BattleAction {
     ability: AbilityConfig,
-    clashResult?: ClashResult,
-    abilityEffectString?: string,
+    clashResult: ClashResult,
 }
 export interface MoveAction extends BattleAction {
     from: Vector2,

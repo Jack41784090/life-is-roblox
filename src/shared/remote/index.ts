@@ -38,6 +38,7 @@ const remotes = createRemotes({
 
         //#region Server => Client
         forceUpdate: remote<Client>(),
+        animate: remote<Client, [action: AccessToken]>(),
         ui: namespace({
             unmount: remote<Client, [tag: GuiTag]>(),
             startRoom: remote<Client, [arg: Player[]]>(),

@@ -1,10 +1,11 @@
 import { Players, RunService, UserInputService } from "@rbxts/services";
-import { GuiTag } from "shared/const";
+import { GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClashResult, ClientSideConfig, ControlLocks, TILE_SIZE } from "shared/types/battle-types";
-import { warnWrongSideCall } from "shared/utils";
-import { AbilityState } from "../Ability";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, TILE_SIZE } from "shared/types/battle-types";
+import { isAttackKills, warnWrongSideCall } from "shared/utils";
 import Entity from "../Entity";
+import { AnimationType } from "../Entity/Graphics/AnimationHandler";
+import Pathfinding from "../Pathfinding";
 import State from "../State";
 import BattleCam from "./BattleCamera";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
@@ -14,6 +15,7 @@ export default class ClientSide {
     private graphicsInitialised: ReturnType<ClientSide["initialiseGraphics"]>;
 
     private remotees: Array<() => void> = [];
+    private animating: Promise<unknown> = Promise.resolve();
 
     public gui: Gui;
     public camera: BattleCam;
@@ -97,6 +99,34 @@ export default class ClientSide {
             }),
             remotes.battle.forceUpdate.connect(() => {
                 this.requestUpdateState();
+            }),
+            remotes.battle.animate.connect(ac => {
+                if (!ac.action) {
+                    warn("No action found in animate call", ac);
+                    return;
+                }
+                print("Received action", ac.action);
+                switch (ac.action.type) {
+                    case ActionType.Attack:
+                        const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
+                        this.playAttackAnimation(aa);
+                        break;
+                    case ActionType.Move:
+                        const ma = ac.action as MoveAction;
+                        const cre = this.state.getCRE(); assert(cre, "Current entity is not defined");
+                        const pf = new Pathfinding({
+                            grid: this.state.grid,
+                            start: ma.from,
+                            dest: ma.to,
+                            limit: math.floor(cre.get('pos') / MOVEMENT_COST),
+                            hexagonal: true,
+                        })
+                        const destCellG = this.EHCGMS.findCellG(ma.to);
+                        const cellGPath = pf.begin().map(qr => this.EHCGMS.findCellG(qr));
+                        const creG = this.EHCGMS.findEntityG(ma.from);
+                        this.animating = creG.moveToCell(destCellG, cellGPath)
+                        break;
+                }
             })
         ]
     }
@@ -113,7 +143,7 @@ export default class ClientSide {
         this.state.sync({
             teams: r,
         });
-        await this.gui.animating;
+        await this.animating;
         this.EHCGMS.syncTeams(r);
         return r;
     }
@@ -123,7 +153,7 @@ export default class ClientSide {
         this.state.sync({
             grid: r,
         })
-        await this.gui.animating;
+        await this.animating;
         this.EHCGMS.syncGrid(r);
         return r;
     }
@@ -131,7 +161,7 @@ export default class ClientSide {
     private async requestUpdateState() {
         const r = await remotes.battle.requestSync.state();
         this.state.sync(r);
-        await this.gui.animating;
+        await this.animating;
         this.EHCGMS.syncTeams(r.teams);
         this.EHCGMS.syncGrid(r.grid);
         return r;
@@ -294,98 +324,75 @@ export default class ClientSide {
 
     //#region Animations
 
-    private realiseClashResult(clashResult: ClashResult & { abilityState: AbilityState }) {
-        print("Attack clash result received", clashResult);
+    private async playAttackAnimation(aa: AttackAction) {
+        print("Playing attack animation", aa);
+        const { animation } = aa.ability;
+        const attacker = this.EHCGMS.findEntityG(aa.by);
+        assert(aa.against !== undefined, "attack action has invalid target id"); const target = this.EHCGMS.findEntityG(aa.against);
 
-        const allEntities = this.state.getAllEntities();
-        const using = allEntities.find((e) => e.playerID === clashResult.abilityState.using);
-        const target = allEntities.find((e) => e.playerID === clashResult.abilityState.target);
+        await target.faceEntity(attacker);
+        const attackAnimation = attacker.playAnimation({
+            animation,
+            priority: Enum.AnimationPriority.Action4,
+            loop: false,
+        });
+        const defendIdleAnimation = target.playAnimation({
+            animation: "defend",
+            priority: Enum.AnimationPriority.Action2,
+            loop: false,
+        });
 
-        if (!using || !target) {
-            warn("Using or target entity not found", using, target);
+        if (!attackAnimation) {
+            warn("[playAttackAnimation] Attacker animation track not found.");
             return;
         }
-        this.executeAttackSequence({
-            type: ActionType.Attack, by: using.playerID, executed: true, ability: {
-                ...clashResult.abilityState,
-                using: using.info(),
-                target: target.info(),
-            }, clashResult
-        });
-    }
 
-    private async executeAttackSequence(attackAction: AttackAction) {
-        await this.playAttackAnimation(attackAction);
-    }
+        try {
+            await this.waitForAnimationMarker(attackAnimation, "Hit");
+            target.animationHandler?.killAnimation(AnimationType.Idle);
 
-    private async playAttackAnimation(aa: AttackAction) {
-        // const { using, target, animation } = aa.ability;
+            if (isAttackKills(aa)) {
+                defendIdleAnimation?.Stop();
+                target.playAnimation({
+                    animation: "death-idle",
+                    priority: Enum.AnimationPriority.Idle,
+                    loop: true,
+                })
+                const deathAnimation = target.playAnimation({
+                    animation: "death",
+                    priority: Enum.AnimationPriority.Action3,
+                    loop: false,
+                });
+            }
+            else {
+                defendIdleAnimation?.Stop();
+                const gotHitAnimation = target.playAnimation({
+                    animation: "defend-hit",
+                    priority: Enum.AnimationPriority.Action3,
+                    loop: false,
+                });
 
-        // await target.faceEntity(attacker);
+                await this.waitForAnimationEnd(attackAnimation);
+                if (gotHitAnimation) await this.waitForAnimationEnd(gotHitAnimation);
 
-        // const attackAnimation = attacker.playAnimation({
-        //     animation,
-        //     priority: Enum.AnimationPriority.Action4,
-        //     loop: false,
-        // });
+                const transitionTrack = target.playAnimation({
+                    animation: "defend->idle",
+                    priority: Enum.AnimationPriority.Action4,
+                    loop: false,
+                });
 
-        // const defendIdleAnimation = target.playAnimation({
-        //     animation: "defend",
-        //     priority: Enum.AnimationPriority.Action2,
-        //     loop: false,
-        // });
+                transitionTrack?.Ended.Wait();
+                target.playAnimation({
+                    animation: "idle",
+                    priority: Enum.AnimationPriority.Idle,
+                    loop: true,
+                })
+            }
+        } catch (error) {
+            warn(`[playAttackAnimation] Error during attack animation: ${error}`);
+        }
 
-        // if (!attackAnimation) {
-        //     warn("[playAttackAnimation] Attacker animation track not found.");
-        //     return;
-        // }
-
-        // try {
-        //     await this.waitForAnimationMarker(attackAnimation, "Hit");
-        //     target.animationHandler?.killAnimation(AnimationType.Idle);
-
-        //     if (isAttackKills(attackAction)) {
-        //         defendIdleAnimation?.Stop();
-        //         target.playAnimation({
-        //             animation: "death-idle",
-        //             priority: Enum.AnimationPriority.Idle,
-        //             loop: true,
-        //         })
-        //         const deathAnimation = target.playAnimation({
-        //             animation: "death",
-        //             priority: Enum.AnimationPriority.Action3,
-        //             loop: false,
-        //         });
-        //     }
-        //     else {
-        //         defendIdleAnimation?.Stop();
-        //         const gotHitAnimation = target.playAnimation({
-        //             animation: "defend-hit",
-        //             priority: Enum.AnimationPriority.Action3,
-        //             loop: false,
-        //         });
-
-        //         await this.waitForAnimationEnd(attackAnimation);
-        //         if (gotHitAnimation) await this.waitForAnimationEnd(gotHitAnimation);
-
-        //         const transitionTrack = target.playAnimation({
-        //             animation: "defend->idle",
-        //             priority: Enum.AnimationPriority.Action4,
-        //             loop: false,
-        //         });
-
-        //         transitionTrack?.Ended.Wait();
-        //         target.playAnimation({
-        //             animation: "idle",
-        //             priority: Enum.AnimationPriority.Idle,
-        //             loop: true,
-        //         })
-        //     }
-        // } catch (error) {
-        //     warn(`[playAttackAnimation] Error during attack animation: ${error}`);
-        // }
-
-        // attacker.playAudio(EntityStatus.Idle);
+        attacker.playAudio(EntityStatus.Idle);
     }
     /**
      * Waits for a specific marker in an animation track.

@@ -27,11 +27,11 @@ export default class EntityHexCellGraphicsMothership {
 
     addTuple(playerID: number, tuple: EntityCellGraphicsTuple) {
         this.idTupleMap.set(playerID, tuple);
-        if (this.tupleQR.get(tuple.cell.qrs)) {
-            warn(`Tuple already exists at ${tuple.cell.qrs}`);
+        if (this.tupleQR.get(tuple.cellGraphics.qrs)) {
+            warn(`Tuple already exists at ${tuple.cellGraphics.qrs}`);
         }
         else {
-            this.tupleQR.set(tuple.cell.qrs, tuple);
+            this.tupleQR.set(tuple.cellGraphics.qrs, tuple);
         }
     }
 
@@ -50,14 +50,14 @@ export default class EntityHexCellGraphicsMothership {
 
         if (!tuple) return;
 
-        if (tuple.entity) {
+        if (tuple.entityGraphics) {
             this.idTupleMap.forEach((t, playerID) => {
                 if (t === tuple) {
                     this.idTupleMap.delete(playerID);
                 }
             });
         }
-        this.tupleQR.delete(tuple.cell.qrs);
+        this.tupleQR.delete(tuple.cellGraphics.qrs);
     }
 
     findTupleByEntity(entity: Entity) {
@@ -65,6 +65,36 @@ export default class EntityHexCellGraphicsMothership {
             return undefined;
         }
         return this.tupleQR.get(entity.qr);
+    }
+
+    findEntityG(playerID: PlayerID): EntityGraphics;
+    findEntityG(entity: Entity): EntityGraphics;
+    findEntityG(qr: Vector2): EntityGraphics;
+    findEntityG(qrs: Vector3): EntityGraphics;
+    findEntityG(qr: Vector2 | Vector3 | Entity | PlayerID) {
+        let tuple: EntityCellGraphicsTuple | undefined;
+        if (typeIs(qr, 'Vector2') || typeIs(qr, 'Vector3')) {
+            tuple = this.tupleQR.get(qr as Vector2);
+        }
+        else if (qr instanceof Entity) {
+            tuple = this.findTupleByEntity(qr);
+        }
+        else if (typeIs(qr, 'number')) {
+            tuple = this.idTupleMap.get(qr);
+        }
+
+        return tuple?.entityGraphics;
+    }
+
+    findCellG(qr: Vector2): HexCellGraphics;
+    findCellG(qrs: Vector3): HexCellGraphics;
+    findCellG(dest: Vector2 | Vector3) {
+        return this.tupleQR.get(dest as Vector2)?.cellGraphics;
+    }
+
+    findEntityGByEntity(entity: Entity) {
+        const tuple = this.findTupleByEntity(entity);
+        return tuple?.entityGraphics;
     }
 
     positionTuple(qr: Vector2) {
@@ -99,7 +129,7 @@ export default class EntityHexCellGraphicsMothership {
                 // 1. entity updated his location => move the tuple to the new location
                 if (playerTuple) {
                     print(`Existing: ${entityState.playerID} => ${newQR}`);
-                    const oldQR = playerTuple.cell.qr;
+                    const oldQR = playerTuple.cellGraphics.qr;
                     if (newQR === oldQR) {
                         print(`||=> Player ${entityState.playerID} is already at ${newQR}`);
                         continue;
@@ -148,7 +178,7 @@ export default class EntityHexCellGraphicsMothership {
             return;
         }
 
-        const cell = this.tupleQR.get(dest)?.cell ?? this.positionTuple(dest).cell;
+        const cell = this.tupleQR.get(dest)?.cellGraphics ?? this.positionTuple(dest).cellGraphics;
         const endTuple = await entity.moveToCell(cell);
         this.tupleQR.set(dest, endTuple);
     }

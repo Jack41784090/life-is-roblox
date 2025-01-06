@@ -102,6 +102,9 @@ class Battle {
 
         const { action } = declaredAccess;
         if (action?.type === ActionType.Move) this.checkMovementPossibility(action as MoveAction);
+        if (action?.type === ActionType.Attack) {
+
+        }
 
         return true;
     }
@@ -144,12 +147,12 @@ class Battle {
                 return { userId: p.UserId, allowed: false }
             }
         })
-        remotes.battle.act.onRequest((p, access) => {
-            print(`Received action request from ${p.Name}`, access)
+        remotes.battle.act.onRequest((actingPlayer, access) => {
+            print(`Received action request from ${actingPlayer.Name}`, access)
             let er: unknown | undefined;
             try {
                 this.validateAction({
-                    client: p,
+                    client: actingPlayer,
                     declaredAccess: access,
                     trueAccessCode: accessCode,
                     winningClient: winningClient,
@@ -164,10 +167,11 @@ class Battle {
             }
             else {
                 this.state.commit(access.action!);
+                remotes.battle.animate(actingPlayer, access);
             }
             this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
             return {
-                userId: p.UserId,
+                userId: actingPlayer.UserId,
                 allowed: er === undefined,
                 token: accessCode,
                 action: access.action,

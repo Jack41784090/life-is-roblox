@@ -148,14 +148,14 @@ export default class State {
                 const aAction = action as AttackAction;
                 const clashResult = this.clash(action as AttackAction);
                 aAction.clashResult = clashResult;
-                this.applyClash(aAction);
+                return this.applyClash(aAction);
                 break;
             case ActionType.Move:
                 assert(t.interface({
                     from: t.Vector2,
                     to: t.Vector2,
                 })(action), "Invalid move action");
-                this.move(action as MoveAction);
+                return this.move(action as MoveAction);
                 break;
             default:
                 warn("Invalid action type", action.type);
@@ -186,7 +186,7 @@ export default class State {
             return;
         }
         fromCell.entity = undefined;
-        this.setCell(fromEntity, toCell);
+        return this.setCell(fromEntity, toCell);
     }
 
     public applyClash(attackAction: AttackAction) {
@@ -203,6 +203,8 @@ export default class State {
         if (target) {
             target.damage(clashResult.damage);
         }
+
+        return clashResult;
     }
 
     public clash(attackAction: AttackAction): ClashResult {
