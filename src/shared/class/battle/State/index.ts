@@ -1,5 +1,6 @@
 import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
+import { MOVEMENT_COST } from "shared/const";
 import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityStats, HexGridState, MoveAction, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Ability from "../Ability";
@@ -37,7 +38,10 @@ export class Team {
     }
 }
 
-type Tuple = [Vector2, Entity];
+type Tuple = {
+    qr: Vector2;
+    entity: Entity;
+}
 
 export default class State {
     creID: number | undefined;
@@ -75,7 +79,10 @@ export default class State {
             return;
         }
 
-        this.participantMap.set(cre.playerID, [cell.qr(), cre]);
+        this.participantMap.set(cre.playerID, {
+            qr: cell.qr(),
+            entity: cre,
+        });
         cre.setCell(cell.qr());
         cell.pairWith(cre);
     }
@@ -149,14 +156,12 @@ export default class State {
                 const clashResult = this.clash(action as AttackAction);
                 aAction.clashResult = clashResult;
                 return this.applyClash(aAction);
-                break;
             case ActionType.Move:
                 assert(t.interface({
                     from: t.Vector2,
                     to: t.Vector2,
                 })(action), "Invalid move action");
                 return this.move(action as MoveAction);
-                break;
             default:
                 warn("Invalid action type", action.type);
         }
@@ -185,7 +190,13 @@ export default class State {
             warn("Invalid entity ID");
             return;
         }
+
+        const distance = this.findDistance(from, to);
+        const costOfMovement = distance * MOVEMENT_COST;
         fromCell.entity = undefined;
+        const movingEntity = this.participantMap.get(fromEntityID)?.entity;
+        assert(movingEntity, "invalid fromEntityID leads to undefined movingEntity in state.move");
+        movingEntity.set('pos', movingEntity.get('pos') - costOfMovement);
         return this.setCell(fromEntity, toCell);
     }
 
@@ -407,7 +418,8 @@ export default class State {
 
     private iterateReadinessGauntlet(entities: Entity[]) {
         for (const entity of entities) {
-            entity.change('pos', math.clamp(entity.get('pos') + this.calculateReadinessIncrement(entity), 0, 100));
+            const readiness = entity.get('pos');
+            entity.set('pos', math.clamp(readiness + this.calculateReadinessIncrement(entity), 0, 100));
         }
     }
 

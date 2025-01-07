@@ -48,7 +48,8 @@ export default class Entity implements iEntity {
     }
 
     //#region get stats
-    change(property: 'sta' | 'hip' | 'org' | 'pos', by: number) {
+    set(property: 'sta' | 'hip' | 'org' | 'pos', by: number) {
+        print(`${this.name}: Changing ${property} by ${by}`);
         this[property](by);
         return this[property];
     }

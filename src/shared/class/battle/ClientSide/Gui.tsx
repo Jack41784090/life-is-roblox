@@ -287,13 +287,22 @@ export default class Gui {
 
     private async commiteMoveAction(mainUIConfig: UpdateMainUIConfig, ac: AccessToken, start: Vector2, dest: Vector2) {
         this.updateMainUI('onlyReadinessBar', mainUIConfig);
-        const ourAction = ac.action as MoveAction; ourAction.to = dest; ourAction.from = start;
-        const res = await this.commitAction(ac);
+        const res = await this.commitAction({
+            ...ac,
+            action: {
+                type: ActionType.Move,
+                executed: false,
+                by: ac.userId,
+                to: dest,
+                from: start,
+            } as MoveAction
+        });
         this.updateMainUI('withSensitiveCells', mainUIConfig);
         return res
     }
 
     private async commitAction(ac: AccessToken) {
+        print("Committing action", ac);
         const res = await remotes.battle.act(ac);
         return res;
     }

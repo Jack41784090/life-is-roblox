@@ -147,8 +147,12 @@ class Battle {
                 return { userId: p.UserId, allowed: false }
             }
         })
+
+        let endPromiseResolve: (p: Player) => void;
         remotes.battle.act.onRequest((actingPlayer, access) => {
             print(`Received action request from ${actingPlayer.Name}`, access)
+
+            // 1. Validate
             let er: unknown | undefined;
             try {
                 this.validateAction({
@@ -162,6 +166,7 @@ class Battle {
                 er = e;
             }
 
+            // 2. Commit if no error
             if (er) {
                 warn("Error", er)
             }
@@ -169,7 +174,21 @@ class Battle {
                 this.state.commit(access.action!);
                 remotes.battle.animate(actingPlayer, access);
             }
+
+
+            // 3. Update all players
             this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
+
+            // 4. Check if pos of actingPlayer (cre) is below 75% and end round
+            const cre = this.state.findEntity(actingPlayer.UserId);
+            assert(cre, "Critcal Error: CRE could not be found with actingPlayer.UserId")
+            assert(cre.playerID === this.state.creID, "Critical Error: CRE ID mismatch")
+            const posture = cre.get('pos'); print(`posture: ${posture}`)
+            if (cre.get('pos') < 75) {
+                print("Ending round")
+                endPromiseResolve(actingPlayer);
+            }
+
             return {
                 userId: actingPlayer.UserId,
                 allowed: er === undefined,
@@ -177,25 +196,33 @@ class Battle {
                 action: access.action,
             }
         })
-        const promise = remotes.battle.end.promise((p, s) => {
-            try {
-                this.validateEnd({
-                    client: p,
-                    declaredAccess: s,
-                    trueAccessCode: accessCode,
-                    winningClient: winningClient,
-                })
-                print(`Received end response: ${s} from ${p.Name}`)
-                return true;
-            }
-            catch (e) {
-                print("Invalid end", e)
-                return false;
-            }
+
+        const endPromise = new Promise((resolve) => {
+            endPromiseResolve = resolve;
+            remotes.battle.end.promise((p, s) => {
+                try {
+                    this.validateEnd({
+                        client: p,
+                        declaredAccess: s,
+                        trueAccessCode: accessCode,
+                        winningClient: winningClient,
+                    })
+                    print(`Received end response: ${s} from ${p.Name}`)
+                    return true;
+                }
+                catch (e) {
+                    print("Invalid end", e)
+                    return false;
+                }
+            }).then((p) => {
+                print(`End promise resolved`, p)
+                resolve(p);
+            })
         })
 
-        await promise;
-        print("Promise resolved", promise)
+        await endPromise;
+        print("Promise resolved", endPromise)
+
         this.round()
     }
 }
