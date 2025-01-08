@@ -37,8 +37,12 @@ const remotes = createRemotes({
         end: remote<Server, [access: AccessToken]>(), //#endregion
 
         //#region Server => Client
+        chosen: remote<Client>(),
         forceUpdate: remote<Client>(),
         animate: remote<Client, [action: AccessToken]>(),
+        camera: namespace({
+            hoi4: remote<Client>(),
+        }),
         ui: namespace({
             unmount: remote<Client, [tag: GuiTag]>(),
             startRoom: remote<Client, [arg: Player[]]>(),

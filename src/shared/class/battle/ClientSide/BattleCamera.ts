@@ -21,11 +21,13 @@ export default class BattleCam {
     constructor(camera: Camera, worldCenter: Vector3, gridMin: Vector2, gridMax: Vector2) {
         this.worldCenter = worldCenter;
         this.camera = camera;
-        this.setupRenderStepped();
         this.gridMin = gridMin;
         this.gridMax = gridMax;
 
         this.camAnimFolder = ReplicatedStorage.WaitForChild("CamAnim") as Folder;
+
+
+        this.setupRenderStepped();
     }
 
     static readonly EDGE_BUFFER = 0.15;
@@ -92,18 +94,17 @@ export default class BattleCam {
         });
     }
 
-    async enterCharacterCenterMode() {
+    async enterCharacterCenterMode(_eG?: EntityGraphics) {
         print('Setting up Character Center Camera Pan');
         this.panningEnabled = false;
-        const model = this.focusedChar?.model;
+        const eG = _eG ?? this.focusedChar;
+        const model = eG?.model; this.focusedChar = eG;
         const primPart = model?.PrimaryPart;
         const camOriPart = model?.FindFirstChild("cam-ori") as BasePart;
-        //#region
         if (!primPart || !camOriPart) {
             warn("Primary Part or Camera Orientation Part not found!", model, primPart, camOriPart);
             return;
         }
-        //#endregion
         this.resetAngle(primPart, camOriPart);
         return model ?
             this.goToModelCam(model).then(() => {

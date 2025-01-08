@@ -127,6 +127,17 @@ export default class ClientSide {
                         this.animating = creG.moveToCell(destCellG, cellGPath)
                         break;
                 }
+            }),
+            remotes.battle.camera.hoi4.connect(() => {
+                return this.camera.enterHOI4Mode()
+            }),
+            remotes.battle.chosen.connect(() => {
+                this.localEntity().andThen(e => {
+                    this.exitMovement();
+                    const eG = this.EHCGMS.findEntityG(e.playerID) ?? this.EHCGMS.positionNewPlayer(e.info(), e.info().qr!);
+                    this.camera.enterCharacterCenterMode(eG);
+                    if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                })
             })
         ]
     }
@@ -207,16 +218,16 @@ export default class ClientSide {
     //#endregion
 
     //#region Entity Management
-    private async localEntity(): Promise<Entity | undefined> {
+    private async localEntity(): Promise<Entity> {
         const localPlayer = Players.LocalPlayer;
         await this.graphicsInitialised;
         const e = this.state.findEntity(localPlayer.UserId);
-        if (!e) return;
+        assert(e, "Local entity not found");
         return e;
     }
     //#endregion
 
-    //#region UI Movement
+    //#region UI Transitions
 
     public getCharacterMenuActions(entity: Entity): CharacterMenuAction[] {
         return [
@@ -237,7 +248,8 @@ export default class ClientSide {
                                 executed: false
                             }
                         };
-                        this.enterMovementMode(newAccessToken);
+                        this.camera.enterHOI4Mode();
+                        this.enterMovement(newAccessToken);
                     })
                 },
             },
@@ -256,12 +268,13 @@ export default class ClientSide {
      *  2. The camera is centered on the current entity
      *  3. going back to the action selection screen
      */
-    private async returnToSelections(accessToken: AccessToken) {
-        this.exitMovementMode(accessToken)
-        await this.camera.enterCharacterCenterMode()
+    private async returnToSelections() {
+        this.exitMovement()
+        // await this.camera.enterCharacterCenterMode()
         await this.localEntity().then(e => {
-            if (!e) return;
-            this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+            this.camera.enterCharacterCenterMode().then(() => {
+                this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+            })
         })
     }
     /**
@@ -278,13 +291,16 @@ export default class ClientSide {
      *    - Re-render the UI to include sensitive cells.
      *    - Mount the ability slots for the current entity.
      */
-    private async enterMovementMode(accessToken: AccessToken) {
+    private async enterMovement(accessToken: AccessToken) {
         print("Entering movement mode");
-        const cre = this.state.findEntity(accessToken.userId);
-        if (!cre) return;
+        const localE = await this.localEntity()
+        assert(localE, "Local entity not found");
+
         this.controlLocks.set(Enum.KeyCode.X, true);
+
         this.gui.unmountAndClear(GuiTag.ActionMenu);
-        this.gui.mountAbilitySlots(cre);
+        this.gui.mountAbilitySlots(localE);
+
         this.gui.updateMainUI('withSensitiveCells', {
             EHCGMS: this.EHCGMS,
             state: this.state,
@@ -293,7 +309,7 @@ export default class ClientSide {
         });
     }
 
-    private exitMovementMode(accessToken: AccessToken) {
+    private exitMovement() {
         this.controlLocks.delete(Enum.KeyCode.X);
         this.gui.clearAll();
         this.gui.updateMainUI('onlyReadinessBar', {
@@ -311,14 +327,19 @@ export default class ClientSide {
             return;
         }
 
-        // switch (io.KeyCode) {
-        //     case Enum.KeyCode.X:
-        //         if (!gpe) {
-        //             const entity = this.currentRoundEntity();
-        //             if (entity) this.returnToSelections(entity);
-        //         };
-        //         break;
-        // }
+        switch (io.KeyCode) {
+            case Enum.KeyCode.X:
+                if (!gpe) {
+                    this.controlLocks.delete(Enum.KeyCode.X);
+                    this.localEntity().then(e => {
+                        this.controlLocks.set(Enum.KeyCode.X, true);
+                        if (e) {
+                            this.returnToSelections();
+                        }
+                    })
+                };
+                break;
+        }
     }
     //#endregion
 

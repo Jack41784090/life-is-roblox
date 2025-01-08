@@ -130,7 +130,7 @@ class Battle {
         print(`2. Updating UI for all`)
         players.forEach(p => {
             if (p.UserId === winningClient.UserId) {
-                remotes.battle.ui.mount.actionMenu(p);
+                remotes.battle.chosen(p);
             }
             else {
                 remotes.battle.ui.mount.otherPlayersTurn(p);
