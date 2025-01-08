@@ -2,10 +2,12 @@ import React from "@rbxts/react";
 import { Players } from "@rbxts/services";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
+import HPBar from "gui_sharedfirst/new_components/battle/statusBar/hpBar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, UpdateMainUIConfig } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
+import { calculateRealityValue } from "shared/utils";
 import Entity from "../Entity";
 import HexCellGraphics from "../Hex/Cell/Graphics";
 import Pathfinding from "../Pathfinding";
@@ -37,7 +39,10 @@ export default class Gui {
     updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
     updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
         print(`Updating main UI with mode: ${mode}`, props);
-        // this.creID = props.state?.creID;
+        const localPlayerID = Players.LocalPlayer.UserId;
+        const localEntity = props.state?.findEntity(localPlayerID);
+        const hpBar = localEntity ?
+            <HPBar hp={localEntity.getState('hip')} maxHP={calculateRealityValue(Reality.HP, localEntity.stats)} /> : undefined;
         const { readinessIcons, state, EHCGMS, accessToken } = props;
         switch (mode) {
             case 'onlyReadinessBar':
@@ -46,6 +51,7 @@ export default class Gui {
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={readinessIcons} />
+                        {hpBar}
                     </MenuFrameElement>);
                 break;
             case 'withSensitiveCells':
@@ -57,6 +63,7 @@ export default class Gui {
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={readinessIcons} />
+                        {hpBar}
                         {this.createSensitiveCellElements({ state, EHCGMS, readinessIcons, accessToken })}
                     </MenuFrameElement>);
                 break;
@@ -96,7 +103,9 @@ export default class Gui {
      * @returns the mounted Tree
      */
     mountInitialUI(icons: ReadinessIcon[]) {
-        this.updateMainUI('onlyReadinessBar', { readinessIcons: icons });
+        this.updateMainUI('onlyReadinessBar', {
+            readinessIcons: icons
+        });
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
@@ -120,7 +129,6 @@ export default class Gui {
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>);
     }
-
 
     unmountAndClear(tag: GuiTag) {
         GuiMothership.unmount(tag);

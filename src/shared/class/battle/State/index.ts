@@ -282,10 +282,10 @@ export default class State {
                     return new Entity({
                         playerID: player.UserId,
                         stats: characterStats,
-                        pos: 0,
-                        org: 0,
-                        hip: 0,
-                        sta: 0,
+                        pos: calculateRealityValue(Reality.Maneuver, characterStats),
+                        org: calculateRealityValue(Reality.Bravery, characterStats),
+                        hip: calculateRealityValue(Reality.HP, characterStats),
+                        sta: calculateRealityValue(Reality.HP, characterStats),
                         name: player.Name,
                         team: teamName,
                     });
