@@ -85,7 +85,7 @@ export default class BattleCam {
         const center = worldFocus ?? this.worldCenter;
         const x1 = new Vector3(center.X, 25, center.Z);
         const x2 = new Vector3(center.X, 0, center.Z);
-        const lookAtCframe = new CFrame(x1, x2);
+        const lookAtCframe = new CFrame(x1, x2).ToWorldSpace(CFrame.Angles(math.rad(30), 0, 0));
         return this.setCameraCFrame(lookAtCframe).then(() => {
             this.mode = "HOI4";
             this.panningEnabled = true
@@ -142,7 +142,7 @@ export default class BattleCam {
         camera.CFrame = new CFrame(
             new Vector3(clampedX, cameraPosition.Y, clampedZ),
             cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ))
-        );
+        ).ToWorldSpace(CFrame.Angles(math.rad(30), 0, 0));
     }
 
     private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
