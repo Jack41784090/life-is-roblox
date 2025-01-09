@@ -1,6 +1,6 @@
 import { atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import { ContentProvider, ReplicatedFirst, Workspace } from "@rbxts/services";
+import { ContentProvider, ReplicatedFirst, ReplicatedStorage, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import Scene from "shared/class/Scene";
 import { GuiTag } from "shared/const";
@@ -15,8 +15,8 @@ import WaitingRoomElement from "./new_components/waiting_room";
 ReplicatedFirst.RemoveDefaultLoadingScreen();
 while (!game.IsLoaded()) wait();
 
-const assets = game.GetDescendants();
-const numberOfAssets = assets.size();
+const prioritiseAssets = ReplicatedStorage.GetDescendants();
+const numberOfAssets = prioritiseAssets.size();
 
 let loadedAssetCount = 0;
 const progressAtom = atom(0);
@@ -26,7 +26,7 @@ const threads: thread[] = [];
 print("Preloading assets");
 for (let i = 0; i < numberOfAssets; i++) {
     const thread = task.spawn(() => {
-        const asset = assets[i];
+        const asset = prioritiseAssets[i];
         ContentProvider.PreloadAsync([asset]);
         loadedAssetCount++;
     })

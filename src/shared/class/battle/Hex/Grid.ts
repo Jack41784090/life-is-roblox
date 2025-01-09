@@ -180,6 +180,8 @@ export default class HexGrid {
         }
 
         const cell = this.cellsQR.get(x, y);
+        // print("Getting cell at", x, y, cell, this.cellsQR);
+
         return cell
     }
 

@@ -27,7 +27,7 @@ export interface iEntity {
     name: string,
     iconURL?: ReadinessIcon,
     model?: Instance,
-    qr?: Vector2;
+    qr: Vector2;
 }
 export type EntityStats = {
     id: string;
@@ -46,6 +46,7 @@ export type EntityStats = {
 };
 export type EntityStatsNoID = Omit<EntityStats, 'id'>;
 export type EntityInitHardRequirements = {
+    qr: Vector2;
     playerID: number;
     stats: EntityStats;
     hip: number;

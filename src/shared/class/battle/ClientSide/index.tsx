@@ -1,7 +1,8 @@
+import { Atom } from "@rbxts/charm";
 import { Players, RunService, UserInputService } from "@rbxts/services";
 import { GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, TILE_SIZE } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
 import Entity from "../Entity";
 import { AnimationType } from "../Entity/Graphics/AnimationHandler";
@@ -202,18 +203,26 @@ export default class ClientSide {
 
     //#region Unmanaged
     private getReadinessIcons() {
-        // const crMap = this.entitiesReadinessMapAtom();
-        // const readinessIcons: ReadinessIcon[] = [];
-        // for (const [i, x] of pairs(crMap)) {
-        //     readinessIcons.push({
-        //         playerID: i,
-        //         iconUrl: '',
-        //         readiness: x
-        //     })
-        // }
-        // return readinessIcons;
-
-        return [];
+        const crMap: Record<PlayerID, Atom<number>> = {};
+        for (const p of this.state.getAllPlayers()) {
+            const e = this.state.findEntityByPlayerID(p.UserId);
+            if (e) {
+                crMap[e.playerID] = e.getState('pos');
+            }
+            else {
+                warn(`Entity not found for player ${p.UserId}`);
+            }
+        }
+        const readinessIcons: ReadinessIcon[] = [];
+        for (const [i, x] of pairs(crMap)) {
+            readinessIcons.push({
+                playerID: i,
+                iconUrl: '',
+                readiness: x
+            })
+        }
+        print("Readiness Icons", readinessIcons);
+        return readinessIcons;
     }
     //#endregion
 
@@ -294,7 +303,6 @@ export default class ClientSide {
     private async enterMovement(accessToken: AccessToken) {
         print("Entering movement mode");
         const localE = await this.localEntity()
-        assert(localE, "Local entity not found");
 
         this.controlLocks.set(Enum.KeyCode.X, true);
 

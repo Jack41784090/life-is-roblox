@@ -14,7 +14,7 @@ export default class Entity implements iEntity {
     private org: Atom<number>;
     private pos: Atom<number>;
 
-    qr?: Vector2;
+    qr: Vector2;
     armed?: keyof typeof Enum.KeyCode;
     team?: string;
 
@@ -118,8 +118,17 @@ export default class Entity implements iEntity {
         if (u.stats) this.updateStats(u.stats);
         for (const [k, v] of pairs(u)) {
             if (this[k as keyof this] === undefined) continue;
-            if (typeOf(v) === typeOf(this[k as keyof this])) {
-                this[k as keyof this] = v as unknown as any;
+            switch (k) {
+                case 'hip':
+                case 'sta':
+                case 'org':
+                case 'pos':
+                    print(`Changing ${k} by ${v}`);
+                    this[k as 'hip' | 'sta' | 'org' | 'pos'](v as number);
+                    break;
+                default:
+                    print(`Changing ${k} to ${v}`);
+                    this[k as keyof this] = v as unknown as any;
             }
         }
     }

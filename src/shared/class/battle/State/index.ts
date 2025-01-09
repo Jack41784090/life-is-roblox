@@ -1,7 +1,7 @@
 import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
-import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityStats, HexGridState, MoveAction, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
+import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityInit, EntityState, EntityStats, HexGridState, MoveAction, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Ability from "../Ability";
 import Entity from "../Entity";
@@ -45,7 +45,7 @@ type Tuple = {
 
 export default class State {
     creID: number | undefined;
-    participantMap: Map<number, Tuple> = new Map();
+    private participantMap: Map<number, Tuple> = new Map();
     private teams: Team[] = [];
     grid: HexGrid;
 
@@ -59,11 +59,25 @@ export default class State {
         this.initialiseNumbers(teamMap);
     }
 
-    public setCell(cre: Entity, X: number, Y: number): void;
-    public setCell(cre: Entity, qr: Vector2): void;
-    public setCell(cre: Entity, qr: Vector3): void;
-    public setCell(cre: Entity, cell: HexCell): void;
-    public setCell(cre: Entity, X: number | Vector2 | Vector3 | HexCell, Y?: number): void {
+    public createEntity(team: string, e: EntityInit) {
+        const entity = new Entity(e);
+        const teamObj = this.teams.find(t => t.name === team);
+        if (teamObj) {
+            teamObj.addMembers(entity);
+        } else {
+            warn(`Team [${team}] not found`);
+        }
+        this.participantMap.set(e.playerID, { qr: e.qr, entity });
+        this.setCell(entity, e.qr);
+
+        return entity;
+    }
+
+    public setCell(entity: Entity, X: number, Y: number): void;
+    public setCell(entity: Entity, qr: Vector2): void;
+    public setCell(entity: Entity, qr: Vector3): void;
+    public setCell(entity: Entity, cell: HexCell): void;
+    public setCell(entity: Entity, X: number | Vector2 | Vector3 | HexCell, Y?: number): void {
         let cell: HexCell | undefined;
         if (typeIs(X, "number") && typeIs(Y, "number")) {
             cell = this.grid.getCell(new Vector2(X, Y));
@@ -79,12 +93,9 @@ export default class State {
             return;
         }
 
-        this.participantMap.set(cre.playerID, {
-            qr: cell.qr(),
-            entity: cre,
-        });
-        cre.setCell(cell.qr());
-        cell.pairWith(cre);
+        this.participantMap.set(entity.playerID, { qr: cell.qr(), entity })
+        entity.setCell(cell.qr());
+        cell.pairWith(entity);
     }
 
     //#region Syncronisation
@@ -119,17 +130,25 @@ export default class State {
                 for (const entity of existingTeam.members) {
                     const updatingEntityState = newTeamState.members.find((e) => e.playerID === entity.playerID);
                     if (updatingEntityState) {
-                        entity.update(updatingEntityState);
+                        this.syncOneEntity(entity, updatingEntityState);
                     }
                 }
             }
             else {
                 warn(`Team [${newTeamState.name}] not found`);
-                const newTeam = new Team(newTeamState.name, newTeamState.members.map((entity) => {
-                    return new Entity(entity);
-                }));
+                const newTeam = new Team(newTeamState.name, newTeamState.members.map(entity => this.createEntity(newTeamState.name, entity)));
                 this.teams.push(newTeam);
             }
+        }
+    }
+
+    public syncOneEntity(e: Entity, updateInfo: EntityState) {
+        e.update(updateInfo);
+        if (this.participantMap.get(updateInfo.playerID) === undefined) {
+            this.participantMap.set(updateInfo.playerID, {
+                qr: updateInfo.qr ?? e.qr!,
+                entity: e,
+            });
         }
     }
 
@@ -209,8 +228,9 @@ export default class State {
         print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
         attackAction.executed = true;
 
-        const attacker = this.findEntity(attackAction.by);
+        const attacker = this.findEntity(attackAction.by); assert(attacker, "Attacker not found");
         const target = attackAction.against ? this.findEntity(attackAction.against) : undefined;
+        attacker.set('pos', attacker.get('pos') - attackAction.ability.cost.pos);
         if (target) {
             target.damage(clashResult.damage);
         }
@@ -269,17 +289,25 @@ export default class State {
      * - The `characterID` is currently hardcoded as 'entity_adalbrecht' for temporary purposes.
      */
     protected initialiseTeams(teamMap: Record<string, Player[]>) {
+        const vacantCells = this.grid.cells.filter((c) => c.isVacant());
         for (const [teamName, playerList] of pairs(teamMap)) {
             const members = playerList
                 .mapFiltered((player) => {
                     // const characterID = player.Character ? player.Character.Name : "default_character";
                     const characterID = 'entity_adalbrecht'; // TODO: temp
                     const characterStats = requestData(player, "characterStats", characterID) as EntityStats;
+
+                    const i = math.random(0, vacantCells.size() - 1)
+                    const randomCell = vacantCells[i];
+                    vacantCells.remove(i)
+
                     if (!characterStats) {
                         warn(`Character [${characterID}] not found for [${player.Name}]`);
                         return undefined;
                     }
-                    return new Entity({
+
+
+                    const e = this.createEntity(teamName, {
                         playerID: player.UserId,
                         stats: characterStats,
                         pos: calculateRealityValue(Reality.Maneuver, characterStats),
@@ -288,34 +316,15 @@ export default class State {
                         sta: calculateRealityValue(Reality.HP, characterStats),
                         name: player.Name,
                         team: teamName,
+                        qr: randomCell.qr()
                     });
+                    e.setCell(randomCell.qr());
+
+                    return e;
                 })
             this.teams.push(new Team(teamName, members));
         }
         print("Initialised teams", this.teams);
-    }
-
-    private initialiseEntitiesPositions() {
-        const allEntities = this.getAllEntities();
-        const vacantCells = this.grid.cells.filter((cell) => cell.isVacant());
-
-        if (vacantCells.size() < allEntities.size()) {
-            warn("Not enough vacant cells to spawn all entities", vacantCells.size(), allEntities.size());
-            return;
-        }
-
-        for (const entity of allEntities) {
-            if (entity.qr) continue;
-
-            const i = math.random(0, vacantCells.size() - 1)
-            const randomCell = vacantCells[i];
-            if (randomCell) {
-                vacantCells.remove(i)
-                this.setCell(entity, randomCell);
-            }
-        }
-
-        print("Initialising entities positions", allEntities);
     }
     /**
      * Initializes various components of the battle state, including the grid, teams, entity positions, and (temporarily) testing dummies.
@@ -325,21 +334,22 @@ export default class State {
     public initialiseNumbers(teamMap: Record<string, Player[]>) {
         this.grid.initialise();
         this.initialiseTeams(teamMap);
-        this.initialiseEntitiesPositions();
         this.initialiseTestingDummies(); // temp
     }
 
     private initialiseTestingDummies() {
-        const dummy = new Entity({
+        const vacant = this.grid.cells.find((c) => c.isVacant())!;
+        const dummy = this.createEntity("Test", {
             stats: getDummyStats(),
             playerID: -4178,
             hip: 0,
             pos: 0,
             org: 999,
             sta: 999,
-        })
+            qr: vacant.qr(),
+        });
         this.teams.push(new Team("Test", [dummy]));
-        dummy.setCell(this.grid.cells.find((c) => c.isVacant())!.qr());
+        this.setCell(dummy, vacant);
     }
     //#endregion
 
@@ -353,13 +363,17 @@ export default class State {
         if (typeIs(qr, 'Vector2') || typeIs(qr, 'Vector3')) {
             condition = (entity) => entity.qr !== undefined && entity.qr.X === qr.X && entity.qr.Y === qr.Y;
         } else if (typeIs(qr, 'number')) {
-            condition = (entity) => entity.playerID === qr;
+            return this.findEntityByPlayerID(qr);
         }
 
         for (const t of this.teams) {
             const entity = t.members.find(e => condition(e));
             if (entity) return entity;
         }
+    }
+
+    public findEntityByPlayerID(playerID: number): Entity | undefined {
+        return this.participantMap.get(playerID)?.entity;
     }
 
     public findDistance(a: Vector2, b: Vector2): number
@@ -390,6 +404,7 @@ export default class State {
                 playerSet.add(player);
             }
         }
+        print("Player Set", playerSet);
         return [...playerSet];
     }
 
