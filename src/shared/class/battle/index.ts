@@ -172,12 +172,12 @@ class Battle {
             }
             else {
                 this.state.commit(access.action!);
-                remotes.battle.animate(actingPlayer, access);
+                players.forEach(p => remotes.battle.animate(p, access))
             }
 
 
             // 3. Update all players
-            this.state.getAllPlayers().forEach(p => remotes.battle.forceUpdate(p));
+            players.forEach(p => remotes.battle.forceUpdate(p));
 
             // 4. Check if pos of actingPlayer (cre) is below 75% and end round
             const cre = this.state.findEntity(actingPlayer.UserId);
