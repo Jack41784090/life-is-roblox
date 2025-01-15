@@ -1,4 +1,3 @@
-import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import TweenManager from "shared/class/battle/Entity/Graphics/TweenManager";
 import { TWEEN_TIME } from "shared/const";
 import { HEXAGON } from "shared/const/assets";
@@ -11,7 +10,6 @@ export default class HexCellGraphics {
     public height: number;
     public qr: Vector2;
     public qrs: Vector3
-    public bloodPool: SurfaceGui;
 
     constructor({ qr, height, size, worldPosition, parent }: { qr: Vector2, height: number, size: number, parent: Model, worldPosition: Vector2 | Vector3 }) {
         this.qr = qr;
@@ -33,13 +31,6 @@ export default class HexCellGraphics {
         this.part.Material = Enum.Material.Pebble;
         this.part.Color = new Color3(1, 1, 1);
 
-        const hpPool = ReplicatedStorage.FindFirstChild("HPPool");
-        assert(hpPool?.IsA('SurfaceGui'), "[EntityGraphics] HP pool not found in model.");
-        this.bloodPool = hpPool;
-        this.bloodPool.Adornee = this.part;
-        const poolFrame = this.bloodPool.WaitForChild("Pool") as Frame;
-        assert(poolFrame?.IsA('Frame'), "[EntityGraphics] HP pool frame not found in model.");
-        poolFrame.Size = UDim2.fromScale(0, 0);
 
         print(`Materialised cell ${this.qrs} at ${this.part.Position}`, this);
     }
@@ -56,14 +47,6 @@ export default class HexCellGraphics {
     }
 
     //#region Animation
-    private changeHPPoolSize(size: UDim2) {
-        const hpPoolFrame = this.bloodPool.WaitForChild("Pool") as Frame;
-        this.tweenManager.addTween(TweenService.Create(
-            hpPoolFrame,
-            new TweenInfo(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
-            { Size: size }
-        ));
-    }
 
     private createMoveParticle(): ParticleEmitter {
         const particle = new Instance("ParticleEmitter");
