@@ -396,16 +396,20 @@ export default class ClientSide {
         assert(aa.against !== undefined, "attack action has invalid target id"); const target = this.EHCGMS.findEntityG(aa.against);
 
         await target.faceEntity(attacker);
-        const attackAnimation = attacker.playAnimation({
-            animation,
-            priority: Enum.AnimationPriority.Action4,
-            loop: false,
-        });
-        const defendIdleAnimation = target.playAnimation({
-            animation: "defend",
-            priority: Enum.AnimationPriority.Action2,
-            loop: false,
-        });
+        const attackAnimation = attacker.playAnimation(
+            AnimationType.Attack,
+            {
+                animation,
+                priority: Enum.AnimationPriority.Action4,
+                loop: false,
+            });
+        const defendIdleAnimation = target.playAnimation(
+            AnimationType.Defend,
+            {
+                animation: "defend",
+                priority: Enum.AnimationPriority.Action2,
+                loop: false,
+            });
 
         if (!attackAnimation) {
             warn("[playAttackAnimation] Attacker animation track not found.");
@@ -425,39 +429,49 @@ export default class ClientSide {
             defendIdleAnimation?.Stop();
 
             if (isAttackKills(aa)) {
-                const deathPoseIdleAnimation = target.playAnimation({
-                    animation: "death-idle",
-                    priority: Enum.AnimationPriority.Idle,
-                    loop: true,
-                })
-                const deathAnimation = target.playAnimation({
-                    animation: "death",
-                    priority: Enum.AnimationPriority.Action3,
-                    loop: false,
-                });
+                const deathPoseIdleAnimation = target.playAnimation(
+                    AnimationType.Idle,
+                    {
+                        animation: "death-idle",
+                        priority: Enum.AnimationPriority.Idle,
+                        loop: true,
+                    })
+                const deathAnimation = target.playAnimation(
+                    AnimationType.Hit,
+                    {
+                        animation: "death",
+                        priority: Enum.AnimationPriority.Action3,
+                        loop: false,
+                    });
 
                 return this.waitForAnimationEnd(deathAnimation);
             }
             else {
-                const gotHitAnimation = target.playAnimation({
-                    animation: "defend-hit",
-                    priority: Enum.AnimationPriority.Action3,
-                    loop: false,
-                });
+                const gotHitAnimation = target.playAnimation(
+                    AnimationType.Hit,
+                    {
+                        animation: "defend-hit",
+                        priority: Enum.AnimationPriority.Action3,
+                        loop: false,
+                    });
 
                 await this.waitForAnimationEnd(attackAnimation);
                 await this.waitForAnimationEnd(gotHitAnimation);
 
-                const transitionTrack = target.playAnimation({
-                    animation: "defend->idle",
-                    priority: Enum.AnimationPriority.Action4,
-                    loop: false,
-                });
-                const refreshedIdleAnimation = target.playAnimation({
-                    animation: "idle",
-                    priority: Enum.AnimationPriority.Idle,
-                    loop: true,
-                })
+                const transitionTrack = target.playAnimation(
+                    AnimationType.Transition,
+                    {
+                        animation: "defend->idle",
+                        priority: Enum.AnimationPriority.Action4,
+                        loop: false,
+                    });
+                const refreshedIdleAnimation = target.playAnimation(
+                    AnimationType.Idle,
+                    {
+                        animation: "idle",
+                        priority: Enum.AnimationPriority.Idle,
+                        loop: true,
+                    })
 
                 return this.waitForAnimationEnd(transitionTrack);
             }

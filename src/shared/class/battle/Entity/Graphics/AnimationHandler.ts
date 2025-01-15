@@ -1,14 +1,20 @@
+import { setInterval } from "@rbxts/set-timeout";
+import { IDGenerator } from "shared/class/IDGenerator";
+import { extractMapValues } from "shared/utils";
 import EntityGraphics from ".";
 import Expression from "./Expression";
 
 export enum AnimationType {
+    Move = "move",
     Idle = "idle",
     Blink = "blink",
     Attack = "attack",
+    Defend = "defend",
     Hit = "hit",
     Death = "death",
     Victory = "victory",
     Defeat = "defeat",
+    Transition = "transition",
 }
 
 export interface AnimationOptions {
@@ -21,13 +27,16 @@ export interface AnimationOptions {
 export default class AnimationHandler {
     private animator?: Animator;
     private idleBlinkingThread?: thread;
-    private idleAnimationTrack?: AnimationTrack;
-    private blinkAnimationTrack?: AnimationTrack;
-    private animationMap: Map<string, Animation> = new Map();
+    private animatioDataMap: Map<string, Animation> = new Map();
+    private playingTrackMap: Map<AnimationType, AnimationTrack> = new Map();
     private expression?: Expression;
 
     constructor(private entity: EntityGraphics) {
         this.initialise();
+        const id = IDGenerator.generateID()
+        setInterval(() => {
+            print(`[${id}]: animator`, this.animator?.GetPlayingAnimationTracks())
+        }, 1)
     }
 
     /**
@@ -71,12 +80,12 @@ export default class AnimationHandler {
 
         animationFolder.GetChildren().forEach((child) => {
             if (child.IsA("Animation")) {
-                this.animationMap.set(child.Name, child);
+                this.animatioDataMap.set(child.Name, child);
             }
         });
 
-        this.idleAnimationTrack = this.loadAnimationTrack("idle");
-        this.blinkAnimationTrack = this.loadAnimationTrack("blink");
+        this.playingTrackMap.set(AnimationType.Idle, this.loadAnimationTrack("idle")!);
+        this.playingTrackMap.set(AnimationType.Blink, this.loadAnimationTrack("blink")!);
     }
 
     /**
@@ -85,7 +94,7 @@ export default class AnimationHandler {
      * @returns The loaded AnimationTrack, or undefined if not found.
      */
     private loadAnimationTrack(animationName: string): AnimationTrack | undefined {
-        const animation = this.animationMap.get(animationName);
+        const animation = this.animatioDataMap.get(animationName);
         if (!animation) {
             warn(`[AnimationHandler] Animation '${animationName}' not found.`);
             return undefined;
@@ -94,7 +103,10 @@ export default class AnimationHandler {
             warn("[AnimationHandler] Animator is not initialised.");
             return undefined;
         }
-        return this.animator.LoadAnimation(animation);
+        const loadedTrack = this.animator.LoadAnimation(animation);;
+        this.playingTrackMap.set(animationName as AnimationType, loadedTrack);
+
+        return loadedTrack;
     }
 
     /**
@@ -114,7 +126,10 @@ export default class AnimationHandler {
         this.idleBlinkingThread = task.spawn(() => {
             while (true) {
                 wait(math.random(5, 10));
-                if (this.blinkAnimationTrack && this.expression) this.expression.blink(this.blinkAnimationTrack);
+                const blinkAnimationTrack = this.playingTrackMap.get(AnimationType.Blink);
+                if (blinkAnimationTrack && this.expression) {
+                    this.expression.blink(blinkAnimationTrack);
+                }
             }
         });
     }
@@ -134,19 +149,26 @@ export default class AnimationHandler {
      * @param options The animation options.
      * @returns The AnimationTrack if successfully played, undefined otherwise.
      */
-    public playAnimation(options: AnimationOptions): AnimationTrack | undefined {
+    public playAnimation(id: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
         const { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop } = options;
 
         const track = this.loadAnimationTrack(animation);
         if (!track) return undefined;
 
+        const existingTrack = this.playingTrackMap.get(id);
+        if (existingTrack) {
+            this.killAnimation(id);
+        }
+
         track.Looped = loop;
         track.Priority = priority;
         track.Play();
 
-        if (hold > 0) {
-            this.playHoldAnimation(animation, hold);
-        }
+        this.playingTrackMap.set(id, track);
+
+        // if (hold > 0) {
+        //     this.playHoldAnimation(animation, hold);
+        // }
 
         return track;
     }
@@ -177,12 +199,13 @@ export default class AnimationHandler {
      * Plays the idle animation.
      */
     public playIdleAnimation(): void {
-        if (this.idleAnimationTrack) {
-            this.idleAnimationTrack.Looped = true;
-            this.idleAnimationTrack.Priority = Enum.AnimationPriority.Idle;
-            this.idleAnimationTrack.Play();
-        } else {
+        const idleTrack = this.playingTrackMap.get(AnimationType.Idle);
+        if (idleTrack) {
+            idleTrack.Play();
+        }
+        else {
             warn("[AnimationHandler] Idle animation track not found.");
+            this.playAnimation(AnimationType.Idle, { animation: "idle", loop: true });
         }
     }
 
@@ -190,26 +213,22 @@ export default class AnimationHandler {
      * Plays the blink animation.
      */
     public playBlinkAnimation(): void {
-        if (this.blinkAnimationTrack) {
-            this.blinkAnimationTrack.Play();
-        } else {
+        const blinkTrack = this.playingTrackMap.get(AnimationType.Blink);
+        if (blinkTrack) {
+            blinkTrack.Play();
+        }
+        else {
             warn("[AnimationHandler] Blink animation track not found.");
+            this.playingTrackMap.set(AnimationType.Blink, this.loadAnimationTrack("blink")!);
         }
     }
 
     public killAnimation(animationName: AnimationType): void {
-
-        let animation: AnimationTrack | undefined;
-        switch (animationName) {
-            case AnimationType.Idle:
-                animation = this.idleAnimationTrack;
-                break;
-            default:
-                return
-        }
-
+        print(`Killing animation: ${animationName}`);
+        const animation: AnimationTrack | undefined = this.playingTrackMap.get(animationName);
         animation?.Stop();
         animation?.Destroy();
+        this.playingTrackMap.delete(animationName);
     }
 
     /**
@@ -217,9 +236,13 @@ export default class AnimationHandler {
      */
     public destroy(): void {
         this.stopBlinking();
-        this.idleAnimationTrack?.Stop();
-        this.blinkAnimationTrack?.Stop();
-        this.animationMap.clear();
+        this.animatioDataMap.clear();
         this.expression = undefined;
+
+        const playingTracks = extractMapValues(this.playingTrackMap);
+        playingTracks.forEach((track) => {
+            track.Stop();
+            track.Destroy();
+        });
     }
 }

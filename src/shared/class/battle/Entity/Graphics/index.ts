@@ -4,7 +4,7 @@ import { CONDOR_BLOOD_RED } from "shared/const";
 import { ClashResult, EntityStatus } from "shared/types/battle-types";
 import EntityCellGraphicsTuple from "../../ClientSide/EHCG/Tuple";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
-import AnimationHandler, { AnimationOptions } from "./AnimationHandler";
+import AnimationHandler, { AnimationOptions, AnimationType } from "./AnimationHandler";
 import AudioHandler from "./AudioHandler";
 import Expression from "./Expression";
 import TweenManager from "./TweenManager";
@@ -87,9 +87,9 @@ export default class EntityGraphics {
     //#endregion
 
     //#region play animation/audio
-    public playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
+    public playAnimation(id: AnimationType, { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
         print(`${this.model.Name}: Playing animation ${animation}, priority ${priority}, hold ${hold}, loop ${loop}`);
-        return this.animationHandler.playAnimation({ animation, priority, hold, loop });
+        return this.animationHandler.playAnimation(id, { animation, priority, hold, loop });
     }
 
     public playAudio(entityStatus: EntityStatus) {
@@ -143,14 +143,14 @@ export default class EntityGraphics {
 
         if (!path) path = [cell];
 
-        const moveTrack = this.playAnimation({ animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
+        const moveTrack = this.playAnimation(AnimationType.Move, { animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
         for (const cell of path) {
             const targetPosition = cell.worldPosition();
             if (humanoidRoot.Position === targetPosition) continue;
             await this.moveToPosition(targetPosition);
         }
         moveTrack?.Stop();
-        const transitionTrack = this.playAnimation({ animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
+        const transitionTrack = this.playAnimation(AnimationType.Transition, { animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
 
         const i = setInterval(() => {
             print(transitionTrack?.IsPlaying);
