@@ -1,6 +1,6 @@
-import { Entity } from "@rbxts/matter";
 import { TweenService } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
+import { CONDOR_BLOOD_RED } from "shared/const";
 import { EntityStatus } from "shared/types/battle-types";
 import EntityCellGraphicsTuple from "../../ClientSide/EHCG/Tuple";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
@@ -41,13 +41,50 @@ export default class EntityGraphics {
         this.tweenManager = new TweenManager();
     }
 
-    public sync(entity: Entity) {
+    //#region damage indicators
+    public createDamageIndicator(damage: number) {
+        const part = new Instance('Part');
+        part.Name = 'DamageIndicator';
+        part.Size = new Vector3(1, 1, 1);
+        part.CollisionGroup = 'DamageIndicators';
+        part.CFrame = this.model.PrimaryPart!.CFrame;
+        part.Transparency = 1;
+        part.Parent = this.model;
 
+        const damageBillboard = new Instance('BillboardGui');
+        damageBillboard.AlwaysOnTop = true
+        damageBillboard.Size = UDim2.fromScale(5, 5);
+        damageBillboard.Adornee = part;
+        damageBillboard.Parent = part;
+
+        const textLabel = new Instance('TextLabel');
+        textLabel.Parent = damageBillboard;
+        textLabel.AnchorPoint = new Vector2(0.5, 0.5);
+        textLabel.Size = UDim2.fromScale(1, 1);
+        textLabel.TextColor3 = CONDOR_BLOOD_RED;
+        textLabel.BackgroundTransparency = 1;
+        textLabel.Text = `${damage}`;
+        textLabel.Font = Enum.Font.Antique
+        textLabel.TextScaled = true
+
+        part.ApplyImpulse(new Vector3(math.random(10), 25, math.random(10)));
+
+        spawn(() => {
+            wait(1);
+            const tween = TweenService.Create(damageBillboard,
+                new TweenInfo(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+                { Size: UDim2.fromScale(0, 0) }
+            )
+            tween.Play()
+            tween.Completed.Once(() => part.Destroy());
+        })
     }
+
+    //#endregion
 
     //#region play animation/audio
     public playAnimation({ animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
-        print(`${this.model.Name}: Playing animation ${animation}`);
+        print(`${this.model.Name}: Playing animation ${animation}, priority ${priority}, hold ${hold}, loop ${loop}`);
         return this.animationHandler.playAnimation({ animation, priority, hold, loop });
     }
 

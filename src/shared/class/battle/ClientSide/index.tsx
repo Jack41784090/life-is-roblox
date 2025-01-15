@@ -110,22 +110,11 @@ export default class ClientSide {
                 switch (ac.action.type) {
                     case ActionType.Attack:
                         const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
-                        this.playAttackAnimation(aa);
+                        this.handleAttackActionAnimationRequest(aa);
                         break;
                     case ActionType.Move:
                         const ma = ac.action as MoveAction;
-                        const cre = this.state.getCRE(); assert(cre, "Current entity is not defined");
-                        const pf = new Pathfinding({
-                            grid: this.state.grid,
-                            start: ma.from,
-                            dest: ma.to,
-                            limit: math.floor(cre.get('pos') / MOVEMENT_COST),
-                            hexagonal: true,
-                        })
-                        const destCellG = this.EHCGMS.findCellG(ma.to);
-                        const cellGPath = pf.begin().map(qr => this.EHCGMS.findCellG(qr));
-                        const creG = this.EHCGMS.findEntityG(ma.from);
-                        this.animating = creG.moveToCell(destCellG, cellGPath)
+                        this.handleMoveActionAnimationRequest(ma);
                         break;
                 }
             }),
@@ -141,6 +130,25 @@ export default class ClientSide {
                 })
             })
         ]
+    }
+
+    private handleMoveActionAnimationRequest(ma: MoveAction) {
+        const cre = this.state.getCRE(); assert(cre, "Current entity is not defined");
+        const pf = new Pathfinding({
+            grid: this.state.grid,
+            start: ma.from,
+            dest: ma.to,
+            limit: math.floor(cre.get('pos') / MOVEMENT_COST),
+            hexagonal: true,
+        })
+        const destCellG = this.EHCGMS.findCellG(ma.to);
+        const cellGPath = pf.begin().map(qr => this.EHCGMS.findCellG(qr));
+        const creG = this.EHCGMS.findEntityG(ma.from);
+        this.animating = creG.moveToCell(destCellG, cellGPath)
+    }
+
+    private handleAttackActionAnimationRequest(aa: AttackAction) {
+        this.playAttackAnimation(aa);
     }
 
     private cleanUpRemotes() {
@@ -201,7 +209,7 @@ export default class ClientSide {
     }
     //#endregion
 
-    //#region Unmanaged
+    //#region Get
     private getReadinessIcons() {
         const crMap: Record<PlayerID, Atom<number>> = {};
         for (const p of this.state.getAllPlayers()) {
@@ -378,6 +386,7 @@ export default class ClientSide {
 
         try {
             await this.waitForAnimationMarker(attackAnimation, "Hit");
+            target.createDamageIndicator(aa.clashResult.damage);
             target.animationHandler?.killAnimation(AnimationType.Idle);
 
             if (isAttackKills(aa)) {
@@ -387,6 +396,8 @@ export default class ClientSide {
                     priority: Enum.AnimationPriority.Idle,
                     loop: true,
                 })
+
+
                 const deathAnimation = target.playAnimation({
                     animation: "death",
                     priority: Enum.AnimationPriority.Action3,
