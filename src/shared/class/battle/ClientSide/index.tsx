@@ -122,11 +122,15 @@ export default class ClientSide {
                 return this.camera.enterHOI4Mode()
             }),
             remotes.battle.chosen.connect(() => {
-                this.localEntity().andThen(e => {
-                    this.exitMovement();
-                    const eG = this.EHCGMS.findEntityG(e.playerID) ?? this.EHCGMS.positionNewPlayer(e.info(), e.info().qr!);
-                    this.camera.enterCharacterCenterMode(eG);
-                    if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                print("Chosen: waiting for animating to end");
+                this.animating.then(() => {
+                    print("Getting local entity")
+                    this.localEntity().andThen(e => {
+                        this.exitMovement();
+                        const eG = this.EHCGMS.findEntityG(e.playerID) ?? this.EHCGMS.positionNewPlayer(e.info(), e.info().qr!);
+                        this.camera.enterCharacterCenterMode(eG);
+                        if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                    })
                 })
             })
         ]
@@ -148,7 +152,7 @@ export default class ClientSide {
     }
 
     private handleAttackActionAnimationRequest(aa: AttackAction) {
-        this.playAttackAnimation(aa);
+        this.animating = this.playAttackAnimation(aa);
     }
 
     private cleanUpRemotes() {
@@ -385,27 +389,32 @@ export default class ClientSide {
         }
 
         try {
+
+            // 1. Wait for the attack animation to reach the "Hit" marker.
             await this.waitForAnimationMarker(attackAnimation, "Hit");
+
+            // 2. Indicate the damage dealt to the target.
             target.createDamageIndicator(aa.clashResult.damage);
+
+            // 3. Play the appropriate animation based on the outcome of the attack.
             target.animationHandler?.killAnimation(AnimationType.Idle);
+            defendIdleAnimation?.Stop();
 
             if (isAttackKills(aa)) {
-                defendIdleAnimation?.Stop();
-                target.playAnimation({
+                const deathPoseIdleAnimation = target.playAnimation({
                     animation: "death-idle",
                     priority: Enum.AnimationPriority.Idle,
                     loop: true,
                 })
-
-
                 const deathAnimation = target.playAnimation({
                     animation: "death",
                     priority: Enum.AnimationPriority.Action3,
                     loop: false,
                 });
+
+                return this.waitForAnimationEnd(deathAnimation);
             }
             else {
-                defendIdleAnimation?.Stop();
                 const gotHitAnimation = target.playAnimation({
                     animation: "defend-hit",
                     priority: Enum.AnimationPriority.Action3,
@@ -413,22 +422,23 @@ export default class ClientSide {
                 });
 
                 await this.waitForAnimationEnd(attackAnimation);
-                if (gotHitAnimation) await this.waitForAnimationEnd(gotHitAnimation);
+                await this.waitForAnimationEnd(gotHitAnimation);
 
                 const transitionTrack = target.playAnimation({
                     animation: "defend->idle",
                     priority: Enum.AnimationPriority.Action4,
                     loop: false,
                 });
-
-                transitionTrack?.Ended.Wait();
-                target.playAnimation({
+                const refreshedIdleAnimation = target.playAnimation({
                     animation: "idle",
                     priority: Enum.AnimationPriority.Idle,
                     loop: true,
                 })
+
+                return this.waitForAnimationEnd(transitionTrack);
             }
-        } catch (error) {
+        }
+        catch (error) {
             warn(`[playAttackAnimation] Error during attack animation: ${error}`);
         }
 
@@ -456,10 +466,12 @@ export default class ClientSide {
      * Waits for an animation track to end.
      * @param track The animation track to monitor.
      */
-    private async waitForAnimationEnd(track: AnimationTrack): Promise<void> {
+    private async waitForAnimationEnd(track?: AnimationTrack): Promise<void> {
+        print("TRACK", track?.Name, "Waiting end", track);
+        if (!track) return;
         return new Promise((resolve) => {
-            const connection = track.Ended.Connect(() => {
-                connection.Disconnect();
+            track.Ended.Once(() => {
+                print("TRACK", track?.Name, "Animation ended", track);
                 resolve();
             });
         });
