@@ -1,7 +1,7 @@
 import { TweenService } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import { CONDOR_BLOOD_RED } from "shared/const";
-import { EntityStatus } from "shared/types/battle-types";
+import { ClashResult, EntityStatus } from "shared/types/battle-types";
 import EntityCellGraphicsTuple from "../../ClientSide/EHCG/Tuple";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
 import AnimationHandler, { AnimationOptions } from "./AnimationHandler";
@@ -42,7 +42,9 @@ export default class EntityGraphics {
     }
 
     //#region damage indicators
-    public createDamageIndicator(damage: number) {
+    public createDamageIndicator(cr: ClashResult) {
+        const damage = cr.damage;
+
         const part = new Instance('Part');
         part.Name = 'DamageIndicator';
         part.Size = new Vector3(1, 1, 1);
@@ -63,7 +65,9 @@ export default class EntityGraphics {
         textLabel.Size = UDim2.fromScale(1, 1);
         textLabel.TextColor3 = CONDOR_BLOOD_RED;
         textLabel.BackgroundTransparency = 1;
-        textLabel.Text = `${damage}`;
+        textLabel.Text = cr.fate === 'Miss' ?
+            "MISS!" :
+            damage > 0 ? `${damage}` : "NO DAMAGE!";
         textLabel.Font = Enum.Font.Antique
         textLabel.TextScaled = true
 
