@@ -7,12 +7,13 @@ import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER, TeamMap } from "sh
 import { disableCharacter, enableCharacter, extractMapValues } from "shared/utils";
 
 Players.PlayerAdded.Connect((player) => {
+    print(`Player ${player.Name} has joined the game!`);
     player.CharacterAppearanceLoaded.Connect((character) => {
         disableCharacter(character);
 
         // Listen for the remote event to re-enable interactivity
         const cu = remotes.loadCharacter.connect((requestingPlayer) => {
-            if (requestingPlayer === player && character) {
+            if (requestingPlayer === player) {
                 enableCharacter(character);
                 cu();
             }

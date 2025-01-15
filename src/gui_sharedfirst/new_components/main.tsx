@@ -45,12 +45,12 @@ class GuiMothership {
         const instance = GuiMothership.instance;
         if (typeIs(key, "string")) {
             instance.children.delete(key);
+            instance.root.render(instance.element());
         } else {
             for (const k of key) {
                 instance.children.delete(k);
             }
         }
-        print("Unmounting", key, instance.children);
     }
 
     private element() {
