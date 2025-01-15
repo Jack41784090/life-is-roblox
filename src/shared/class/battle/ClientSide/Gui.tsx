@@ -1,12 +1,13 @@
+import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { Players } from "@rbxts/services";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import HPBar from "gui_sharedfirst/new_components/battle/statusBar/hpBar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
 import { calculateRealityValue } from "shared/utils";
 import Entity from "../Entity";
 import HexCellGraphics from "../Hex/Cell/Graphics";
@@ -22,8 +23,13 @@ export default class Gui {
         return ui
     }
 
+    private localReadinessMap: Record<PlayerID, Atom<number>> = {};
+
     // Private constructor to prevent direct instantiation
     private constructor(icons: ReadinessIcon[]) {
+        icons.forEach((icon) => {
+            this.localReadinessMap[icon.playerID] = icon.readiness;
+        });
         this.mountInitialUI(icons);
     }
 
@@ -44,6 +50,12 @@ export default class Gui {
         const hpBar = localEntity ?
             <HPBar hp={localEntity.getState('hip')} maxHP={calculateRealityValue(Reality.HP, localEntity.stats)} /> : undefined;
         const { readinessIcons, state, EHCGMS, accessToken } = props;
+        if (props.readinessIcons) {
+            props.readinessIcons.forEach((icon) => {
+                this.localReadinessMap[icon.playerID] = icon.readiness;
+            });
+        }
+
         switch (mode) {
             case 'onlyReadinessBar':
                 assert(readinessIcons, `No readiness icons provided for mode: ${mode}`);
@@ -102,10 +114,8 @@ export default class Gui {
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBar
      * @returns the mounted Tree
      */
-    mountInitialUI(icons: ReadinessIcon[]) {
-        this.updateMainUI('onlyReadinessBar', {
-            readinessIcons: icons
-        });
+    mountInitialUI(readinessIcons: ReadinessIcon[]) {
+        this.updateMainUI('onlyReadinessBar', { readinessIcons });
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
@@ -295,15 +305,22 @@ export default class Gui {
 
     private async commiteMoveAction(mainUIConfig: UpdateMainUIConfig, ac: AccessToken, start: Vector2, dest: Vector2) {
         this.updateMainUI('onlyReadinessBar', mainUIConfig);
+        const readinessIcon = this.localReadinessMap[ac.userId];
+        const action = {
+            type: ActionType.Move,
+            executed: false,
+            by: ac.userId,
+            to: dest,
+            from: start,
+        } as MoveAction;
+        if (readinessIcon) {
+            const distance = mainUIConfig.state.findDistance(start, dest);
+            print(`localreadinessIcon: ${readinessIcon()} => ${readinessIcon() - distance * MOVEMENT_COST}`);
+            readinessIcon(readinessIcon() - distance * MOVEMENT_COST)
+        }
         const res = await this.commitAction({
             ...ac,
-            action: {
-                type: ActionType.Move,
-                executed: false,
-                by: ac.userId,
-                to: dest,
-                from: start,
-            } as MoveAction
+            action
         });
         this.updateMainUI('withSensitiveCells', mainUIConfig);
         return res

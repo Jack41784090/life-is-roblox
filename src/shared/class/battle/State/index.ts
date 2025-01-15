@@ -1,7 +1,7 @@
 import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
-import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityInit, EntityState, EntityStats, HexGridState, MoveAction, ReadinessIcon, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
+import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityInit, EntityState, EntityStats, HexGridState, MoveAction, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Ability from "../Ability";
 import Entity from "../Entity";
@@ -451,14 +451,6 @@ export default class State {
 
         const winner = entities.sort((a, b) => a.get('pos') - b.get('pos') > 0)[0];
         return winner;
-    }
-
-    protected getReadinessIcons(): ReadinessIcon[] {
-        return this.getAllEntities().map((entity) => ({
-            playerID: entity.playerID,
-            iconUrl: "rbxassetid://18915919565",
-            readiness: entity.getState('pos')
-        }));
     }
     //#endregion
 }

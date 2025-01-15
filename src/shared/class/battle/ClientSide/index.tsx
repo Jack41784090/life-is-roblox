@@ -1,8 +1,8 @@
-import { Atom } from "@rbxts/charm";
+import { atom, Atom } from "@rbxts/charm";
 import { Players, RunService, UserInputService } from "@rbxts/services";
 import { GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, TILE_SIZE } from "shared/types/battle-types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
 import Entity from "../Entity";
 import { AnimationType } from "../Entity/Graphics/AnimationHandler";
@@ -25,6 +25,8 @@ export default class ClientSide {
     private EHCGMS: EntityHexCellGraphicsMothership;
 
     private controlLocks: ControlLocks = new Map();
+
+    private readinessIconMap: Record<PlayerID, Atom<number>> = {};
 
     private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
         const halfWidth = (width * size) / 2;
@@ -99,24 +101,10 @@ export default class ClientSide {
                 this.gui.mountOtherPlayersTurnGui();
             }),
             remotes.battle.forceUpdate.connect(() => {
-                this.requestUpdateState();
+                this.requestUpdateStateAndReadinessMap();
             }),
             remotes.battle.animate.connect(ac => {
-                if (!ac.action) {
-                    warn("No action found in animate call", ac);
-                    return;
-                }
-                print("Received action", ac.action);
-                switch (ac.action.type) {
-                    case ActionType.Attack:
-                        const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
-                        this.handleAttackActionAnimationRequest(aa);
-                        break;
-                    case ActionType.Move:
-                        const ma = ac.action as MoveAction;
-                        this.handleMoveActionAnimationRequest(ma);
-                        break;
-                }
+                this.handleAnimationRequest(ac);
             }),
             remotes.battle.camera.hoi4.connect(() => {
                 return this.camera.enterHOI4Mode()
@@ -134,6 +122,24 @@ export default class ClientSide {
                 })
             })
         ]
+    }
+
+    private handleAnimationRequest(ac: AccessToken) {
+        if (!ac.action) {
+            warn("No action found in animate call", ac);
+            return;
+        }
+        print("Received action", ac.action);
+        switch (ac.action.type) {
+            case ActionType.Attack:
+                const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
+                this.handleAttackActionAnimationRequest(aa);
+                break;
+            case ActionType.Move:
+                const ma = ac.action as MoveAction;
+                this.handleMoveActionAnimationRequest(ma);
+                break;
+        }
     }
 
     private handleMoveActionAnimationRequest(ma: MoveAction) {
@@ -182,13 +188,29 @@ export default class ClientSide {
         return r;
     }
 
-    private async requestUpdateState() {
+    private async requestUpdateStateAndReadinessMap() {
         const r = await remotes.battle.requestSync.state();
         this.state.sync(r);
         await this.animating;
         this.EHCGMS.syncTeams(r.teams);
         this.EHCGMS.syncGrid(r.grid);
+        this.updateReadinessMap(r);
         return r;
+    }
+
+    private updateReadinessMap(state: StateState) {
+        state.teams.forEach(t => {
+            t.members.forEach(e => {
+                const currentAtom = this.readinessIconMap[e.playerID]
+                if (currentAtom) {
+                    print(`readinessicon: ${currentAtom()} => ${e.pos}`)
+                    currentAtom(e.pos);
+                }
+                else {
+                    this.readinessIconMap[e.playerID] = atom(e.pos);
+                }
+            })
+        })
     }
 
     private initialiseInputControl() {
@@ -208,29 +230,31 @@ export default class ClientSide {
     private initialiseGraphics() {
         this.initialiseCamera();
         return Promise.all([
-            this.requestUpdateState(),
+            this.requestUpdateStateAndReadinessMap(),
         ]);
     }
     //#endregion
 
     //#region Get
     private getReadinessIcons() {
-        const crMap: Record<PlayerID, Atom<number>> = {};
-        for (const p of this.state.getAllPlayers()) {
-            const e = this.state.findEntityByPlayerID(p.UserId);
+        const crMap: Record<PlayerID, Atom<number>> = this.readinessIconMap;
+        const state = this.state;
+        const players = state.getAllPlayers();
+        for (const p of players) {
+            const e = state.findEntityByPlayerID(p.UserId);
             if (e) {
-                crMap[e.playerID] = e.getState('pos');
+                crMap[e.playerID] = crMap[e.playerID] ?? atom(e.get('pos'))
             }
             else {
                 warn(`Entity not found for player ${p.UserId}`);
             }
         }
         const readinessIcons: ReadinessIcon[] = [];
-        for (const [i, x] of pairs(crMap)) {
+        for (const [playerID, readiness] of pairs(crMap)) {
             readinessIcons.push({
-                playerID: i,
+                playerID,
                 iconUrl: '',
-                readiness: x
+                readiness
             })
         }
         print("Readiness Icons", readinessIcons);
