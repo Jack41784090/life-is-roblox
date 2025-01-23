@@ -1,5 +1,3 @@
-import { setInterval } from "@rbxts/set-timeout";
-import { IDGenerator } from "shared/class/IDGenerator";
 import { extractMapValues } from "shared/utils";
 import EntityGraphics from ".";
 import Expression from "./Expression";
@@ -25,26 +23,25 @@ export interface AnimationOptions {
 }
 
 export default class AnimationHandler {
-    private animator?: Animator;
+    private entity?: EntityGraphics;
+    private humanoid: Humanoid
+    private animator: Animator;
+    private model: Model;
+
     private idleBlinkingThread?: thread;
     private animatioDataMap: Map<string, Animation> = new Map();
     private playingTrackMap: Map<AnimationType, AnimationTrack> = new Map();
     private expression?: Expression;
 
-    constructor(private entity: EntityGraphics) {
+    constructor(humanoid: Humanoid, animator: Animator, model: Model) {
+        this.humanoid = humanoid;
+        this.animator = animator;
+        this.model = model;
         this.initialise();
-        const id = IDGenerator.generateID()
-        setInterval(() => {
-            print(`[${id}]: animator`, this.animator?.GetPlayingAnimationTracks())
-        }, 1)
     }
 
-    /**
-     * initialises the AnimationHandler by setting up the animator, loading animations,
-     * initializing expressions, and starting the idle animation.
-     */
-    private initialise(): void {
-        const model = this.entity.model;
+    public static Create(entity: EntityGraphics): AnimationHandler | undefined {
+        const model = entity.model;
         if (!model) {
             warn("[AnimationHandler] Model not found for entity.");
             return;
@@ -56,13 +53,21 @@ export default class AnimationHandler {
             return;
         }
 
-        this.animator = humanoid.FindFirstChildOfClass("Animator") as Animator;
-        if (!this.animator) {
+        const animator = humanoid.FindFirstChildOfClass("Animator") as Animator;
+        if (!animator) {
             warn("[AnimationHandler] Animator not found in humanoid.");
             return;
         }
 
-        this.loadAnimations(model);
+        return new AnimationHandler(humanoid, animator, model);
+    }
+
+    /**
+     * initialises the AnimationHandler by setting up the animator, loading animations,
+     * initializing expressions, and starting the idle animation.
+     */
+    private initialise(): void {
+        this.loadAnimations(this.model);
         this.initialiseExpression();
         this.playIdleAnimation();
     }
@@ -113,6 +118,7 @@ export default class AnimationHandler {
      * initialises the expression system and starts the blinking thread.
      */
     private initialiseExpression(): void {
+        if (!this.entity) return;
         this.expression = new Expression(this.entity);
         this.startBlinking();
     }
@@ -223,6 +229,7 @@ export default class AnimationHandler {
         }
     }
 
+
     public killAnimation(animationName: AnimationType): void {
         print(`Killing animation: ${animationName}`);
         const animation: AnimationTrack | undefined = this.playingTrackMap.get(animationName);
@@ -244,5 +251,15 @@ export default class AnimationHandler {
             track.Stop();
             track.Destroy();
         });
+    }
+
+
+    public getHumanoid(): Humanoid {
+        return this.humanoid;
+    }
+
+    public getIfPlaying(animationName: AnimationType): boolean {
+        const track = this.playingTrackMap.get(animationName);
+        return track ? track.IsPlaying : false;
     }
 }

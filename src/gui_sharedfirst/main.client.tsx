@@ -1,7 +1,8 @@
 import { atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import { ContentProvider, ReplicatedFirst, ReplicatedStorage, Workspace } from "@rbxts/services";
+import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
+import Place from "shared/class/explorer/Place";
 import Scene from "shared/class/Scene";
 import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
@@ -64,10 +65,58 @@ function mainMenuCameraSetup() {
 
 // Setup the main menu
 function enterPlayground() {
-    if (Workspace.CurrentCamera) {
-        Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom;
-    }
+    const cam = Workspace.CurrentCamera;
+    assert(cam, "No current camera")
+
     remotes.loadCharacter();
+
+    cam.CameraType = Enum.CameraType.Scriptable;
+    const player = Players.LocalPlayer;
+    const character = player.Character || player.CharacterAdded.Wait()[0];
+    const humanoidRootPart = character.WaitForChild("HumanoidRootPart") as Part;
+
+    // Set the camera position and make it look at the player along the Z axis
+    RunService.RenderStepped.Connect(() => {
+        const cameraPosition = humanoidRootPart.Position.add(new Vector3(24, 10, 0));
+        cam.CFrame = new CFrame(cameraPosition, humanoidRootPart.Position);
+    })
+
+    // depth of field
+    const blur = new Instance('DepthOfFieldEffect');
+    blur.Parent = cam;
+    blur.FarIntensity = .7;
+    blur.FocusDistance = 45;
+    blur.InFocusRadius = 25;
+    blur.NearIntensity = 1;
+
+    // fov
+    cam.FieldOfView = 50;
+
+    // following emitter 
+    const emitter = ReplicatedStorage.WaitForChild("EMITTER") as Part;
+    emitter.Parent = character;
+
+    // Runtime
+    RunService.RenderStepped.Connect(dt => {
+        // time
+        Lighting.ClockTime += dt / 60;
+
+        // emitter
+        if (character.PrimaryPart) emitter.CFrame = character.PrimaryPart.CFrame.add(new Vector3(0, -5, 0));
+    })
+
+    // PLace
+    const place = new Place({
+        locationName: "Playground",
+        NPCs: [{
+            id: "R15",
+            displayName: "NPC1",
+            spawnLocation: character.PrimaryPart!.Position.add(new Vector3(10, 0, 0))
+        }],
+        model: ReplicatedStorage.WaitForChild("Map City") as Model
+    })
+    place.spawnNPCs();
+
 }
 function enterBattle() {
     print("Entering battle");
@@ -106,6 +155,7 @@ function mainMenuSetup() {
                 text: "Play",
                 onClick: () => {
                     GuiMothership.unmount("MainMenu");
+                    GuiMothership.unmount(GuiTag.WaitingRoom);;
                     enterPlayground();
                 },
             },
@@ -148,7 +198,7 @@ remotes.battle.ui.startRoom.connect(s => {
 
 
 mainMenuCameraSetup();
-enterBattle();
-// mainMenuSetup();
+// enterBattle();
+mainMenuSetup();
 //#endregion
 

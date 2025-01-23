@@ -36,7 +36,9 @@ export default class EntityGraphics {
         this.animator = animator;
 
         this.expression = new Expression(this);
-        this.animationHandler = new AnimationHandler(this);
+        const ah = AnimationHandler.Create(this)
+        assert(ah, "[EntityGraphics] Animation handler not created");
+        this.animationHandler = ah;
         this.audioHandler = new AudioHandler(this, template.Name);
         this.tweenManager = new TweenManager();
     }
