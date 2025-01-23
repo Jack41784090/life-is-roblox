@@ -1,58 +1,43 @@
 export class ShadowMachine {
-    existingShadow: Part | undefined
-    part: Part
-    k: number
+    part: Part;
+    shadow: Part;
 
-    constructor(part: Part, k: number) {
+    constructor(part: Part) {
         this.part = part;
-        this.k = k;
+        this.shadow = new Instance("Part");
+        this.setupShadow();
     }
 
-    equation(t: number) {
-        assert(t >= 0 && t <= 1, "t must be between 0 and 1");
-        const h = this.part.Size.Y;
-        const { max, sin, pi } = math;
-        const c = (this.k * h) / max(sin(pi * t), 0.01)
-        const v = new Vector2(c * sin(2 * pi * t), c * sin(2 * pi * t));
+    setupShadow() {
+        this.shadow.Size = new Vector3(5, 0.001, 5); // Initial size
+        this.shadow.Anchored = true;
+        this.shadow.CanCollide = false;
+        this.shadow.Color = new Color3(0, 0, 0); // Shadow color
+        this.shadow.Transparency = 0.5; // Semi-transparent
+        this.shadow.Parent = this.part;
 
-        return v;
+        // Optionally, add a SurfaceGUI for more flexibility
+        const surfaceGui = new Instance("SurfaceGui");
+        surfaceGui.Face = Enum.NormalId.Top;
+        surfaceGui.Parent = this.shadow;
     }
 
-    shadowPart() {
-        const shadow = this.existingShadow ?? (this.existingShadow = new Instance("Part"));
-        shadow.Size = new Vector3(this.part.Size.X, 0.001, this.part.Size.Z);
-        shadow.Anchored = true;
-        shadow.CanCollide = false;
-        shadow.Parent = this.part
-        shadow.Color = new Color3(0, 0, 0);
-        shadow.PivotOffset = new CFrame(new Vector3(0, this.part.Size.Y, 0));
+    updateShadow(factor: number) {
+        const origin = this.part.Position;
+        const destination = this.part.Position.add(new Vector3(factor, 0, factor));
 
-        return shadow;
-    }
-
-    shear() {
-        const rectangle = this.existingShadow ?? (this.existingShadow = this.shadowPart());
-        const origin = this.part.Position; // Origin position
-        const destination = origin.add(new Vector3(10, 0, 10)); // Destination position
-
-        // Compute direction and midpoint
-        const direction = destination.sub(origin).Unit; // Get the unit vector for direction
-        const midpoint = origin.add(destination).div(2); // Midpoint between origin and destination
-
-        // Shearing factor (based on how "shadow-like" you want it)
-        const shearAmount = 0.5; // Adjust this value for more/less shearing
-
-        // Create the shear vector (in this case, along X and Y)
-        const shear = new Vector3(shearAmount * direction.X, shearAmount * direction.Y, 0);
-
-        // Update the rectangle's CFrame
-        const cframeWithShear = CFrame.lookAt(midpoint, destination).mul(new CFrame(shear));
-        rectangle.CFrame = cframeWithShear;
-
-        // Stretch the rectangle's size to match the distance
+        const direction = destination.sub(origin).Unit;
         const distance = origin.sub(destination).Magnitude;
-        rectangle.Size = new Vector3(rectangle.Size.X, rectangle.Size.Y, distance);
 
+        // Calculate midpoint
+        const midpoint = origin.add(destination).div(2);
 
+        // Calculate rotation
+        const angleY = math.atan2(direction.X, direction.Z); // Y-axis rotation
+
+        // Apply position, size, and rotation
+        this.shadow.Position = new Vector3(midpoint.X, 0, midpoint.Z); // On the ground
+        this.shadow.Size = new Vector3(distance, 0.001, 2); // Adjust width dynamically
+        this.shadow.CFrame = new CFrame(midpoint).mul(CFrame.Angles(0, angleY, 0));
     }
 }
