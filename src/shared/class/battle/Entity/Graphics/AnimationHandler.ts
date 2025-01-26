@@ -1,5 +1,4 @@
 import { Atom, subscribe } from "@rbxts/charm";
-import { extractMapValues } from "shared/utils";
 import EntityGraphics from ".";
 import Expression from "./Expression";
 
@@ -259,16 +258,21 @@ export default class AnimationHandler {
     /**
      * Cleans up the AnimationHandler by stopping animations and threads.
      */
-    public destroy(): void {
-        this.stopBlinking();
-        this.animatioDataMap.clear();
-        this.expression = undefined;
+    public destroy() {
+        this.stopBlinking()
+        this.expression = undefined
 
-        const playingTracks = extractMapValues(this.playingTrackMap);
-        playingTracks.forEach((track) => {
-            track.Stop();
-            track.Destroy();
-        });
+        // Cleanup connections
+        this.connections.forEach(connection => {
+            if (typeIs(connection, "function")) connection()
+            else connection.Disconnect()
+        })
+
+        // Cleanup tracks
+        this.playingTrackMap.forEach(track => {
+            track.Stop()
+            track.Destroy()
+        })
     }
 
 

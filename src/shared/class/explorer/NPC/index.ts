@@ -16,7 +16,6 @@ export default class NPC {
     private humanoid: Humanoid;
     private walkSpeedFractionAtom: Atom<number>;
     private walkSpeedTracker: RBXScriptConnection;
-    private animator: Animator;
     private associatedPlace: Place;
 
     private walkingDirection: Vector3 = new Vector3();
@@ -37,7 +36,6 @@ export default class NPC {
         assert(animator.IsA('Animator'), `Animator not found in model '${this.id}'`);
         this.animationHandler = new AnimationHandler(humanoid, animator, this.model);
         this.humanoid = humanoid;
-        this.animator = animator;
         this.walkSpeedFractionAtom = atom(humanoid.WalkSpeed / this.sprintSpeed);
         this.walkSpeedTracker = this.humanoid.GetPropertyChangedSignal('WalkSpeed').Connect(() => {
             this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.sprintSpeed);
@@ -58,24 +56,14 @@ export default class NPC {
 
     private initialiseAnimations() {
         RunService.RenderStepped.Connect(dt => {
-            this.trackStateChange();
-            this.followPlayerScript();
+            this.stateChangeTracker();
             this.accelerationTracker(dt);
+            this.followPlayerScript();
         })
     }
 
-    // private debounceTime = 0.2; // Debounce duration in seconds
-    // private lastStateChangeTime = 0; // Tracks the last state change time
-    private trackStateChange() {
+    private stateChangeTracker() {
         const ah = this.animationHandler;
-        // const currentTime = tick(); // Get current time in seconds
-
-        // // Check if enough time has passed since the last state change
-        // if (currentTime - this.lastStateChangeTime < this.debounceTime) {
-        //     return; // Exit if debounce duration hasn't passed
-        // }
-
-        // this.lastStateChangeTime = currentTime; // Update the last state change time
         switch (this.state) {
             case NPCState.IDLE:
                 if (ah.getIfPlaying(AnimationType.Move)) {
@@ -151,7 +139,9 @@ export default class NPC {
     }
 
     public destroy() {
-        this.model.Destroy();
-        this.connections.forEach(conn => conn());
+        this.model.Destroy()
+        this.walkSpeedTracker.Disconnect()
+        this.animationHandler?.destroy()
+        this.connections.forEach(conn => conn())
     }
 }

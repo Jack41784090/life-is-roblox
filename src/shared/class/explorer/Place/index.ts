@@ -8,6 +8,7 @@ export default class Place {
     private model: Model;
     private NPCCs: NPCConfig[];
     private NPCs: NPC[] = [];
+    private destroyed = false;
 
     public static GetPlace(placeName: PlaceName) {
         return new Place({
@@ -32,12 +33,23 @@ export default class Place {
         this.model.Parent = Workspace;
     }
 
+    public destroy() {
+        if (this.destroyed) return
+        this.destroyed = true
+
+        this.NPCs.forEach(npc => npc.destroy())
+        this.model.Destroy()
+    }
+
     public spawnNPCs() {
-        const NPCs = this.NPCs;
-        for (const npcConfig of this.NPCCs) {
-            const npc = new NPC(npcConfig, this);
-            NPCs.push(npc);
-        }
+        this.NPCCs.forEach(npcConfig => {
+            try {
+                const npc = new NPC(npcConfig, this)
+                this.NPCs.push(npc)
+            } catch (err) {
+                warn(`Failed to spawn NPC ${npcConfig.id}: ${err}`)
+            }
+        })
     }
 
     public getModel() {
