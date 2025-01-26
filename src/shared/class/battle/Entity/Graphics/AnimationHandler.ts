@@ -1,3 +1,4 @@
+import { Atom, subscribe } from "@rbxts/charm";
 import { extractMapValues } from "shared/utils";
 import EntityGraphics from ".";
 import Expression from "./Expression";
@@ -18,11 +19,13 @@ export enum AnimationType {
 export interface AnimationOptions {
     animation: string;
     loop: boolean;
+    weightAtom?: Atom<number>;
     priority?: Enum.AnimationPriority;
     hold?: number;
 }
 
 export default class AnimationHandler {
+    private connections: Array<RBXScriptConnection | (() => void)> = [];
     private entity?: EntityGraphics;
     private humanoid: Humanoid
     private animator: Animator;
@@ -176,6 +179,21 @@ export default class AnimationHandler {
         //     this.playHoldAnimation(animation, hold);
         // }
 
+        if (options.weightAtom) {
+            // print(`weight given: ${options.weightAtom()}`);
+            const weight = options.weightAtom();
+            track.AdjustWeight(weight);
+            this.connections.push(subscribe(options.weightAtom, (s) => {
+                // print(`Adjusting weight: ${s}`);
+                if (track.IsPlaying) {
+                    track.AdjustWeight(s);
+                }
+                else {
+                    track.Stop();
+                }
+            }));
+        }
+
         return track;
     }
 
@@ -184,22 +202,22 @@ export default class AnimationHandler {
      * @param animationName The base name of the animation.
      * @param holdDuration The duration to hold the animation.
      */
-    private playHoldAnimation(animationName: string, holdDuration: number): void {
-        task.spawn(() => {
-            const holdAnimationName = `${animationName}-idle`;
-            const holdTrack = this.loadAnimationTrack(holdAnimationName);
-            if (!holdTrack) return;
+    // private playHoldAnimation(animationName: string, holdDuration: number): void {
+    //     task.spawn(() => {
+    //         const holdAnimationName = `${animationName}-idle`;
+    //         const holdTrack = this.loadAnimationTrack(holdAnimationName);
+    //         if (!holdTrack) return;
 
-            const initialTrack = this.loadAnimationTrack(animationName);
-            initialTrack?.Stopped.Wait();
+    //         const initialTrack = this.loadAnimationTrack(animationName);
+    //         initialTrack?.Stopped.Wait();
 
-            holdTrack.Priority = Enum.AnimationPriority.Action4;
-            holdTrack.Looped = true;
-            holdTrack.Play();
-            wait(holdDuration);
-            holdTrack.Stop();
-        });
-    }
+    //         holdTrack.Priority = Enum.AnimationPriority.Action4;
+    //         holdTrack.Looped = true;
+    //         holdTrack.Play();
+    //         wait(holdDuration);
+    //         holdTrack.Stop();
+    //     });
+    // }
 
     /**
      * Plays the idle animation.

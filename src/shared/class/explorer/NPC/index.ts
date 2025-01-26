@@ -14,8 +14,14 @@ export default class NPC {
     private id: string;
     private model: Model = new Instance('Model')
     private humanoid: Humanoid;
+    private walkSpeedFractionAtom: Atom<number>;
+    private walkSpeedTracker: RBXScriptConnection;
     private animator: Animator;
     private associatedPlace: Place;
+
+    private walkingDirection: Vector3 = new Vector3();
+
+    private connections: Array<(() => void)> = [];
 
     private animationHandler: AnimationHandler;
     private state: NPCState = NPCState.IDLE;
@@ -32,7 +38,10 @@ export default class NPC {
         this.animationHandler = new AnimationHandler(humanoid, animator, this.model);
         this.humanoid = humanoid;
         this.animator = animator;
-
+        this.walkSpeedFractionAtom = atom(humanoid.WalkSpeed / this.sprintSpeed);
+        this.walkSpeedTracker = this.humanoid.GetPropertyChangedSignal('WalkSpeed').Connect(() => {
+            this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.sprintSpeed);
+        })
 
         this.initialiseAnimations();
     }
@@ -50,7 +59,7 @@ export default class NPC {
     private initialiseAnimations() {
         RunService.RenderStepped.Connect(dt => {
             this.trackStateChange();
-            this.followPlayerScript(this.animationHandler.getHumanoid());
+            this.followPlayerScript();
             this.accelerationTracker(dt);
         })
     }
@@ -70,14 +79,17 @@ export default class NPC {
         switch (this.state) {
             case NPCState.IDLE:
                 if (ah.getIfPlaying(AnimationType.Move)) {
+                    // print('stopping move');
                     ah.killAnimation(AnimationType.Move);
                 }
                 break;
             case NPCState.WALKING:
                 if (!ah.getIfPlaying(AnimationType.Move)) {
+                    // print('playing move');
                     ah.playAnimation(AnimationType.Move, {
                         animation: 'move',
-                        loop: true
+                        loop: true,
+                        weightAtom: this.walkSpeedFractionAtom,
                     });
                 }
                 break;
@@ -86,19 +98,28 @@ export default class NPC {
         }
     }
 
-    private followPlayerScript(humanoid: Humanoid) {
+    private followPlayerScript() {
         const playerPos = Players.LocalPlayer.Character!.PrimaryPart!.Position;
         const thisPos = this.model.PrimaryPart!.Position;
 
         const diff = playerPos.sub(thisPos);
         if (diff.Magnitude > 5) {
-            humanoid.Move(diff.Unit);
-            this.state = NPCState.WALKING;
+            this.startMoving(diff.Unit);
         }
         else {
-            humanoid.Move(new Vector3());
-            this.state = NPCState.IDLE;
+            this.stopMoving();
         }
+    }
+
+    private startMoving(vector: Vector3) {
+        this.state = NPCState.WALKING;
+        this.walkingDirection = vector;
+        this.humanoid.Move(vector);
+    }
+
+    private stopMoving() {
+        this.walkingDirection = new Vector3();
+        // this.humanoid.Move(new Vector3()); // we don't use this because we want to decelerate
     }
 
     private sprintSpeed: number = 12;
@@ -106,25 +127,31 @@ export default class NPC {
     private acc: Atom<number> = atom(0);
     private accelerationTracker(dt: number) {
         const humanoid = this.humanoid;
-        const isRunning = humanoid.MoveDirection.Magnitude > 0;
+        const isRunning = this.walkingDirection.Magnitude > 0;
         const curAcc = this.acc();
         const curSpd = humanoid.WalkSpeed;
         if (isRunning) {
             // accelerate
-            if (curAcc < this.maxAcc) this.acc(curAcc + dt);
+            if (curAcc < this.maxAcc) this.acc(math.min(curAcc + dt * 2, this.maxAcc));
         }
         else {
             // decelerate
             if (curSpd > 0) {
-                this.acc(curAcc - dt * 10);
+                this.acc(curAcc - (dt * 5 * math.random()));
             }
             else {
+                this.state = NPCState.IDLE;
                 this.acc(0);
             }
         }
 
-        humanoid.WalkSpeed = this.sprintSpeed * math.clamp(curAcc, 0, 1);
+        humanoid.WalkSpeed = this.sprintSpeed * math.clamp(curAcc, 0, this.maxAcc);
 
-        print(`spd: ${humanoid.WalkSpeed}, acc: ${curAcc}`);
+        // print(`spd: ${humanoid.WalkSpeed}, acc: ${curAcc}`);
+    }
+
+    public destroy() {
+        this.model.Destroy();
+        this.connections.forEach(conn => conn());
     }
 }
