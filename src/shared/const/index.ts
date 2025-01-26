@@ -90,3 +90,7 @@ export enum GuiTag {
 
 export const SELECTED_COLOUR = new Color3(1, 58 / 255, 58 / 255);
 export const TWEEN_TIME = 0.5;
+
+export enum PlaceName {
+    City = 'City',
+}

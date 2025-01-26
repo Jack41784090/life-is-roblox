@@ -2,9 +2,9 @@ import { atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
-import Place from "shared/class/explorer/Place";
+import Explorer from "shared/class/explorer";
 import Scene from "shared/class/Scene";
-import { GuiTag } from "shared/const";
+import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
 import { DialogueExpression } from "shared/types/scene-types";
 import LoadingScreenElement from "./new_components/loading";
@@ -106,16 +106,8 @@ function enterPlayground() {
     })
 
     // PLace
-    const place = new Place({
-        locationName: "Playground",
-        NPCs: [{
-            id: "R15",
-            displayName: "NPC1",
-            spawnLocation: character.PrimaryPart!.Position.add(new Vector3(10, 0, 0))
-        }],
-        model: ReplicatedStorage.WaitForChild("Map City") as Model
-    })
-    place.spawnNPCs();
+    const explorer = Explorer.getInstance();
+    explorer.beginExplore(PlaceName.City);
 
 }
 function enterBattle() {

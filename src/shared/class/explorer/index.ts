@@ -1,3 +1,6 @@
+import { PlaceName } from "shared/const";
+import Place from "./Place";
+
 export default class Explorer {
     private static instance: Explorer;
 
@@ -8,10 +11,15 @@ export default class Explorer {
         return Explorer.instance;
     }
 
-    private exploring: boolean = false;
+    private exploring?: Place;
     private location: string = 'home';
+    private mainCharacter: string = 'entity_adalbrecht'
 
-    private constructor() {
+    private constructor() { }
 
+    public beginExplore(placeName: PlaceName) {
+        this.location = placeName;
+        this.exploring = Place.GetPlace(placeName);
+        this.exploring.spawnNPCs();
     }
 }
