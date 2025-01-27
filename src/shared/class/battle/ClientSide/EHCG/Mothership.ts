@@ -1,11 +1,12 @@
 import EntityCellGraphicsTuple from "shared/class/battle/ClientSide/EHCG/Tuple";
-import Entity from "shared/class/battle/Entity";
-import HexCellGraphics from "shared/class/battle/Hex/Cell/Graphics";
-import HexGrid from "shared/class/battle/Hex/Grid";
+
+import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { QR } from "shared/class/XY";
 import { EntityState, HexGridState, PlayerID, TeamState } from "shared/types/battle-types";
 import { getModelTemplateByID } from "shared/utils";
-import EntityGraphics from "../../Entity/Graphics";
+import Entity from "../../State/Entity";
+import EntityGraphics from "../../State/Entity/Graphics";
+import HexGrid from "../../State/Hex/Grid";
 
 export default class EntityHexCellGraphicsMothership {
     private idTupleMap: Map<PlayerID, EntityCellGraphicsTuple> = new Map();
@@ -179,7 +180,7 @@ export default class EntityHexCellGraphicsMothership {
         }
 
         const cell = this.tupleQR.get(dest)?.cellGraphics ?? this.positionTuple(dest).cellGraphics;
-        const endTuple = await entity.moveToCell(cell);
-        this.tupleQR.set(dest, endTuple);
+        await entity.moveToCell(cell);
+        this.tupleQR.set(dest, new EntityCellGraphicsTuple(cell, entity));
     }
 }

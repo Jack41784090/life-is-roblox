@@ -1,6 +1,6 @@
 import React, { ReactComponent } from "@rbxts/react";
 import { RunService, TweenService } from "@rbxts/services";
-import HexCellGraphics from "shared/class/battle/Hex/Cell/Graphics";
+import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { SELECTED_COLOUR } from "shared/const";
 import { getPlayer } from "shared/utils";
 const playerGUI = getPlayer()?.FindFirstChild("PlayerGui");

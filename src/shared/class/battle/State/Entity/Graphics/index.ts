@@ -2,7 +2,6 @@ import { TweenService } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import { CONDOR_BLOOD_RED } from "shared/const";
 import { ClashResult, EntityStatus } from "shared/types/battle-types";
-import EntityCellGraphicsTuple from "../../ClientSide/EHCG/Tuple";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
 import AnimationHandler, { AnimationOptions, AnimationType } from "./AnimationHandler";
 import AudioHandler from "./AudioHandler";
@@ -135,7 +134,7 @@ export default class EntityGraphics {
         return tween.Completed.Wait();
     }
 
-    public async moveToCell(cell: HexCellGraphics, path?: HexCellGraphics[]): Promise<EntityCellGraphicsTuple> {
+    public async moveToCell(cell: HexCellGraphics, path?: HexCellGraphics[]): Promise<void> {
         const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
         assert(humanoid, "Humanoid not found");
         const humanoidRoot = humanoid.RootPart;
@@ -162,7 +161,7 @@ export default class EntityGraphics {
             transitionTrack?.Ended.Once(() => {
                 i();
                 print(`${this.name}: Movement complete`);
-                resolve(new EntityCellGraphicsTuple(cell, this));
+                resolve();
             });
         });
     }

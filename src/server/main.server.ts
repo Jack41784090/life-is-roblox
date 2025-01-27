@@ -1,6 +1,6 @@
 import { Players } from "@rbxts/services";
 import Battle from "shared/class/battle";
-import HexGrid from "shared/class/battle/Hex/Grid";
+import HexGrid from "shared/class/battle/State/Hex/Grid";
 import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER, TeamMap } from "shared/types/battle-types";

@@ -1,7 +1,7 @@
 import { RunService } from "@rbxts/services";
+import { QR } from "shared/class/XY";
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain, HexCellState, HexGridConfig, HexGridState } from "shared/types/battle-types";
-import { QR } from "../../XY";
 import HexCell from "./Cell";
 import { Hex, Layout } from "./Layout";
 

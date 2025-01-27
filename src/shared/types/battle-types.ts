@@ -1,8 +1,8 @@
 import { Atom } from "@rbxts/charm";
 import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
-import Entity from "shared/class/battle/Entity";
-import HexGrid from "shared/class/battle/Hex/Grid";
 import State from "shared/class/battle/State";
+import Entity from "shared/class/battle/State/Entity";
+import HexGrid from "shared/class/battle/State/Hex/Grid";
 
 
 
@@ -296,7 +296,7 @@ export type HexCellState = Omit<HexCellConfig, 'gridRef'> & {
 export type StateState = {
     cre?: number,
     grid: ReturnType<HexGrid["info"]>;
-    teams: { name: string; members: ReturnType<Entity["info"]>[] }[]
+    teams: { name: string; members: EntityState[] }[]
 };
 
 export interface ClientSideConfig {

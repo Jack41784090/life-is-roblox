@@ -1,5 +1,5 @@
-import EntityGraphics from "shared/class/battle/Entity/Graphics";
-import HexCellGraphics from "shared/class/battle/Hex/Cell/Graphics";
+import EntityGraphics from "shared/class/battle/State/Entity/Graphics";
+import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 
 export default class EntityCellGraphicsTuple {
     public entityGraphics?: EntityGraphics;

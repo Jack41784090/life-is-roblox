@@ -1,51 +1,21 @@
-import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
 import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityInit, EntityState, EntityStats, HexGridState, MoveAction, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
-import Ability from "../Ability";
-import Entity from "../Entity";
-import HexCell from "../Hex/Cell";
-import HexGrid from "../Hex/Grid";
+import Ability from "./Ability";
+import Entity from "./Entity";
+import HexCell from "./Hex/Cell";
+import HexGrid from "./Hex/Grid";
+import Team from "./Team";
 
-
-export class Team {
-    name: string;
-    members: Entity[];
-
-    constructor(name: string, members: Entity[]) {
-        this.name = name;
-        this.members = members;
-    }
-
-    addMembers(...members: Entity[]) {
-        for (const member of members) {
-            if (this.members.every(m => m.stats && m.stats.id !== member.stats.id)) {
-                this.members.push(member);
-            }
-        }
-    }
-
-    players() {
-        const playerSet = new Set<Player>();
-        for (const entity of this.members) {
-            const player = Players.GetPlayerByUserId(entity.playerID);
-            if (player) {
-                playerSet.add(player);
-            }
-        }
-        return playerSet;
-    }
-}
-
-type Tuple = {
+type PositionEntityTuple = {
     qr: Vector2;
     entity: Entity;
 }
 
 export default class State {
     creID: number | undefined;
-    private participantMap: Map<number, Tuple> = new Map();
+    private participantMap: Map<number, PositionEntityTuple> = new Map();
     private teams: Team[] = [];
     grid: HexGrid;
 

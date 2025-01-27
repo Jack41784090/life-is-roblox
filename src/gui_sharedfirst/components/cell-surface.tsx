@@ -1,5 +1,5 @@
 import React, { ReactComponent } from "@rbxts/react";
-import HexCellGraphics from "shared/class/battle/Hex/Cell/Graphics";
+import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 
 export interface CellSurfaceElementProps {
     onclick?: () => void;

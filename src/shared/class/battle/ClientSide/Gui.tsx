@@ -9,10 +9,10 @@ import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shar
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
 import { calculateRealityValue } from "shared/utils";
-import Entity from "../Entity";
-import HexCellGraphics from "../Hex/Cell/Graphics";
 import Pathfinding from "../Pathfinding";
 import State from "../State";
+import Entity from "../State/Entity";
+import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import EntityCellGraphicsTuple from "./EHCG/Tuple";
 

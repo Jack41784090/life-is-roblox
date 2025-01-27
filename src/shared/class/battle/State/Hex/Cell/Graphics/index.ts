@@ -1,4 +1,4 @@
-import TweenManager from "shared/class/battle/Entity/Graphics/TweenManager";
+import TweenManager from "shared/class/battle/State/Entity/Graphics/TweenManager";
 import { TWEEN_TIME } from "shared/const";
 import { HEXAGON } from "shared/const/assets";
 import { getTween } from "shared/utils";

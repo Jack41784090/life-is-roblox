@@ -1,5 +1,5 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import EntityGraphics from "../Entity/Graphics";
+import EntityGraphics from "../State/Entity/Graphics";
 
 export default class BattleCam {
     // Camera-Related Information
