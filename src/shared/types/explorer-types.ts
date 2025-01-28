@@ -1,3 +1,4 @@
+import { NPCConfig } from "shared/class/explorer/NPC/types";
 
 export type PlaceConfig = {
     locationName: string;
@@ -5,8 +6,3 @@ export type PlaceConfig = {
     model: Model;
 }
 
-export type NPCConfig = {
-    id: string;
-    displayName: string;
-    spawnLocation: Vector3;
-}

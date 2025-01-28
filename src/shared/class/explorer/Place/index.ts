@@ -1,7 +1,8 @@
 import { ReplicatedStorage, Workspace } from "@rbxts/services";
 import { PlaceName } from "shared/const";
-import { NPCConfig, PlaceConfig } from "shared/types/explorer-types";
+import { PlaceConfig } from "shared/types/explorer-types";
 import NPC from "../NPC";
+import { NPCConfig } from "../NPC/types";
 
 export default class Place {
     private location: string;

@@ -1,8 +1,8 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Players, ReplicatedStorage, RunService } from "@rbxts/services";
-import AnimationHandler, { AnimationType } from "shared/class/battle/Entity/Graphics/AnimationHandler";
-import { NPCConfig } from "shared/types/explorer-types";
+import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import Place from "../Place";
+import { NPCConfig } from "./types";
 
 enum NPCState {
     IDLE,
@@ -11,24 +11,36 @@ enum NPCState {
 }
 
 export default class NPC {
+    private associatedPlace: Place;
+
+    //#region infra
     private id: string;
     private model: Model = new Instance('Model')
     private humanoid: Humanoid;
+    private animationHandler: AnimationHandler;
+    private connections: Array<(() => void)> = [];
+    private state: NPCState = NPCState.IDLE;
+    //#endregion
+
+    //#region walking
     private walkSpeedFractionAtom: Atom<number>;
     private walkSpeedTracker: RBXScriptConnection;
-    private associatedPlace: Place;
-
     private walkingDirection: Vector3 = new Vector3();
+    private sprintSpeed: number = 12;
+    private maxAcc: number = 1;
+    private acc: Atom<number> = atom(0);
+    //#endregion
 
-    private connections: Array<(() => void)> = [];
-
-    private animationHandler: AnimationHandler;
-    private state: NPCState = NPCState.IDLE;
+    //#region personality
+    // private npcwants: NPCWant;
+    // private npcbevr: NPCBehaviorProfile;
+    // private npcpers: NPCPersonality;
+    //#endregion
 
     constructor(config: NPCConfig, place: Place) {
         this.id = config.id;
         this.associatedPlace = place;
-        this.spawnIn(config);
+        this.spawn(config);
 
         const humanoid = this.model.WaitForChild('Humanoid') as Humanoid;
         assert(humanoid.IsA('Humanoid'), `Humanoid not found in model '${this.id}'`);
@@ -41,10 +53,14 @@ export default class NPC {
             this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.sprintSpeed);
         })
 
+        // this.npcwants = config.npcwant;
+        // this.npcbevr = config.npcbevr;
+        // this.npcpers = config.npcpers;
+
         this.initialiseAnimations();
     }
 
-    private spawnIn(config: NPCConfig) {
+    private spawn(config: NPCConfig) {
         const template = ReplicatedStorage.WaitForChild('Models').WaitForChild("NPCs").WaitForChild(this.id) as Model;
         assert(template.IsA('Model'), `Model '${this.id}' not found`);
 
@@ -99,20 +115,6 @@ export default class NPC {
         }
     }
 
-    private startMoving(vector: Vector3) {
-        this.state = NPCState.WALKING;
-        this.walkingDirection = vector;
-        this.humanoid.Move(vector);
-    }
-
-    private stopMoving() {
-        this.walkingDirection = new Vector3();
-        // this.humanoid.Move(new Vector3()); // we don't use this because we want to decelerate
-    }
-
-    private sprintSpeed: number = 12;
-    private maxAcc: number = 1;
-    private acc: Atom<number> = atom(0);
     private accelerationTracker(dt: number) {
         const humanoid = this.humanoid;
         const isRunning = this.walkingDirection.Magnitude > 0;
@@ -136,6 +138,17 @@ export default class NPC {
         humanoid.WalkSpeed = this.sprintSpeed * math.clamp(curAcc, 0, this.maxAcc);
 
         // print(`spd: ${humanoid.WalkSpeed}, acc: ${curAcc}`);
+    }
+
+    private startMoving(vector: Vector3) {
+        this.state = NPCState.WALKING;
+        this.walkingDirection = vector;
+        this.humanoid.Move(vector);
+    }
+
+    private stopMoving() {
+        this.walkingDirection = new Vector3();
+        // this.humanoid.Move(new Vector3()); // we don't use this because we want to decelerate
     }
 
     public destroy() {
