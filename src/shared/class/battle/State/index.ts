@@ -1,9 +1,10 @@
 import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
-import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, EntityInit, EntityState, EntityStats, HexGridState, MoveAction, Reality, StateConfig, StateState, TeamState, TILE_SIZE } from "shared/types/battle-types";
+import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
 import Ability from "./Ability";
 import Entity from "./Entity";
+import { EntityInit, EntityState, EntityStats } from "./Entity/types";
 import HexCell from "./Hex/Cell";
 import HexGrid from "./Hex/Grid";
 import Team from "./Team";
@@ -72,7 +73,7 @@ export default class State {
     public teamInfo(): TeamState[] {
         return this.teams.map((team) => ({
             name: team.name,
-            members: team.members.map((entity) => entity.info()),
+            members: team.members.map((entity) => entity.state()),
         }));
     }
 
@@ -211,6 +212,11 @@ export default class State {
     public clash(attackAction: AttackAction): ClashResult {
         print(`Clashing`, attackAction);
         const { using: attacker, target, acc } = attackAction.ability;
+
+        if (!attacker || !target) {
+            warn("Attacker or target not found");
+            return { damage: 0, u_damage: 0, fate: "Miss", roll: 0 };
+        }
         print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
 
         let fate: ClashResultFate = "Miss";
@@ -219,8 +225,13 @@ export default class State {
         const hitRoll = math.random(1, 100);
         const hitChance = acc - calculateRealityValue(Reality.Maneuver, target.stats);
         const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
+        const allEntities = this.getAllEntities();
 
-        const ability = new Ability(attackAction.ability);
+        const ability = new Ability({
+            ...attackAction.ability,
+            using: allEntities.find(e => e.playerID === attackAction.by),
+            target: allEntities.find(e => e.playerID === attackAction.against),
+        });
         const abilityDamage = ability.calculateDamage();
         const minDamage = abilityDamage * 0.5;
         const maxDamage = abilityDamage;

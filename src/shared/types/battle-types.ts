@@ -1,7 +1,8 @@
 import { Atom } from "@rbxts/charm";
 import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
 import State from "shared/class/battle/State";
-import Entity from "shared/class/battle/State/Entity";
+import { AbilityState } from "shared/class/battle/State/Ability/types";
+import { EntityState } from "shared/class/battle/State/Entity/types";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
 
 
@@ -20,48 +21,7 @@ export enum Reality {
 }
 
 
-export interface iEntity {
-    readonly playerID: number;
-    stats: EntityStats,
-    team?: string,
-    name: string,
-    iconURL?: ReadinessIcon,
-    model?: Instance,
-    qr: Vector2;
-}
-export type EntityStats = {
-    id: string;
-    str: number;
-    dex: number;
-    acr: number;
-    spd: number;
-    siz: number;
-    int: number;
-    spr: number;
-    fai: number;
-    cha: number;
-    beu: number;
-    wil: number;
-    end: number;
-};
-export type EntityStatsNoID = Omit<EntityStats, 'id'>;
-export type EntityInitHardRequirements = {
-    qr: Vector2;
-    playerID: number;
-    stats: EntityStats;
-    hip: number;
-    pos: number;
-    org: number;
-    sta: number;
-}
-export type EntityInit = Partial<iEntity> & EntityInitHardRequirements;
-export type EntityStatsUpdate = Partial<EntityStatsNoID>;
-export type EntityState = EntityInitHardRequirements & {
-    name: string;
-    team?: string;
-    armed?: keyof typeof Enum.KeyCode;
-    qr?: Vector2;
-}
+
 
 export type TeamState = { name: string; members: EntityState[] };
 
@@ -75,117 +35,6 @@ export enum CharacterActionMenuAction {
     EndTurn = 'endTurn',
     Move = 'move',
 }
-
-//#region Abilities
-export enum Potency {
-    Strike = 'strike',
-    Slash = 'slash',
-    Stab = 'stab',
-    Light = 'light',
-    Dark = 'dark',
-    Arcane = 'arcane',
-    Elemental = 'elemental',
-    Occult = 'occult',
-    Spiritual = 'spiritual',
-    TheWay = 'theWay',
-}
-export type AbilityConfig = {
-    name: string;
-    description: string;
-    acc: number;
-    cost: { pos: number; mana: number; };
-    range: NumberRange;
-    potencies: Map<Potency, number>;
-    damageType: Map<DamageType, number>;
-    using: EntityInit;
-    target: EntityInit;
-    animation: string;
-    icon: string;
-}
-export interface iAbility {
-    animation: string,
-    name: string;
-    description: string;
-    icon: string;
-
-    using?: Entity;
-    target?: Entity;
-
-    acc: number;
-    potencies: Map<Potency, number>;
-    damageType: Map<DamageType, number>;
-
-    cost: {
-        pos: number,
-        mana: number,
-    }
-
-    range: NumberRange
-
-    // effects: Effect[];
-}
-type RequiredAbility = Required<iAbility>;
-
-export type AbilitySet = {
-    [key in keyof typeof Enum.KeyCode]?: iAbility;
-};
-export enum DamageType {
-    Blunt = 'blunt',
-    Pierce = 'pierce',
-    Slash = 'slash',
-    Poison = 'poison',
-    Fire = 'fire',
-    Frost = 'frost',
-    Electric = 'electric',
-    Psychic = 'psychic',
-    Spiritual = 'spiritual',
-    Divine = 'divine',
-    Necrotic = 'necrotic',
-    Arcane = 'arcane',
-}
-export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
-    [Potency.Strike]: [
-        ['str', 1]
-    ],
-    [Potency.Slash]: [
-        ['str', 1]
-    ],
-    [Potency.Stab]: [
-        ['str', 1]
-    ],
-    [Potency.TheWay]: [
-        ['fai', 1.1]
-    ],
-    [Potency.Light]: [
-        ['fai', .4],
-        ['wil', .6],
-    ],
-    [Potency.Dark]: [
-        ['cha', .25],
-        ['wil', .75],
-    ],
-    [Potency.Arcane]: [
-        ['int', .85],
-        ['wil', .15],
-    ],
-    [Potency.Elemental]: [
-        ['int', .65],
-        ['spr', .35],
-    ],
-    [Potency.Occult]: [
-        ['wil', .1],
-        ['spr', .4],
-        ['cha', .5],
-    ],
-    [Potency.Spiritual]: [
-        ['spr', .9],
-        ['wil', .1],
-    ],
-}
-//#endregion
-
-
-
 
 export interface CharacterMenuAction {
     type: CharacterActionMenuAction,
@@ -218,7 +67,7 @@ export enum ActionType {
     Attack = 'attack',
 }
 export interface AttackAction extends BattleAction {
-    ability: AbilityConfig,
+    ability: AbilityState,
     clashResult: ClashResult,
 }
 export interface MoveAction extends BattleAction {

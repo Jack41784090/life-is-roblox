@@ -1,18 +1,21 @@
 import { atom, Atom } from "@rbxts/charm";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
-import { AbilitySet, EntityInit, EntityState, EntityStats, EntityStatsUpdate, iAbility, iEntity, Reality } from "shared/types/battle-types";
+import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
+import { AbilitySet, iAbility } from "../Ability/types";
+import { EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, iEntity } from "./types";
 
 
 export default class Entity implements iEntity {
     // server-controlled properties
-    playerID: number;
-    stats: EntityStats;
-    name: string;
+    public playerID: number;
+    public stats: EntityStats;
+    public name: string;
     private sta: Atom<number>;
     private hip: Atom<number>;
     private org: Atom<number>;
     private pos: Atom<number>;
+    private stance: EntityStance = EntityStance.High;
 
     qr: Vector2;
     armed?: keyof typeof Enum.KeyCode;
@@ -30,7 +33,7 @@ export default class Entity implements iEntity {
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
     }
 
-    info(): EntityState {
+    state(): EntityState {
         return {
             playerID: this.playerID,
             stats: {
@@ -44,6 +47,7 @@ export default class Entity implements iEntity {
             org: this.org(),
             pos: this.pos(),
             qr: this.qr,
+            stance: this.stance,
         }
     }
 
@@ -131,6 +135,9 @@ export default class Entity implements iEntity {
                     this[k as keyof this] = v as unknown as any;
             }
         }
+    }
+    public setStance(stance: EntityStance) {
+        this.stance = stance;
     }
 
     public setCell(q: number, r: number): void;

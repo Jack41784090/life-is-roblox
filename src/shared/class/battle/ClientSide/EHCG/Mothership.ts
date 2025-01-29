@@ -1,11 +1,11 @@
 import EntityCellGraphicsTuple from "shared/class/battle/ClientSide/EHCG/Tuple";
-
 import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { QR } from "shared/class/XY";
-import { EntityState, HexGridState, PlayerID, TeamState } from "shared/types/battle-types";
+import { HexGridState, PlayerID, TeamState } from "shared/types/battle-types";
 import { getModelTemplateByID } from "shared/utils";
 import Entity from "../../State/Entity";
 import EntityGraphics from "../../State/Entity/Graphics";
+import { EntityState } from "../../State/Entity/types";
 import HexGrid from "../../State/Hex/Grid";
 
 export default class EntityHexCellGraphicsMothership {

@@ -3,7 +3,6 @@ import { useMemo } from "@rbxts/react";
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import remotes from "shared/remote";
-import { AttackAction, EntityStats, iAbility, Reality } from "shared/types/battle-types";
 
 
 export function getPlayer(id?: number): Player | undefined {
@@ -393,6 +392,7 @@ export function calculateRealityValue(reality: Reality, stats: EntityStats): num
 export function isAttackKills(attackerAction: AttackAction) {
     const { ability, executed } = attackerAction
     const { using, target } = ability
+    if (!target) return false;
 
     if (!attackerAction.clashResult) return false;
 
@@ -573,7 +573,10 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 }
 
 import { SyncPayload } from "@rbxts/charm-sync";
+import { iAbility } from "shared/class/battle/State/Ability/types";
+import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { GlobalAtoms } from "shared/datastore";
+import { AttackAction, Reality } from "shared/types/battle-types";
 
 /**
  * Filters the payload to only include the player's data.

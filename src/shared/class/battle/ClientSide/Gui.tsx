@@ -281,8 +281,8 @@ export default class Gui {
             type: ActionType.Attack,
             ability: {
                 ...iability,
-                using: cre.info(),
-                target: clickedOn.info(),
+                using: cre.state(),
+                target: clickedOn.state(),
             },
             by: cre.playerID,
             against: clickedOn.playerID,

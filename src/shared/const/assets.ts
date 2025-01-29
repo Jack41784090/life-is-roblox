@@ -1,5 +1,5 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { DamageType, iAbility, Potency } from "shared/types/battle-types";
+import { AbilityType, DamageType, iAbility, Potency } from "shared/class/battle/State/Ability/types";
 
 export const HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOperation;
 
@@ -10,6 +10,7 @@ export const otherPlayersTurnGui = uiFolder.WaitForChild("OtherPlayersTurnGui") 
 
 export const UNIVERSAL_PHYS = new Map<string, iAbility>([
     ['Slash', {
+        type: AbilityType.Active,
         icon: 'rbxassetid://115770864932653',
         animation: 'swing',
         name: 'Slash',

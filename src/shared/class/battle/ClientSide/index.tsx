@@ -115,7 +115,7 @@ export default class ClientSide {
                     print("Getting local entity")
                     this.localEntity().andThen(e => {
                         this.exitMovement();
-                        const eG = this.EHCGMS.findEntityG(e.playerID) ?? this.EHCGMS.positionNewPlayer(e.info(), e.info().qr!);
+                        const eG = this.EHCGMS.findEntityG(e.playerID) ?? this.EHCGMS.positionNewPlayer(e.state(), e.state().qr!);
                         this.camera.enterCharacterCenterMode(eG);
                         if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
                     })
