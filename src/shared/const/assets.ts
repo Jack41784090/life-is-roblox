@@ -1,5 +1,6 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { AbilityType, DamageType, iAbility, Potency } from "shared/class/battle/State/Ability/types";
+import { AbilityDamageType, AbilityPotency, AbilityType, iActiveAbility } from "shared/class/battle/State/Ability/types";
+import { EntityStance } from "shared/class/battle/State/Entity/types";
 
 export const HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOperation;
 
@@ -8,19 +9,20 @@ const uiFolder = ReplicatedStorage.WaitForChild("UI") as Folder;
 export const otherPlayersTurnGui = uiFolder.WaitForChild("OtherPlayersTurnGui") as ScreenGui;
 
 
-export const UNIVERSAL_PHYS = new Map<string, iAbility>([
-    ['Slash', {
+export const UNIVERSAL_PHYS = new Map<string, iActiveAbility>([
+    ['High Slash', {
         type: AbilityType.Active,
         icon: 'rbxassetid://115770864932653',
         animation: 'swing',
         name: 'Slash',
         description: 'slashing',
-        acc: 100,
-        potencies: new Map<Potency, number>([
-            [Potency.Slash, 1]
+        chance: 100,
+        direction: EntityStance.High,
+        potencies: new Map<AbilityPotency, number>([
+            [AbilityPotency.Slash, 1]
         ]),
-        damageType: new Map<DamageType, number>([
-            [DamageType.Slash, 1]
+        damageType: new Map<AbilityDamageType, number>([
+            [AbilityDamageType.Slash, 1]
         ]),
         cost: {
             pos: 10,

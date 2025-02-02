@@ -2,7 +2,10 @@ import { atom, Atom } from "@rbxts/charm";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
-import { AbilitySet, iAbility } from "../Ability/types";
+import { ActiveAbility } from "../Ability";
+import { AbilitySet, AbilityType, iAbility, iActiveAbility } from "../Ability/types";
+import FightingStyle from "../FightingStyle";
+import { Default } from "../FightingStyle/const";
 import { EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, iEntity } from "./types";
 
 
@@ -15,7 +18,9 @@ export default class Entity implements iEntity {
     private hip: Atom<number>;
     private org: Atom<number>;
     private pos: Atom<number>;
+
     private stance: EntityStance = EntityStance.High;
+    private fightingStyle: FightingStyle = Default();
 
     qr: Vector2;
     armed?: keyof typeof Enum.KeyCode;
@@ -70,11 +75,12 @@ export default class Entity implements iEntity {
     //#region get abilities
     getAllAbilitySets(): Array<AbilitySet> {
         const allAbilities = this.getAllAbilities();
+        const tempFirst = allAbilities.find(a => a.type === AbilityType.Active);
         const setOne: AbilitySet = {
-            'Q': allAbilities[0],
-            'W': allAbilities[0],
-            'E': allAbilities[0],
-            'R': allAbilities[0],
+            'Q': tempFirst as iActiveAbility,
+            'W': tempFirst as iActiveAbility,
+            'E': tempFirst as iActiveAbility,
+            'R': tempFirst as iActiveAbility,
         };
         return [setOne];
     }
@@ -87,6 +93,22 @@ export default class Entity implements iEntity {
     getEquippedAbilitySet() {
         const sets = this.getAllAbilitySets();
         return sets[0];
+    }
+
+    getReaction(incomingAbility: ActiveAbility) {
+        const { direction: hittingDirection, using, target, type: abilityType } = incomingAbility;
+        assert(abilityType === AbilityType.Active, `Ability ${incomingAbility.name} is not an active ability`);
+        if (using === undefined) {
+            warn(`[Entity] ${this.name} is not able to react to ${incomingAbility.name} because it has no user`);
+            return;
+        }
+        if (target !== this) {
+            warn(`[Entity] ${this.name} is not able to react to ${incomingAbility.name} because it is not the target`);
+            return;
+        }
+
+        // const matchingDirection = target.stance === hittingDirection;
+        return this.fightingStyle.getRandomReactionAbility();
     }
     //#endregion
 

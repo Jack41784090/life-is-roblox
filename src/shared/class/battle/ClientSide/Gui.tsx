@@ -7,7 +7,7 @@ import HPBar from "gui_sharedfirst/new_components/battle/statusBar/hpBar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
+import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
 import { calculateRealityValue } from "shared/utils";
 import Pathfinding from "../Pathfinding";
 import State from "../State";
@@ -277,7 +277,8 @@ export default class Gui {
             warn("No ability keyed");
             return;
         }
-        accessToken.action = {
+
+        const commitedAction = {
             type: ActionType.Attack,
             ability: {
                 ...iability,
@@ -287,7 +288,8 @@ export default class Gui {
             by: cre.playerID,
             against: clickedOn.playerID,
             executed: false,
-        } as AttackAction
+        };
+        accessToken.action = commitedAction
         remotes.battle.act(accessToken);
     }
 

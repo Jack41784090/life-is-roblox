@@ -2,7 +2,7 @@ import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
 import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
-import Ability from "./Ability";
+import { ActiveAbility } from "./Ability";
 import Entity from "./Entity";
 import { EntityInit, EntityState, EntityStats } from "./Entity/types";
 import HexCell from "./Hex/Cell";
@@ -211,7 +211,7 @@ export default class State {
 
     public clash(attackAction: AttackAction): ClashResult {
         print(`Clashing`, attackAction);
-        const { using: attacker, target, acc } = attackAction.ability;
+        const { using: attacker, target, chance: acc } = attackAction.ability;
 
         if (!attacker || !target) {
             warn("Attacker or target not found");
@@ -227,7 +227,7 @@ export default class State {
         const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
         const allEntities = this.getAllEntities();
 
-        const ability = new Ability({
+        const ability = new ActiveAbility({
             ...attackAction.ability,
             using: allEntities.find(e => e.playerID === attackAction.by),
             target: allEntities.find(e => e.playerID === attackAction.against),

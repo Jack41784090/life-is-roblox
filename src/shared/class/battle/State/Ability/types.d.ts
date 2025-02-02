@@ -1,16 +1,61 @@
 import Entity from "../Entity";
-import { EntityState } from "../Entity/types";
+import { EntityStance, EntityState } from "../Entity/types";
 
-export type AbilityConfig = iAbility;
+export interface iAbility {
+    animation: string,
+    name: string;
+    description: string;
+    icon: string;
+
+    type: AbilityType,
+    direction: EntityStance;
+    using?: Entity;
+    target?: Entity;
+    chance: number;
+    cost: {
+        pos: number,
+        mana: number,
+    }
+}
+
+export type iActiveAbility = iAbility & {
+    potencies: Map<AbilityPotency, number>;
+    damageType: Map<AbilityDamageType, number>;
+    range: NumberRange
+}
+export type iReactiveAbility = iAbility & {
+
+}
+
+export type ActiveAbilityConfig = Omit<iActiveAbility, 'using' | 'target' | 'type'> & {
+    using?: Entity;
+    target?: Entity;
+}
+export type ReactiveAbilityConfig = Omit<iReactiveAbility, 'using' | 'target' | 'type'> & {
+    using?: Entity;
+    target?: Entity;
+}
+export type AbilityConfig = iActiveAbility | iReactiveAbility;
+
+
 export type AbilityState = Omit<AbilityConfig, 'using' | 'target'> & {
     using?: EntityState;
     target?: EntityState;
 }
+export type ActiveAbilityState = Omit<iActiveAbility, 'using' | 'target'> & {
+    using?: EntityState;
+    target?: EntityState;
+}
+export type ReactiveAbilityState = Omit<iReactiveAbility, 'using' | 'target'> & {
+    using?: EntityState;
+    target?: EntityState;
+}
 export type AbilitySet = {
-    [key in keyof typeof Enum.KeyCode]?: iAbility;
+    [key in keyof typeof Enum.KeyCode]?: iActiveAbility;
 };
 
-export enum Potency {
+type RequiredAbility = Required<iAbility>;
+export enum AbilityPotency {
     Strike = 'strike',
     Slash = 'slash',
     Stab = 'stab',
@@ -22,28 +67,10 @@ export enum Potency {
     Spiritual = 'spiritual',
     TheWay = 'theWay',
 }
-export interface iAbility {
-    type: AbilityType,
-    animation: string,
-    name: string;
-    description: string;
-    icon: string;
-    using?: Entity;
-    target?: Entity;
-    acc: number;
-    potencies: Map<Potency, number>;
-    damageType: Map<DamageType, number>;
-    cost: {
-        pos: number,
-        mana: number,
-    }
-    range: NumberRange
-}
-type RequiredAbility = Required<iAbility>;
-export enum DamageType {
+export enum AbilityDamageType {
     Blunt = 'blunt',
-    Pierce = 'pierce',
     Slash = 'slash',
+    Pierce = 'pierce',
     Poison = 'poison',
     Fire = 'fire',
     Frost = 'frost',
@@ -56,6 +83,9 @@ export enum DamageType {
 }
 
 export enum AbilityType {
+    None = 'none',
     Active = 'active',
     Reactive = 'reactive',
 }
+
+

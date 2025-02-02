@@ -1,33 +1,57 @@
 import Entity from "../Entity";
+import { EntityStance } from "../Entity/types";
 import { potencyMap } from "./const";
-import { AbilityConfig, AbilityState, AbilityType, DamageType, iAbility, Potency } from "./types";
+import { AbilityConfig, AbilityDamageType, AbilityPotency, AbilityState, AbilityType, ActiveAbilityConfig, iAbility, iActiveAbility, iReactiveAbility, ReactiveAbilityConfig } from "./types";
 
-export default class Ability implements iAbility {
-    type: AbilityType = AbilityType.Active;
+class Ability implements iAbility {
+    //#region flair info
     icon: string;
     animation: string;
     name: string;
     description: string;
-    acc: number;
+    //#endregion
+
+    //#region hard info
+    direction: EntityStance;
+    type: AbilityType = AbilityType.None;
+    chance: number;
     cost: { pos: number; mana: number; };
-    range: NumberRange;
-    potencies: Map<Potency, number>;
-    damageType: Map<DamageType, number>;
-    readonly using?: Entity;
-    readonly target?: Entity;
+    using?: Entity;
+    target?: Entity;
+    //#endregion
 
     constructor(opt: AbilityConfig) {
-        this.acc = opt.acc;
+        this.direction = opt.direction;
+        this.chance = opt.chance;
         this.name = opt.name;
         this.description = opt.description;
         this.cost = opt.cost;
-        this.potencies = opt.potencies;
         this.using = opt.using;
         this.target = opt.target;
-        this.damageType = opt.damageType;
-        this.range = opt.range;
         this.animation = opt.animation;
         this.icon = opt.icon;
+    }
+
+    getState(): AbilityState {
+        return {
+            ... this,
+            using: this.using?.state(),
+            target: this.target?.state(),
+        }
+    }
+}
+
+export class ActiveAbility extends Ability implements iActiveAbility {
+    type = AbilityType.Active;
+    range: NumberRange;
+    potencies: Map<AbilityPotency, number>;
+    damageType: Map<AbilityDamageType, number>;
+
+    constructor(opt: ActiveAbilityConfig) {
+        super({ ...opt, type: AbilityType.Active });
+        this.damageType = opt.damageType;
+        this.range = opt.range;
+        this.potencies = opt.potencies;
     }
 
     calculateDamage() {
@@ -45,13 +69,11 @@ export default class Ability implements iAbility {
         });
         return damage;
     }
-
-    getState(): AbilityState {
-        return {
-            ... this,
-            using: this.using?.state(),
-            target: this.target?.state(),
-        }
-    }
 }
 
+export class ReactiveAbility extends Ability implements iReactiveAbility {
+    type = AbilityType.Reactive;
+    constructor(opt: ReactiveAbilityConfig) {
+        super({ ...opt, type: AbilityType.Reactive });
+    }
+}
