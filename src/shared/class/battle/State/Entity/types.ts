@@ -33,6 +33,7 @@ export type EntityInitHardRequirements = {
     pos: number;
     org: number;
     sta: number;
+    mana: number;
 }
 export type EntityInit = Partial<iEntity> & EntityInitHardRequirements;
 export type EntityStatsUpdate = Partial<EntityStatsNoID>;

@@ -1,3 +1,4 @@
+import { ClashResult } from "shared/types/battle-types";
 import Entity from "../Entity";
 import { EntityStance, EntityState } from "../Entity/types";
 
@@ -23,8 +24,19 @@ export type iActiveAbility = iAbility & {
     damageType: Map<AbilityDamageType, number>;
     range: NumberRange
 }
+export type PreReactionClashResult = Omit<ClashResult, 'defendAttemptName' | 'defendAttemptSuccessful' | 'defendReactionUpdate'> & {
+    defendAttemptName?: string;
+    defendAttemptSuccessful?: boolean;
+};
+export type ReactionUpdate = {
+    using?: Partial<EntityState>;
+    target?: Partial<EntityState>;
+    clashResult?: Partial<PreReactionClashResult>;
+}
 export type iReactiveAbility = iAbility & {
-
+    successReaction: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => ReactionUpdate;
+    failureReaction: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => ReactionUpdate;
+    getSuccessChance: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => number;
 }
 
 export type ActiveAbilityConfig = Omit<iActiveAbility, 'using' | 'target' | 'type'> & {
