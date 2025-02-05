@@ -1,4 +1,4 @@
-import DialogueBox from "shared/class/Dialogue";
+import DialogueBox from "shared/class/scene/Dialogue";
 
 export interface iScene {
     name: string;

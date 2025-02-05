@@ -3,7 +3,7 @@ import React from "@rbxts/react";
 import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import Explorer from "shared/class/explorer";
-import Scene from "shared/class/Scene";
+import Scene from "shared/class/scene/Scene";
 import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
 import { DialogueExpression } from "shared/types/scene-types";
