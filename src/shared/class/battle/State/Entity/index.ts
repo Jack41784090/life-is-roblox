@@ -2,11 +2,10 @@ import { atom, Atom } from "@rbxts/charm";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
-import { ActiveAbility } from "../Ability";
-import { AbilitySet, AbilityType, iAbility, iActiveAbility } from "../Ability/types";
+import { AbilitySet, AbilityType, ActiveAbilityState, iAbility, iActiveAbility } from "../Ability/types";
 import FightingStyle from "../FightingStyle";
 import { Default } from "../FightingStyle/const";
-import { EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, iEntity } from "./types";
+import { EntityChangeable, EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate, iEntity } from "./types";
 
 
 export default class Entity implements iEntity {
@@ -18,6 +17,7 @@ export default class Entity implements iEntity {
     private hip: Atom<number>;
     private org: Atom<number>;
     private pos: Atom<number>;
+    private mana: Atom<number>;
 
     private stance: EntityStance = EntityStance.High;
     private fightingStyle: FightingStyle = Default();
@@ -35,6 +35,7 @@ export default class Entity implements iEntity {
         this.hip = atom(options.hip ?? 0);
         this.org = atom(options.org ?? 0);
         this.pos = atom(options.pos ?? 0);
+        this.mana = atom(options.mana ?? 0);
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
     }
 
@@ -51,23 +52,24 @@ export default class Entity implements iEntity {
             hip: this.hip(),
             org: this.org(),
             pos: this.pos(),
+            mana: this.mana(),
             qr: this.qr,
             stance: this.stance,
         }
     }
 
     //#region get stats
-    set(property: 'sta' | 'hip' | 'org' | 'pos', by: number) {
+    set(property: EntityChangeable, by: number) {
         print(`${this.name}: Changing ${property} by ${by}`);
-        this[property](by);
+        this[property](math.max(0, by));
         return this[property];
     }
 
-    get(property: 'sta' | 'hip' | 'org' | 'pos'): number {
+    get(property: EntityChangeable): number {
         return this[property]();
     }
 
-    getState(property: 'sta' | 'hip' | 'org' | 'pos'): Atom<number> {
+    getState(property: EntityChangeable): Atom<number> {
         return this[property];
     }
     //#endregion
@@ -95,14 +97,14 @@ export default class Entity implements iEntity {
         return sets[0];
     }
 
-    getReaction(incomingAbility: ActiveAbility) {
+    getReaction(incomingAbility: ActiveAbilityState) {
         const { direction: hittingDirection, using, target, type: abilityType } = incomingAbility;
         assert(abilityType === AbilityType.Active, `Ability ${incomingAbility.name} is not an active ability`);
         if (using === undefined) {
             warn(`[Entity] ${this.name} is not able to react to ${incomingAbility.name} because it has no user`);
             return;
         }
-        if (target !== this) {
+        if (target?.playerID !== this.playerID) {
             warn(`[Entity] ${this.name} is not able to react to ${incomingAbility.name} because it is not the target`);
             return;
         }
@@ -139,7 +141,7 @@ export default class Entity implements iEntity {
             }
         }
     }
-    public update(u: EntityState) {
+    public update(u: EntityUpdate) {
         print(`Updating entity ${this.name} with`, u);
         if (u.stats) this.updateStats(u.stats);
         for (const [k, v] of pairs(u)) {
@@ -149,8 +151,9 @@ export default class Entity implements iEntity {
                 case 'sta':
                 case 'org':
                 case 'pos':
+                case 'mana':
                     print(`Changing ${k} by ${v}`);
-                    this[k as 'hip' | 'sta' | 'org' | 'pos'](v as number);
+                    this[k as EntityChangeable](v as number);
                     break;
                 default:
                     print(`Changing ${k} to ${v}`);

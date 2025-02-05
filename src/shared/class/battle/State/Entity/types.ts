@@ -44,9 +44,14 @@ export type EntityState = EntityInitHardRequirements & {
     qr?: Vector2;
     stance: EntityStance;
 }
+export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & {
+    playerID: number;
+}
 export enum EntityStance {
     High = 'high',
     Mid = 'mid',
     Low = 'low',
     Prone = 'prone',
 }
+
+export type EntityChangeable = keyof Omit<EntityInitHardRequirements, 'qr' | 'playerID' | 'stats'>

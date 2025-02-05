@@ -613,3 +613,16 @@ const models = ReplicatedStorage.WaitForChild("Models") as Folder;
 export function getModelTemplateByID(id: string) {
     return models.FindFirstChild(id) as Model | undefined;
 }
+
+export function getDummyNumbers(qr: Vector2) {
+    return {
+        stats: getDummyStats(),
+        playerID: -4178,
+        hip: 0,
+        pos: 0,
+        org: 999,
+        mana: 999,
+        sta: 999,
+        qr,
+    }
+}

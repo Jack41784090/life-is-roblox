@@ -1,7 +1,7 @@
 import { Atom } from "@rbxts/charm";
 import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
 import State from "shared/class/battle/State";
-import { ActiveAbilityState } from "shared/class/battle/State/Ability/types";
+import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/State/Ability/types";
 import { EntityState } from "shared/class/battle/State/Entity/types";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
 
@@ -80,6 +80,9 @@ export interface ClashResult {
     u_damage: number,
     fate: ClashResultFate,
     roll: number,
+    defendAttemptSuccessful: boolean,
+    defendAttemptName: string,
+    defendReactionUpdate: ReactionUpdate,
 }
 
 export type PlayerID = number

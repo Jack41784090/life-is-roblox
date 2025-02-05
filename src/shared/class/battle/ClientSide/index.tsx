@@ -422,7 +422,7 @@ export default class ClientSide {
             await this.waitForAnimationMarker(attackAnimation, "Hit");
 
             // 2. Indicate the damage dealt to the target.
-            target.createDamageIndicator(aa.clashResult);
+            target.createClashresultIndicators(aa.clashResult);
 
             // 3. Play the appropriate animation based on the outcome of the attack.
             target.animationHandler?.killAnimation(AnimationType.Idle);

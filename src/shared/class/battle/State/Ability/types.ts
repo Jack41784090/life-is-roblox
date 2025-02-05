@@ -1,6 +1,6 @@
 import { ClashResult } from "shared/types/battle-types";
 import Entity from "../Entity";
-import { EntityStance, EntityState } from "../Entity/types";
+import { EntityStance, EntityState, EntityUpdate } from "../Entity/types";
 
 export interface iAbility {
     animation: string,
@@ -29,8 +29,8 @@ export type PreReactionClashResult = Omit<ClashResult, 'defendAttemptName' | 'de
     defendAttemptSuccessful?: boolean;
 };
 export type ReactionUpdate = {
-    using?: Partial<EntityState>;
-    target?: Partial<EntityState>;
+    using?: EntityUpdate;
+    target?: EntityUpdate;
     clashResult?: Partial<PreReactionClashResult>;
 }
 export type iReactiveAbility = iAbility & {

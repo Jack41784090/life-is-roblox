@@ -1,5 +1,5 @@
 import FightingStyle from ".";
-import { EntityStance } from "../Entity/types";
+import { EntityStance } from '../Entity/types';
 
 export const Default = () => new FightingStyle({
     reactionAbilities: [{
@@ -13,6 +13,23 @@ export const Default = () => new FightingStyle({
         cost: {
             pos: 10,
             mana: 0,
-        }
+        },
+        successReaction: (aa, cr) => {
+            // print("aa", aa);
+            const us = aa.using;
+            const them = aa.target;
+            if (us === undefined || them === undefined) return {};
+            return {
+                clashResult: {
+                    damage: 0,
+                },
+                using: {
+                    playerID: us.playerID,
+                    pos: us.pos - cr.damage,
+                }
+            }
+        },
+        failureReaction: () => ({}),
+        getSuccessChance: () => 100,
     }],
 })

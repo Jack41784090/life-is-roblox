@@ -45,37 +45,56 @@ export default class EntityGraphics {
     }
 
     //#region damage indicators
-    public createDamageIndicator(cr: ClashResult) {
-        const damage = cr.damage;
-
+    private createDamageIndicatorPart() {
         const part = new Instance('Part');
         part.Name = 'DamageIndicator';
         part.Size = new Vector3(1, 1, 1);
         part.CollisionGroup = 'DamageIndicators';
+        part.CanCollide = false;
         part.CFrame = this.model.PrimaryPart!.CFrame;
         part.Transparency = 1;
         part.Parent = this.model;
+        return part;
+    }
 
+    private createDamageIndicatorBillboard(adornee: Part) {
         const damageBillboard = new Instance('BillboardGui');
         damageBillboard.AlwaysOnTop = true
         damageBillboard.Size = UDim2.fromScale(5, 5);
-        damageBillboard.Adornee = part;
-        damageBillboard.Parent = part;
+        damageBillboard.Adornee = adornee;
+        damageBillboard.Parent = adornee;
+        return damageBillboard;
+    }
 
+    private translateNumberToDamageText(damage: number) {
+        if (damage > 0) {
+            return `${damage}`;
+        }
+        else if (damage === 0) {
+            return 'Blocked';
+        }
+        else {
+            return `+${math.abs(damage)}`;
+        }
+    }
+
+    private createDamageIndicatorText(damageBillboard: BillboardGui, text: string | number) {
         const textLabel = new Instance('TextLabel');
         textLabel.Parent = damageBillboard;
         textLabel.AnchorPoint = new Vector2(0.5, 0.5);
         textLabel.Size = UDim2.fromScale(1, 1);
         textLabel.TextColor3 = CONDOR_BLOOD_RED;
         textLabel.BackgroundTransparency = 1;
-        textLabel.Text = cr.fate === 'Miss' ?
-            "MISS!" :
-            damage > 0 ? `${damage}` : "NO DAMAGE!";
+        textLabel.Text = typeIs(text, 'number') ?
+            this.translateNumberToDamageText(text) :
+            text;
         textLabel.Font = Enum.Font.Antique
         textLabel.TextScaled = true
+        return textLabel;
+    }
 
-        part.ApplyImpulse(new Vector3(math.random(10), 25, math.random(10)));
-
+    private shootDamageIndicatorPart(part: Part, damageBillboard: BillboardGui, force = 20) {
+        part.ApplyImpulse(new Vector3(math.random(10), force, math.random(10)));
         spawn(() => {
             wait(1);
             const tween = TweenService.Create(damageBillboard,
@@ -85,6 +104,26 @@ export default class EntityGraphics {
             tween.Play()
             tween.Completed.Once(() => part.Destroy());
         })
+    }
+
+    public createClashresultIndicators(cr: ClashResult) {
+        const damage = cr.damage;
+
+        // Block attempt indicators
+        const { defendAttemptName, defendAttemptSuccessful, defendReactionUpdate } = cr;
+        if (defendAttemptName && defendAttemptSuccessful) {
+            const part = this.createDamageIndicatorPart();
+            const damageBillboard = this.createDamageIndicatorBillboard(part);
+            const textLabel = this.createDamageIndicatorText(damageBillboard, defendAttemptName);
+            this.shootDamageIndicatorPart(part, damageBillboard);
+            wait(0.1)
+        }
+
+        // Damage indicator part
+        const part = this.createDamageIndicatorPart()
+        const damageBillboard = this.createDamageIndicatorBillboard(part)
+        const textLabel = this.createDamageIndicatorText(damageBillboard, `${damage}`);
+        this.shootDamageIndicatorPart(part, damageBillboard);
     }
 
     //#endregion

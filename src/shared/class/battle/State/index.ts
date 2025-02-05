@@ -1,10 +1,11 @@
 import { t } from "@rbxts/t";
 import { MOVEMENT_COST } from "shared/const";
-import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
-import { calculateRealityValue, getDummyStats, requestData } from "shared/utils";
+import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, PlayerID, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
+import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
 import { ActiveAbility } from "./Ability";
+import { ActiveAbilityState } from "./Ability/types";
 import Entity from "./Entity";
-import { EntityInit, EntityState, EntityStats } from "./Entity/types";
+import { EntityInit, EntityState, EntityStats, EntityUpdate } from "./Entity/types";
 import HexCell from "./Hex/Cell";
 import HexGrid from "./Hex/Grid";
 import Team from "./Team";
@@ -113,7 +114,7 @@ export default class State {
         }
     }
 
-    public syncOneEntity(e: Entity, updateInfo: EntityState) {
+    public syncOneEntity(e: Entity, updateInfo: EntityUpdate) {
         e.update(updateInfo);
         if (this.participantMap.get(updateInfo.playerID) === undefined) {
             this.participantMap.set(updateInfo.playerID, {
@@ -190,23 +191,71 @@ export default class State {
         return this.setCell(fromEntity, toCell);
     }
 
+    private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
+        for (const [stat, modifier] of pairs(ability.cost)) {
+            attacker.set(stat, attacker.get(stat) - modifier);
+        }
+    }
+
+    private tireDefender(defender: Entity, ability: ActiveAbilityState) {
+        defender.set('pos', defender.get('pos') - ability.cost.pos);
+    }
+
     public applyClash(attackAction: AttackAction) {
         const clashResult = attackAction.clashResult;
         if (!clashResult) {
             warn("applyClash: Clash result not found");
             return;
         }
-        print(`Clash Result: ${clashResult.fate} | Damage: ${clashResult.damage}`);
+        print(`Clash Result:`, clashResult);
         attackAction.executed = true;
 
         const attacker = this.findEntity(attackAction.by); assert(attacker, "Attacker not found");
         const target = attackAction.against ? this.findEntity(attackAction.against) : undefined;
-        attacker.set('pos', attacker.get('pos') - attackAction.ability.cost.pos);
+
+
+        // 1. Attacker takes a swing, reducing his ability costs
+        this.tireAttacker(attacker, attackAction.ability);
+
+        // 2. Defender uses up energy to react
+        if (target) this.tireDefender(target, attackAction.ability);
+
+        // 3. Defender reacts to the attack, possibly modifying the forecasted clash result
+        const { defendAttemptSuccessful, defendReactionUpdate } = clashResult
+        if (target && defendAttemptSuccessful) {
+            const { using: attackerUpdate, target: targetUpdate, clashResult: clashResultUpdate } = defendReactionUpdate;
+            if (attackerUpdate) this.syncOneEntity(attacker, attackerUpdate);
+            if (targetUpdate) this.syncOneEntity(target, targetUpdate);
+            if (clashResultUpdate) {
+                for (const [stat, value] of pairs(clashResultUpdate)) {
+                    (clashResult as unknown as Record<string, unknown>)[stat] = value;
+                }
+            }
+        }
+
+        // 4. Apply the damage to the target
         if (target) {
             target.damage(clashResult.damage);
         }
 
         return clashResult;
+    }
+
+    private roll(acc: number, attacker: EntityState, target: EntityState) {
+        const hitRoll = math.random(1, 100);
+        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target.stats);
+        const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
+        return { hitRoll, hitChance, critChance };
+    }
+
+    private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
+        const allEntities = this.getAllEntities();
+        const ability = new ActiveAbility({
+            ...abilityState,
+            using: allEntities.find(e => e.playerID === by),
+            target: allEntities.find(e => e.playerID === against),
+        });
+        return ability;
     }
 
     public clash(attackAction: AttackAction): ClashResult {
@@ -215,27 +264,19 @@ export default class State {
 
         if (!attacker || !target) {
             warn("Attacker or target not found");
-            return { damage: 0, u_damage: 0, fate: "Miss", roll: 0 };
+            return { damage: 0, u_damage: 0, fate: "Miss", roll: 0, defendAttemptName: "", defendAttemptSuccessful: true, defendReactionUpdate: {} };
         }
         print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
 
-        let fate: ClashResultFate = "Miss";
-        let damage = 0;
+        const { hitRoll, hitChance, critChance } = this.roll(acc, attacker, target);
 
-        const hitRoll = math.random(1, 100);
-        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target.stats);
-        const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
-        const allEntities = this.getAllEntities();
-
-        const ability = new ActiveAbility({
-            ...attackAction.ability,
-            using: allEntities.find(e => e.playerID === attackAction.by),
-            target: allEntities.find(e => e.playerID === attackAction.against),
-        });
+        const ability = this.rebuildAbility(attackAction.ability, attacker.playerID, target.playerID);
         const abilityDamage = ability.calculateDamage();
         const minDamage = abilityDamage * 0.5;
         const maxDamage = abilityDamage;
 
+        let fate: ClashResultFate = "Miss";
+        let damage = 0;
         if (hitRoll <= hitChance) {
             if (hitRoll <= hitChance * 0.1 + critChance) {
                 damage = math.random((minDamage + maxDamage) / 2, maxDamage) * 2;
@@ -245,14 +286,43 @@ export default class State {
                 fate = "Hit";
             }
         }
+        const clashResult = {
+            damage,
+            u_damage: damage,
+            fate,
+            roll: hitRoll
+        };
+
+        const reaction = ability.target!.getReaction(ability.getState());
+        const reactionUpdate = reaction?.react(ability.getState(), clashResult);
 
         damage = math.clamp(damage, 0, 1000);
-        return { damage, u_damage: damage, fate, roll: hitRoll };
+        return {
+            ...clashResult,
+            defendAttemptSuccessful: reaction?.defendAttemptSuccessful ?? false,
+            defendAttemptName: reaction?.name ?? "",
+            defendReactionUpdate: reactionUpdate ?? {},
+        };
     }
 
     //#endregion
 
     //#region Initialisation
+    private getEntityNumbers(qr: Vector2, player: Player, teamName: string, characterStats: EntityStats) {
+        return {
+            playerID: player.UserId,
+            stats: characterStats,
+            pos: calculateRealityValue(Reality.Maneuver, characterStats),
+            org: calculateRealityValue(Reality.Bravery, characterStats),
+            hip: calculateRealityValue(Reality.HP, characterStats),
+            sta: calculateRealityValue(Reality.HP, characterStats),
+            mana: calculateRealityValue(Reality.Mana, characterStats),
+            name: player.Name,
+            team: teamName,
+            qr,
+        }
+    }
+
     /**
      * initialises the teams for the battle.
      *
@@ -288,17 +358,7 @@ export default class State {
                     }
 
 
-                    const e = this.createEntity(teamName, {
-                        playerID: player.UserId,
-                        stats: characterStats,
-                        pos: calculateRealityValue(Reality.Maneuver, characterStats),
-                        org: calculateRealityValue(Reality.Bravery, characterStats),
-                        hip: calculateRealityValue(Reality.HP, characterStats),
-                        sta: calculateRealityValue(Reality.HP, characterStats),
-                        name: player.Name,
-                        team: teamName,
-                        qr: randomCell.qr()
-                    });
+                    const e = this.createEntity(teamName, this.getEntityNumbers(randomCell.qr(), player, teamName, characterStats));
                     e.setCell(randomCell.qr());
 
                     return e;
@@ -320,15 +380,7 @@ export default class State {
 
     private initialiseTestingDummies() {
         const vacant = this.grid.cells.find((c) => c.isVacant())!;
-        const dummy = this.createEntity("Test", {
-            stats: getDummyStats(),
-            playerID: -4178,
-            hip: 0,
-            pos: 0,
-            org: 999,
-            sta: 999,
-            qr: vacant.qr(),
-        });
+        const dummy = this.createEntity("Test", getDummyNumbers(vacant.qr()));
         this.teams.push(new Team("Test", [dummy]));
         this.setCell(dummy, vacant);
     }
