@@ -1,4 +1,4 @@
-import { iDialogue, iScene } from "shared/types/scene-types";
+import { iDialogue, iScene } from "shared/class/scene/types";
 import DialogueBox from "./Dialogue";
 
 export default class Scene implements iScene {
