@@ -4,9 +4,9 @@ import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage,
 import { setInterval } from "@rbxts/set-timeout";
 import Explorer from "shared/class/explorer";
 import Scene from "shared/class/scene/Scene";
+import { DialogueExpression } from "shared/class/scene/types";
 import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
-import { DialogueExpression } from "shared/types/scene-types";
 import LoadingScreenElement from "./new_components/loading";
 import GuiMothership from "./new_components/main";
 import MainMenuElement from "./new_components/menu_ui";
@@ -115,21 +115,27 @@ function enterBattle() {
     remotes.battle.request();
 }
 function enterStory() {
-    const scene = new Scene('scene');
+    const scene = new Scene({
+        name: "Test Scene",
+        hasCover: true
+    });
     scene.addDialogue({
         text: 'Hello, World!',
         speaker: 'NPC',
         expression: DialogueExpression.Neutral,
+        alignment: 'top',
         effects: []
     }, {
         text: 'Hello back',
         speaker: 'NPC2',
         expression: DialogueExpression.Neutral,
+        alignment: 'center',
         effects: []
     }, {
         text: 'Goodbye',
         speaker: '',
         expression: DialogueExpression.Neutral,
+        alignment: 'bottom',
         effects: []
     })
     scene.playFromBeginning();

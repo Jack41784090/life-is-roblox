@@ -6,11 +6,14 @@ export interface iScene {
     dialogueBox: DialogueBox;
 }
 
+export type DialogueConfig = Partial<iDialogue> & Pick<iDialogue, 'text'>;
+
 export interface iDialogue {
-    speaker: string;
     text: string;
+    speaker: string;
     expression: DialogueExpression;
     effects: unknown[];
+    alignment: DialogueAlignment;
 }
 
 export enum DialogueExpression {
@@ -20,3 +23,16 @@ export enum DialogueExpression {
     Angry,
     Shocked
 }
+
+export type SceneConfig = {
+    name: string;
+    hasCover?: boolean;
+}
+
+export type DialogueBoxConfig = {
+    initialText: string;
+    hasCover?: boolean;
+}
+
+export type DialogueAlignment = 'top' | 'center' | 'bottom';
+

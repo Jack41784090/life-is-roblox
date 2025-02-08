@@ -1,29 +1,43 @@
-import { iDialogue, iScene } from "shared/class/scene/types";
+import { DialogueConfig, DialogueExpression, iDialogue, iScene, SceneConfig } from "shared/class/scene/types";
 import DialogueBox from "./Dialogue";
 
 export default class Scene implements iScene {
     readonly name: string;
+    hasCover: boolean = false;
     dialogueBox: DialogueBox;
     dialogues: iDialogue[] = [];
     playingDialogue: iDialogue | undefined;
 
-    constructor(_name: string) {
-        this.dialogueBox = new DialogueBox('');
+    constructor(config: SceneConfig) {
+        this.dialogueBox = new DialogueBox({
+            initialText: '',
+            hasCover: config.hasCover
+        });
         this.dialogueBox.hide();
-        this.name = _name;
+        this.name = config.name
+        this.hasCover = config.hasCover ?? false;
     }
 
-    addDialogue(..._dialogue: iDialogue[]) {
-        for (const dialogue of _dialogue) {
-            this.dialogues.push(dialogue);
+    public addDialogue(...dialogues: DialogueConfig[]) {
+        for (const dialogue of dialogues) {
+            this.dialogues.push({
+                text: dialogue.text,
+                speaker: dialogue.speaker ?? '',
+                expression: dialogue.expression ?? DialogueExpression.Neutral,
+                effects: dialogue.effects ?? [],
+                alignment: dialogue.alignment ?? 'bottom'
+            });
         }
     }
 
-    async playFromBeginning() {
-        this.dialogueBox.enable();
+    public async playFromBeginning() {
+        const dialogueBox = this.dialogueBox;
+        dialogueBox.enable();
         for (const currentDialogue of this.dialogues) {
             this.playingDialogue = currentDialogue;
-            const p = await this.dialogueBox.speak(currentDialogue.text, currentDialogue.speaker);
+            const { alignment, text, speaker } = currentDialogue;
+            dialogueBox.align(alignment)
+            const p = await dialogueBox.speak(text, speaker);
             wait(1);
         }
     }
