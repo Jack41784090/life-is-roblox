@@ -6,9 +6,9 @@ export interface CConfig {
 
 export enum CState {
     IDLE = 'idle',
-    DECELERATE = 'decelerate',
+    START_WALK = "starting to walk",
     ACCELERATE = 'accelerate',
-    FULL_WALK = 'sprinting',
+    DECELERATE = 'decelerate',
+    FULL_WALK = 'fully walking',
     TALKING = 'talking',
-    START_WALK = "START_WALK",
 }

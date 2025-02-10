@@ -1,13 +1,9 @@
 import { Atom, subscribe } from "@rbxts/charm";
+import { RunService } from "@rbxts/services";
 import EntityGraphics from ".";
 import Expression from "./Expression";
 
 export enum AnimationType {
-    ExploreWalk = "explore-walk",
-    ExploreIdle = "explore-idle",
-    ExploreIdleGesture = "explore-idle-gesture1",
-    ExploreSprint = "explore-sprint",
-
     Move = "move",
     Idle = "idle",
     Blink = "blink",
@@ -50,28 +46,40 @@ export default class AnimationHandler {
         this.animator = animator;
         this.model = model;
         this.initialise();
-        // setInterval(() => {
-        //     print(`[AnimationHandler] Playing tracks: ${this.playingTrackMap.size()}`, this.playingTrackMap);
-        // }, 1);
+
+
+        this.debug();
+
+    }
+
+    private prevSize = 0;
+    private debug() {
+        RunService.RenderStepped.Connect(() => {
+            const size = this.playingTrackMap.size();
+            if (size !== this.prevSize) {
+                print(`[AnimationHandler: ${this.model.Name}] ${this.model.Name} has ${size} animations playing.`, this.playingTrackMap);
+                this.prevSize = size;
+            }
+        })
     }
 
     public static Create(entity: EntityGraphics): AnimationHandler | undefined {
         print(`[AnimationHandler] Creating animation handler for entity: ${entity}`);
         const model = entity.model;
         if (!model) {
-            warn("[AnimationHandler] Model not found for entity.");
+            warn("[AnimationHandler: ${this.model.Name}] Model not found for entity.");
             return;
         }
 
         const humanoid = model.FindFirstChildOfClass("Humanoid") as Humanoid;
         if (!humanoid) {
-            warn("[AnimationHandler] Humanoid not found in model.");
+            warn("[AnimationHandler: ${this.model.Name}] Humanoid not found in model.");
             return;
         }
 
         const animator = humanoid.FindFirstChildOfClass("Animator") as Animator;
         if (!animator) {
-            warn("[AnimationHandler] Animator not found in humanoid.");
+            warn("[AnimationHandler: ${this.model.Name}] Animator not found in humanoid.");
             return;
         }
 
@@ -85,6 +93,14 @@ export default class AnimationHandler {
     private initialise(): void {
         this.loadAnimations(this.model);
         this.initialiseExpression();
+
+        RunService.RenderStepped.Connect(() => {
+            this.playingTrackMap.forEach((track, animType) => {
+                if (!track.IsPlaying) {
+
+                }
+            })
+        })
         // this.playIdleAnimation();
     }
 
@@ -95,7 +111,7 @@ export default class AnimationHandler {
     private loadAnimations(model: Model): void {
         const animationFolder = model.FindFirstChild("anim") as Folder;
         if (!animationFolder) {
-            warn("[AnimationHandler] Animation folder 'anim' not found in model.");
+            warn("[AnimationHandler: ${this.model.Name}] Animation folder 'anim' not found in model.");
             return;
         }
 
@@ -117,16 +133,14 @@ export default class AnimationHandler {
     private loadAnimationTrack(animationName: string): AnimationTrack | undefined {
         const animation = this.animatioDataMap.get(animationName);
         if (!animation) {
-            warn(`[AnimationHandler] Animation '${animationName}' not found.`);
+            warn(`[AnimationHandler: ${this.model.Name}] Animation '${animationName}' not found.`);
             return undefined;
         }
         if (!this.animator) {
-            warn("[AnimationHandler] Animator is not initialised.");
+            warn("[AnimationHandler: ${this.model.Name}] Animator is not initialised.");
             return undefined;
         }
         const loadedTrack = this.animator.LoadAnimation(animation);;
-        this.playingTrackMap.set(animationName as AnimationType, loadedTrack);
-
         return loadedTrack;
     }
 
@@ -166,23 +180,21 @@ export default class AnimationHandler {
         }
     }
 
-    public playAnimationIfNotPlaying(animationName: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
-        if (this.isPlaying(animationName) && !options.update) {
-            // print(`[AnimationHandler] Animation ${animationName} is already playing.`);
-            return this.playingTrackMap.get(animationName);
+    public playAnimationIfNotPlaying(animType: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
+        if (this.isPlaying(animType)) {
+            // print(`[AnimationHandler: ${this.model.Name}] Animation ${animationName} is already playing.`);
+            if (options.update) {
+                this.updatePlayingAnimation(animType, options);
+            }
+            return this.playingTrackMap.get(animType);
         }
-        else if (options.update) {
-            this.updatePlayingAnimation(animationName, options);
-            return this.playingTrackMap.get(animationName);
-        }
-        return this.playAnimation(animationName, options);
+        return this.playAnimation(animType, options);
     }
 
-    public updatePlayingAnimation(animationName: AnimationType, options: AnimationOptions): void {
-        print(`[AnimationHandler] Updating animation: ${animationName} with options:`, options);
-        const playingTrack = this.playingTrackMap.get(animationName);
+    public updatePlayingAnimation(animType: AnimationType, options: AnimationOptions): void {
+        const playingTrack = this.playingTrackMap.get(animType);
         if (!playingTrack) {
-            warn(`[AnimationHandler] Animation track ${animationName} not found.`);
+            warn(`[AnimationHandler: ${this.model.Name}] Animation track ${animType} not found.`);
             return;
         }
 
@@ -191,11 +203,33 @@ export default class AnimationHandler {
         if (options.weightAtom) {
             this.adjustWeight(playingTrack, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
         }
+        if (options.animation !== playingTrack.Name) {
+            const newAnimation = this.loadAnimationTrack(options.animation);
+            if (newAnimation) {
+                this.transitionIntoNewAnimation(animType, newAnimation);
+            }
+        }
+    }
+
+    private transitionIntoNewAnimation(animType: AnimationType, newAnimation: AnimationTrack) {
+        const playingTrack = this.playingTrackMap.get(animType);
+        if (!playingTrack) {
+            warn(`[AnimationHandler: ${this.model.Name}] Expected playing track for ${animType} not found.`);
+            return;
+        }
+        print(`[AnimationHandler: ${this.model.Name}] ${animType}: "${playingTrack.Name}" => "${newAnimation.Name}"`);
+        const position = playingTrack.TimePosition / playingTrack.Length;
+        playingTrack.Name = newAnimation.Name;
+        playingTrack.Stop(.2);
+        newAnimation.TimePosition = math.floor(position * newAnimation.Length);
+        newAnimation.Play(.2);
+
+        return this.playingTrackMap.set(animType, newAnimation);
     }
 
     private adjustWeight(track: AnimationTrack, weightAtom: Atom<number>, inverseWeight = false, weightOffset = 0, weightMultiplier = 1): void {
         const weight = ((inverseWeight ? 1 - weightAtom() : weightAtom()) + (weightOffset ?? 0)) * (weightMultiplier ?? 1);
-        print(`[AnimationHandler] Adjusting weight for track: ${track.Name} to ${weight}`);
+        print(`[AnimationHandler: ${this.model.Name}] Adjusting weight: ${track.Name} to ${weight}`);
         if (weight <= 1) {
             track.AdjustWeight(weight);
         }
@@ -227,30 +261,28 @@ export default class AnimationHandler {
      * @returns The AnimationTrack if successfully played, undefined otherwise.
      */
     public playAnimation(id: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
-        print(`${this.model.Name}: Playing animation ${id} with options:`, options);
+        print(`[AnimationHandler: ${this.model.Name}]: Playing animation [${id}] with options:`, options);
         const { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop } = options;
 
         const track = this.loadAnimationTrack(animation);
-        if (!track) return undefined;
+        if (track) {
+            this.killAnimationIfPlaying(id);
+            this.playingTrackMap.set(id, track);
 
-        const existingTrack = this.playingTrackMap.get(id);
-        if (existingTrack) {
-            this.killAnimation(id);
+            track.Looped = loop;
+            track.Priority = priority;
+            track.Play();
+
+
+            if (options.weightAtom) {
+                this.adjustWeight(track, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
+            }
+
+            track.Stopped.Once(() => {
+                print(`Track ${id} stopped`);
+            })
+
         }
-
-        track.Looped = loop;
-        track.Priority = priority;
-        track.Play();
-
-        this.playingTrackMap.set(id, track);
-
-        if (options.weightAtom) {
-            this.adjustWeight(track, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
-        }
-
-        track.Stopped.Once(() => {
-            print(`Track ${id} stopped`);
-        })
 
         return track;
     }
@@ -286,7 +318,7 @@ export default class AnimationHandler {
             idleTrack.Play();
         }
         else {
-            warn("[AnimationHandler] Idle animation track not found.");
+            warn("[AnimationHandler: ${this.model.Name}] Idle animation track not found.");
             this.playAnimation(AnimationType.Idle, { animation: "idle", loop: true });
         }
     }
@@ -300,7 +332,7 @@ export default class AnimationHandler {
             blinkTrack.Play();
         }
         else {
-            warn("[AnimationHandler] Blink animation track not found.");
+            warn("[AnimationHandler: ${this.model.Name}] Blink animation track not found.");
             this.playingTrackMap.set(AnimationType.Blink, this.loadAnimationTrack("blink")!);
         }
     }
@@ -312,7 +344,7 @@ export default class AnimationHandler {
     }
 
     public killAnimation(animationName: AnimationType): void {
-        print(`Killing animation: ${animationName}`);
+        print(`[AnimationHandler: ${this.model.Name}] Killing animation ${animationName}`);
         const animation: AnimationTrack | undefined = this.playingTrackMap.get(animationName);
         animation?.Stop();
         animation?.Destroy();

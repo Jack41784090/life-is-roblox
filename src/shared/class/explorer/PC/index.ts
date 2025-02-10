@@ -38,8 +38,11 @@ export default class PC extends C {
                 direction = direction.add(getDirectionFromEnumKeyCode(key, Workspace.CurrentCamera));
             }
         }
+
+        this.hurrying = UserInputService.IsKeyDown(Enum.KeyCode.LeftShift);
+
         if (direction.Magnitude > 0) {
-            print(`Moving in direction ${direction}`);
+            // print(`Moving in direction ${direction}`);
             this.startMoving(direction.Unit);
         } else {
             this.stopMoving();
