@@ -3,6 +3,11 @@ import EntityGraphics from ".";
 import Expression from "./Expression";
 
 export enum AnimationType {
+    ExploreWalk = "explore-walk",
+    ExploreIdle = "explore-idle",
+    ExploreIdleGesture = "explore-idle-gesture1",
+    ExploreSprint = "explore-sprint",
+
     Move = "move",
     Idle = "idle",
     Blink = "blink",
@@ -19,6 +24,7 @@ export interface AnimationOptions {
     animation: string;
     loop: boolean;
     weightAtom?: Atom<number>;
+    inverseWeight?: boolean;
     priority?: Enum.AnimationPriority;
     hold?: number;
 }
@@ -36,13 +42,18 @@ export default class AnimationHandler {
     private expression?: Expression;
 
     constructor(humanoid: Humanoid, animator: Animator, model: Model) {
+        print(`[AnimationHandler] Constructing animation handler for: ${model}`);
         this.humanoid = humanoid;
         this.animator = animator;
         this.model = model;
         this.initialise();
+        // setInterval(() => {
+        //     print(`[AnimationHandler] Playing tracks: ${this.playingTrackMap.size()}`, this.playingTrackMap);
+        // }, 1);
     }
 
     public static Create(entity: EntityGraphics): AnimationHandler | undefined {
+        print(`[AnimationHandler] Creating animation handler for entity: ${entity}`);
         const model = entity.model;
         if (!model) {
             warn("[AnimationHandler] Model not found for entity.");
@@ -71,7 +82,7 @@ export default class AnimationHandler {
     private initialise(): void {
         this.loadAnimations(this.model);
         this.initialiseExpression();
-        this.playIdleAnimation();
+        // this.playIdleAnimation();
     }
 
     /**
@@ -91,8 +102,8 @@ export default class AnimationHandler {
             }
         });
 
-        this.playingTrackMap.set(AnimationType.Idle, this.loadAnimationTrack("idle")!);
-        this.playingTrackMap.set(AnimationType.Blink, this.loadAnimationTrack("blink")!);
+        // this.playingTrackMap.set(AnimationType.Idle, this.loadAnimationTrack("idle")!);
+        // this.playingTrackMap.set(AnimationType.Blink, this.loadAnimationTrack("blink")!);
     }
 
     /**
@@ -152,6 +163,11 @@ export default class AnimationHandler {
         }
     }
 
+    public playAnimationIfNotPlaying(animationName: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
+        if (this.isPlaying(animationName)) return;
+        return this.playAnimation(animationName, options);
+    }
+
     /**
      * Plays an animation based on the provided options.
      * @param options The animation options.
@@ -179,18 +195,21 @@ export default class AnimationHandler {
         // }
 
         if (options.weightAtom) {
-            // print(`weight given: ${options.weightAtom()}`);
-            const weight = options.weightAtom();
+            print(`${id}: weight given: ${options.weightAtom()}`);
+            const weight = options.inverseWeight ? 1 - options.weightAtom() : options.weightAtom();
             track.AdjustWeight(weight);
-            this.connections.push(subscribe(options.weightAtom, (s) => {
-                // print(`Adjusting weight: ${s}`);
+
+            const cu = subscribe(options.weightAtom, (s) => {
+                const updatedWeight = options.inverseWeight ? 1 - s : s;
+                print(`${id}: weight updated: ${updatedWeight}`);
                 if (track.IsPlaying) {
-                    track.AdjustWeight(s);
+                    track.AdjustWeight(updatedWeight);
                 }
                 else {
                     track.Stop();
                 }
-            }));
+            });
+            this.connections.push(cu);
         }
 
         return track;
@@ -246,6 +265,11 @@ export default class AnimationHandler {
         }
     }
 
+    public killAnimationIfPlaying(animationName: AnimationType): void {
+        if (this.isPlaying(animationName)) {
+            this.killAnimation(animationName);
+        }
+    }
 
     public killAnimation(animationName: AnimationType): void {
         print(`Killing animation: ${animationName}`);
@@ -280,7 +304,7 @@ export default class AnimationHandler {
         return this.humanoid;
     }
 
-    public getIfPlaying(animationName: AnimationType): boolean {
+    public isPlaying(animationName: AnimationType): boolean {
         const track = this.playingTrackMap.get(animationName);
         return track ? track.IsPlaying : false;
     }

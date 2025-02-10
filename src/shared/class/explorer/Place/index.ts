@@ -14,11 +14,20 @@ export default class Place {
     public static GetPlace(placeName: PlaceName) {
         return new Place({
             locationName: placeName,
-            NPCs: [{
-                id: 'R15',
-                displayName: 'NPC 1',
-                spawnLocation: new Vector3(0, 0, 0),
-            }],
+            NPCs: [
+                {
+                    id: 'entity_adalbrecht',
+                    // id: 'R15',
+                    displayName: 'NPC 1',
+                    spawnLocation: new Vector3(0, 0, 0),
+                },
+                // {
+                //     // id: 'entity_adalbrecht',
+                //     id: 'R15',
+                //     displayName: 'NPC 2',
+                //     spawnLocation: new Vector3(0, 0, 0),
+                // },
+            ],
             model: ReplicatedStorage.WaitForChild(placeName) as Model,
         })
     }

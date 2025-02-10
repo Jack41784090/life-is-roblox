@@ -5,9 +5,12 @@ import Place from "../Place";
 import { NPCConfig } from "./types";
 
 enum NPCState {
-    IDLE,
-    WALKING,
-    TALKING,
+    IDLE = 'idle',
+    DECELERATE = 'decelerate',
+    ACCELERATE = 'accelerate',
+    SPRINTING = 'sprinting',
+
+    TALKING = 'talking',
 }
 
 export default class NPC {
@@ -26,9 +29,10 @@ export default class NPC {
     private walkSpeedFractionAtom: Atom<number>;
     private walkSpeedTracker: RBXScriptConnection;
     private walkingDirection: Vector3 = new Vector3();
-    private sprintSpeed: number = 12;
+    private maxSprintSpeed: number = 15;
     private maxAcc: number = 1;
     private acc: Atom<number> = atom(0);
+    private accSpeed: number = 0.8;
     //#endregion
 
     //#region personality
@@ -48,9 +52,10 @@ export default class NPC {
         assert(animator.IsA('Animator'), `Animator not found in model '${this.id}'`);
         this.animationHandler = new AnimationHandler(humanoid, animator, this.model);
         this.humanoid = humanoid;
-        this.walkSpeedFractionAtom = atom(humanoid.WalkSpeed / this.sprintSpeed);
+        this.walkSpeedFractionAtom = atom(humanoid.WalkSpeed / this.maxSprintSpeed);
         this.walkSpeedTracker = this.humanoid.GetPropertyChangedSignal('WalkSpeed').Connect(() => {
-            this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.sprintSpeed);
+            // print(`Walk speed changed to ${this.humanoid.WalkSpeed}`);
+            this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.maxSprintSpeed);
         })
 
         // this.npcwants = config.npcwant;
@@ -80,22 +85,40 @@ export default class NPC {
 
     private stateChangeTracker() {
         const ah = this.animationHandler;
+        print(`State: ${this.state}`);
         switch (this.state) {
             case NPCState.IDLE:
-                if (ah.getIfPlaying(AnimationType.Move)) {
-                    // print('stopping move');
-                    ah.killAnimation(AnimationType.Move);
-                }
+                ah.playAnimationIfNotPlaying(AnimationType.ExploreIdle, {
+                    animation: AnimationType.ExploreIdle,
+                    loop: true,
+                    priority: Enum.AnimationPriority.Idle,
+                });
+                ah.killAnimationIfPlaying(AnimationType.ExploreWalk);
+                ah.killAnimationIfPlaying(AnimationType.ExploreSprint);
                 break;
-            case NPCState.WALKING:
-                if (!ah.getIfPlaying(AnimationType.Move)) {
-                    // print('playing move');
-                    ah.playAnimation(AnimationType.Move, {
-                        animation: 'move',
-                        loop: true,
-                        weightAtom: this.walkSpeedFractionAtom,
-                    });
-                }
+            case NPCState.ACCELERATE:
+            case NPCState.DECELERATE:
+                ah.playAnimationIfNotPlaying(AnimationType.ExploreWalk, {
+                    animation: AnimationType.ExploreWalk,
+                    loop: true,
+                    weightAtom: this.walkSpeedFractionAtom,
+                    inverseWeight: true,
+                    priority: Enum.AnimationPriority.Movement,
+                });
+                ah.playAnimationIfNotPlaying(AnimationType.ExploreSprint, {
+                    animation: AnimationType.ExploreSprint,
+                    loop: true,
+                    weightAtom: this.walkSpeedFractionAtom,
+                    priority: Enum.AnimationPriority.Movement,
+                });
+                break;
+            case NPCState.SPRINTING:
+                ah.killAnimationIfPlaying(AnimationType.ExploreWalk);
+                ah.playAnimationIfNotPlaying(AnimationType.ExploreSprint, {
+                    animation: AnimationType.ExploreSprint,
+                    loop: true,
+                    priority: Enum.AnimationPriority.Movement,
+                });
                 break;
             case NPCState.TALKING:
                 break;
@@ -120,13 +143,21 @@ export default class NPC {
         const isRunning = this.walkingDirection.Magnitude > 0;
         const curAcc = this.acc();
         const curSpd = humanoid.WalkSpeed;
+        // print(`Acc: ${curAcc}, Spd: ${curSpd}`);
         if (isRunning) {
             // accelerate
-            if (curAcc < this.maxAcc) this.acc(math.min(curAcc + dt * 2, this.maxAcc));
+            if (curAcc < this.maxAcc) {
+                this.state = NPCState.ACCELERATE;
+                this.acc(math.min(curAcc + dt * this.accSpeed, this.maxAcc));
+            }
+            else {
+                this.state = NPCState.SPRINTING;
+            }
         }
         else {
             // decelerate
             if (curSpd > 0) {
+                this.state = NPCState.DECELERATE;
                 this.acc(curAcc - (dt * 5 * math.random()));
             }
             else {
@@ -135,13 +166,11 @@ export default class NPC {
             }
         }
 
-        humanoid.WalkSpeed = this.sprintSpeed * math.clamp(curAcc, 0, this.maxAcc);
-
-        // print(`spd: ${humanoid.WalkSpeed}, acc: ${curAcc}`);
+        humanoid.WalkSpeed = this.maxSprintSpeed * math.clamp(curAcc, 0, this.maxAcc);
     }
 
     private startMoving(vector: Vector3) {
-        this.state = NPCState.WALKING;
+        // this.state = NPCState.ACCELERATE;
         this.walkingDirection = vector;
         this.humanoid.Move(vector);
     }
