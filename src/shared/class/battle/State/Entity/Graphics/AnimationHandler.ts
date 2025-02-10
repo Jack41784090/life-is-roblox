@@ -168,7 +168,7 @@ export default class AnimationHandler {
 
     public playAnimationIfNotPlaying(animationName: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
         if (this.isPlaying(animationName) && !options.update) {
-            print(`[AnimationHandler] Animation ${animationName} is already playing.`);
+            // print(`[AnimationHandler] Animation ${animationName} is already playing.`);
             return this.playingTrackMap.get(animationName);
         }
         else if (options.update) {

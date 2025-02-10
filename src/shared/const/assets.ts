@@ -6,6 +6,8 @@ export const HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOper
 
 // UI
 export const uiFolder = ReplicatedStorage.WaitForChild("UI") as Folder;
+export const modelFolder = ReplicatedStorage.WaitForChild("Models") as Folder;
+export const NPCFolder = modelFolder.WaitForChild("NPCs") as Folder;
 export const otherPlayersTurnGui = uiFolder.WaitForChild("OtherPlayersTurnGui") as ScreenGui;
 
 

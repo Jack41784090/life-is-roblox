@@ -626,3 +626,24 @@ export function getDummyNumbers(qr: Vector2) {
         qr,
     }
 }
+
+
+export function getDirectionFromEnumKeyCode(keycode: Enum.KeyCode, relativeCam: Camera) {
+    const cameraPointTowards = relativeCam.CFrame.LookVector;
+    switch (keycode) {
+        case Enum.KeyCode.W:
+        case Enum.KeyCode.Up:
+            return cameraPointTowards.Unit;
+        case Enum.KeyCode.S:
+        case Enum.KeyCode.Down:
+            return cameraPointTowards.Unit.mul(-1);
+        case Enum.KeyCode.A:
+        case Enum.KeyCode.Left:
+            return cameraPointTowards.Unit.mul(-1).Cross(new Vector3(0, 1, 0));
+        case Enum.KeyCode.D:
+        case Enum.KeyCode.Right:
+            return cameraPointTowards.Unit.Cross(new Vector3(0, 1, 0));
+        default:
+            return new Vector3();
+    }
+}

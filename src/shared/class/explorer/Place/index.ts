@@ -3,6 +3,7 @@ import { PlaceName } from "shared/const";
 import { PlaceConfig } from "shared/types/explorer-types";
 import NPC from "../NPC";
 import { NPCConfig } from "../NPC/types";
+import PC from "../PC";
 
 export default class Place {
     private location: string;
@@ -68,5 +69,15 @@ export default class Place {
 
     public getLocationName(): string {
         return this.location;
+    }
+
+    public spawnExplorer(model: string) {
+        const pc = new PC({
+            id: model,
+            displayName: model,
+            spawnLocation: new Vector3(0, 0, 0),
+        }, this);
+
+        return pc.getModel();
     }
 }

@@ -68,11 +68,14 @@ function enterPlayground() {
     const cam = Workspace.CurrentCamera;
     assert(cam, "No current camera")
 
-    remotes.loadCharacter();
+    // place
+    const explorer = Explorer.getInstance();
 
     cam.CameraType = Enum.CameraType.Scriptable;
     const player = Players.LocalPlayer;
-    const character = player.Character || player.CharacterAdded.Wait()[0];
+    const character = explorer.beginExplore(PlaceName.City);
+    // remotes.loadCharacter(); explorer.beginExplore(PlaceName.City);
+    // const character = player.Character || player.CharacterAdded.Wait()[0];
     const humanoidRootPart = character.WaitForChild("HumanoidRootPart") as Part;
 
     // Set the camera position and make it look at the player along the Z axis
@@ -104,10 +107,6 @@ function enterPlayground() {
         // emitter
         if (character.PrimaryPart) emitter.CFrame = character.PrimaryPart.CFrame.add(new Vector3(0, -5, 0));
     })
-
-    // PLace
-    const explorer = Explorer.getInstance();
-    explorer.beginExplore(PlaceName.City);
 
 }
 function enterBattle() {

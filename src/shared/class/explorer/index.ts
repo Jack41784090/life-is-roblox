@@ -17,9 +17,10 @@ export default class Explorer {
 
     private constructor() { }
 
-    public beginExplore(placeName: PlaceName) {
+    public beginExplore(placeName: PlaceName, withCharacter: string = this.mainCharacter) {
         this.location = placeName;
         this.exploring = Place.GetPlace(placeName);
         this.exploring.spawnNPCs();
+        return this.exploring.spawnExplorer(withCharacter);
     }
 }
