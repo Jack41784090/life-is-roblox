@@ -1,6 +1,7 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Players, ReplicatedStorage, RunService } from "@rbxts/services";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
+import { onInput } from "shared/utils";
 import Place from "../Place";
 import { NPCConfig } from "./types";
 
@@ -8,9 +9,10 @@ enum NPCState {
     IDLE = 'idle',
     DECELERATE = 'decelerate',
     ACCELERATE = 'accelerate',
-    SPRINTING = 'sprinting',
+    FULL_WALK = 'sprinting',
 
     TALKING = 'talking',
+    START_WALK = "START_WALK",
 }
 
 export default class NPC {
@@ -29,7 +31,7 @@ export default class NPC {
     private walkSpeedFractionAtom: Atom<number>;
     private walkSpeedTracker: RBXScriptConnection;
     private walkingDirection: Vector3 = new Vector3();
-    private maxSprintSpeed: number = 15;
+    private maxWalkSpeed: number = 15;
     private maxAcc: number = 1;
     private acc: Atom<number> = atom(0);
     private accSpeed: number = 0.8;
@@ -52,10 +54,10 @@ export default class NPC {
         assert(animator.IsA('Animator'), `Animator not found in model '${this.id}'`);
         this.animationHandler = new AnimationHandler(humanoid, animator, this.model);
         this.humanoid = humanoid;
-        this.walkSpeedFractionAtom = atom(humanoid.WalkSpeed / this.maxSprintSpeed);
+        this.walkSpeedFractionAtom = atom(humanoid.WalkSpeed / this.maxWalkSpeed);
         this.walkSpeedTracker = this.humanoid.GetPropertyChangedSignal('WalkSpeed').Connect(() => {
             // print(`Walk speed changed to ${this.humanoid.WalkSpeed}`);
-            this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.maxSprintSpeed);
+            this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.maxWalkSpeed);
         })
 
         // this.npcwants = config.npcwant;
@@ -77,15 +79,40 @@ export default class NPC {
 
     private initialiseAnimations() {
         RunService.RenderStepped.Connect(dt => {
+            this.keyInputTracker();
             this.stateChangeTracker();
             this.accelerationTracker(dt);
             this.followPlayerScript();
         })
     }
 
+    private keyInputTracker() {
+        onInput(Enum.UserInputType.Keyboard, (input: InputObject) => {
+            switch (input.KeyCode) {
+                case Enum.KeyCode.W:
+                case Enum.KeyCode.Up:
+                case Enum.KeyCode.S:
+                case Enum.KeyCode.Down:
+                case Enum.KeyCode.A:
+                case Enum.KeyCode.Left:
+                case Enum.KeyCode.D:
+                case Enum.KeyCode.Right:
+                    if (input.UserInputState === Enum.UserInputState.Begin && this.state === NPCState.IDLE) {
+                        print(`Starting walk`);
+                        this.state = NPCState.START_WALK;
+                    }
+                    break;
+            }
+        })
+    }
+
+    private prevState = NPCState.IDLE;
     private stateChangeTracker() {
         const ah = this.animationHandler;
-        print(`State: ${this.state}`);
+        if (this.state !== this.prevState) {
+            this.prevState = this.state;
+            print(`[State] ${this.state}`);
+        }
         switch (this.state) {
             case NPCState.IDLE:
                 ah.playAnimationIfNotPlaying(AnimationType.ExploreIdle, {
@@ -93,33 +120,48 @@ export default class NPC {
                     loop: true,
                     priority: Enum.AnimationPriority.Idle,
                 });
+                ah.killAnimationIfPlaying(AnimationType.Transition);
                 ah.killAnimationIfPlaying(AnimationType.ExploreWalk);
                 ah.killAnimationIfPlaying(AnimationType.ExploreSprint);
                 break;
+
+            case NPCState.START_WALK:
+                const existing = ah.getTrack(AnimationType.Transition);
+                if (existing !== undefined && existing.IsPlaying === false) {
+                    this.state = NPCState.ACCELERATE;
+                    ah.killAnimation(AnimationType.Transition);
+                }
+                else {
+                    ah.playAnimationIfNotPlaying(AnimationType.Transition, {
+                        animation: 'explore-idle->walk',
+                        loop: false,
+                        priority: Enum.AnimationPriority.Action,
+                        weightAtom: this.walkSpeedFractionAtom,
+                        weightMultiplier: 3,
+                    });
+                }
+                break;
+
             case NPCState.ACCELERATE:
             case NPCState.DECELERATE:
                 ah.playAnimationIfNotPlaying(AnimationType.ExploreWalk, {
                     animation: AnimationType.ExploreWalk,
                     loop: true,
                     weightAtom: this.walkSpeedFractionAtom,
-                    inverseWeight: true,
-                    priority: Enum.AnimationPriority.Movement,
-                });
-                ah.playAnimationIfNotPlaying(AnimationType.ExploreSprint, {
-                    animation: AnimationType.ExploreSprint,
-                    loop: true,
-                    weightAtom: this.walkSpeedFractionAtom,
                     priority: Enum.AnimationPriority.Movement,
                 });
                 break;
-            case NPCState.SPRINTING:
-                ah.killAnimationIfPlaying(AnimationType.ExploreWalk);
-                ah.playAnimationIfNotPlaying(AnimationType.ExploreSprint, {
-                    animation: AnimationType.ExploreSprint,
+
+            case NPCState.FULL_WALK:
+                ah.playAnimationIfNotPlaying(AnimationType.ExploreWalk, {
+                    animation: AnimationType.ExploreWalk,
                     loop: true,
                     priority: Enum.AnimationPriority.Movement,
+                    weightAtom: atom(2),
+                    update: true,
                 });
                 break;
+
             case NPCState.TALKING:
                 break;
         }
@@ -147,11 +189,13 @@ export default class NPC {
         if (isRunning) {
             // accelerate
             if (curAcc < this.maxAcc) {
-                this.state = NPCState.ACCELERATE;
                 this.acc(math.min(curAcc + dt * this.accSpeed, this.maxAcc));
+                if (this.state === NPCState.IDLE) {
+                    this.state = NPCState.START_WALK;
+                }
             }
             else {
-                this.state = NPCState.SPRINTING;
+                this.state = NPCState.FULL_WALK;
             }
         }
         else {
@@ -166,7 +210,7 @@ export default class NPC {
             }
         }
 
-        humanoid.WalkSpeed = this.maxSprintSpeed * math.clamp(curAcc, 0, this.maxAcc);
+        humanoid.WalkSpeed = this.maxWalkSpeed * math.clamp(curAcc, 0, this.maxAcc);
     }
 
     private startMoving(vector: Vector3) {

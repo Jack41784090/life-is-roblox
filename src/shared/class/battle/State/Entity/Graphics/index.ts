@@ -129,9 +129,8 @@ export default class EntityGraphics {
     //#endregion
 
     //#region play animation/audio
-    public playAnimation(id: AnimationType, { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop }: AnimationOptions): AnimationTrack | undefined {
-        print(`${this.model.Name}: Playing animation ${animation}, priority ${priority}, hold ${hold}, loop ${loop}`);
-        return this.animationHandler.playAnimation(id, { animation, priority, hold, loop });
+    public playAnimation(id: AnimationType, opt: AnimationOptions): AnimationTrack | undefined {
+        return this.animationHandler.playAnimation(id, opt);
     }
 
     public playAudio(entityStatus: EntityStatus) {

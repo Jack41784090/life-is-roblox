@@ -25,8 +25,11 @@ export interface AnimationOptions {
     loop: boolean;
     weightAtom?: Atom<number>;
     inverseWeight?: boolean;
+    weightOffset?: number;
+    weightMultiplier?: number;
     priority?: Enum.AnimationPriority;
     hold?: number;
+    update?: boolean;
 }
 
 export default class AnimationHandler {
@@ -164,8 +167,58 @@ export default class AnimationHandler {
     }
 
     public playAnimationIfNotPlaying(animationName: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
-        if (this.isPlaying(animationName)) return;
+        if (this.isPlaying(animationName) && !options.update) {
+            print(`[AnimationHandler] Animation ${animationName} is already playing.`);
+            return this.playingTrackMap.get(animationName);
+        }
+        else if (options.update) {
+            this.updatePlayingAnimation(animationName, options);
+            return this.playingTrackMap.get(animationName);
+        }
         return this.playAnimation(animationName, options);
+    }
+
+    public updatePlayingAnimation(animationName: AnimationType, options: AnimationOptions): void {
+        print(`[AnimationHandler] Updating animation: ${animationName} with options:`, options);
+        const playingTrack = this.playingTrackMap.get(animationName);
+        if (!playingTrack) {
+            warn(`[AnimationHandler] Animation track ${animationName} not found.`);
+            return;
+        }
+
+        playingTrack.Priority = options.priority ?? Enum.AnimationPriority.Action;
+        playingTrack.Looped = options.loop;
+        if (options.weightAtom) {
+            this.adjustWeight(playingTrack, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
+        }
+    }
+
+    private adjustWeight(track: AnimationTrack, weightAtom: Atom<number>, inverseWeight = false, weightOffset = 0, weightMultiplier = 1): void {
+        const weight = ((inverseWeight ? 1 - weightAtom() : weightAtom()) + (weightOffset ?? 0)) * (weightMultiplier ?? 1);
+        print(`[AnimationHandler] Adjusting weight for track: ${track.Name} to ${weight}`);
+        if (weight <= 1) {
+            track.AdjustWeight(weight);
+        }
+        else if (weight > 1) {
+            track.AdjustSpeed(weight);
+        }
+
+        const cu = subscribe(weightAtom, (s) => {
+            const updatedWeight = ((inverseWeight ? 1 - s : s) + (weightOffset ?? 0)) * (weightMultiplier ?? 1);
+            // print(`${id}: weight updated: ${updatedWeight}`);
+            if (track.IsPlaying) {
+                if (updatedWeight <= 1) {
+                    track.AdjustWeight(updatedWeight);
+                }
+                else if (updatedWeight > 1) {
+                    track.AdjustSpeed(updatedWeight);
+                }
+            }
+            else {
+                cu();
+            }
+        });
+        this.connections.push(cu);
     }
 
     /**
@@ -174,6 +227,7 @@ export default class AnimationHandler {
      * @returns The AnimationTrack if successfully played, undefined otherwise.
      */
     public playAnimation(id: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
+        print(`${this.model.Name}: Playing animation ${id} with options:`, options);
         const { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop } = options;
 
         const track = this.loadAnimationTrack(animation);
@@ -190,27 +244,13 @@ export default class AnimationHandler {
 
         this.playingTrackMap.set(id, track);
 
-        // if (hold > 0) {
-        //     this.playHoldAnimation(animation, hold);
-        // }
-
         if (options.weightAtom) {
-            print(`${id}: weight given: ${options.weightAtom()}`);
-            const weight = options.inverseWeight ? 1 - options.weightAtom() : options.weightAtom();
-            track.AdjustWeight(weight);
-
-            const cu = subscribe(options.weightAtom, (s) => {
-                const updatedWeight = options.inverseWeight ? 1 - s : s;
-                print(`${id}: weight updated: ${updatedWeight}`);
-                if (track.IsPlaying) {
-                    track.AdjustWeight(updatedWeight);
-                }
-                else {
-                    track.Stop();
-                }
-            });
-            this.connections.push(cu);
+            this.adjustWeight(track, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
         }
+
+        track.Stopped.Once(() => {
+            print(`Track ${id} stopped`);
+        })
 
         return track;
     }
@@ -302,6 +342,10 @@ export default class AnimationHandler {
 
     public getHumanoid(): Humanoid {
         return this.humanoid;
+    }
+
+    public getTrack(name: AnimationType): AnimationTrack | undefined {
+        return this.playingTrackMap.get(name);
     }
 
     public isPlaying(animationName: AnimationType): boolean {
