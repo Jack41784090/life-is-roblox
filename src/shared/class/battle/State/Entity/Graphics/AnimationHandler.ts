@@ -1,10 +1,11 @@
-import { Atom, subscribe } from "@rbxts/charm";
+import { atom, Atom, subscribe } from "@rbxts/charm";
 import { RunService } from "@rbxts/services";
 import EntityGraphics from ".";
 import Expression from "./Expression";
 
 export enum AnimationType {
     Move = "move",
+    Sprint = "sprint",
     Idle = "idle",
     Blink = "blink",
     Attack = "attack",
@@ -20,9 +21,7 @@ export interface AnimationOptions {
     animation: string;
     loop: boolean;
     weightAtom?: Atom<number>;
-    inverseWeight?: boolean;
-    weightOffset?: number;
-    weightMultiplier?: number;
+    atomInterpreter?: (atom: Atom<number>) => number;
     priority?: Enum.AnimationPriority;
     hold?: number;
     update?: boolean;
@@ -48,7 +47,7 @@ export default class AnimationHandler {
         this.initialise();
 
 
-        this.debug();
+        // this.debug();
 
     }
 
@@ -97,7 +96,7 @@ export default class AnimationHandler {
         RunService.RenderStepped.Connect(() => {
             this.playingTrackMap.forEach((track, animType) => {
                 if (!track.IsPlaying) {
-
+                    this.killAnimation(animType);
                 }
             })
         })
@@ -201,7 +200,7 @@ export default class AnimationHandler {
         playingTrack.Priority = options.priority ?? Enum.AnimationPriority.Action;
         playingTrack.Looped = options.loop;
         if (options.weightAtom) {
-            this.adjustWeight(playingTrack, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
+            this.adjustWeight(playingTrack, options.weightAtom, options.atomInterpreter);
         }
         if (options.animation !== playingTrack.Name) {
             const newAnimation = this.loadAnimationTrack(options.animation);
@@ -227,24 +226,26 @@ export default class AnimationHandler {
         return this.playingTrackMap.set(animType, newAnimation);
     }
 
-    private adjustWeight(track: AnimationTrack, weightAtom: Atom<number>, inverseWeight = false, weightOffset = 0, weightMultiplier = 1): void {
-        const weight = ((inverseWeight ? 1 - weightAtom() : weightAtom()) + (weightOffset ?? 0)) * (weightMultiplier ?? 1);
-        print(`[AnimationHandler: ${this.model.Name}] Adjusting weight: ${track.Name} to ${weight}`);
+    private adjustWeight(track: AnimationTrack, weightAtom: Atom<number>, atomInterpreter: ((atom: Atom<number>) => number) = atom => atom()): void {
+        const weight = atomInterpreter(weightAtom);
+        // print(`[AnimationHandler: ${this.model.Name}] Adjusting weight: ${track.Name} to ${weight}`);
         if (weight <= 1) {
             track.AdjustWeight(weight);
         }
         else if (weight > 1) {
+            track.AdjustWeight(1);
             track.AdjustSpeed(weight);
         }
 
         const cu = subscribe(weightAtom, (s) => {
-            const updatedWeight = ((inverseWeight ? 1 - s : s) + (weightOffset ?? 0)) * (weightMultiplier ?? 1);
-            // print(`${id}: weight updated: ${updatedWeight}`);
+            const updatedWeight = atomInterpreter(atom(s));
+            // print(`[AnimationHandler: ${this.model.Name}] Adjusting weight: ${track.Name} to ${updatedWeight}`);
             if (track.IsPlaying) {
                 if (updatedWeight <= 1) {
                     track.AdjustWeight(updatedWeight);
                 }
                 else if (updatedWeight > 1) {
+                    track.AdjustWeight(1);
                     track.AdjustSpeed(updatedWeight);
                 }
             }
@@ -275,7 +276,7 @@ export default class AnimationHandler {
 
 
             if (options.weightAtom) {
-                this.adjustWeight(track, options.weightAtom, options.inverseWeight, options.weightOffset, options.weightMultiplier);
+                this.adjustWeight(track, options.weightAtom, options.atomInterpreter);
             }
 
             track.Stopped.Once(() => {
