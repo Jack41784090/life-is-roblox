@@ -1,5 +1,5 @@
 import { atom, Atom, subscribe } from "@rbxts/charm";
-import { RunService } from "@rbxts/services";
+import { Debris, RunService } from "@rbxts/services";
 import EntityGraphics from ".";
 import Expression from "./Expression";
 
@@ -100,7 +100,7 @@ export default class AnimationHandler {
                 }
             })
         })
-        // this.playIdleAnimation();
+        this.playIdleAnimation();
     }
 
     /**
@@ -280,7 +280,7 @@ export default class AnimationHandler {
             }
 
             track.Stopped.Once(() => {
-                print(`Track ${id} stopped`);
+                print(`[playAnimation] Track {${id}} stopped`);
             })
 
         }
@@ -344,12 +344,15 @@ export default class AnimationHandler {
         }
     }
 
-    public killAnimation(animationName: AnimationType): void {
-        print(`[AnimationHandler: ${this.model.Name}] Killing animation ${animationName}`);
-        const animation: AnimationTrack | undefined = this.playingTrackMap.get(animationName);
-        animation?.Stop();
-        animation?.Destroy();
-        this.playingTrackMap.delete(animationName);
+    public killAnimation(animType: AnimationType): void {
+        print(`[AnimationHandler: ${this.model.Name}] Killing animation ${animType}`);
+        const animation: AnimationTrack | undefined = this.playingTrackMap.get(animType);
+        if (!animation) return;
+        task.spawn(() => {
+            animation.Stop();
+            Debris.AddItem(animation, 5);
+        });
+        this.playingTrackMap.delete(animType);
     }
 
     /**
@@ -366,9 +369,8 @@ export default class AnimationHandler {
         })
 
         // Cleanup tracks
-        this.playingTrackMap.forEach(track => {
-            track.Stop()
-            track.Destroy()
+        this.playingTrackMap.forEach((track, animtype) => {
+            this.killAnimation(animtype);
         })
     }
 

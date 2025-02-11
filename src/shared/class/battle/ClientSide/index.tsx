@@ -393,7 +393,11 @@ export default class ClientSide {
         print("Playing attack animation", aa);
         const { animation } = aa.ability;
         const attacker = this.EHCGMS.findEntityG(aa.by);
-        assert(aa.against !== undefined, "attack action has invalid target id"); const target = this.EHCGMS.findEntityG(aa.against);
+        const attackerAnimationHandler = attacker.animationHandler;
+        assert(aa.against !== undefined, "attack action has invalid target id");
+
+        const target = this.EHCGMS.findEntityG(aa.against);
+        const targetAnimationHandler = target.animationHandler;
 
         await target.faceEntity(attacker);
         const attackAnimation = attacker.playAnimation(
@@ -425,8 +429,8 @@ export default class ClientSide {
             target.createClashresultIndicators(aa.clashResult);
 
             // 3. Play the appropriate animation based on the outcome of the attack.
-            target.animationHandler?.killAnimation(AnimationType.Idle);
-            defendIdleAnimation?.Stop();
+            targetAnimationHandler.killAnimation(AnimationType.Idle);
+            targetAnimationHandler.killAnimation(AnimationType.Defend);
 
             if (isAttackKills(aa)) {
                 const deathPoseIdleAnimation = target.playAnimation(

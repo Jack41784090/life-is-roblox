@@ -178,15 +178,18 @@ export default class Gui {
      */
     private handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
         const currentQR = state.getCREPosition();
-        assert(currentQR, "Current QR is not defined");
+        assert(currentQR, "[handleCellEnter] Current QR is not defined");
         const currentCell = state.grid.getCell(currentQR);
-        assert(currentCell, "Current cell is not defined");
+        assert(currentCell, "[handleCellEnter] Current cell is not defined");
         const oe = state.findEntity(tuple.cellGraphics.qrs);
         const oeG = tuple.entityGraphics
         const cre = state.findEntity(currentQR);
-        assert(cre, `Entity is not defined @${currentQR}`);
+        assert(cre, `[handleCellEnter] Entity is not defined @${currentQR}`);
         const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics;
-        assert(creG, "EntityGraphics is not defined");
+        if (!creG) {
+            warn(`[handleCellEnter] EntityGraphics not found for entity @${currentQR}`);
+            return;
+        }
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();

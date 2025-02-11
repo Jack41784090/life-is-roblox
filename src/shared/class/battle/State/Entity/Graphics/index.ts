@@ -1,5 +1,4 @@
 import { TweenService } from "@rbxts/services";
-import { setInterval } from "@rbxts/set-timeout";
 import { CONDOR_BLOOD_RED } from "shared/const";
 import { ClashResult, EntityStatus } from "shared/types/battle-types";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
@@ -184,25 +183,20 @@ export default class EntityGraphics {
 
         if (!path) path = [cell];
 
-        const moveTrack = this.playAnimation(AnimationType.Move, { animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
+        this.playAnimation(AnimationType.Move, { animation: 'move', priority: Enum.AnimationPriority.Action, loop: true });
         for (const cell of path) {
             const targetPosition = cell.worldPosition();
             if (humanoidRoot.Position === targetPosition) continue;
             await this.moveToPosition(targetPosition);
         }
-        moveTrack?.Stop();
+        this.animationHandler.killAnimation(AnimationType.Move);
         const transitionTrack = this.playAnimation(AnimationType.Transition, { animation: 'move->idle', priority: Enum.AnimationPriority.Action, loop: false });
-
-        const i = setInterval(() => {
-            print(transitionTrack?.IsPlaying);
-        }, 1)
 
         return new Promise((resolve) => {
             transitionTrack?.Ended.Once(() => {
-                i();
                 print(`${this.name}: Movement complete`);
                 resolve();
-            });
+            }) ?? resolve();
         });
     }
     //#endregion
