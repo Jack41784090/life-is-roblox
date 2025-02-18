@@ -35,11 +35,10 @@ export default class PC extends C {
         for (const key of this.validMovementKeys) {
             // print(`Checking key ${key}`, UserInputService.IsKeyDown(key));
             if (UserInputService.IsKeyDown(key) && Workspace.CurrentCamera) {
+                this.hurrying = UserInputService.IsKeyDown(Enum.KeyCode.LeftShift);
                 direction = direction.add(getDirectionFromEnumKeyCode(key, Workspace.CurrentCamera));
             }
         }
-
-        this.hurrying = UserInputService.IsKeyDown(Enum.KeyCode.LeftShift);
 
         if (direction.Magnitude > 0) {
             // print(`Moving in direction ${direction}`);

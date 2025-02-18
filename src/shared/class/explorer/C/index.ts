@@ -1,7 +1,10 @@
 import { Atom, atom } from "@rbxts/charm";
-import { ReplicatedStorage, RunService } from "@rbxts/services";
+import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
+import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
+import { uiFolder } from "shared/const/assets";
 import Place from "../Place";
+import Going from "./Going";
 import { CConfig, CState } from "./types";
 
 export default class C {
@@ -16,6 +19,8 @@ export default class C {
     protected prevState = CState.IDLE;
     protected nameTag?: BillboardGui;
     private nameTagLabel?: TextBox;
+    private speechBubble = uiFolder.WaitForChild('speechbubble').Clone() as Part;
+    private speechBubbleTextBox = this.speechBubble.FindFirstChildOfClass('BillboardGui')?.FindFirstChildOfClass('TextBox') as TextBox;
     //#endregion
 
     //#region walking
@@ -29,6 +34,13 @@ export default class C {
     protected accSpeed: number = .8;
     protected decelerateMultiplier: number = 8.8;
     protected sprintMultiplier: number = 2.5;
+    //#endregion
+
+
+    //#region mind
+    protected currentDestination?: Vector3;
+    protected currentGoing?: Going;
+    protected currentWaypoint?: PathWaypoint;
     //#endregion
 
     constructor(config: CConfig, place: Place) {
@@ -51,10 +63,23 @@ export default class C {
             this.stateUpdater();
             this.stateChangeTracker();
             this.accelerationTracker(dt);
+            this.thoughtProcessTracker();
         });
     }
 
-    private setNametag(mes: string) {
+    public speak(message: string) {
+        const speechBubble = this.speechBubble;
+        speechBubble.Transparency = 0;
+        speechBubble.Parent = this.model;
+        speechBubble.CFrame = this.model.PrimaryPart!.CFrame.add(new Vector3(0, 7, 0));
+        this.speechBubbleTextBox.Text = message;
+
+        setTimeout(() => {
+            TweenService.Create(speechBubble, new TweenInfo(1), { Transparency: 1 }).Play();
+        }, message.size() * 0.2);
+    }
+
+    protected setNametag(mes: string) {
         const textbox = this.nameTagLabel;
         if (textbox) {
             textbox.Text = mes;
@@ -73,6 +98,83 @@ export default class C {
         this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
         this.nameTagLabel = this.nameTag?.FindFirstChildOfClass('TextBox') as TextBox;
         print(this.nameTag, this.nameTagLabel);
+    }
+
+    public getPosition() {
+        return this.model.PrimaryPart!.Position;
+    }
+
+
+    private waypointArriveTimeout?: ReturnType<typeof setTimeout>;
+    private handleWaypoint(waypoint: PathWaypoint): boolean {
+        // begin timeout
+        this.waypointArriveTimeout = this.waypointArriveTimeout ?? setTimeout(() => {
+            warn(`[C: ${this.model.Name}] [Going] Timeout at waypoint ${waypoint.Position}`);
+            this.currentGoing?.destroy();
+            this.currentGoing = undefined;
+            this.currentWaypoint = undefined;
+        }, 1)
+
+        const currentPos = this.getPosition().mul(new Vector3(1, 0, 1));
+        const waypointPos = waypoint.Position.mul(new Vector3(1, 0, 1));
+
+        // look at the difference
+        const diff = waypointPos.sub(currentPos);
+        const threshold = 1;
+
+        // if the difference is less than the threshold, then we reached the waypoint
+        if (diff.Magnitude <= threshold) {
+            print(`[C: ${this.model.Name}] [Going] Reached waypoint ${waypoint.Position}`);
+            this.currentWaypoint = undefined
+            this.waypointArriveTimeout?.();
+            this.waypointArriveTimeout = undefined
+            return false;
+        }
+
+        // otherwise, move to the waypoint
+        print(`[C: ${this.model.Name}] [Going] Moving to waypoint ${waypoint.Position} mag:${diff.Magnitude}`);
+        this.startMoving(diff);
+        return true;
+    }
+
+    protected handleDestination() {
+        if (!this.currentDestination) return;
+
+        // want to go somewhere, but not going yet
+        if (!this.currentGoing) {
+            print(`[C: ${this.model.Name}] Initializing navigation to ${this.currentDestination}`);
+            this.currentGoing = new Going({
+                destination: this.currentDestination,
+                characterModel: this.model,
+            });
+            return;
+        }
+
+        // going somewhere, still thinking the path
+        if (this.currentGoing.calculatingPath) {
+            print(`[C: ${this.model.Name}] Calculating path to ${this.currentDestination}`);
+            return;
+        }
+
+        // not calculating, and is not calculated, so calculate
+        if (this.currentGoing.isCalculated === false) {
+            this.currentGoing.calculatePath();
+            return;
+        }
+
+        // get the waypoint
+        this.currentWaypoint = this.currentWaypoint ?? this.currentGoing.nextWaypoint();
+        if (!this.currentWaypoint) {
+            this.currentGoing.destroy();
+            this.currentGoing = undefined;
+            return;
+        }
+
+        this.handleWaypoint(this.currentWaypoint);
+    }
+
+    protected thoughtProcessTracker() {
+        this.handleDestination();
     }
 
     protected stateChangeTracker() {
@@ -181,16 +283,18 @@ export default class C {
         if (this.hurrying) humanoid.WalkSpeed = math.max(humanoid.WalkSpeed, this.maxWalkSpeed);
         humanoid.WalkSpeed += this.acc();
 
-        this.setNametag(`Speed: ${string.format("%.3f", humanoid.WalkSpeed)}, Acc: ${string.format("%.3f", this.acc())}`);
+        this.setNametag(`Speed: ${string.format("%.3f", humanoid.WalkSpeed)}\nAcc: ${string.format("%.3f", this.acc())}`);
 
         // print(`[C: ${this.model.Name}] Speed: ${humanoid.WalkSpeed}, Acc: ${this.acc()}`);
 
         // Sync state updates based on the latest acceleration and movement input.
     }
 
-    protected startMoving(vector: Vector3) {
-        this.walkingDirection = vector;
-        this.humanoid.Move(vector);
+    protected startMoving(direction: Vector3) {
+        const dir = direction.Unit;
+        // print(`[C: ${this.model.Name}] Moving in direction ${dir}`);
+        this.walkingDirection = dir;
+        this.humanoid.Move(dir);
     }
 
     protected stopMoving() {

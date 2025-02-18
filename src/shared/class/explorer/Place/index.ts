@@ -11,6 +11,7 @@ export default class Place {
     private NPCCs: NPCConfig[];
     private NPCs: NPC[] = [];
     private destroyed = false;
+    private explorer?: PC;
 
     public static GetPlace(placeName: PlaceName) {
         return new Place({
@@ -71,12 +72,18 @@ export default class Place {
         return this.location;
     }
 
+    public getExplorerPosition() {
+        // print(`[Place] Getting explorer position`, this.explorer?.getModel().PrimaryPart?.Position);
+        return this.explorer?.getModel().PrimaryPart?.Position;
+    }
+
     public spawnExplorer(model: string) {
         const pc = new PC({
             id: model,
             displayName: model,
             spawnLocation: new Vector3(0, 0, 0),
         }, this);
+        this.explorer = pc;
 
         return pc.getModel();
     }
