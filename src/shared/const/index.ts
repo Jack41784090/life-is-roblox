@@ -93,4 +93,5 @@ export const TWEEN_TIME = 0.5;
 
 export enum PlaceName {
     City = 'City',
+    Konigsberg = 'Konigsberg',
 }

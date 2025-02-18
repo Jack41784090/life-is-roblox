@@ -40,15 +40,12 @@ export default class AnimationHandler {
     private expression?: Expression;
 
     constructor(humanoid: Humanoid, animator: Animator, model: Model) {
-        print(`[AnimationHandler] Constructing animation handler for: ${model}`);
+        // print(`[AnimationHandler] Constructing animation handler for: ${model}`);
         this.humanoid = humanoid;
         this.animator = animator;
         this.model = model;
         this.initialise();
-
-
         // this.debug();
-
     }
 
     private prevSize = 0;
@@ -63,7 +60,7 @@ export default class AnimationHandler {
     }
 
     public static Create(entity: EntityGraphics): AnimationHandler | undefined {
-        print(`[AnimationHandler] Creating animation handler for entity: ${entity}`);
+        // print(`[AnimationHandler] Creating animation handler for entity: ${entity}`);
         const model = entity.model;
         if (!model) {
             warn("[AnimationHandler: ${this.model.Name}] Model not found for entity.");
@@ -215,7 +212,8 @@ export default class AnimationHandler {
             warn(`[AnimationHandler: ${this.model.Name}] Expected playing track for ${animType} not found.`);
             return;
         }
-        print(`[AnimationHandler: ${this.model.Name}] ${animType}: "${playingTrack.Name}" => "${newAnimation.Name}"`);
+        // Commenting out debug info:
+        // print(`[AnimationHandler: ${this.model.Name}] ${animType}: "${playingTrack.Name}" => "${newAnimation.Name}"`);
         const position = playingTrack.TimePosition / playingTrack.Length;
         playingTrack.Name = newAnimation.Name;
         playingTrack.Stop(.2);
@@ -261,7 +259,7 @@ export default class AnimationHandler {
      * @returns The AnimationTrack if successfully played, undefined otherwise.
      */
     public playAnimation(id: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
-        print(`[AnimationHandler: ${this.model.Name}]: Playing animation [${id}] with options:`, options);
+        // print(`[AnimationHandler: ${this.model.Name}]: Playing animation [${id}] with options:`, options);
         const { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop } = options;
 
         const track = this.loadAnimationTrack(animation);
@@ -279,7 +277,7 @@ export default class AnimationHandler {
             }
 
             track.Stopped.Once(() => {
-                print(`[playAnimation] Track {${id}} stopped`);
+                // print(`[playAnimation] Track {${id}} stopped`);
             })
 
         }
@@ -344,7 +342,7 @@ export default class AnimationHandler {
     }
 
     public killAnimation(animType: AnimationType): void {
-        print(`[AnimationHandler: ${this.model.Name}] Killing animation ${animType}`);
+        // print(`[AnimationHandler: ${this.model.Name}] Killing animation ${animType}`);
         const animation: AnimationTrack | undefined = this.playingTrackMap.get(animType);
         if (!animation) return;
         task.spawn(() => {

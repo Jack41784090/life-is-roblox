@@ -97,7 +97,7 @@ export default class C {
         this.model.PrimaryPart!.CFrame = new CFrame(config.spawnLocation);
         this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
         this.nameTagLabel = this.nameTag?.FindFirstChildOfClass('TextBox') as TextBox;
-        print(this.nameTag, this.nameTagLabel);
+        // print(this.nameTag, this.nameTagLabel);
     }
 
     public getPosition() {
@@ -124,7 +124,7 @@ export default class C {
 
         // if the difference is less than the threshold, then we reached the waypoint
         if (diff.Magnitude <= threshold) {
-            print(`[C: ${this.model.Name}] [Going] Reached waypoint ${waypoint.Position}`);
+            // print(`[C: ${this.model.Name}] [Going] Reached waypoint ${waypoint.Position}`);
             this.currentWaypoint = undefined
             this.waypointArriveTimeout?.();
             this.waypointArriveTimeout = undefined
@@ -132,7 +132,7 @@ export default class C {
         }
 
         // otherwise, move to the waypoint
-        print(`[C: ${this.model.Name}] [Going] Moving to waypoint ${waypoint.Position} mag:${diff.Magnitude}`);
+        // print(`[C: ${this.model.Name}] [Going] Moving to waypoint ${waypoint.Position} mag:${diff.Magnitude}`);
         this.startMoving(diff);
         return true;
     }
@@ -142,7 +142,7 @@ export default class C {
 
         // want to go somewhere, but not going yet
         if (!this.currentGoing) {
-            print(`[C: ${this.model.Name}] Initializing navigation to ${this.currentDestination}`);
+            // print(`[C: ${this.model.Name}] Initializing navigation to ${this.currentDestination}`);
             this.currentGoing = new Going({
                 destination: this.currentDestination,
                 characterModel: this.model,
@@ -152,7 +152,7 @@ export default class C {
 
         // going somewhere, still thinking the path
         if (this.currentGoing.calculatingPath) {
-            print(`[C: ${this.model.Name}] Calculating path to ${this.currentDestination}`);
+            // print(`[C: ${this.model.Name}] Calculating path to ${this.currentDestination}`);
             return;
         }
 
@@ -181,7 +181,7 @@ export default class C {
         const ah = this.animationHandler;
         if (this.state !== this.prevState) {
             this.prevState = this.state;
-            print(`[State] ${this.state}`);
+            // print(`[State] ${this.state}`);
         }
         switch (this.state) {
             case CState.IDLE:

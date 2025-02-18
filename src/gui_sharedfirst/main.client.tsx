@@ -7,7 +7,6 @@ import Scene from "shared/class/scene/Scene";
 import { DialogueExpression } from "shared/class/scene/types";
 import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
-import LoadingScreenElement from "./new_components/loading";
 import GuiMothership from "./new_components/main";
 import MainMenuElement from "./new_components/menu_ui";
 import WaitingRoomElement from "./new_components/waiting_room";
@@ -21,31 +20,28 @@ const numberOfAssets = prioritiseAssets.size();
 
 let loadedAssetCount = 0;
 const progressAtom = atom(0);
-GuiMothership.mount("LoadingScreen", <LoadingScreenElement progress={progressAtom} />);
+// GuiMothership.mount("LoadingScreen", <LoadingScreenElement progress={progressAtom} />);
 
 const threads: thread[] = [];
-print("Preloading assets");
+// // print("Preloading assets");
 for (let i = 0; i < numberOfAssets; i++) {
     const thread = task.spawn(() => {
         const asset = prioritiseAssets[i];
         ContentProvider.PreloadAsync([asset]);
         loadedAssetCount++;
-    })
+    });
     threads.push(thread);
 }
 
 const checkProgress = setInterval(() => {
-    print(`${loadedAssetCount / numberOfAssets * 100}% loaded`);
+    // print(`${loadedAssetCount / numberOfAssets * 100}% loaded`);
     progressAtom(loadedAssetCount / numberOfAssets);
 }, .1);
 
-// Wait for all assets to be preloaded
 while (progressAtom() < 1) wait();
-checkProgress();
-print("Preloading complete");
-
-// Remove the loading screen after preloading is complete
-GuiMothership.unmount("LoadingScreen");
+// clearInterval(checkProgress);
+// print("Preloading complete");
+// GuiMothership.unmount("LoadingScreen");
 //#endregion
 
 //#region 2. MAIN MENU
@@ -73,7 +69,7 @@ function enterPlayground() {
 
     cam.CameraType = Enum.CameraType.Scriptable;
     const player = Players.LocalPlayer;
-    const character = explorer.beginExplore(PlaceName.City);
+    const character = explorer.beginExplore(PlaceName.Konigsberg);
     // remotes.loadCharacter(); explorer.beginExplore(PlaceName.City);
     // const character = player.Character || player.CharacterAdded.Wait()[0];
     const humanoidRootPart = character.WaitForChild("HumanoidRootPart") as Part;
@@ -184,7 +180,7 @@ function mainMenuSetup() {
 
 remotes.battle.ui.unmount.connect(tag => GuiMothership.unmount(tag));
 remotes.battle.ui.startRoom.connect(s => {
-    print("Start Room", s);
+    // print("Start Room", s);
     GuiMothership.mount(GuiTag.WaitingRoom, <WaitingRoomElement
         players={s}
         readyButtonClicked={() => {

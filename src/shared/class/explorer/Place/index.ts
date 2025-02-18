@@ -1,5 +1,6 @@
-import { ReplicatedStorage, Workspace } from "@rbxts/services";
+import { Workspace } from "@rbxts/services";
 import { PlaceName } from "shared/const";
+import { locationFolder } from "shared/const/assets";
 import { PlaceConfig } from "shared/types/explorer-types";
 import NPC from "../NPC";
 import { NPCConfig } from "../NPC/types";
@@ -14,6 +15,7 @@ export default class Place {
     private explorer?: PC;
 
     public static GetPlace(placeName: PlaceName) {
+        const spawnLocation = Workspace.WaitForChild("SpawnLocation") as SpawnLocation;
         return new Place({
             locationName: placeName,
             NPCs: [
@@ -21,7 +23,7 @@ export default class Place {
                     id: 'entity_adalbrecht',
                     // id: 'R15',
                     displayName: 'NPC 1',
-                    spawnLocation: new Vector3(0, 0, 0),
+                    spawnLocation: spawnLocation.Position,
                 },
                 // {
                 //     // id: 'entity_adalbrecht',
@@ -30,7 +32,7 @@ export default class Place {
                 //     spawnLocation: new Vector3(0, 0, 0),
                 // },
             ],
-            model: ReplicatedStorage.WaitForChild(placeName) as Model,
+            model: locationFolder.WaitForChild(placeName) as Model,
         })
     }
 

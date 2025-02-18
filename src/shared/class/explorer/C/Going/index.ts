@@ -11,7 +11,7 @@ export default class Going {
     private path?: Path;
 
     constructor(config: GoingConfig) {
-        print(`[GOing] new`)
+        // print(`[GOing] new`)
         this.currentDestination = config.destination;
         this.characterModel = config.characterModel;
     }
@@ -19,7 +19,7 @@ export default class Going {
     public calculatePath() {
         if (this.calculatingPath) return;
         this.calculatingPath = true;
-        print(`[Going] Calculating path to ${this.currentDestination}`);
+        // print(`[Going] Calculating path to ${this.currentDestination}`);
         this.path = PathfindingService.CreatePath({
             AgentRadius: 2,
             AgentHeight: 5,
@@ -30,7 +30,7 @@ export default class Going {
             this.path!.ComputeAsync(this.characterModel.PrimaryPart!.Position, this.currentDestination!);
         })
         if (success && this.path.Status === Enum.PathStatus.Success) {
-            print(`[Going] Path calculated`, this.path.GetWaypoints());
+            // print(`[Going] Path calculated`, this.path.GetWaypoints());
 
             this.isCalculated = true;
             this.calculatingPath = false;
@@ -50,7 +50,7 @@ export default class Going {
 
     public nextWaypoint(debug = true) {
         const nextWaypoint = this.wayPoints.shift();
-        print(`[Going] Next waypoint: ${nextWaypoint}`);
+        // print(`[Going] Next waypoint: ${nextWaypoint}`);
         if (debug && nextWaypoint) {
             this.createDebugWaypoint(nextWaypoint);
         }
@@ -59,7 +59,7 @@ export default class Going {
 
 
     public destroy() {
-        print('[Going] Destroying path');
+        // print('[Going] Destroying path');
         this.blockedHandle?.Disconnect();
         this.path?.Destroy();
         this.wayPoints = [];
