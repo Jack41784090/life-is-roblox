@@ -4,12 +4,13 @@ import { EntityStance } from "shared/class/battle/State/Entity/types";
 
 export const HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOperation;
 
-// UI
+// Folders
 export const uiFolder = ReplicatedStorage.WaitForChild("UI") as Folder;
 export const modelFolder = ReplicatedStorage.WaitForChild("Models") as Folder;
 export const NPCFolder = modelFolder.WaitForChild("NPCs") as Folder;
 export const otherPlayersTurnGui = uiFolder.WaitForChild("OtherPlayersTurnGui") as ScreenGui;
 export const locationFolder = ReplicatedStorage.WaitForChild("Locations") as Folder;
+export const indoorsFolder = locationFolder.WaitForChild("Indoors") as Folder;
 
 export const UNIVERSAL_PHYS = new Map<string, iActiveAbility>([
     ['High Slash', {
