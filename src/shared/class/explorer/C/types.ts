@@ -21,4 +21,9 @@ export interface MovementConfig {
     decelerateMultiplier: number;
     sprintMultiplier: number;
     turnSpeed: number;
+    // New physics parameters
+    inertiaFactor: number;         // How strongly inertia affects movement (higher = more resistance to change)
+    momentumRetention: number;     // How much momentum is retained between frames (0-1)
+    directionChangeResistance: number; // How hard it is to change direction at high speeds (higher = harder)
+    turnSpeedAtMaxVelocity: number;    // Turn speed multiplier when at max velocity
 }

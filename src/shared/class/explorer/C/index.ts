@@ -3,6 +3,7 @@ import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import { uiFolder } from "shared/const/assets";
+import { math_map } from "shared/utils";
 import Place from "../Place";
 import Going from "./Going";
 import { CConfig, CState, MovementConfig } from "./types";
@@ -13,7 +14,11 @@ const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
     accSpeed: 0.8,
     decelerateMultiplier: 8.8,
     sprintMultiplier: 2.5,
-    turnSpeed: 2,
+    turnSpeed: 8.0,
+    inertiaFactor: 1.5,
+    momentumRetention: 0.92,
+    directionChangeResistance: 0.7,
+    turnSpeedAtMaxVelocity: 0.3,
 };
 
 export default class C {
@@ -52,6 +57,8 @@ export default class C {
     // Advanced movement properties
     protected velocity: Vector3 = new Vector3();
     protected lastPosition: Vector3;
+    protected momentum: Vector3 = new Vector3(); // Stores accumulated momentum
+    protected intendedDirection: Vector3 = new Vector3(); // Direction player wants to move in
     //#endregion
 
     //#region mind
@@ -103,6 +110,7 @@ export default class C {
     }
 
     private updateMovementPhysics(dt: number): void {
+        // #region Preupdate Safety
         // Safety check for extreme delta time values
         if (dt <= 0 || dt > 1) {
             return;
@@ -125,6 +133,15 @@ export default class C {
             return;
         }
 
+        // Make validation checks for facing-vectors
+        if (!this.isValidVector(this.facingDirection)) {
+            this.facingDirection = new Vector3(0, 0, -1);
+        }
+        if (!this.isValidVector(this.targetFacingDirection)) {
+            this.targetFacingDirection = new Vector3(0, 0, -1);
+        }
+        //#endregion
+
         // Calculate horizontal velocity with position change limit to prevent extreme values
         const maxPositionDelta = 10; // Maximum reasonable position change per frame
         const horizontalDelta = new Vector3(
@@ -135,57 +152,122 @@ export default class C {
 
         // Update velocity based on position change with safety check
         this.velocity = horizontalDelta.div(dt);
-
-        // Store last position
         this.lastPosition = currentPosition;
+        this.updateMomentum(dt);
 
-        // Update facing direction with smooth turning
         if (this.walkingDirection.Magnitude > 0) {
-            this.targetFacingDirection = this.walkingDirection.Unit;
+            this.calculateTargetDirection();
         }
 
-        // Smooth turning with safety check
-        const turnSpeed = this.movementConfig.turnSpeed;
 
-        // Make sure facingDirection is valid
-        if (!this.isValidVector(this.facingDirection)) {
-            this.facingDirection = new Vector3(0, 0, -1);
-        }
+        //#region Turn Speed
 
-        // Make sure targetFacingDirection is valid
-        if (!this.isValidVector(this.targetFacingDirection)) {
-            this.targetFacingDirection = new Vector3(0, 0, -1);
-        }
+        // Calculate angle between current and target direction for dynamic turning
+        const dotProduct = this.facingDirection.Dot(this.targetFacingDirection);
+        const angleSize = 1 - math.abs(dotProduct); // 0 when parallel, 1 when perpendicular
 
-        // Safe interpolation between vectors
+        // Apply faster turning for sharper turns but slower at high speeds
+        const dynamicTurnSpeed = this.calculateDynamicTurnSpeed();
+        const turnFactor = 1 + (angleSize * 2);
+        const adjustedTurnSpeed = dynamicTurnSpeed * turnFactor;
+
+        // Safe interpolation between vectors with dynamic turn speed
         this.facingDirection = this.safeLerp(
             this.facingDirection,
             this.targetFacingDirection,
-            math.min(1, dt * turnSpeed)
+            math.min(1, dt * adjustedTurnSpeed)
         );
 
         // Only adjust orientation if we're actually moving
-        if (this.walkingDirection.Magnitude > 0 && this.humanoid.MoveDirection.Magnitude > 0) {
-            const rootPart = this.model.PrimaryPart;
-            if (rootPart) {
-                // Create a safe look vector that preserves Y position
-                const currentPos = rootPart.Position;
-                const facingVector = new Vector3(this.facingDirection.X, 0, this.facingDirection.Z).Unit;
-                const targetPos = currentPos.add(facingVector);
+        if (this.momentum.Magnitude < 0.1) return;
+        const rootPart = this.model.PrimaryPart;
+        if (!rootPart) return;
 
-                if (!this.isValidPosition(targetPos)) {
-                    return;
-                }
+        // Create a safe look vector that preserves Y position
+        const currentPos = rootPart.Position;
+        const facingVector = new Vector3(this.facingDirection.X, 0, this.facingDirection.Z).Unit;
+        const targetPos = currentPos.add(facingVector);
 
-                // Create a lookAt CFrame but only use it for direction
-                const lookCFrame = CFrame.lookAt(currentPos, targetPos);
+        if (!this.isValidPosition(targetPos)) {
+            return;
+        }
 
-                // IMPORTANT: Only rotate the model, DO NOT change its position
-                rootPart.CFrame = new CFrame(
-                    currentPos, // Keep current position exactly as is
-                    lookCFrame.LookVector.add(currentPos) // Only use the orientation
-                );
-            }
+        // Create a lookAt CFrame but only use it for direction
+        const lookCFrame = CFrame.lookAt(currentPos, targetPos);
+
+        // IMPORTANT: Only rotate the model, DO NOT change its position
+        rootPart.CFrame = new CFrame(
+            currentPos, // Keep current position exactly as is
+            lookCFrame.LookVector.add(currentPos) // Only use the orientation
+        );
+    }
+
+    // Calculate dynamic turn speed based on velocity
+    private calculateDynamicTurnSpeed(): number {
+        const baseTurnSpeed = this.movementConfig.turnSpeed;
+        const velocityMagnitude = this.velocity.Magnitude;
+        const speedFraction = math.min(velocityMagnitude / (this.maxWalkSpeed * this.sprintMultiplier), 1);
+
+        // Linear interpolation between base turn speed and turn speed at max velocity
+        const minTurnSpeedFactor = this.movementConfig.turnSpeedAtMaxVelocity;
+        const speedFactor = 1 - (speedFraction * (1 - minTurnSpeedFactor));
+
+        return baseTurnSpeed * speedFactor;
+    }
+
+    // Update momentum based on current inputs and existing momentum
+    private updateMomentum(dt: number): void {
+        if (!this.isValidVector(this.momentum)) {
+            this.momentum = new Vector3();
+        }
+
+        // Calculate how much of previous momentum to retain (based on speed and config)
+        const _speedFactor = math.min(this.velocity.Magnitude / (this.maxWalkSpeed * this.sprintMultiplier), 1);
+        const _baseRetention = this.movementConfig.momentumRetention;
+        const retention = math.clamp(_baseRetention + (_speedFactor * 0.05), 0, 0.98);
+
+        // Gradually shift momentum toward intended direction
+        if (this.walkingDirection.Magnitude > 0) {
+            // Blend current momentum with new direction
+            this.momentum = this.momentum.mul(retention).add(
+                this.walkingDirection.mul(1 - retention)
+            );
+        } else {
+            // When not providing input, just retain existing momentum with some decay
+            this.momentum = this.momentum.mul(retention * 0.98);
+        }
+
+        // Apply the momentum to actual movement if it's significant
+        if (!this.humanoid) return;
+        const momentumMagnitude = this.momentum.Magnitude;
+        if (momentumMagnitude > 0 && momentumMagnitude < 0.05) {
+            this.momentum = new Vector3();
+        }
+        this.humanoid.Move(this.momentum);
+    }
+
+    // Calculate target direction considering resistance to direction changes
+    private calculateTargetDirection(): void {
+        // Store intended direction separately
+        this.intendedDirection = this.walkingDirection.Unit;
+
+        if (this.velocity.Magnitude > this.maxWalkSpeed * 0.3) {
+            const resistanceFactor = math.min(
+                this.velocity.Magnitude / (this.maxWalkSpeed * this.sprintMultiplier),
+                1
+            ) * this.movementConfig.directionChangeResistance;
+
+            const momentumDir = this.momentum.Magnitude > 0.1 ? this.momentum.Unit : this.facingDirection;
+            const dot = momentumDir.Dot(this.intendedDirection);
+            const angleFactor = (1 - dot) * resistanceFactor;
+            const blendFactor = math.clamp(angleFactor, 0, 0.9);
+
+            this.targetFacingDirection = this.intendedDirection.Lerp(
+                momentumDir,
+                blendFactor
+            ).Unit;
+        } else {
+            this.targetFacingDirection = this.intendedDirection;
         }
     }
 
@@ -224,23 +306,26 @@ export default class C {
     }
 
     // Safely interpolate between vectors
+    /**
+     * Performs a safe linear interpolation between two vectors.
+     * 
+     * This method handles edge cases such as invalid vectors or zero magnitude results.
+     * It ensures the interpolation alpha is clamped between 0 and 1, and returns a unit vector.
+     * 
+     * @param v1 - The starting vector
+     * @param v2 - The ending vector
+     * @param alpha - The interpolation factor (will be clamped to [0,1])
+     * @returns A unit vector representing the interpolated direction, or Vector3(0,0,-1) if the result would be invalid
+     */
     private safeLerp(v1: Vector3, v2: Vector3, alpha: number): Vector3 {
         // First ensure both vectors are valid
         if (!this.isValidVector(v1) || !this.isValidVector(v2)) {
             return new Vector3(0, 0, -1);
         }
 
-        // Calculate angle between vectors
-        const dot = v1.Dot(v2);
-        const angleFactor = 1 - math.abs(dot); // 0 when vectors aligned, 1 when opposite
+        const safeAlpha = math.clamp(alpha, 0, 1);
+        let result = v1.Lerp(v2, safeAlpha);
 
-        // Adjust alpha based on angle - turn faster for bigger turns
-        const dynamicAlpha = math.clamp(alpha * (1 + angleFactor * 2), 0, 1);
-
-        // Use the dynamic alpha for interpolation
-        let result = v1.Lerp(v2, dynamicAlpha);
-
-        // Make sure result is valid
         if (!this.isValidVector(result)) {
             return new Vector3(0, 0, -1);
         }
@@ -520,29 +605,52 @@ export default class C {
         const humanoid = this.humanoid;
         const accelerationSpeed = this.accSpeed * (this.hurrying ? this.sprintMultiplier : 1);
 
-        // More reactive acceleration/deceleration
+        // Enhanced inertia for acceleration/deceleration
         if (currentSpeed < topSpeed) {
-            // Apply acceleration with a smooth curve for natural feel
+            // Apply acceleration with a more pronounced curve for natural feel
             const accelerationFactor = 1 - (currentSpeed / topSpeed);
-            const boostFactor = accelerationFactor * accelerationFactor; // Quadratic curve for initial boost
+
+            // Stronger initial acceleration boost with quadratic curve 
+            const boostFactor = accelerationFactor * accelerationFactor * 1.5;
+
+            // Calculate momentum alignment bonus - accelerate faster when moving in same direction
+            let alignmentBonus = 1.0;
+            if (this.velocity.Magnitude > 0.1 && this.walkingDirection.Magnitude > 0.1) {
+                const alignmentDot = this.velocity.Unit.Dot(this.walkingDirection.Unit);
+                // Bonus for moving in same direction, penalty for moving against momentum
+                alignmentBonus = math_map(alignmentDot, -1, 1, 0.5, 1.5);
+            }
 
             this.acc(math.min(
-                currentAcceleration + dt * accelerationSpeed * (1 + boostFactor),
+                currentAcceleration + dt * accelerationSpeed * (1 + boostFactor) * alignmentBonus,
                 this.maxAcc
             ));
         }
         else if (currentSpeed > topSpeed) {
-            // Calculate deceleration
-            const randomDeceleration = (dt * accelerationSpeed * (0.8 + math.random() * 0.4));
+            // Enhanced inertia-based deceleration
+            const inertiaFactor = math.min(1 + (currentSpeed / this.maxWalkSpeed), this.movementConfig.inertiaFactor);
+            const baseDelta = dt * accelerationSpeed * (0.8 + math.random() * 0.4);
+            const inertiaBasedDeceleration = baseDelta / inertiaFactor;
 
             if (intendOnMoving) {
-                // Gentle deceleration when still moving
-                this.acc(math.max(currentAcceleration - randomDeceleration, -0.1));
+                // Calculate direction change penalty
+                let directionChangePenalty = 1.0;
+                if (this.velocity.Magnitude > 0.1 && this.walkingDirection.Magnitude > 0.1) {
+                    const directionDot = this.velocity.Unit.Dot(this.walkingDirection.Unit);
+                    // Higher penalty when changing direction sharply
+                    directionChangePenalty = math_map(directionDot, -1, 1, 1.8, 0.7);
+                }
+
+                // Gentle deceleration when still moving, with direction change penalty
+                this.acc(math.max(
+                    currentAcceleration - (inertiaBasedDeceleration * directionChangePenalty),
+                    -0.1
+                ));
             }
             else {
-                // Stronger deceleration when stopping
+                // Stronger deceleration when stopping but still with inertia
                 this.acc(
-                    currentAcceleration - randomDeceleration * this.decelerateMultiplier
+                    currentAcceleration - (inertiaBasedDeceleration * this.decelerateMultiplier)
                 );
             }
         }
@@ -567,11 +675,12 @@ export default class C {
             );
         }
 
-        // Update nametag with debug info if present
+        // Update nametag with expanded debug info
         this.setNametag(
             `Speed: ${string.format("%.3f", humanoid.WalkSpeed)}/${string.format("%.1f", topSpeed)}` +
             `\nAcc: ${string.format("%.3f", this.acc())}` +
-            `\nVel: ${string.format("%.3f", this.velocity.Magnitude)}`
+            `\nVel: ${string.format("%.3f", this.velocity.Magnitude)}` +
+            `\nMomentum: ${string.format("%.2f", this.momentum.Magnitude)}`
         );
     }
 
@@ -588,21 +697,20 @@ export default class C {
         }
 
         const dir = direction.Unit;
+        // Store the raw intended direction
         this.walkingDirection = dir;
-        this.targetFacingDirection = dir;
+        this.intendedDirection = dir;
 
-        if (this.humanoid) {
-            this.humanoid.Move(dir);
-        } else {
-            warn(`[C: ${this.model.Name}] Cannot move - no humanoid found`);
-        }
+        // Target facing direction will be calculated in updateMovementPhysics
+        // with inertia and direction change resistance applied
+
+        // Move is now handled by updateMomentum to incorporate inertia
     }
 
     protected stopMoving() {
         this.walkingDirection = new Vector3();
-        if (this.humanoid) {
-            this.humanoid.Move(new Vector3());
-        }
+        this.intendedDirection = new Vector3();
+        // Momentum will gradually decay in updateMomentum
     }
 
     public destroy() {
