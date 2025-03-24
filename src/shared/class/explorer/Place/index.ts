@@ -2,11 +2,14 @@ import { Workspace } from "@rbxts/services";
 import { PlaceName } from "shared/const";
 import { locationFolder } from "shared/const/assets";
 import { PlaceConfig } from "shared/types/explorer-types";
+import { newTouched } from "shared/utils";
 import NPC from "../NPC";
 import { NPCConfig } from "../NPC/types";
 import PC from "../PC";
 import IndoorLocation from "./Indoors";
-import { IndoorLocationName } from "./Indoors/types";
+import { DEBUG_PORTALS, IndoorLocationName } from "./Indoors/types";
+
+// Debug flag to control logging across all portal-related classes
 
 export default class Place {
     private location: string;
@@ -17,8 +20,12 @@ export default class Place {
     private explorer?: PC;
     private indoorLocations = new Map<IndoorLocationName, IndoorLocation>();
     private currentIndoorLocation?: IndoorLocation;
-    private entranceEntryCount = new Map<string, number>();
+    private portalCooldowns = new Map<string, number>();
+    private portalCooldownDuration = 1; // 1 second cooldown
     private lastUsedPortal = "";
+    private entranceConnections = new Map<string, RBXScriptConnection>();
+    private playersInPortalZones = new Map<string, boolean>();
+    private entranceExitConnections = new Map<string, RBXScriptConnection>();
 
     public static GetPlace(placeName: PlaceName) {
         const spawnLocation = Workspace.WaitForChild("SpawnLocation") as SpawnLocation;
@@ -46,30 +53,37 @@ export default class Place {
     }
 
     private initiateInnerSpaceTouches() {
-        this.model.GetDescendants().forEach((desc) => {
-            if (desc.IsA('Part') && desc.Name === 'Entrance') {
-                const stringValue = desc.FindFirstChildOfClass('StringValue');
+        this.model.GetDescendants().forEach((part) => {
+            if (part.IsA('Part') && part.Name === 'Entrance') {
+                const stringValue = part.FindFirstChildOfClass('StringValue');
                 if (stringValue) {
                     const locationName = stringValue.Value as IndoorLocationName;
-                    print(`[Place] Found entrance string value: ${locationName}`);
+                    this.logDebug(`Found entrance to ${locationName}`);
 
                     const portalId = `outdoor_${locationName}`;
-                    this.entranceEntryCount.set(portalId, 0);
+                    this.portalCooldowns.set(portalId, 0);
+                    this.playersInPortalZones.set(portalId, false);
 
                     const indoorLocation = new IndoorLocation({
                         locationName,
-                        entranceLocation: desc.Position,
+                        entranceLocation: part.Position,
                         parentPlace: this,
                     });
 
                     this.indoorLocations.set(locationName, indoorLocation);
 
                     // Set up entrance teleport trigger
-                    desc.Touched.Connect((hit) => {
+                    const connection = newTouched(part, (hit) => {
                         if (this.explorer && hit.IsDescendantOf(this.explorer.getModel())) {
-                            this.handlePortalEntry(portalId, locationName);
+                            // Only trigger if player is not already in portal zone
+                            if (!this.playersInPortalZones.get(portalId)) {
+                                this.playersInPortalZones.set(portalId, true);
+                                this.handlePortalEntry(portalId, locationName);
+                                this.setupPortalExitDetection(part, portalId);
+                            }
                         }
-                    });
+                    })
+                    this.entranceConnections.set(portalId, connection);
                 }
                 else {
                     warn(`[Place] Entrance part does not have a string value`);
@@ -78,18 +92,55 @@ export default class Place {
         });
     }
 
+    private setupPortalExitDetection(portalPart: BasePart, portalId: string) {
+        // Clear any existing exit connection
+        if (this.entranceExitConnections.has(portalId)) {
+            this.entranceExitConnections.get(portalId)?.Disconnect();
+        }
+
+        // Create new exit detection
+        const exitConnection = portalPart.TouchEnded.Connect((hit) => {
+            if (!this.explorer) return;
+
+            if (hit.IsDescendantOf(this.explorer.getModel())) {
+                this.playersInPortalZones.set(portalId, false);
+                this.logDebug(`Player exited portal zone ${portalId}`);
+
+                // Reset portal cooldown once player has left the zone
+                this.portalCooldowns.set(portalId, 0);
+                if (this.lastUsedPortal === portalId) {
+                    this.lastUsedPortal = "";
+                }
+            }
+        });
+
+        this.entranceExitConnections.set(portalId, exitConnection);
+    }
+
     private handlePortalEntry(portalId: string, locationName: IndoorLocationName) {
         if (!this.explorer) return;
 
-        // Increase entry count for this portal
-        const entryCount = (this.entranceEntryCount.get(portalId) || 0) + 1;
-        this.entranceEntryCount.set(portalId, entryCount);
-        print(`[Place] Portal ${portalId} entry count: ${entryCount}`);
+        // Check if portal is on cooldown or if it was the last used portal
+        const now = tick();
+        const lastUsedTime = this.portalCooldowns.get(portalId) || 0;
 
-        // Only teleport on odd-numbered entries
-        // Also don't teleport if this was the last portal used (prevents double triggers)
-        if (entryCount % 2 === 1 && this.lastUsedPortal !== portalId) {
-            this.teleportToIndoorLocation(locationName, portalId);
+        if (now - lastUsedTime < this.portalCooldownDuration || this.lastUsedPortal === portalId) {
+            this.logDebug(`Portal ${portalId} ignored - on cooldown or last used`);
+            return;
+        }
+
+        // Set cooldown for this portal
+        this.portalCooldowns.set(portalId, now);
+        this.logDebug(`Portal ${portalId} activated`);
+
+        // Teleport the player
+        this.teleportToIndoorLocation(locationName, portalId);
+    }
+
+    // Helper method for debug logging
+    private logDebug(message: string) {
+        if (DEBUG_PORTALS) {
+            print(`[Place][${this.location}] ${message}`);
         }
     }
 
@@ -98,7 +149,7 @@ export default class Place {
 
         const indoorLocation = this.indoorLocations.get(locationName);
         if (!indoorLocation) {
-            warn(`[Place] Indoor location ${locationName} not found`);
+            warn(`[Place][${this.location}] Indoor location ${locationName} not found`);
             return;
         }
 
@@ -106,13 +157,11 @@ export default class Place {
         if (!explorerPosition) return;
 
         this.currentIndoorLocation = indoorLocation;
-
-        // Record that this portal was just used
         this.lastUsedPortal = portalId;
 
         // Teleport the explorer
         indoorLocation.enter(this.explorer.getModel(), explorerPosition);
-        print(`[Place] Teleported explorer to indoor location ${locationName}`);
+        this.logDebug(`Teleported explorer to indoor location ${locationName}`);
     }
 
     public exitIndoorLocation(fromPortalId: string) {
@@ -123,15 +172,18 @@ export default class Place {
 
         // Teleport back
         this.currentIndoorLocation.exit(this.explorer.getModel());
-        print(`[Place] Explorer exited indoor location`);
+        this.logDebug(`Explorer exited indoor location`);
         this.currentIndoorLocation = undefined;
     }
 
     public resetPortalState() {
-        this.entranceEntryCount.forEach((_, key) => {
-            this.entranceEntryCount.set(key, 0);
+        this.portalCooldowns.forEach((_, key) => {
+            this.portalCooldowns.set(key, 0);
         });
         this.lastUsedPortal = "";
+        this.playersInPortalZones.forEach((_, key) => {
+            this.playersInPortalZones.set(key, false);
+        });
     }
 
     public destroy() {
@@ -140,6 +192,8 @@ export default class Place {
 
         this.NPCs.forEach(npc => npc.destroy());
         this.indoorLocations.forEach(location => location.destroy());
+        this.entranceConnections.forEach(connection => connection.Disconnect());
+        this.entranceExitConnections.forEach(connection => connection.Disconnect());
         this.model.Destroy();
     }
 

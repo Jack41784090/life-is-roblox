@@ -651,3 +651,71 @@ export function getDirectionFromEnumKeyCode(keycode: Enum.KeyCode, relativeCam: 
 export function math_map(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
     return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
 }
+
+export function getPartsInArea(part: BasePart): BasePart[] {
+    const overlapParams = new OverlapParams();
+    overlapParams.FilterType = Enum.RaycastFilterType.Exclude;
+    overlapParams.FilterDescendantsInstances = [part];
+
+    // Get parts in the area of this part
+    const partsInArea = Workspace.GetPartBoundsInBox(
+        part.CFrame,
+        part.Size,
+        overlapParams
+    );
+
+    return partsInArea;
+}
+
+export function newTouched(sensitivePart: BasePart, callBack: (hit: BasePart) => void) {
+    return RunService.RenderStepped.Connect((deltaTime) => {
+        const partsInArea = getPartsInArea(sensitivePart);
+        for (const part of partsInArea) {
+            if (part.Parent && part.Parent.IsA("Model")) {
+                callBack(part);
+            }
+        }
+    });
+}
+
+/**
+ * Visualizes a position in the world with a temporary part for debugging purposes
+ * @param position The world position to visualize
+ * @param color Optional color for the marker (default is red)
+ * @param duration How long the marker should remain visible (default 5 seconds)
+ */
+export function visualizePosition(position: Vector3, color: Color3 = new Color3(1, 0, 0), duration: number = 5) {
+    const marker = new Instance("Part");
+    marker.Anchored = true;
+    marker.CanCollide = false;
+    marker.Size = new Vector3(0.5, 0.5, 0.5);
+    marker.Position = position;
+    marker.Material = Enum.Material.Neon;
+    marker.BrickColor = new BrickColor(color);
+    marker.Transparency = 0.5;
+    marker.Shape = Enum.PartType.Ball;
+    marker.Parent = Workspace;
+
+    // Add a billboardgui with position info
+    const billboardGui = new Instance("BillboardGui");
+    billboardGui.Size = new UDim2(0, 200, 0, 50);
+    billboardGui.StudsOffset = new Vector3(0, 1, 0);
+    billboardGui.AlwaysOnTop = true;
+    billboardGui.Parent = marker;
+
+    const textLabel = new Instance("TextLabel");
+    textLabel.Size = UDim2.fromScale(1, 1);
+    textLabel.BackgroundTransparency = 1;
+    textLabel.TextColor3 = new Color3(1, 1, 1);
+    textLabel.Text = `X: ${math.floor(position.X)} Y: ${math.floor(position.Y)} Z: ${math.floor(position.Z)}`;
+    textLabel.TextSize = 14;
+    textLabel.Font = Enum.Font.GothamMedium;
+    textLabel.Parent = billboardGui;
+
+    // Remove after duration
+    task.delay(duration, () => {
+        marker.Destroy();
+    });
+
+    return marker;
+}

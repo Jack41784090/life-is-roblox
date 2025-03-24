@@ -1,9 +1,12 @@
 import Place from "..";
 
-export type IndoorLocationName = 'entrance1'
+export const DEBUG_PORTALS = true;
+
+export type IndoorLocationName = string;
 
 export interface IndoorLocationConfig {
     locationName: IndoorLocationName;
     entranceLocation: Vector3;
-    parentPlace?: Place,
+    parentPlace: Place;
 }
+
