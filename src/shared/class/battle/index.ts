@@ -1,9 +1,9 @@
 import { RunService } from "@rbxts/services";
 import { MOVEMENT_COST } from "shared/const";
-import remotes from "shared/remote";
 import { ActionType, ActionValidator, Config, MoveAction } from "shared/types/battle-types";
 import { warnWrongSideCall } from "shared/utils";
 import { IDGenerator } from "../IDGenerator";
+import { NetworkService } from "./Network/NetworkService";
 import State from "./State";
 
 class Battle {
@@ -18,6 +18,7 @@ class Battle {
     }
 
     private state: State;
+    private networkService: NetworkService;
 
     private constructor(config: Partial<Config>) {
         print(`Creation of Battle with config: `, config)
@@ -27,25 +28,30 @@ class Battle {
             worldCenter: config.worldCenter ?? new Vector3(),
             teamMap: config.teamMap,
         });
+
+        this.networkService = new NetworkService();
+
         this.state.getAllPlayers().forEach(p => {
             print(`Initialising ClientSide for ${p.Name}`)
-            remotes.battle.createClient(p, config);
+            this.networkService.createClientBattle(p, config);
         })
         this.setUpRemotes();
         this.round();
     }
 
     private setUpRemotes() {
-        remotes.battle.requestSync.map.onRequest(p => {
-            const gi = this.state.gridInfo();
-            return gi;
-        })
-        remotes.battle.requestSync.team.onRequest(p => {
+        // Use NetworkService instead of direct remote access
+        this.networkService.onGridStateRequest(p => {
+            return this.state.gridInfo();
+        });
+
+        this.networkService.onTeamStateRequest(p => {
             return this.state.teamInfo();
-        })
-        remotes.battle.requestSync.state.onRequest(p => {
+        });
+
+        this.networkService.onGameStateRequest(p => {
             return this.state.info();
-        })
+        });
     }
 
     private validate({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator) {
@@ -130,15 +136,17 @@ class Battle {
         print(`2. Updating UI for all`)
         players.forEach(p => {
             if (p.UserId === winningClient.UserId) {
-                remotes.battle.chosen(p);
+                this.networkService.notifyPlayerChosen(p);
             }
             else {
-                remotes.battle.ui.mount.otherPlayersTurn(p);
+                this.networkService.mountOtherPlayersTurn(p);
             }
         });
 
         const accessCode = IDGenerator.generateID();
-        remotes.battle.requestToAct.onRequest(p => {
+
+        // Use NetworkService for handling remote requests
+        this.networkService.onActRequest(p => {
             try {
                 this.validateActionRequest({ winningClient, requestClient: p })
                 return { userId: p.UserId, allowed: true, token: accessCode }
@@ -146,10 +154,11 @@ class Battle {
             catch (e) {
                 return { userId: p.UserId, allowed: false }
             }
-        })
+        });
 
         let endPromiseResolve: (p: Player) => void;
-        remotes.battle.act.onRequest((actingPlayer, access) => {
+
+        this.networkService.onActionExecution((actingPlayer, access) => {
             print(`Received action request from ${actingPlayer.Name}`, access)
 
             // 1. Validate
@@ -172,12 +181,11 @@ class Battle {
             }
             else {
                 this.state.commit(access.action!);
-                players.forEach(p => remotes.battle.animate(p, access))
+                players.forEach(p => this.networkService.sendAnimationToPlayer(p, access));
             }
 
-
             // 3. Update all players
-            players.forEach(p => remotes.battle.forceUpdate(p));
+            players.forEach(p => this.networkService.forceClientUpdate(p));
 
             // 4. Check if pos of actingPlayer (cre) is below 75% and end round
             const cre = this.state.findEntity(actingPlayer.UserId);
@@ -195,11 +203,12 @@ class Battle {
                 token: accessCode,
                 action: access.action,
             }
-        })
+        });
 
-        const endPromise = new Promise((resolve) => {
+        const endPromise = new Promise<Player>((resolve) => {
             endPromiseResolve = resolve;
-            remotes.battle.end.promise((p, s) => {
+
+            this.networkService.onTurnEnd((p, s) => {
                 try {
                     this.validateEnd({
                         client: p,
@@ -217,8 +226,8 @@ class Battle {
             }).then((p) => {
                 print(`End promise resolved`, p)
                 resolve(p);
-            })
-        })
+            });
+        });
 
         await endPromise;
         print("Promise resolved", endPromise)

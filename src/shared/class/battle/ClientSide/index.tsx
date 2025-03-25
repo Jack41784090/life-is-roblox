@@ -241,7 +241,7 @@ export default class ClientSide {
         const state = this.state;
         const players = state.getAllPlayers();
         for (const p of players) {
-            const e = state.findEntityByPlayerID(p.UserId);
+            const e = state.findEntity(p.UserId);
             if (e) {
                 crMap[e.playerID] = crMap[e.playerID] ?? atom(e.get('pos'))
             }

@@ -1,11 +1,10 @@
-import { t } from "@rbxts/t";
-import { MOVEMENT_COST } from "shared/const";
-import { ActionType, AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, PlayerID, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
+import { AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, PlayerID, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
 import { ActiveAbility } from "./Ability";
 import { ActiveAbilityState } from "./Ability/types";
 import Entity from "./Entity";
 import { EntityInit, EntityState, EntityStats, EntityUpdate } from "./Entity/types";
+import { GameState } from "./GameState";
 import HexCell from "./Hex/Cell";
 import HexGrid from "./Hex/Grid";
 import Team from "./Team";
@@ -16,31 +15,35 @@ type PositionEntityTuple = {
 }
 
 export default class State {
+    // Internal GameState instance that will handle most of the functionality
+    private gameState: GameState;
+
+    // Legacy properties kept for backward compatibility
     creID: number | undefined;
     private participantMap: Map<number, PositionEntityTuple> = new Map();
     private teams: Team[] = [];
     grid: HexGrid;
 
-    constructor({ width, worldCenter, teamMap }: StateConfig) {
+    constructor(config: StateConfig) {
+        // Create the new GameState
+        this.gameState = new GameState(config);
+
+        // Keep legacy initialization for backward compatibility
         this.grid = new HexGrid({
-            radius: math.floor(width / 2),
-            center: new Vector2(worldCenter.X, worldCenter.Z),
+            radius: math.floor(config.width / 2),
+            center: new Vector2(config.worldCenter.X, config.worldCenter.Z),
             size: TILE_SIZE,
             name: "BattleGrid",
         });
-        this.initialiseNumbers(teamMap);
+        this.initialiseNumbers(config.teamMap);
     }
 
     public createEntity(team: string, e: EntityInit) {
-        const entity = new Entity(e);
-        const teamObj = this.teams.find(t => t.name === team);
-        if (teamObj) {
-            teamObj.addMembers(entity);
-        } else {
-            warn(`Team [${team}] not found`);
-        }
+        // Delegate to GameState
+        const entity = this.gameState.createEntity(team, e);
+
+        // Update legacy data structures for backward compatibility
         this.participantMap.set(e.playerID, { qr: e.qr, entity });
-        this.setCell(entity, e.qr);
 
         return entity;
     }
@@ -50,51 +53,49 @@ export default class State {
     public setCell(entity: Entity, qr: Vector3): void;
     public setCell(entity: Entity, cell: HexCell): void;
     public setCell(entity: Entity, X: number | Vector2 | Vector3 | HexCell, Y?: number): void {
-        let cell: HexCell | undefined;
+        // Delegate to GameState
         if (typeIs(X, "number") && typeIs(Y, "number")) {
-            cell = this.grid.getCell(new Vector2(X, Y));
+            this.gameState.setCell(entity, X, Y);
         } else if (typeIs(X, "Vector2")) {
-            cell = this.grid.getCell(X);
+            this.gameState.setCell(entity, X);
         } else if (typeIs(X, "Vector3")) {
-            cell = this.grid.getCell(new Vector2(X.X, X.Y));
+            this.gameState.setCell(entity, new Vector2(X.X, X.Y));
         } else {
-            cell = X as HexCell;
-        }
-        if (!cell) {
-            warn(`Cell [${X}, ${Y}] not found`);
-            return;
+            this.gameState.setCell(entity, X as HexCell);
         }
 
-        this.participantMap.set(entity.playerID, { qr: cell.qr(), entity })
-        entity.setCell(cell.qr());
-        cell.pairWith(entity);
+        // Update legacy participantMap
+        this.participantMap.set(entity.playerID, { qr: entity.qr!, entity });
     }
 
     //#region Syncronisation
     public teamInfo(): TeamState[] {
-        return this.teams.map((team) => ({
-            name: team.name,
-            members: team.members.map((entity) => entity.state()),
-        }));
+        // Delegate to team manager via GameState
+        return this.gameState.getTeamManager().getTeamState();
     }
 
     public gridInfo() {
-        return this.grid.info();
+        // Delegate to grid manager via GameState
+        return this.gameState.getGridState();
     }
 
     public info(): StateState {
-        return {
-            cre: this.creID,
-            grid: this.gridInfo(),
-            teams: this.teamInfo(),
-        };
+        // Delegate to GameState
+        return this.gameState.getInfo();
     }
 
     private syncGrid(grid: HexGridState) {
+        // Delegate to grid manager via GameState
+        this.gameState.getGridManager().updateGrid(grid);
+        // Update legacy grid
         this.grid.update(grid);
     }
 
     private syncTeams(newTeamsStates: TeamState[]) {
+        // Delegate to team manager via GameState
+        this.gameState.getTeamManager().updateTeams(newTeamsStates);
+
+        // Handle legacy team sync (kept for backward compatibility)
         const ourTeams = this.teams;
         for (const newTeamState of newTeamsStates) {
             const existingTeam = ourTeams.find(t => t.name === newTeamState.name);
@@ -103,6 +104,7 @@ export default class State {
                     const updatingEntityState = newTeamState.members.find((e) => e.playerID === entity.playerID);
                     if (updatingEntityState) {
                         this.syncOneEntity(entity, updatingEntityState);
+                        return undefined;
                     }
                 }
             }
@@ -115,6 +117,10 @@ export default class State {
     }
 
     public syncOneEntity(e: Entity, updateInfo: EntityUpdate) {
+        // Delegate entity update to entity manager via GameState
+        this.gameState.getEntityManager().updateEntity(updateInfo.playerID, updateInfo);
+
+        // Legacy implementation for backward compatibility
         e.update(updateInfo);
         if (this.participantMap.get(updateInfo.playerID) === undefined) {
             this.participantMap.set(updateInfo.playerID, {
@@ -127,6 +133,10 @@ export default class State {
     public sync(other: Partial<StateState>) {
         print(`Syncing state with`, other);
 
+        // Delegate to GameState
+        this.gameState.sync(other);
+
+        // Legacy sync implementation
         // 1. Update grid
         if (other.grid) this.syncGrid(other.grid);
 
@@ -141,54 +151,63 @@ export default class State {
 
     public commit(action: BattleAction) {
         print(`Committing action`, action);
-        switch (action.type) {
-            case ActionType.Attack:
-                const aAction = action as AttackAction;
-                const clashResult = this.clash(action as AttackAction);
-                aAction.clashResult = clashResult;
-                return this.applyClash(aAction);
-            case ActionType.Move:
-                assert(t.interface({
-                    from: t.Vector2,
-                    to: t.Vector2,
-                })(action), "Invalid move action");
-                return this.move(action as MoveAction);
-            default:
-                warn("Invalid action type", action.type);
-        }
+
+        // Delegate to GameState
+        return this.gameState.commit(action);
+
+        // Legacy implementation kept for reference
+        // switch (action.type) {
+        //     case ActionType.Attack:
+        //         const aAction = action as AttackAction;
+        //         const clashResult = this.clash(action as AttackAction);
+        //         aAction.clashResult = clashResult;
+        //         return this.applyClash(aAction);
+        //     case ActionType.Move:
+        //         assert(t.interface({
+        //             from: t.Vector2,
+        //             to: t.Vector2,
+        //         })(action), "Invalid move action");
+        //         return this.move(action as MoveAction);
+        //     default:
+        //         warn("Invalid action type", action.type);
+        // }
     }
 
     public move(moveAction: MoveAction) {
-        const { from, to } = moveAction;
-        const fromCell = this.grid.getCell(from);
-        const toCell = this.grid.getCell(to);
-        if (!toCell) {
-            warn("No to cell found");
-            return;
-        }
-        const fromEntityID = fromCell?.entity;
-        const toEntityID = toCell?.entity;
-        if (!fromEntityID) {
-            warn("No entity found in from cell");
-            return;
-        }
-        if (toEntityID) {
-            warn("Entity already present in to cell");
-            return;
-        }
-        const fromEntity = this.findEntity(fromEntityID);
-        if (!fromEntity) {
-            warn("Invalid entity ID");
-            return;
-        }
+        // Delegate to GameState
+        return this.gameState.move(moveAction);
 
-        const distance = this.findDistance(from, to);
-        const costOfMovement = distance * MOVEMENT_COST;
-        fromCell.entity = undefined;
-        const movingEntity = this.participantMap.get(fromEntityID)?.entity;
-        assert(movingEntity, "invalid fromEntityID leads to undefined movingEntity in state.move");
-        movingEntity.set('pos', movingEntity.get('pos') - costOfMovement);
-        return this.setCell(fromEntity, toCell);
+        // Legacy implementation kept for reference
+        // const { from, to } = moveAction;
+        // const fromCell = this.grid.getCell(from);
+        // const toCell = this.grid.getCell(to);
+        // if (!toCell) {
+        //     warn("No to cell found");
+        //     return;
+        // }
+        // const fromEntityID = fromCell?.entity;
+        // const toEntityID = toCell?.entity;
+        // if (!fromEntityID) {
+        //     warn("No entity found in from cell");
+        //     return;
+        // }
+        // if (toEntityID) {
+        //     warn("Entity already present in to cell");
+        //     return;
+        // }
+        // const fromEntity = this.findEntity(fromEntityID);
+        // if (!fromEntity) {
+        //     warn("Invalid entity ID");
+        //     return;
+        // }
+
+        // const distance = this.findDistance(from, to);
+        // const costOfMovement = distance * MOVEMENT_COST;
+        // fromCell.entity = undefined;
+        // const movingEntity = this.participantMap.get(fromEntityID)?.entity;
+        // assert(movingEntity, "invalid fromEntityID leads to undefined movingEntity in state.move");
+        // movingEntity.set('pos', movingEntity.get('pos') - costOfMovement);
+        // return this.setCell(fromEntity, toCell);
     }
 
     private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
@@ -391,12 +410,15 @@ export default class State {
     public findEntity(qr: Vector2): Entity | undefined;
     public findEntity(playerID: number): Entity | undefined
     public findEntity(qr: Vector2 | number | Vector3): Entity | undefined {
-        // const allEntities = this.getAllEntities();
+        if (typeIs(qr, 'number')) {
+            // Delegate to GameState
+            return this.gameState.getEntity(qr);
+        }
+
+        // Legacy implementation for positions
         let condition: (entity: Entity) => boolean;
         if (typeIs(qr, 'Vector2') || typeIs(qr, 'Vector3')) {
             condition = (entity) => entity.qr !== undefined && entity.qr.X === qr.X && entity.qr.Y === qr.Y;
-        } else if (typeIs(qr, 'number')) {
-            return this.findEntityByPlayerID(qr);
         }
 
         for (const t of this.teams) {
@@ -405,9 +427,6 @@ export default class State {
         }
     }
 
-    public findEntityByPlayerID(playerID: number): Entity | undefined {
-        return this.participantMap.get(playerID)?.entity;
-    }
 
     public findDistance(a: Vector2, b: Vector2): number
     public findDistance(a: HexCell, b: HexCell): number
@@ -417,7 +436,8 @@ export default class State {
     }
 
     public getCell(qr: Vector2): HexCell | undefined {
-        return this.grid.getCell(qr);
+        // Delegate to GameState
+        return this.gameState.getGridManager().getCell(qr);
     }
 
     public getAllEntities() {
@@ -442,20 +462,13 @@ export default class State {
     }
 
     public getCREPosition() {
-        if (!this.creID) {
-            warn("CRE ID not found");
-            return undefined;
-        }
-        const cre = this.findEntity(this.creID);
-        return cre?.qr;
+        // Delegate to GameState
+        return this.gameState.getCREPosition();
     }
 
     public getCRE() {
-        if (!this.creID) {
-            warn("CRE ID not found");
-            return undefined;
-        }
-        return this.findEntity(this.creID);
+        // Delegate to GameState
+        return this.gameState.getCRE();
     }
     //#endregion
 

@@ -44,6 +44,7 @@ export type EntityState = EntityInitHardRequirements & {
     qr?: Vector2;
     stance: EntityStance;
 }
+export type ReadonlyEntityState = Readonly<EntityState>;
 export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & {
     playerID: number;
 }
