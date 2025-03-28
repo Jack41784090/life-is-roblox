@@ -9,6 +9,8 @@
 		"editor.defaultFormatter": "vscode.typescript-language-features",
 		"editor.formatOnSave": true
 	},
+	"github.copilot.selectedCompletionModel": "claude-3-opus-latest",
 	"eslint.run": "onType",
-	"eslint.format.enable": true
+	"eslint.format.enable": true,
+	"stylua.targetReleaseVersion": "latest"
 }
