@@ -1,6 +1,11 @@
+import Logger from "shared/utils/Logger";
+
 export class Hex {
+    private static logger = Logger.createContextLogger("Hex");
+
     constructor(public q: number, public r: number, public s: number) {
-        if (math.round(q + r + s) !== 0) throw "q + r + s must be 0";
+        if (math.round(q + r + s) !== 0)
+            Hex.logger.error("q + r + s must be 0");
     }
 
     public add(b: Hex): Hex {
@@ -100,6 +105,8 @@ class Orientation {
 }
 
 export class Layout {
+    private static logger = Logger.createContextLogger("Layout");
+
     constructor(public orientation: Orientation, public size: Vector2, public origin: Vector2) { }
     public static pointy: Orientation = new Orientation(math.sqrt(3.0), math.sqrt(3.0) / 2.0, 0.0, 3.0 / 2.0, math.sqrt(3.0) / 3.0, -1.0 / 3.0, 0.0, 2.0 / 3.0, 0.5);
     public static flat: Orientation = new Orientation(3.0 / 2.0, 0.0, math.sqrt(3.0) / 2.0, math.sqrt(3.0), 2.0 / 3.0, 0.0, -1.0 / 3.0, math.sqrt(3.0) / 3.0, 0.0);

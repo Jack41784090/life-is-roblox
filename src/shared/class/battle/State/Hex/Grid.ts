@@ -2,10 +2,12 @@ import { RunService } from "@rbxts/services";
 import { QR } from "shared/class/XY";
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain, HexCellState, HexGridConfig, HexGridState } from "shared/types/battle-types";
+import Logger from "shared/utils/Logger";
 import HexCell from "./Cell";
 import { Hex, Layout } from "./Layout";
 
 export default class HexGrid {
+    private logger = Logger.createContextLogger("HexGrid");
     model?: Model;
 
     layout: Layout;
@@ -21,7 +23,7 @@ export default class HexGrid {
         assert(size > 0, "Cell size must be a positive number.");
         assert(radius > 0, "Radius must be a positive number.");
 
-        print("Creating grid with", config);
+        this.logger.info("Creating grid with", config);
 
         this.radius = radius;
         this.center = center;
@@ -53,7 +55,7 @@ export default class HexGrid {
      * that define the hexagonal grid structure. Model is not yet initialised.
      */
     public initialise() {
-        print("Initialising grid", this);
+        this.logger.info("Initialising grid", this);
         const grid = this;
         const radius = this.radius;
 
@@ -89,7 +91,7 @@ export default class HexGrid {
             cell.update(config)
         }
         else {
-            warn(`Cell Update failed: invalid qr(${q},${r})`);
+            this.logger.warn(`Cell Update failed: invalid qr(${q},${r})`);
         }
     }
 
@@ -122,8 +124,9 @@ export default class HexGrid {
      * @param config 
      */
     public update(config: Partial<HexGridState>) {
-        print("Updating grid with ", config);
+        // this.logger.info("Updating grid with ", config);
         for (const [x, y] of pairs(config)) {
+            if (x === 'cellsMap') continue; // cellsMap is not a property of the grid, but a derived property
             if (typeOf(y) === typeOf(this[x])) this[x as keyof this] = y as unknown as any;
         }
 
@@ -180,7 +183,7 @@ export default class HexGrid {
         }
 
         const cell = this.cellsQR.get(x, y);
-        // print("Getting cell at", x, y, cell, this.cellsQR);
+        // this.logger.debug("Getting cell at", x, y, cell, this.cellsQR);
 
         return cell
     }
@@ -191,7 +194,10 @@ export default class HexGrid {
             radius: this.radius,
             size: this.size,
             name: this.name,
-            cells: this.cells.map(c => c.info())
+            cells: this.cells.map(c => c.info()),
+            cellsMap: new Map(this.cells.map(c => {
+                return [c.qr(), c.info()]
+            })),
         }
     }
     //#endregion

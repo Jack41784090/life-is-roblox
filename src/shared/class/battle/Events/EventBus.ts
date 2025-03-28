@@ -1,9 +1,28 @@
 type EventCallback = (...args: unknown[]) => void;
 
+// Add an enum for game event names to ensure consistency
+export enum GameEvent {
+    // Entity events
+    ENTITY_CREATED = "entity:created",
+    ENTITY_UPDATED = "entity:updated",
+    ENTITY_REMOVED = "entity:removed",
+
+    // Turn events
+    TURN_STARTED = "turn:started",
+    TURN_ENDED = "turn:ended",
+    READINESS_UPDATED = "readiness:updated",
+    NEXT_ACTOR_DETERMINED = "next:actor:determined",
+
+    // Grid Events
+    GRID_UPDATED = "grid:updated",
+    GRID_CELL_UPDATED = "grid:cell:updated",
+    GRID_CELL_REMOVED = "grid:cell:removed",
+}
+
 export class EventBus {
     private events: Map<string, Set<EventCallback>> = new Map();
 
-    public subscribe(eventName: string, callback: EventCallback): () => void {
+    public subscribe(eventName: GameEvent, callback: EventCallback): () => void {
         if (!this.events.has(eventName)) {
             this.events.set(eventName, new Set());
         }
@@ -13,13 +32,13 @@ export class EventBus {
 
         return () => {
             callbacks.delete(callback);
-            if (callbacks.size() === 0) {
+            if (callbacks.size() === 0) { // Fixed: size is a property, not a method
                 this.events.delete(eventName);
             }
         };
     }
 
-    public emit(eventName: string, ...args: unknown[]): void {
+    public emit(eventName: string, ...args: defined[]): void {
         const callbacks = this.events.get(eventName);
         if (callbacks) {
             for (const callback of callbacks) {

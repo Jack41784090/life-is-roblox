@@ -10,8 +10,8 @@ import remotes from "shared/remote";
 import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
 import { calculateRealityValue } from "shared/utils";
 import Pathfinding from "../Pathfinding";
-import State from "../State";
 import Entity from "../State/Entity";
+import { GameState } from "../State/GameState";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import EntityCellGraphicsTuple from "./EHCG/Tuple";
@@ -41,12 +41,12 @@ export default class Gui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
+    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: GameState, EHCGMS: EntityHexCellGraphicsMothership }): void;
     updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
     updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
         print(`Updating main UI with mode: ${mode}`, props);
         const localPlayerID = Players.LocalPlayer.UserId;
-        const localEntity = props.state?.findEntity(localPlayerID);
+        const localEntity = props.state?.getEntity(localPlayerID);
         const hpBar = localEntity ?
             <HPBar hp={localEntity.getState('hip')} maxHP={calculateRealityValue(Reality.HP, localEntity.stats)} /> : undefined;
         const { readinessIcons, state, EHCGMS, accessToken } = props;
@@ -179,11 +179,11 @@ export default class Gui {
     private handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
         const currentQR = state.getCREPosition();
         assert(currentQR, "[handleCellEnter] Current QR is not defined");
-        const currentCell = state.grid.getCell(currentQR);
+        const currentCell = state.getCell(currentQR);
         assert(currentCell, "[handleCellEnter] Current cell is not defined");
-        const oe = state.findEntity(tuple.cellGraphics.qrs);
+        const oe = state.getEntity(tuple.cellGraphics.qr);
         const oeG = tuple.entityGraphics
-        const cre = state.findEntity(currentQR);
+        const cre = state.getEntity(currentQR);
         assert(cre, `[handleCellEnter] Entity is not defined @${currentQR}`);
         const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics;
         if (!creG) {
@@ -198,14 +198,16 @@ export default class Gui {
             const ability = cre.getEquippedAbilitySet()[cre.armed];
             const glowHexCells = [] as HexCellGraphics[];
             if (ability) {
-                if (state.grid.getCell(oe.qr)?.isWithinRangeOf(currentCell, ability.range)) {
+                if (state.getCell(oe.qr)?.isWithinRangeOf(currentCell, ability.range)) {
                     mouse.Icon = DECAL_WITHINRANGE;
                 }
                 else {
                     mouse.Icon = DECAL_OUTOFRANGE;
                 }
                 const inrange = currentCell.findCellsWithinRange(ability.range);
-                inrange.mapFiltered((cell) => EHCGMS.positionTuple(cell.qr())).forEach(t => glowHexCells.push(t.cellGraphics))
+                inrange
+                    .mapFiltered(cell => EHCGMS.positionTuple(cell.qr()))
+                    .forEach(t => glowHexCells.push(t.cellGraphics))
             }
             else {
                 mouse.Icon = '';
@@ -216,7 +218,7 @@ export default class Gui {
             // Hovering over an empty cell / CRE has no ability selected
             mouse.Icon = ''
             const pf = new Pathfinding({
-                grid: state.grid,
+                grid: state.getGridState(),
                 start: currentCell.qr(),
                 dest: tuple.cellGraphics.qr,
                 // limit: math.floor(cre.get('pos') / MOVEMENT_COST),
@@ -242,7 +244,7 @@ export default class Gui {
         print("Cell clicked", clickedtuple);
         if (clickedtuple.entityGraphics) {
             print(props.state)
-            const clickedOnEntity = props.state.findEntity(clickedtuple.cellGraphics.qr);
+            const clickedOnEntity = props.state.getEntity(clickedtuple.cellGraphics.qr);
             assert(clickedOnEntity, "Clicked on entity is not defined");
             this.clickedOnEntity(props, clickedOnEntity, props.accessToken);
         }
@@ -319,7 +321,7 @@ export default class Gui {
             from: start,
         } as MoveAction;
         if (readinessIcon) {
-            const distance = mainUIConfig.state.findDistance(start, dest);
+            const distance = mainUIConfig.state.getDistance(start, dest);
             print(`localreadinessIcon: ${readinessIcon()} => ${readinessIcon() - distance * MOVEMENT_COST}`);
             readinessIcon(readinessIcon() - distance * MOVEMENT_COST)
         }

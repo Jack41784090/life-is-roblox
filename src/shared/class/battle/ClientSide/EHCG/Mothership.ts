@@ -3,12 +3,14 @@ import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { QR } from "shared/class/XY";
 import { HexGridState, PlayerID, TeamState } from "shared/types/battle-types";
 import { getModelTemplateByID } from "shared/utils";
+import Logger from "shared/utils/Logger";
 import Entity from "../../State/Entity";
 import EntityGraphics from "../../State/Entity/Graphics";
 import { EntityState } from "../../State/Entity/types";
 import HexGrid from "../../State/Hex/Grid";
 
 export default class EntityHexCellGraphicsMothership {
+    private logger = Logger.createContextLogger("EHCG-Mothership");
     private idTupleMap: Map<PlayerID, EntityCellGraphicsTuple> = new Map();
     private tupleQR: QR<EntityCellGraphicsTuple>;
     private height: number;
@@ -29,7 +31,7 @@ export default class EntityHexCellGraphicsMothership {
     addTuple(playerID: number, tuple: EntityCellGraphicsTuple) {
         this.idTupleMap.set(playerID, tuple);
         if (this.tupleQR.get(tuple.cellGraphics.qrs)) {
-            warn(`Tuple already exists at ${tuple.cellGraphics.qrs}`);
+            this.logger.warn(`Tuple already exists at ${tuple.cellGraphics.qrs}`);
         }
         else {
             this.tupleQR.set(tuple.cellGraphics.qrs, tuple);
@@ -112,7 +114,7 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     async syncGrid(hgs: HexGridState) {
-        print(`Graphically syncing grid`, hgs);
+        this.logger.info(`Graphically syncing grid`, hgs);
         const cells = hgs.cells;
         for (const c of cells) {
             const p = this.positionTuple(c.qr);
@@ -120,7 +122,7 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     async syncTeams(teamStates: TeamState[]) {
-        print(`Graphically syncing teams`, teamStates, this.idTupleMap);
+        this.logger.info(`Graphically syncing teams`, teamStates, this.idTupleMap);
         for (const teamState of teamStates) {
             for (const entityState of teamState.members) {
                 const newQR = entityState.qr;
@@ -129,17 +131,17 @@ export default class EntityHexCellGraphicsMothership {
 
                 // 1. entity updated his location => move the tuple to the new location
                 if (playerTuple) {
-                    print(`Existing: ${entityState.playerID} => ${newQR}`);
+                    this.logger.info(`Existing: ${entityState.playerID} => ${newQR}`);
                     const oldQR = playerTuple.cellGraphics.qr;
                     if (newQR === oldQR) {
-                        print(`||=> Player ${entityState.playerID} is already at ${newQR}`);
+                        this.logger.info(`||=> Player ${entityState.playerID} is already at ${newQR}`);
                         continue;
                     }
                     this.repositionPlayer(entityState.playerID, newQR);
                 }
                 // 2. entity is a new player => create a new tuple for him
                 else {
-                    print(`New player: ${entityState.playerID} => ${newQR}`);
+                    this.logger.info(`New player: ${entityState.playerID} => ${newQR}`);
                     this.positionNewPlayer(entityState, newQR);
                 }
             }
@@ -158,10 +160,10 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     repositionPlayer(playerID: PlayerID, newQR: Vector2) {
-        print(`Repositioning player ${playerID} to ${newQR}`);
+        this.logger.info(`Repositioning player ${playerID} to ${newQR}`);
         const playerTuple = this.idTupleMap.get(playerID);
         if (!playerTuple) {
-            warn(`Player tuple not found for ${playerID}`);
+            this.logger.warn(`Player tuple not found for ${playerID}`);
             return;
         }
         const entity = playerTuple.decouple()!;
@@ -171,11 +173,11 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     async moveEntity(start: Vector2, dest: Vector2) {
-        print(`Moving entity from ${start} to ${dest}`);
+        this.logger.info(`Moving entity from ${start} to ${dest}`);
         const tuple = this.tupleQR.get(start);
         const entity = tuple?.decouple();
         if (!entity) {
-            warn(`Entity not found at ${start}`);
+            this.logger.warn(`Entity not found at ${start}`);
             return;
         }
 

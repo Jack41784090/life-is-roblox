@@ -2,8 +2,10 @@ import TweenManager from "shared/class/battle/State/Entity/Graphics/TweenManager
 import { TWEEN_TIME } from "shared/const";
 import { HEXAGON } from "shared/const/assets";
 import { getTween } from "shared/utils";
+import Logger from "shared/utils/Logger";
 
 export default class HexCellGraphics {
+    private logger = Logger.createContextLogger("HexCellGraphics");
     private tweenManager: TweenManager = new TweenManager();
     public part: UnionOperation;
     public size = 4;
@@ -31,8 +33,7 @@ export default class HexCellGraphics {
         this.part.Material = Enum.Material.Pebble;
         this.part.Color = new Color3(1, 1, 1);
 
-
-        print(`Materialised cell ${this.qrs} at ${this.part.Position}`, this);
+        // this.logger.debug(`Materialised cell ${this.qrs} at ${this.part.Position}`, this);
     }
 
     public destroy() {

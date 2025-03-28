@@ -142,7 +142,7 @@ export default class Entity implements iEntity {
         }
     }
     public update(u: EntityUpdate) {
-        print(`Updating entity ${this.name} with`, u);
+        // print(`Updating entity ${this.name} with`, u);
         if (u.stats) this.updateStats(u.stats);
         for (const [k, v] of pairs(u)) {
             if (this[k as keyof this] === undefined) continue;

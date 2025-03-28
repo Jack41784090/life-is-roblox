@@ -36,7 +36,7 @@ export default class HexCell {
     }
 
     public update(config: Partial<HexCellState>) {
-        print(`Updating cell ${this.qrs} with config`, config);
+        // print(`Updating cell ${this.qrs} with config`, config);
         for (const [x, y] of pairs(config)) {
             if (typeOf(this[x as keyof this]) === typeOf(y)) {
                 this[x as keyof this] = y as unknown as any

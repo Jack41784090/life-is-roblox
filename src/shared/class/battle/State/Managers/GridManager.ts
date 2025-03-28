@@ -143,4 +143,9 @@ export class GridManager {
     }
 
     //#endregion
+
+    public getGrid() {
+        warn("[GridManager] getGrid() is deprecated, use getGridState() instead");
+        return this.grid;
+    }
 }

@@ -5,6 +5,10 @@ import Team from "../Team";
 export class TeamManager {
     private teams: Team[] = [];
 
+    constructor(teamMap: Record<string, Player[]>) {
+
+    }
+
     public createTeam(name: string): Team {
         const team = new Team(name, []);
         this.teams.push(team);
@@ -15,16 +19,22 @@ export class TeamManager {
         return this.teams.find(team => team.name === name);
     }
 
-    public addEntityToTeam(teamName: string, entity: Entity): boolean {
+    public addEntityToTeam(teamName: string, entity: Entity, createNew = true): boolean {
         const team = this.getTeam(teamName);
         if (team) {
             team.addMembers(entity);
+            return true;
+        }
+        else if (createNew) {
+            const newTeam = this.createTeam(teamName);
+            newTeam.addMembers(entity);
             return true;
         }
         return false;
     }
 
     public getTeamState(): TeamState[] {
+        warn("getTeamState is deprecated, use getTeamStates instead", this.teams);
         return this.teams.map(team => ({
             name: team.name,
             members: team.members.map(entity => entity.state()),

@@ -1,10 +1,12 @@
 import { RunService } from "@rbxts/services";
 import { MOVEMENT_COST } from "shared/const";
 import { ActionType, ActionValidator, Config, MoveAction } from "shared/types/battle-types";
-import { warnWrongSideCall } from "shared/utils";
+import { get2DManhattanDistance } from "shared/utils";
+import Logger from 'shared/utils/Logger';
 import { IDGenerator } from "../IDGenerator";
 import { NetworkService } from "./Network/NetworkService";
-import State from "./State";
+import { GameState } from "./State/GameState";
+import { TurnSystem } from "./Systems/TurnSystem";
 
 class Battle {
     public static Create(config: Partial<Config>) {
@@ -12,29 +14,32 @@ class Battle {
             return new Battle(config);
         }
         else {
-            warnWrongSideCall("Battle.Create")
+            Logger.error("Battle.Create can only be called on the server");
             return undefined;
         }
     }
 
-    private state: State;
+    private logger = Logger.createContextLogger("Battle");
+    private state: GameState;
     private networkService: NetworkService;
+    private turnSystem: TurnSystem;
 
     private constructor(config: Partial<Config>) {
-        print(`Creation of Battle with config: `, config)
-        assert(config.teamMap, "No team map provided")
-        this.state = new State({
+        this.logger.info(`Creation of Battle with config:`, config);
+        assert(config.teamMap, "No team map provided");
+        this.state = new GameState({
             width: config.width ?? 10,
             worldCenter: config.worldCenter ?? new Vector3(),
             teamMap: config.teamMap,
         });
 
         this.networkService = new NetworkService();
+        this.turnSystem = new TurnSystem(this.state);
 
         this.state.getAllPlayers().forEach(p => {
-            print(`Initialising ClientSide for ${p.Name}`)
+            this.logger.info(`Initialising ClientSide for ${p.Name}`);
             this.networkService.createClientBattle(p, config);
-        })
+        });
         this.setUpRemotes();
         this.round();
     }
@@ -42,35 +47,59 @@ class Battle {
     private setUpRemotes() {
         // Use NetworkService instead of direct remote access
         this.networkService.onGridStateRequest(p => {
-            return this.state.gridInfo();
+            this.logger.debug(`Grid state requested by ${p.Name}`);
+            return this.state.getGridState();
         });
 
         this.networkService.onTeamStateRequest(p => {
-            return this.state.teamInfo();
+            this.logger.debug(`Team state requested by ${p.Name}`);
+            return this.state.getTeamManager().getTeamState();
         });
 
         this.networkService.onGameStateRequest(p => {
-            return this.state.info();
+            this.logger.debug(`Game state requested by ${p.Name}`);
+            return this.state.getInfo();
         });
     }
 
     private validate({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator) {
-        const { token, action, allowed } = declaredAccess
+        const { token, action, allowed } = declaredAccess;
         const players = this.state.getAllPlayers();
 
-        assert(players.find(p => p.UserId === client.UserId), "Player not found")
-        assert(allowed, "Disallowed")
-        assert(token === trueAccessCode, "Invalid access code");
-        assert(action, "No action chosen");
-        assert(client.UserId === winningClient.UserId, "Not the winning player");
+        if (!players.find(p => p.UserId === client.UserId)) {
+            this.logger.error(`Validation failed: Player ${client.Name} (${client.UserId}) not found in battle`);
+            throw "Player not found";
+        }
 
+        if (!allowed) {
+            this.logger.error(`Validation failed: Action not allowed for player ${client.Name}`);
+            throw "Disallowed";
+        }
+
+        if (token !== trueAccessCode) {
+            this.logger.error(`Validation failed: Invalid access code provided by ${client.Name}`);
+            throw "Invalid access code";
+        }
+
+        if (!action) {
+            this.logger.error(`Validation failed: No action chosen by ${client.Name}`);
+            throw "No action chosen";
+        }
+
+        if (client.UserId !== winningClient.UserId) {
+            this.logger.error(`Validation failed: Player ${client.Name} attempted to act out of turn`);
+            throw "Not the winning player";
+        }
     }
 
     private validateActionRequest({ winningClient, requestClient }: {
         winningClient: Player,
         requestClient: Player,
     }) {
-        assert(winningClient.UserId === requestClient.UserId, "Not the winning player")
+        if (winningClient.UserId !== requestClient.UserId) {
+            this.logger.warn(`Action request validation failed: Player ${requestClient.Name} attempted to act out of turn`);
+            throw "Not the winning player";
+        }
         return true;
     }
 
@@ -84,22 +113,44 @@ class Battle {
         const fromCell = this.state.getCell(from);
         const toCell = this.state.getCell(to);
 
-        assert(fromCell, "No from cell found")
-        assert(toCell, "No to cell found")
+        if (!fromCell) {
+            this.logger.error(`Movement validation failed: No cell found at source position ${from}`);
+            throw "No from cell found";
+        }
+
+        if (!toCell) {
+            this.logger.error(`Movement validation failed: No cell found at target position ${to}`);
+            throw "No to cell found";
+        }
 
         const fromEntityID = fromCell.entity;
         const toEntityID = toCell.entity;
 
-        assert(fromEntityID, "No entity found in from cell")
-        assert(!toEntityID, "Entity already present in to cell")
+        if (!fromEntityID) {
+            this.logger.error(`Movement validation failed: No entity found in source cell at ${from}`);
+            throw "No entity found in from cell";
+        }
 
-        const fromEntity = this.state.findEntity(fromEntityID);
-        assert(fromEntity, "Invalid entity ID")
+        if (toEntityID) {
+            this.logger.error(`Movement validation failed: Cell at ${to} is already occupied`);
+            throw "Entity already present in to cell";
+        }
 
-        const costOfMovement = MOVEMENT_COST * this.state.findDistance(from, to);
+        const fromEntity = this.state.getEntity(fromEntityID);
+        if (!fromEntity) {
+            this.logger.error(`Movement validation failed: Invalid entity ID ${fromEntityID}`);
+            throw "Invalid entity ID";
+        }
+
+        const costOfMovement = MOVEMENT_COST * get2DManhattanDistance(from, to);
         const currentPosture = fromEntity.get('pos');
-        assert(currentPosture >= costOfMovement, "Not enough posture to move")
 
+        if (currentPosture < costOfMovement) {
+            this.logger.warn(`Movement validation failed: Entity ${fromEntity.name} has insufficient posture (${currentPosture}) for movement (cost: ${costOfMovement})`);
+            throw "Not enough posture to move";
+        }
+
+        this.logger.debug(`Movement validation successful: ${fromEntity.name} can move from ${from} to ${to}`);
         return true;
     }
 
@@ -109,57 +160,57 @@ class Battle {
         const { action } = declaredAccess;
         if (action?.type === ActionType.Move) this.checkMovementPossibility(action as MoveAction);
         if (action?.type === ActionType.Attack) {
-
+            // Attack validation logic would go here
+            this.logger.debug(`Attack validation for ${client.Name}`);
         }
 
         return true;
     }
 
-    async round() {
-        // 1. Readiness
-        print(`1. Running readiness gauntlet`)
-        const winnerEntity = this.state.runReadinessGauntlet();
-        if (!winnerEntity) {
-            warn("No winner entity found")
-            return;
-        }
-
+    private updatePlayerUI() {
+        // Update Player UI's
         const players = this.state.getAllPlayers();
-        this.state.creID = winnerEntity.playerID;
-        const winningClient = players.find(p => p.UserId === winnerEntity.playerID)
-        if (!winningClient) {
-            warn("No winning player found")
-            return;
-        }
+        const network = this.networkService;
+        const currentActorID = this.turnSystem.getCurrentActorID();
 
-        // 2. Update Player UI's
-        print(`2. Updating UI for all`)
+        this.logger.debug(`Updating player UIs, current actor: ${currentActorID}`);
+
         players.forEach(p => {
-            if (p.UserId === winningClient.UserId) {
-                this.networkService.notifyPlayerChosen(p);
+            if (p.UserId === currentActorID) {
+                this.logger.info(`Notifying player ${p.Name} they've been chosen to act`);
+                network.notifyPlayerChosen(p);
             }
             else {
-                this.networkService.mountOtherPlayersTurn(p);
+                this.logger.debug(`Mounting 'other player's turn' UI for ${p.Name}`);
+                network.mountOtherPlayersTurn(p);
             }
         });
+    }
 
+    private async waitForResponse(winningClient: Player) {
+        const network = this.networkService;
+        const players = this.state.getAllPlayers();
         const accessCode = IDGenerator.generateID();
 
+        this.logger.info(`Waiting for action from player ${winningClient.Name}, access code: ${accessCode}`);
+
         // Use NetworkService for handling remote requests
-        this.networkService.onActRequest(p => {
+        network.onActRequest(p => {
             try {
-                this.validateActionRequest({ winningClient, requestClient: p })
-                return { userId: p.UserId, allowed: true, token: accessCode }
+                this.validateActionRequest({ winningClient, requestClient: p });
+                this.logger.debug(`Action request from ${p.Name} validated successfully`);
+                return { userId: p.UserId, allowed: true, token: accessCode };
             }
             catch (e) {
-                return { userId: p.UserId, allowed: false }
+                this.logger.warn(`Action request validation failed for ${p.Name}: ${e}`);
+                return { userId: p.UserId, allowed: false };
             }
         });
 
         let endPromiseResolve: (p: Player) => void;
 
-        this.networkService.onActionExecution((actingPlayer, access) => {
-            print(`Received action request from ${actingPlayer.Name}`, access)
+        network.onActionExecution((actingPlayer, access) => {
+            this.logger.info(`Received action request from ${actingPlayer.Name}`, access);
 
             // 1. Validate
             let er: unknown | undefined;
@@ -169,31 +220,44 @@ class Battle {
                     declaredAccess: access,
                     trueAccessCode: accessCode,
                     winningClient: winningClient,
-                })
+                });
             }
             catch (e) {
                 er = e;
+                this.logger.error(`Action validation failed for ${actingPlayer.Name}: ${e}`);
             }
 
             // 2. Commit if no error
             if (er) {
-                warn("Error", er)
+                this.logger.warn(`Action execution failed: ${er}`);
             }
             else {
+                this.logger.info(`Committing action for ${actingPlayer.Name}`, access.action);
                 this.state.commit(access.action!);
-                players.forEach(p => this.networkService.sendAnimationToPlayer(p, access));
+                players.forEach(p => network.sendAnimationToPlayer(p, access));
             }
 
             // 3. Update all players
-            players.forEach(p => this.networkService.forceClientUpdate(p));
+            this.logger.debug("Forcing client update for all players");
+            players.forEach(p => network.forceClientUpdate(p));
 
             // 4. Check if pos of actingPlayer (cre) is below 75% and end round
-            const cre = this.state.findEntity(actingPlayer.UserId);
-            assert(cre, "Critcal Error: CRE could not be found with actingPlayer.UserId")
-            assert(cre.playerID === this.state.creID, "Critical Error: CRE ID mismatch")
-            const posture = cre.get('pos'); print(`posture: ${posture}`)
-            if (cre.get('pos') < 75) {
-                print("Ending round")
+            const cre = this.state.getEntity(actingPlayer.UserId);
+            if (!cre) {
+                this.logger.error(`Critical Error: CRE could not be found with actingPlayer.UserId ${actingPlayer.UserId}`);
+                throw "Critical Error: CRE could not be found";
+            }
+
+            if (cre.playerID !== this.turnSystem.getCurrentActorID()) {
+                this.logger.error(`Critical Error: CRE ID mismatch - expected ${this.turnSystem.getCurrentActorID()}, got ${cre.playerID}`);
+                throw "Critical Error: CRE ID mismatch";
+            }
+
+            const posture = cre.get('pos');
+            this.logger.debug(`Current posture for ${actingPlayer.Name}: ${posture}`);
+
+            if (posture < 75) {
+                this.logger.info(`Ending round: ${actingPlayer.Name}'s posture (${posture}) below 75`);
                 endPromiseResolve(actingPlayer);
             }
 
@@ -202,38 +266,41 @@ class Battle {
                 allowed: er === undefined,
                 token: accessCode,
                 action: access.action,
-            }
+            };
         });
 
         const endPromise = new Promise<Player>((resolve) => {
             endPromiseResolve = resolve;
 
-            this.networkService.onTurnEnd((p, s) => {
+            network.onTurnEnd((p, s) => {
                 try {
                     this.validateEnd({
                         client: p,
                         declaredAccess: s,
                         trueAccessCode: accessCode,
                         winningClient: winningClient,
-                    })
-                    print(`Received end response: ${s} from ${p.Name}`)
+                    });
+                    this.logger.info(`Turn end request validated for ${p.Name}`);
                     return true;
                 }
                 catch (e) {
-                    print("Invalid end", e)
+                    this.logger.warn(`Invalid turn end request from ${p.Name}: ${e}`);
                     return false;
                 }
             }).then((p) => {
-                print(`End promise resolved`, p)
+                this.logger.info(`Turn ended by ${p.Name}`);
                 resolve(p);
             });
         });
 
         await endPromise;
-        print("Promise resolved", endPromise)
+        this.logger.debug("Turn end promise resolved");
+    }
 
-        this.round()
+    private round() {
+        const entity = this.turnSystem.progressToNextTurn();
+        this.logger.info(`Starting new round with entity: ${entity?.name || "None"}`);
     }
 }
 
-export default Battle
+export default Battle;

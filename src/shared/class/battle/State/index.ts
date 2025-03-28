@@ -1,5 +1,6 @@
 import { AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, PlayerID, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
+import logger from "shared/utils/Logger";
 import { ActiveAbility } from "./Ability";
 import { ActiveAbilityState } from "./Ability/types";
 import Entity from "./Entity";
@@ -17,6 +18,7 @@ type PositionEntityTuple = {
 export default class State {
     // Internal GameState instance that will handle most of the functionality
     private gameState: GameState;
+    private logger = logger.createContextLogger("State");
 
     // Legacy properties kept for backward compatibility
     creID: number | undefined;
@@ -92,6 +94,7 @@ export default class State {
     }
 
     private syncTeams(newTeamsStates: TeamState[]) {
+        this.logger.info(`Syncing teams with`, newTeamsStates);
         // Delegate to team manager via GameState
         this.gameState.getTeamManager().updateTeams(newTeamsStates);
 
@@ -109,7 +112,7 @@ export default class State {
                 }
             }
             else {
-                warn(`Team [${newTeamState.name}] not found`);
+                this.logger.warn(`Team [${newTeamState.name}] not found`);
                 const newTeam = new Team(newTeamState.name, newTeamState.members.map(entity => this.createEntity(newTeamState.name, entity)));
                 this.teams.push(newTeam);
             }
@@ -117,6 +120,7 @@ export default class State {
     }
 
     public syncOneEntity(e: Entity, updateInfo: EntityUpdate) {
+        this.logger.info(`Syncing entity [${e.name}] with`, updateInfo);
         // Delegate entity update to entity manager via GameState
         this.gameState.getEntityManager().updateEntity(updateInfo.playerID, updateInfo);
 
@@ -131,7 +135,7 @@ export default class State {
     }
 
     public sync(other: Partial<StateState>) {
-        print(`Syncing state with`, other);
+        this.logger.info(`Syncing state with`, other);
 
         // Delegate to GameState
         this.gameState.sync(other);
@@ -146,11 +150,11 @@ export default class State {
         // 3 Update CRE
         if (other.cre) this.creID = other.cre;
 
-        print(`Synced state`, this);
+        this.logger.debug("State sync complete");
     }
 
     public commit(action: BattleAction) {
-        print(`Committing action`, action);
+        this.logger.info(`Committing action: ${action.type}`);
 
         // Delegate to GameState
         return this.gameState.commit(action);
@@ -195,7 +199,7 @@ export default class State {
         //     warn("Entity already present in to cell");
         //     return;
         // }
-        // const fromEntity = this.findEntity(fromEntityID);
+        // const fromEntity = this.getEntity(fromEntityID);
         // if (!fromEntity) {
         //     warn("Invalid entity ID");
         //     return;
@@ -223,15 +227,16 @@ export default class State {
     public applyClash(attackAction: AttackAction) {
         const clashResult = attackAction.clashResult;
         if (!clashResult) {
-            warn("applyClash: Clash result not found");
+            this.logger.error("applyClash: Clash result not found");
             return;
         }
-        print(`Clash Result:`, clashResult);
+        this.logger.debug(`Applying clash result:`, clashResult);
         attackAction.executed = true;
 
-        const attacker = this.findEntity(attackAction.by); assert(attacker, "Attacker not found");
-        const target = attackAction.against ? this.findEntity(attackAction.against) : undefined;
+        const attacker = this.getEntity(attackAction.by);
+        assert(attacker, "Attacker not found");
 
+        const target = attackAction.against ? this.getEntity(attackAction.against) : undefined;
 
         // 1. Attacker takes a swing, reducing his ability costs
         this.tireAttacker(attacker, attackAction.ability);
@@ -278,14 +283,14 @@ export default class State {
     }
 
     public clash(attackAction: AttackAction): ClashResult {
-        print(`Clashing`, attackAction);
+        this.logger.debug(`Calculating clash for attack: ${attackAction.by} -> ${attackAction.against}`);
         const { using: attacker, target, chance: acc } = attackAction.ability;
 
         if (!attacker || !target) {
-            warn("Attacker or target not found");
+            this.logger.error("Attacker or target not found");
             return { damage: 0, u_damage: 0, fate: "Miss", roll: 0, defendAttemptName: "", defendAttemptSuccessful: true, defendReactionUpdate: {} };
         }
-        print(`Attacker: ${attacker.name} | Target: ${target.name} | Accuracy: ${acc}`);
+        this.logger.info(`Clash: ${attacker.name} vs ${target.name} (acc: ${acc})`);
 
         const { hitRoll, hitChance, critChance } = this.roll(acc, attacker, target);
 
@@ -372,7 +377,7 @@ export default class State {
                     vacantCells.remove(i)
 
                     if (!characterStats) {
-                        warn(`Character [${characterID}] not found for [${player.Name}]`);
+                        this.logger.warn(`Character [${characterID}] not found for [${player.Name}]`);
                         return undefined;
                     }
 
@@ -384,7 +389,7 @@ export default class State {
                 })
             this.teams.push(new Team(teamName, members));
         }
-        print("Initialised teams", this.teams);
+        this.logger.info(`Teams initialized: ${this.teams.size()} teams`);
     }
     /**
      * Initializes various components of the battle state, including the grid, teams, entity positions, and (temporarily) testing dummies.
@@ -406,10 +411,10 @@ export default class State {
     //#endregion
 
     //#region Find Info
-    public findEntity(qr: Vector3): Entity | undefined;
-    public findEntity(qr: Vector2): Entity | undefined;
-    public findEntity(playerID: number): Entity | undefined
-    public findEntity(qr: Vector2 | number | Vector3): Entity | undefined {
+    public getEntity(qr: Vector3): Entity | undefined;
+    public getEntity(qr: Vector2): Entity | undefined;
+    public getEntity(playerID: number): Entity | undefined
+    public getEntity(qr: Vector2 | number | Vector3): Entity | undefined {
         if (typeIs(qr, 'number')) {
             // Delegate to GameState
             return this.gameState.getEntity(qr);
@@ -457,7 +462,6 @@ export default class State {
                 playerSet.add(player);
             }
         }
-        print("Player Set", playerSet);
         return [...playerSet];
     }
 
@@ -487,7 +491,7 @@ export default class State {
     public runReadinessGauntlet() {
         const entities = this.getAllEntities();
         if (entities.size() === 0) {
-            warn("Entity list is empty");
+            this.logger.warn("Entity list is empty, cannot run readiness gauntlet");
             return;
         }
 
@@ -496,6 +500,7 @@ export default class State {
         }
 
         const winner = entities.sort((a, b) => a.get('pos') - b.get('pos') > 0)[0];
+        this.logger.info(`Readiness gauntlet winner: ${winner.name} (${winner.playerID})`);
         return winner;
     }
     //#endregion

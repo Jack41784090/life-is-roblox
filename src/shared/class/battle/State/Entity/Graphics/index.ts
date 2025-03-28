@@ -1,6 +1,7 @@
 import { TweenService } from "@rbxts/services";
 import { CONDOR_BLOOD_RED } from "shared/const";
 import { ClashResult, EntityStatus } from "shared/types/battle-types";
+import Logger from "shared/utils/Logger";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
 import AnimationHandler, { AnimationOptions, AnimationType } from "./AnimationHandler";
 import AudioHandler from "./AudioHandler";
@@ -8,6 +9,7 @@ import Expression from "./Expression";
 import TweenManager from "./TweenManager";
 
 export default class EntityGraphics {
+    private logger = Logger.createContextLogger("EntityGraphics");
     name: string;
 
     animationHandler: AnimationHandler;
@@ -134,7 +136,7 @@ export default class EntityGraphics {
 
     public playAudio(entityStatus: EntityStatus) {
         if (!this.audioHandler) {
-            warn("Audio handler not initialised");
+            this.logger.warn("Audio handler not initialised");
             return;
         }
         this.audioHandler.play(entityStatus);
@@ -149,7 +151,7 @@ export default class EntityGraphics {
 
         // Use the current Y position of the entity to avoid sinking into the ground
         const adjustedTargetPosition = new Vector3(targetPosition.X, modelPrimaryPart.Position.Y, targetPosition.Z);
-        print(`${this.name}: Moving to position`, adjustedTargetPosition);
+        this.logger.info(`${this.name}: Moving to position`, adjustedTargetPosition);
 
         const direction = (adjustedTargetPosition.sub(modelPrimaryPart.Position)).Unit;
         const lookAtCFrame = CFrame.lookAt(modelPrimaryPart.Position, modelPrimaryPart.Position.add(direction));
@@ -158,7 +160,7 @@ export default class EntityGraphics {
         const targetCFrame = new CFrame(adjustedTargetPosition).mul(lookAtCFrame.sub(modelPrimaryPart.Position));
 
         if (direction.X !== direction.X || direction.Y !== direction.Y || direction.Z !== direction.Z) {
-            warn("Direction is NaN; bypassed already at position?", direction);
+            this.logger.warn("Direction is NaN; bypassed already at position?", direction);
             return;
         }
 
@@ -179,7 +181,7 @@ export default class EntityGraphics {
         const humanoidRoot = humanoid.RootPart;
         assert(humanoidRoot, "Humanoid root part not found");
 
-        print(`${this.name}: Moving to cell ${cell.qrs}`);
+        this.logger.info(`${this.name}: Moving to cell ${cell.qrs}`);
 
         if (!path) path = [cell];
 
@@ -194,7 +196,7 @@ export default class EntityGraphics {
 
         return new Promise((resolve) => {
             transitionTrack?.Ended.Once(() => {
-                print(`${this.name}: Movement complete`);
+                this.logger.info(`${this.name}: Movement complete`);
                 resolve();
             }) ?? resolve();
         });
@@ -213,8 +215,8 @@ export default class EntityGraphics {
         const lookAtCFrame = CFrame.lookAt(modelPrimaryPart.Position, targetPosition);
         const dot = modelPrimaryPart.CFrame.LookVector.Dot(lookAtCFrame.LookVector);
         if (dot !== dot || dot > 0.999) {
-            warn(dot);
-            // print("Already facing the entity", modelPrimaryPart.CFrame.LookVector, lookAtCFrame.LookVector);
+            this.logger.warn("Dot product:", dot);
+            // this.logger.debug("Already facing the entity", modelPrimaryPart.CFrame.LookVector, lookAtCFrame.LookVector);
             return;
         }
 
@@ -229,13 +231,13 @@ export default class EntityGraphics {
     }
     // private faceClosestEntity(entities: Entity[]) {
     //     if (entities.size() === 0) {
-    //         warn("No other entities found");
+    //         this.logger.warn("No other entities found");
     //         return;
     //     }
 
     //     const myXY = this.cell
     //     if (!myXY) {
-    //         warn("Current entity coordinates not set");
+    //         this.logger.warn("Current entity coordinates not set");
     //         return;
     //     }
 
@@ -244,7 +246,7 @@ export default class EntityGraphics {
     //         const currentEntityXY = c.cell?.qrs;
 
     //         if (!closestEntityXY || !currentEntityXY) {
-    //             warn("Coordinates not set for entity");
+    //             this.logger.warn("Coordinates not set for entity");
     //             return closestEntity;
     //         }
 
@@ -257,7 +259,7 @@ export default class EntityGraphics {
     //     if (closestEntity) {
     //         this.faceEntity(closestEntity);
     //     } else {
-    //         warn("No closest entity found");
+    //         this.logger.warn("No closest entity found");
     //     }
     // }
     //#endregion

@@ -1,11 +1,10 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Players, RunService, UserInputService } from "@rbxts/services";
-import { GuiTag, MOVEMENT_COST } from "shared/const";
+import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
-import Pathfinding from "../Pathfinding";
-import State from "../State";
+import ClientGameState from '../State/ClientGameState';
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import BattleCam from "./BattleCamera";
@@ -13,7 +12,7 @@ import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import Gui from "./Gui";
 
 export default class ClientSide {
-    private graphicsInitialised: ReturnType<ClientSide["initialiseGraphics"]>;
+    private graphicsInitialised: Promise<[StateState]>;
 
     private remotees: Array<() => void> = [];
     private animating: Promise<unknown> = Promise.resolve();
@@ -21,7 +20,7 @@ export default class ClientSide {
     public gui: Gui;
     public camera: BattleCam;
 
-    private state: State;
+    private state: ClientGameState;
     private EHCGMS: EntityHexCellGraphicsMothership;
 
     private controlLocks: ControlLocks = new Map();
@@ -35,12 +34,19 @@ export default class ClientSide {
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
 
         this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
-        this.state = new State({
+
+        this.state = new ClientGameState({
             width,
             worldCenter,
             teamMap: {},
         });
-        this.EHCGMS = new EntityHexCellGraphicsMothership(math.floor(width / 2), height, size, this.state.grid);
+
+        this.EHCGMS = new EntityHexCellGraphicsMothership(
+            math.floor(width / 2),
+            height,
+            size,
+            this.state.getGridManager().getGrid()
+        );
 
         this.gui = Gui.Connect(this.getReadinessIcons());
         this.graphicsInitialised = this.initialiseGraphics();
@@ -143,18 +149,19 @@ export default class ClientSide {
     }
 
     private handleMoveActionAnimationRequest(ma: MoveAction) {
-        const cre = this.state.getCRE(); assert(cre, "Current entity is not defined");
-        const pf = new Pathfinding({
-            grid: this.state.grid,
-            start: ma.from,
-            dest: ma.to,
-            limit: math.floor(cre.get('pos') / MOVEMENT_COST),
-            hexagonal: true,
-        })
+        const cre = this.state.getEntityManager().getEntity(ma.by);
+        assert(cre, "Current entity is not defined");
+
+        const path = this.state.getGridManager().findPath(ma.from, ma.to, cre.get('pos'));
+        if (!path) {
+            warn("No path found for move action", ma);
+            return;
+        }
+
         const destCellG = this.EHCGMS.findCellG(ma.to);
-        const cellGPath = pf.begin().map(qr => this.EHCGMS.findCellG(qr));
+        const cellGPath = path.map(qr => this.EHCGMS.findCellG(qr));
         const creG = this.EHCGMS.findEntityG(ma.from);
-        this.animating = creG.moveToCell(destCellG, cellGPath)
+        this.animating = creG.moveToCell(destCellG, cellGPath);
     }
 
     private handleAttackActionAnimationRequest(aa: AttackAction) {
@@ -189,13 +196,16 @@ export default class ClientSide {
     }
 
     private async requestUpdateStateAndReadinessMap() {
-        const r = await remotes.battle.requestSync.state();
-        this.state.sync(r);
+        const stateData = await remotes.battle.requestSync.state();
+
+        this.state.syncWithServerState(stateData);
+
         await this.animating;
-        this.EHCGMS.syncTeams(r.teams);
-        this.EHCGMS.syncGrid(r.grid);
-        this.updateReadinessMap(r);
-        return r;
+        this.EHCGMS.syncTeams(stateData.teams);
+        this.EHCGMS.syncGrid(stateData.grid);
+        this.updateReadinessMap(stateData);
+
+        return stateData;
     }
 
     private updateReadinessMap(state: StateState) {
@@ -241,7 +251,7 @@ export default class ClientSide {
         const state = this.state;
         const players = state.getAllPlayers();
         for (const p of players) {
-            const e = state.findEntity(p.UserId);
+            const e = state.getEntityManager().getEntity(p.UserId);
             if (e) {
                 crMap[e.playerID] = crMap[e.playerID] ?? atom(e.get('pos'))
             }
@@ -266,7 +276,7 @@ export default class ClientSide {
     private async localEntity(): Promise<Entity> {
         const localPlayer = Players.LocalPlayer;
         await this.graphicsInitialised;
-        const e = this.state.findEntity(localPlayer.UserId);
+        const e = this.state.getEntityManager().getEntity(localPlayer.UserId);
         assert(e, "Local entity not found");
         return e;
     }

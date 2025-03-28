@@ -1,5 +1,6 @@
+import { HexCellState, HexGridState } from "shared/types/battle-types"
 import { PriorityQueue } from "shared/utils"
-import HexGrid from "./State/Hex/Grid"
+import HexCell from "./State/Hex/Cell"
 
 type NodeInit = {
     coord: Vector2,
@@ -21,7 +22,7 @@ type PathfindNode = {
 
 export default class Pathfinding {
     frontier: PriorityQueue<PathfindNode>;
-    grid: HexGrid;
+    gridstate: HexGridState;
     start: Vector2;
     destination: Vector2;
     priorityFunction: (a: PathfindNode) => number;
@@ -52,7 +53,7 @@ export default class Pathfinding {
     }
 
     public constructor({ grid, start, dest, method = 'lowest', limit = math.huge, verbose = false, hexagonal = false }: {
-        grid: HexGrid,
+        grid: HexGridState,
         start: Vector2 | Vector3,
         dest: Vector2 | Vector3,
         method?: 'lowest' | 'highest',
@@ -60,7 +61,7 @@ export default class Pathfinding {
         verbose?: boolean
         hexagonal?: boolean
     }) {
-        this.grid = grid;
+        this.gridstate = grid;
         this.start = start as Vector2;
         this.destination = dest as Vector2;
         this.priorityFunction = (a: PathfindNode) => a.totalCost;
@@ -111,38 +112,52 @@ export default class Pathfinding {
             }
             // == Push current node to explored
             explored.push(AINode);
-
             if (this.verbose) {
                 print(`NextNode: (${AINode.x},${AINode.y})`);
             }
 
             // 1. Expand nodes
             // look at surrounding nodes
-            const exploringCell = this.grid.getCell(AINode.x, AINode.y);
+            if (!AINode) {
+                if (this.verbose) {
+                    warn(`No AINode found`);
+                }
+                continue;
+            }
+            const exploringCell = this.gridstate.cellsMap.get(AINode.coords);
             if (!exploringCell) {
                 if (this.verbose) {
                     warn(`Cell does not exist @${AINode.x},${AINode.y}`);
                 }
                 continue;
             }
-            for (const cell of exploringCell.findNeighbors()) {
-                const coordExplored = explored.find(node => node.x === cell.qrs.X && node.y === cell.qrs.Y);
+
+            const neighbors: HexCellState[] = [];
+            for (const direction of HexCell.directions) {
+                const neighborPos = exploringCell.qr.add(new Vector2(direction.X, direction.Y));  // Add the direction vector to current qrs
+                const neighbor = this.gridstate.cellsMap.get(neighborPos);
+                if (neighbor) neighbors.push(neighbor);
+            }
+
+            for (const cell of neighbors) {
+                const cellVacant = cell.entity === undefined;
+                const coordExplored = explored.find(node => node.x === cell.qr.X && node.y === cell.qr.Y);
                 if (this.verbose) {
-                    print(`Checking ${cell.qrs.X},${cell.qrs.Y},${cell.qrs.Z}`);
-                    print(`||=> (${cell.qrs.X},${cell.qrs.Y})`)
+                    print(`Checking ${cell.qr.X},${cell.qr.Y}`);
+                    print(`||=> (${cell.qr.X},${cell.qr.Y})`)
                     print(`||=> within limit: ${AINode.distanceTravelled < this.limit}`);
-                    print(`||=> vacant: ${cell.isVacant()}`);
+                    print(`||=> vacant: ${cellVacant}`);
                     print(`||=> explored: ${coordExplored !== undefined}`);
                 }
 
                 if (
                     AINode.distanceTravelled < this.limit && // distance travelled is within limit
                     !coordExplored &&                        // unexplored node is not explored
-                    cell.isVacant()                         // unexplored node is not occupied
+                    cellVacant                       // unexplored node is not occupied
                 ) {
                     // update unexplored node
                     const node = this.newNode({
-                        coord: cell.qr(),
+                        coord: cell.qr,
                         distanceTravelled: AINode.distanceTravelled + 1,
                         lastNode: AINode
                     });
@@ -152,10 +167,10 @@ export default class Pathfinding {
                         print("|||=> Updating unexplored node", cell);
                     }
                 }
-                else if (cell && cell.qrs.X === dest.X && cell.qrs.Y === dest.Y) {
+                else if (cell && cell.qr.X === dest.X && cell.qr.Y === dest.Y) {
                     // update destination node
                     const node = this.newNode({
-                        coord: cell.qr(),
+                        coord: cell.qr,
                         distanceTravelled: AINode.distanceTravelled + 1,
                         lastNode: AINode
                     });
