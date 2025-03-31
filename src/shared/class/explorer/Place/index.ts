@@ -3,6 +3,7 @@ import { PlaceName } from "shared/const";
 import { locationFolder } from "shared/const/assets";
 import { PlaceConfig } from "shared/types/explorer-types";
 import { newTouched } from "shared/utils";
+import Logger from "shared/utils/Logger";
 import NPC from "../NPC";
 import { NPCConfig } from "../NPC/types";
 import PC from "../PC";
@@ -12,6 +13,7 @@ import { DEBUG_PORTALS, IndoorLocationName } from "./Indoors/types";
 // Debug flag to control logging across all portal-related classes
 
 export default class Place {
+    private logger = Logger.createContextLogger("Place");
     private location: string;
     private model: Model;
     private NPCCs: NPCConfig[];
@@ -86,7 +88,7 @@ export default class Place {
                     this.entranceConnections.set(portalId, connection);
                 }
                 else {
-                    warn(`[Place] Entrance part does not have a string value`);
+                    this.logger.warn(`Entrance part does not have a string value`);
                 }
             }
         });
@@ -140,7 +142,7 @@ export default class Place {
     // Helper method for debug logging
     private logDebug(message: string) {
         if (DEBUG_PORTALS) {
-            print(`[Place][${this.location}] ${message}`);
+            this.logger.debug(`[${this.location}] ${message}`);
         }
     }
 
@@ -149,7 +151,7 @@ export default class Place {
 
         const indoorLocation = this.indoorLocations.get(locationName);
         if (!indoorLocation) {
-            warn(`[Place][${this.location}] Indoor location ${locationName} not found`);
+            this.logger.warn(`[${this.location}] Indoor location ${locationName} not found`);
             return;
         }
 
@@ -203,7 +205,7 @@ export default class Place {
                 const npc = new NPC(npcConfig, this)
                 this.NPCs.push(npc)
             } catch (err) {
-                warn(`Failed to spawn NPC ${npcConfig.id}: ${err}`)
+                this.logger.warn(`Failed to spawn NPC ${npcConfig.id}: ${err}`)
             }
         })
     }

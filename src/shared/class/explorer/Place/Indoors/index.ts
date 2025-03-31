@@ -1,10 +1,12 @@
 import { Workspace } from "@rbxts/services";
 import { indoorsFolder } from "shared/const/assets";
 import { newTouched, visualizePosition } from "shared/utils";
+import Logger from "shared/utils/Logger";
 import Place from "..";
 import { DEBUG_PORTALS, IndoorLocationConfig, IndoorLocationName } from "./types";
 
 export default class IndoorLocation {
+    private logger = Logger.createContextLogger("IndoorLocation");
     private model: Model;
     private locationName: IndoorLocationName;
     private returnPoint?: Vector3;
@@ -62,7 +64,7 @@ export default class IndoorLocation {
 
     private logDebug(message: string) {
         if (DEBUG_PORTALS) {
-            print(`[IndoorLocation][${this.locationName}] ${message}`);
+            this.logger.debug(`[${this.locationName}] ${message}`);
         }
     }
 
@@ -117,7 +119,7 @@ export default class IndoorLocation {
     private setUpEntranceAsExitTrigger() {
         const entrance = this.model.FindFirstChild('Entrance');
         if (!entrance || (!entrance.IsA('Part') && !entrance.IsA('MeshPart'))) {
-            warn(`[IndoorLocation][${this.locationName}] No Entrance part found for exit trigger`);
+            this.logger.warn(`[${this.locationName}] No Entrance part found for exit trigger`);
             return;
         }
 

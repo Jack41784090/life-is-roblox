@@ -1,4 +1,5 @@
 import { HexGridState, StateConfig, TILE_SIZE } from "shared/types/battle-types";
+import Logger from "shared/utils/Logger";
 import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
 import { ReadonlyGridState } from "../Hex/types";
@@ -7,6 +8,7 @@ import { ReadonlyGridState } from "../Hex/types";
  * Manages the hexagonal grid for battle interactions
  */
 export class GridManager {
+    private logger = Logger.createContextLogger("GridManager");
     private grid: HexGrid;
 
     //#region Initialization
@@ -145,7 +147,7 @@ export class GridManager {
     //#endregion
 
     public getGrid() {
-        warn("[GridManager] getGrid() is deprecated, use getGridState() instead");
+        this.logger.warn("getGrid() is deprecated, use getGridState() instead");
         return this.grid;
     }
 }

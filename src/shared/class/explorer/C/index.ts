@@ -4,6 +4,7 @@ import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import { uiFolder } from "shared/const/assets";
 import { math_map } from "shared/utils";
+import Logger from "shared/utils/Logger";
 import Place from "../Place";
 import Going from "./Going";
 import { CConfig, CState, MovementConfig } from "./types";
@@ -22,6 +23,7 @@ const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
 };
 
 export default class C {
+    protected logger = Logger.createContextLogger("C");
     //#region infrastructure
     protected associatedPlace: Place;
     protected id: string;
@@ -125,7 +127,7 @@ export default class C {
 
         // Validate current position is within reasonable bounds
         if (!this.isValidPosition(currentPosition)) {
-            warn(`[C: ${this.model.Name}] Invalid position detected: ${currentPosition}`);
+            this.logger.warn(`Invalid position detected: ${currentPosition}`);
             // Reset to last known good position if we have one
             if (this.isValidPosition(this.lastPosition)) {
                 this.resetToPosition(this.lastPosition);
@@ -350,12 +352,12 @@ export default class C {
         this.acc(0);
         this.humanoid.WalkSpeed = 0;
 
-        warn(`[C: ${this.model.Name}] Reset character to position: ${position}`);
+        this.logger.warn(`Reset character to position: ${position}`);
     }
 
     public speak(message: string) {
         if (!this.speechBubble || !this.speechBubbleTextBox || !this.model) {
-            warn(`[C: ${this.id}] Cannot speak - speech bubble components not initialized`);
+            this.logger.warn(`Cannot speak - speech bubble components not initialized`);
             return;
         }
 
@@ -364,7 +366,7 @@ export default class C {
         speechBubble.Parent = this.model;
 
         if (!this.model.PrimaryPart) {
-            warn(`[C: ${this.id}] Cannot position speech bubble - model has no PrimaryPart`);
+            this.logger.warn(`Cannot position speech bubble - model has no PrimaryPart`);
             return;
         }
 
@@ -396,7 +398,7 @@ export default class C {
             this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
             this.nameTagLabel = this.nameTag?.FindFirstChildOfClass('TextBox') as TextBox;
         } catch (e) {
-            warn(`[C: ${this.id}] Failed to spawn: ${e}`);
+            this.logger.warn(`Failed to spawn: ${e}`);
         }
     }
 
@@ -411,7 +413,7 @@ export default class C {
         if (this.isValidPosition(position)) {
             return position;
         } else {
-            warn(`[C: ${this.model.Name}] Retrieved invalid position: ${position}`);
+            this.logger.warn(`Retrieved invalid position: ${position}`);
             return new Vector3();
         }
     }
@@ -420,7 +422,7 @@ export default class C {
     private handleWaypoint(waypoint: PathWaypoint): boolean {
         // begin timeout
         this.waypointArriveTimeout = this.waypointArriveTimeout ?? setTimeout(() => {
-            warn(`[C: ${this.model.Name}] [Going] Timeout at waypoint ${waypoint.Position}`);
+            this.logger.warn(`[Going] Timeout at waypoint ${waypoint.Position}`);
             this.currentGoing?.destroy();
             this.currentGoing = undefined;
             this.currentWaypoint = undefined;
@@ -457,7 +459,7 @@ export default class C {
                     characterModel: this.model,
                 });
             } catch (e) {
-                warn(`[C: ${this.model.Name}] Failed to initialize Going: ${e}`);
+                this.logger.warn(`Failed to initialize Going: ${e}`);
                 this.currentDestination = undefined;
                 return;
             }
@@ -474,7 +476,7 @@ export default class C {
             try {
                 this.currentGoing.calculatePath();
             } catch (e) {
-                warn(`[C: ${this.model.Name}] Failed to calculate path: ${e}`);
+                this.logger.warn(`Failed to calculate path: ${e}`);
                 this.currentGoing.destroy();
                 this.currentGoing = undefined;
                 this.currentDestination = undefined;
@@ -686,13 +688,13 @@ export default class C {
 
     protected startMoving(direction: Vector3) {
         if (!direction || direction.Magnitude === 0) {
-            warn(`[C: ${this.model.Name}] Attempted to move with invalid direction`);
+            this.logger.warn(`Attempted to move with invalid direction`);
             return;
         }
 
         // Make sure direction is valid
         if (!this.isValidVector(direction)) {
-            warn(`[C: ${this.model.Name}] Invalid movement direction: ${direction}`);
+            this.logger.warn(`Invalid movement direction: ${direction}`);
             return;
         }
 
