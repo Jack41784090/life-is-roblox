@@ -4,6 +4,7 @@ import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import Entity from "../Entity";
 import { EntityInit, EntityUpdate } from "../Entity/types";
+import { GridManager } from "./GridManager";
 
 /**
  * Manages game entities within the battle system
@@ -11,15 +12,21 @@ import { EntityInit, EntityUpdate } from "../Entity/types";
 export class EntityManager {
     private logger = Logger.createContextLogger("EntityManager");
     private entities: Map<number, Entity> = new Map();
+    private eventBus?: EventBus;
 
-    constructor(private eventBus?: EventBus) {
+    constructor(entities: EntityInit[], gridManager: GridManager, eventBus?: EventBus) {
         this.logger.info("EntityManager initialized");
+        this.eventBus = eventBus;
         if (this.eventBus) {
             this.eventBus.subscribe(GameEvent.ENTITY_REMOVED, (id: unknown) => {
                 t.number(id);
                 this.logger.info(`Entity removed: ${id}`);
             });
         }
+
+        this.createEntities(entities);
+        this.mapEntities(gridManager);
+        this.logger.debug(`EntityManager initialized with ${entities.size()} entities`, entities);
     }
 
     //#region Initialization
@@ -76,7 +83,7 @@ export class EntityManager {
     /**
      * Find entity at the specified grid position
      */
-    public findEntityAtPosition(qr: Vector2): Entity | undefined {
+    public getEntityAtPosition(qr: Vector2): Entity | undefined {
         this.logger.debug(`Searching for entity at position (${qr.X}, ${qr.Y})`);
         for (const [_, entity] of this.entities) {
             if (entity.qr.X === qr.X && entity.qr.Y === qr.Y) {
@@ -166,6 +173,25 @@ export class EntityManager {
         this.logger.debug(`All entities cleared`);
     }
 
+    public mapEntities(gridManager: GridManager) {
+        this.logger.info(`Mapping entities to grid`);
+        this.entities.forEach((entity) => {
+            if (entity.qr) {
+                const cell = gridManager.getCell(entity.qr);
+                if (cell) {
+                    cell.pairWith(entity);
+                    entity.setCell(cell.qr());
+                    this.logger.debug(`Mapped entity ${entity.name} (${entity.playerID}) to cell (${cell.qr().X}, ${cell.qr().Y})`);
+                } else {
+                    this.logger.warn(`Failed to map entity ${entity.name} (${entity.playerID}) to invalid cell (${entity.qr.X}, ${entity.qr.Y})`);
+                }
+            }
+        });
+        this.logger.debug(`All entities mapped to grid`);
+    }
+
+
+
     //#endregion
 
     //#region Utility Methods
@@ -183,10 +209,24 @@ export class EntityManager {
      * Check if the position is occupied by any entity
      */
     public isPositionOccupied(qr: Vector2): boolean {
-        const isOccupied = this.findEntityAtPosition(qr) !== undefined;
+        const isOccupied = this.getEntityAtPosition(qr) !== undefined;
         this.logger.debug(`Position (${qr.X}, ${qr.Y}) is ${isOccupied ? "occupied" : "not occupied"}`);
         return isOccupied;
     }
 
+    public getTeamMap(): Map<string, Entity[]> {
+        const teamMap = new Map<string, Entity[]>();
+        this.entities.forEach((entity) => {
+            const team = entity.team;
+            if (team) {
+                if (!teamMap.has(team)) {
+                    teamMap.set(team, []);
+                }
+                teamMap.get(team)!.push(entity);
+            }
+        });
+        this.logger.debug(`Team map created with ${teamMap.size()} teams`);
+        return teamMap;
+    }
     //#endregion
 }

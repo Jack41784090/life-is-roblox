@@ -5,8 +5,12 @@ import Team from "../Team";
 export class TeamManager {
     private teams: Team[] = [];
 
-    constructor(teamMap: Record<string, Player[]>) {
-
+    constructor(teamMap: Map<string, Entity[]>) {
+        for (const [teamName, entityList] of pairs(teamMap)) {
+            for (const e of entityList) {
+                this.addEntityToTeam(teamName, e);
+            }
+        }
     }
 
     public createTeam(name: string): Team {

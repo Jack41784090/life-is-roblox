@@ -1,5 +1,5 @@
 import { MOVEMENT_COST } from "shared/const";
-import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState } from "shared/types/battle-types";
+import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus } from "../Events/EventBus";
@@ -26,9 +26,10 @@ export class GameState {
     constructor(config: StateConfig) {
         this.gridManager = new GridManager(config);
         this.eventBus = new EventBus();
-        this.entityManager = new EntityManager(this.eventBus); // Pass eventBus to EntityManager
-        this.teamManager = new TeamManager(config.teamMap);
-        this.initialiseNumbers(config.teamMap);
+        const entitiesInit: EntityInit[] = this.getEntitiesInitFromTeamMap(config.teamMap);
+        this.entityManager = new EntityManager(entitiesInit, this.gridManager, this.eventBus); // Pass eventBus to EntityManager
+        this.teamManager = new TeamManager(this.entityManager.getTeamMap());
+        this.initialiseTestingDummies();
     }
 
 
@@ -48,8 +49,17 @@ export class GameState {
         }
     }
 
-    protected initialiseTeams(teamMap: Record<string, Player[]>) {
-        const vacantCells = this.gridManager.getAllCells().filter((cell) => cell.isVacant());
+    private initialiseTestingDummies() {
+        const vacant = this.gridManager.getAllCells().find((cell) => cell.isVacant());
+        assert(vacant, "No vacant cell found for dummy entity");
+        const dummy = this.createEntity("Test", getDummyNumbers(vacant.qr()));
+        this.teamManager.addEntityToTeam("Test", dummy);
+        this.setCell(dummy, vacant);
+    }
+
+    private getEntitiesInitFromTeamMap(teamMap: TeamMap): EntityInit[] {
+        const entitiesInit: EntityInit[] = [];
+        const vacantCells = this.gridManager.getAllCells().filter(cell => cell.isVacant());
         for (const [teamName, playerList] of pairs(teamMap)) {
             for (const player of playerList) {
                 // const characterID = player.Character ? player.Character.Name : "default_character";
@@ -60,34 +70,14 @@ export class GameState {
                 const randomCell = vacantCells[i];
                 vacantCells.remove(i)
 
-                if (!characterStats) {
-                    this.logger.warn(`Character [${characterID}] not found for [${player.Name}]`);
-                    return undefined;
-                }
-
-                const e = this.createEntity(teamName, this.getEntityNumbers(randomCell.qr(), player, teamName, characterStats));
-                this.setCell(e, randomCell);
-                this.teamManager.addEntityToTeam(teamName, e);
+                const e = this.getEntityNumbers(randomCell.qr(), player, teamName, characterStats);
+                entitiesInit.push(e);
             }
         }
-        this.logger.info(`Teams initialized: ${this.teamManager.getAllTeams().size()} teams`);
-    }
 
-    public initialiseNumbers(teamMap: Record<string, Player[]>) {
-        this.initialiseTeams(teamMap);
-        this.initialiseTestingDummies(); // temp
-    }
-
-    private initialiseTestingDummies() {
-        const vacant = this.gridManager.getAllCells().find((cell) => cell.isVacant());
-        assert(vacant, "No vacant cell found for dummy entity");
-        const dummy = this.createEntity("Test", getDummyNumbers(vacant.qr()));
-        this.teamManager.addEntityToTeam("Test", dummy);
-        this.setCell(dummy, vacant);
+        return entitiesInit;
     }
     //#endregion
-
-
 
     //#region Manager Access
     /**
@@ -197,7 +187,7 @@ export class GameState {
         if (typeIs(id, "number")) {
             return this.entityManager.getEntity(id);
         } else if (typeIs(id, "Vector2")) {
-            return this.entityManager.findEntityAtPosition(id);
+            return this.entityManager.getEntityAtPosition(id);
         } else {
             warn("[GameState] Invalid ID type");
             return undefined;
@@ -210,7 +200,7 @@ export class GameState {
      * @returns Entity if found at position, undefined otherwise
      */
     public getEntityAtPosition(qr: Vector2): Entity | undefined {
-        return this.entityManager.findEntityAtPosition(qr);
+        return this.entityManager.getEntityAtPosition(qr);
     }
 
     public getDistance(from: Vector2, to: Vector2): number {
