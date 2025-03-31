@@ -53,7 +53,7 @@ class Battle {
 
         this.networkService.onTeamStateRequest(p => {
             this.logger.debug(`Team state requested by ${p.Name}`);
-            return this.state.getTeamManager().getTeamState();
+            return this.state.getTeamManager().getTeamStates();
         });
 
         this.networkService.onGameStateRequest(p => {
@@ -167,7 +167,7 @@ class Battle {
         return true;
     }
 
-    private updatePlayerUI() {
+    private syncPlayerUIUpdates() {
         // Update Player UI's
         const players = this.state.getAllPlayers();
         const network = this.networkService;
@@ -297,9 +297,25 @@ class Battle {
         this.logger.debug("Turn end promise resolved");
     }
 
-    private round() {
-        const entity = this.turnSystem.progressToNextTurn();
-        this.logger.info(`Starting new round with entity: ${entity?.name || "None"}`);
+    private async round() {
+        const entity = this.turnSystem.progressToNextTurn(); this.logger.info(`Starting new round with entity: ${entity?.name || "None"}`);
+        if (!entity) {
+            this.logger.error("No entity found for the next round");
+            return;
+        }
+
+        const players = this.state.getAllPlayers();
+        const winningClient = players.find(p => p.UserId === entity.playerID); this.logger.info(`Winning client: ${winningClient?.Name || "None"}`);
+        if (!winningClient) {
+            this.logger.error(`No winning client found for entity ${entity.name}`);
+            return;
+        }
+
+        this.logger.info(`Winning client: ${winningClient.Name}`);
+        this.syncPlayerUIUpdates();
+        this.networkService.forceClientUpdate(winningClient);
+
+        await this.waitForResponse(winningClient)
     }
 }
 

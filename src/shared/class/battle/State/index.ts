@@ -73,7 +73,7 @@ export default class State {
     //#region Syncronisation
     public teamInfo(): TeamState[] {
         // Delegate to team manager via GameState
-        return this.gameState.getTeamManager().getTeamState();
+        return this.gameState.getTeamManager().getTeamStates();
     }
 
     public gridInfo() {

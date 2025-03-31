@@ -16,7 +16,7 @@ import { TeamManager } from "./Managers/TeamManager";
  * Handles all state transitions and game actions
  */
 export class GameState {
-    private logger = Logger.createContextLogger("GameState");
+    protected logger = Logger.createContextLogger("GameState");
     private eventBus: EventBus;
     private entityManager: EntityManager;
     private gridManager: GridManager;
@@ -31,7 +31,6 @@ export class GameState {
         this.teamManager = new TeamManager(this.entityManager.getTeamMap());
         this.initialiseTestingDummies();
     }
-
 
     //#region Initialisation
     private getEntityNumbers(qr: Vector2, player: Player, teamName: string, characterStats: EntityStats) {
@@ -217,7 +216,7 @@ export class GameState {
         return {
             cre: this.creID,
             grid: this.gridManager.getGridState(),
-            teams: this.teamManager.getTeamState(),
+            teams: this.teamManager.getTeamStates(),
         };
     }
 

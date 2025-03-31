@@ -98,36 +98,60 @@ export default class ClientSide {
         }
         this.cleanUpRemotes();
         this.remotees = [
-            remotes.battle.ui.mount.actionMenu.connect(() => {
-                this.localEntity().andThen(e => {
-                    if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
-                })
-            }),
-            remotes.battle.ui.mount.otherPlayersTurn.connect(() => {
-                this.gui.mountOtherPlayersTurnGui();
-            }),
-            remotes.battle.forceUpdate.connect(() => {
-                this.requestUpdateStateAndReadinessMap();
-            }),
-            remotes.battle.animate.connect(ac => {
-                this.handleAnimationRequest(ac);
-            }),
-            remotes.battle.camera.hoi4.connect(() => {
-                return this.camera.enterHOI4Mode()
-            }),
-            remotes.battle.chosen.connect(() => {
-                print("Chosen: waiting for animating to end");
-                this.animating.then(() => {
-                    print("Getting local entity")
-                    this.localEntity().andThen(e => {
-                        this.exitMovement();
-                        const eG = this.EHCGMS.findEntityG(e.playerID) ?? this.EHCGMS.positionNewPlayer(e.state(), e.state().qr!);
-                        this.camera.enterCharacterCenterMode(eG);
-                        if (e) this.gui.mountActionMenu(this.getCharacterMenuActions(e));
-                    })
-                })
-            })
-        ]
+            remotes.battle.ui.mount.actionMenu.connect(() => this.handleActionMenuMount()),
+            remotes.battle.ui.mount.otherPlayersTurn.connect(() => this.handleOtherPlayersTurn()),
+            remotes.battle.forceUpdate.connect(() => this.handleForceUpdate()),
+            remotes.battle.animate.connect((ac) => this.handleAnimationRequest(ac)),
+            remotes.battle.camera.hoi4.connect(() => this.handleCameraHoi4Mode()),
+            remotes.battle.chosen.connect(() => this.handleEntityChosen()),
+        ];
+    }
+
+    private handleActionMenuMount = async () => {
+        try {
+            const entity = await this.localEntity();
+            if (entity) {
+                this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
+            }
+        } catch (err) {
+            warn(`Failed to handle action menu mount: ${err}`);
+        }
+    }
+
+    private handleOtherPlayersTurn = () => {
+        this.gui.mountOtherPlayersTurnGui();
+    }
+
+    private handleForceUpdate = () => {
+        this.requestUpdateStateAndReadinessMap().catch(err => {
+            warn(`Failed to update state: ${err}`);
+        });
+    }
+
+    private handleCameraHoi4Mode = () => {
+        return this.camera.enterHOI4Mode();
+    }
+
+    private handleEntityChosen = async () => {
+        try {
+            print("Chosen: waiting for animating to end");
+            await this.animating;
+
+            print("Getting local entity");
+            const entity = await this.localEntity();
+            this.exitMovement();
+
+            const entityGraphics = this.EHCGMS.findEntityG(entity.playerID) ??
+                this.EHCGMS.positionNewPlayer(entity.state(), entity.state().qr!);
+
+            await this.camera.enterCharacterCenterMode(entityGraphics);
+
+            if (entity) {
+                this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
+            }
+        } catch (err) {
+            warn(`Failed to handle entity chosen: ${err}`);
+        }
     }
 
     private handleAnimationRequest(ac: AccessToken) {

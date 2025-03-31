@@ -15,7 +15,7 @@ export class EntityManager {
     private eventBus?: EventBus;
 
     constructor(entities: EntityInit[], gridManager: GridManager, eventBus?: EventBus) {
-        this.logger.info("EntityManager initialized");
+        this.logger.info("EntityManager initialized", entities);
         this.eventBus = eventBus;
         if (this.eventBus) {
             this.eventBus.subscribe(GameEvent.ENTITY_REMOVED, (id: unknown) => {
