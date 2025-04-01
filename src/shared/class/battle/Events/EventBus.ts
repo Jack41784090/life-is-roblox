@@ -1,3 +1,5 @@
+import Logger from "shared/utils/Logger";
+
 type EventCallback = (...args: unknown[]) => void;
 
 // Add an enum for game event names to ensure consistency
@@ -6,6 +8,7 @@ export enum GameEvent {
     ENTITY_CREATED = "entity:created",
     ENTITY_UPDATED = "entity:updated",
     ENTITY_REMOVED = "entity:removed",
+    ENTITY_MOVED = "entity:moved",
 
     // Turn events
     TURN_STARTED = "turn:started",
@@ -20,7 +23,10 @@ export enum GameEvent {
 }
 
 export class EventBus {
+    private logger = Logger.createContextLogger("EventBus🎉");
     private events: Map<string, Set<EventCallback>> = new Map();
+
+    constructor() { }
 
     public subscribe(eventName: GameEvent, callback: EventCallback): () => void {
         if (!this.events.has(eventName)) {
@@ -41,6 +47,7 @@ export class EventBus {
     public emit(eventName: string, ...args: defined[]): void {
         const callbacks = this.events.get(eventName);
         if (callbacks) {
+            this.logger.debug(`Emitting event: ${eventName}`, ...args);
             for (const callback of callbacks) {
                 callback(...args);
             }

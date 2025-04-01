@@ -4,6 +4,8 @@ import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
+import { EventBus, GameEvent } from "../Events/EventBus";
+import { EntityMovedEventData } from "../Network/SyncSystem";
 import ClientGameState from '../State/ClientGameState';
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
@@ -13,7 +15,7 @@ import Gui from "./Gui";
 
 export default class ClientSide {
     private graphicsInitialised: Promise<[StateState]>;
-
+    private eventBus: EventBus;
     private remotees: Array<() => void> = [];
     private animating: Promise<unknown> = Promise.resolve();
 
@@ -35,6 +37,9 @@ export default class ClientSide {
 
         this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
 
+        // Create the EventBus for client-side event handling
+        this.eventBus = new EventBus();
+
         this.state = new ClientGameState({
             width,
             worldCenter,
@@ -49,6 +54,7 @@ export default class ClientSide {
         );
 
         this.gui = Gui.Connect(this.getReadinessIcons());
+        this.setupEventListeners();
         this.graphicsInitialised = this.initialiseGraphics();
     }
 
@@ -123,7 +129,35 @@ export default class ClientSide {
     }
 
     private handleForceUpdate = () => {
-        this.requestUpdateStateAndReadinessMap().catch(err => {
+        this.requestUpdateStateAndReadinessMap().then(stateData => {
+            // Emit events based on the updated state
+            // This bridges the gap between network updates and the event system
+
+            // Emit grid updated event
+            if (stateData.grid) {
+                this.eventBus.emit(GameEvent.GRID_UPDATED, stateData.grid);
+            }
+
+            // Emit entity updated events for each entity
+            if (stateData.teams) {
+                for (const team of stateData.teams) {
+                    for (const member of team.members) {
+                        const entity = this.state.getEntityManager().getEntity(member.playerID);
+                        if (entity) {
+                            this.eventBus.emit(GameEvent.ENTITY_UPDATED, entity);
+                        }
+                    }
+                }
+            }
+
+            // Emit turn started event if CRE is defined
+            if (stateData.cre) {
+                const cre = this.state.getEntity(stateData.cre);
+                if (cre) {
+                    this.eventBus.emit(GameEvent.TURN_STARTED, cre);
+                }
+            }
+        }).catch(err => {
             warn(`Failed to update state: ${err}`);
         });
     }
@@ -552,5 +586,82 @@ export default class ClientSide {
             });
         });
     }
+    //#endregion
+
+    //#region Event Listeners
+
+    /**
+     * Set up event listeners for game state changes from both network events and local state changes
+     */
+    private setupEventListeners(): void {
+        // Listen for entity movement events from the local event bus
+        this.eventBus.subscribe(GameEvent.ENTITY_MOVED, (data: unknown) => {
+            const movedData = data as EntityMovedEventData;
+            print(`Client received entity moved event: Entity ${movedData.entityId} moved from ${movedData.from} to ${movedData.to}`);
+
+            // Update the visual representation of the entity
+            const entity = this.state.getEntityManager().getEntity(movedData.entityId);
+            if (entity) {
+                const entityGraphics = this.EHCGMS.findEntityG(movedData.entityId);
+                if (entityGraphics) {
+                    const destCellG = this.EHCGMS.findCellG(movedData.to);
+                    if (destCellG) {
+                        // If we have a path, use it, otherwise move directly
+                        const path = this.state.getGridManager().findPath(movedData.from, movedData.to);
+                        if (path) {
+                            const cellGPath = path.map(qr => this.EHCGMS.findCellG(qr));
+                            this.animating = entityGraphics.moveToCell(destCellG, cellGPath);
+                        } else {
+                            this.animating = entityGraphics.moveToCell(destCellG, [destCellG]);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Listen for entity updated events
+        this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
+            const updatedEntity = entity as Entity;
+            print(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`);
+
+            // Update the readiness icon if this entity has one
+            const readinessIcon = this.readinessIconMap[updatedEntity.playerID];
+            if (readinessIcon) {
+                readinessIcon(updatedEntity.get('pos'));
+                print(`Updated readiness icon for ${updatedEntity.name} to ${updatedEntity.get('pos')}`);
+            }
+
+            // Update visual representation if needed
+            const entityGraphics = this.EHCGMS.findEntityG(updatedEntity.playerID);
+            if (entityGraphics) {
+                // Additional visual updates can be performed here 
+                // (e.g., health bar updates, status effects, etc.)
+            }
+        });
+
+        // Listen for grid update events
+        this.eventBus.subscribe(GameEvent.GRID_UPDATED, (gridState: unknown) => {
+            print("Client received grid updated event");
+
+            // Sync grid visuals with the updated state
+            this.EHCGMS.syncGrid(this.state.getGridState());
+        });
+
+        // Listen for turn started events
+        this.eventBus.subscribe(GameEvent.TURN_STARTED, (entity: unknown) => {
+            const turnEntity = entity as Entity;
+            print(`Client received turn started event for entity: ${turnEntity.name} (${turnEntity.playerID})`);
+
+            // Check if it's the local player's turn
+            if (turnEntity.playerID === Players.LocalPlayer.UserId) {
+                print("It's local player's turn!");
+                this.handleEntityChosen();
+            } else {
+                print("It's another player's turn");
+                this.handleOtherPlayersTurn();
+            }
+        });
+    }
+
     //#endregion
 }

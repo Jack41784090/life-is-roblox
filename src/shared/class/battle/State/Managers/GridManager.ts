@@ -1,5 +1,7 @@
+import { RunService } from "@rbxts/services";
 import { HexGridState, StateConfig, TILE_SIZE } from "shared/types/battle-types";
 import Logger from "shared/utils/Logger";
+import { EventBus, GameEvent } from "../../Events/EventBus";
 import HexCell from "../Hex/Cell";
 import HexGrid from "../Hex/Grid";
 import { ReadonlyGridState } from "../Hex/types";
@@ -10,19 +12,21 @@ import { ReadonlyGridState } from "../Hex/types";
 export class GridManager {
     private logger = Logger.createContextLogger("GridManager");
     private grid: HexGrid;
+    private eventBus?: EventBus;
 
     //#region Initialization
 
     /**
      * Creates a new grid manager with the specified configuration
      */
-    constructor(config: StateConfig) {
+    constructor(config: StateConfig, eventBus?: EventBus) {
+        this.eventBus = eventBus;
         this.grid = new HexGrid({
             radius: math.floor(config.width / 2),
             center: new Vector2(config.worldCenter.X, config.worldCenter.Z),
             size: TILE_SIZE,
             name: "BattleGrid",
-        });
+        }, eventBus);
         this.grid.initialise();
     }
 
@@ -131,6 +135,13 @@ export class GridManager {
      */
     public updateGrid(gridState: HexGridState): void {
         this.grid.update(gridState);
+
+        // Only emit grid updated event on the server side
+        // This ensures clients can't manipulate the game state
+        if (this.eventBus && RunService.IsServer()) {
+            this.logger.debug("Emitting grid updated event");
+            this.eventBus.emit(GameEvent.GRID_UPDATED, gridState);
+        }
     }
 
     //#endregion

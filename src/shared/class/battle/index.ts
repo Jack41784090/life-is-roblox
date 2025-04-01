@@ -4,11 +4,13 @@ import { ActionType, ActionValidator, Config, MoveAction } from "shared/types/ba
 import { get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
 import { IDGenerator } from "../IDGenerator";
+import { GameEvent } from "./Events/EventBus";
 import { NetworkService } from "./Network/NetworkService";
+import { SyncSystem } from "./Network/SyncSystem";
 import { GameState } from "./State/GameState";
 import { TurnSystem } from "./Systems/TurnSystem";
 
-class Battle {
+export default class Battle {
     public static Create(config: Partial<Config>) {
         if (RunService.IsServer()) {
             return new Battle(config);
@@ -22,6 +24,7 @@ class Battle {
     private logger = Logger.createContextLogger("Battle");
     private state: GameState;
     private networkService: NetworkService;
+    private syncSystem: SyncSystem;
     private turnSystem: TurnSystem;
 
     private constructor(config: Partial<Config>) {
@@ -36,10 +39,18 @@ class Battle {
         this.networkService = new NetworkService();
         this.turnSystem = new TurnSystem(this.state);
 
+        // Create the SyncSystem to handle synchronization between state and network
+        this.syncSystem = new SyncSystem(
+            this.state,
+            this.networkService,
+            this.state.getEventBus()
+        );
+
         this.state.getAllPlayers().forEach(p => {
             this.logger.info(`Initialising ClientSide for ${p.Name}`);
             this.networkService.createClientBattle(p, config);
         });
+
         this.setUpRemotes();
         this.round();
     }
@@ -168,29 +179,33 @@ class Battle {
     }
 
     private syncPlayerUIUpdates() {
-        // Update Player UI's
-        const players = this.state.getAllPlayers();
-        const network = this.networkService;
+        // Update Player UI's using the SyncSystem instead of direct network calls
         const currentActorID = this.turnSystem.getCurrentActorID();
 
-        this.logger.debug(`Updating player UIs, current actor: ${currentActorID}`);
+        if (!currentActorID) {
+            this.logger.warn("No current actor ID found when syncing player UIs");
+            return;
+        }
 
-        players.forEach(p => {
-            if (p.UserId === currentActorID) {
-                this.logger.info(`Notifying player ${p.Name} they've been chosen to act`);
-                network.notifyPlayerChosen(p);
-            }
-            else {
-                this.logger.debug(`Mounting 'other player's turn' UI for ${p.Name}`);
-                network.mountOtherPlayersTurn(p);
-            }
-        });
+        const currentEntity = this.state.getEntity(currentActorID);
+        if (!currentEntity) {
+            this.logger.warn(`Current entity not found for ID: ${currentActorID}`);
+            return;
+        }
+
+        // Emit a turn started event - the SyncSystem will handle notifying clients
+        this.state.getEventBus().emit(GameEvent.TURN_STARTED, currentEntity);
+
+        // Let the SyncSystem handle broadcasting the state changes to all clients
+        // This replaces the individual network calls with a centralized sync approach
+        this.logger.debug(`SyncSystem will notify clients about turn started for entity ID: ${currentActorID}`);
     }
 
     private async waitForResponse(winningClient: Player) {
         const network = this.networkService;
         const players = this.state.getAllPlayers();
         const accessCode = IDGenerator.generateID();
+        const eventBus = this.state.getEventBus();
 
         this.logger.info(`Waiting for action from player ${winningClient.Name}, access code: ${accessCode}`);
 
@@ -233,13 +248,20 @@ class Battle {
             }
             else {
                 this.logger.info(`Committing action for ${actingPlayer.Name}`, access.action);
+
+                // Commit the action to the state
                 this.state.commit(access.action!);
-                players.forEach(p => network.sendAnimationToPlayer(p, access));
+
+                // Use the SyncSystem to handle animation propagation instead of direct network calls
+                if (access.action) {
+                    // The animation still needs to be sent directly since it's a special case
+                    players.forEach(p => network.sendAnimationToPlayer(p, access));
+                }
             }
 
-            // 3. Update all players
-            this.logger.debug("Forcing client update for all players");
-            players.forEach(p => network.forceClientUpdate(p));
+            // 3. Let the SyncSystem handle grid/entity updates to all clients
+            // The SyncSystem will automatically broadcast these changes due to the events emitted during commit
+            this.syncSystem.syncClientState(actingPlayer);
 
             // 4. Check if pos of actingPlayer (cre) is below 75% and end round
             const cre = this.state.getEntity(actingPlayer.UserId);
@@ -258,6 +280,8 @@ class Battle {
 
             if (posture < 75) {
                 this.logger.info(`Ending round: ${actingPlayer.Name}'s posture (${posture}) below 75`);
+                // Emit turn ended event - this will be handled by the SyncSystem
+                eventBus.emit(GameEvent.TURN_ENDED, cre);
                 endPromiseResolve(actingPlayer);
             }
 
@@ -281,6 +305,13 @@ class Battle {
                         winningClient: winningClient,
                     });
                     this.logger.info(`Turn end request validated for ${p.Name}`);
+
+                    // Emit turn ended event - will be handled by SyncSystem
+                    const entity = this.state.getEntity(p.UserId);
+                    if (entity) {
+                        eventBus.emit(GameEvent.TURN_ENDED, entity);
+                    }
+
                     return true;
                 }
                 catch (e) {
@@ -298,25 +329,34 @@ class Battle {
     }
 
     private async round() {
-        const entity = this.turnSystem.progressToNextTurn(); this.logger.info(`Starting new round with entity: ${entity?.name || "None"}`);
+        const entity = this.turnSystem.progressToNextTurn();
+        this.logger.info(`Starting new round with entity: ${entity?.name || "None"}`);
         if (!entity) {
             this.logger.error("No entity found for the next round");
             return;
         }
 
         const players = this.state.getAllPlayers();
-        const winningClient = players.find(p => p.UserId === entity.playerID); this.logger.info(`Winning client: ${winningClient?.Name || "None"}`);
+        const winningClient = players.find(p => p.UserId === entity.playerID);
+        this.logger.info(`Winning client: ${winningClient?.Name || "None"}`);
         if (!winningClient) {
             this.logger.error(`No winning client found for entity ${entity.name}`);
             return;
         }
 
         this.logger.info(`Winning client: ${winningClient.Name}`);
-        this.syncPlayerUIUpdates();
-        this.networkService.forceClientUpdate(winningClient);
 
-        await this.waitForResponse(winningClient)
+        // Use syncPlayerUIUpdates which now relies on EventBus to notify clients
+        this.syncPlayerUIUpdates();
+
+        // Sync the current state to the winning player through the SyncSystem
+        this.syncSystem.syncClientState(winningClient);
+
+        await this.waitForResponse(winningClient);
+
+        // After the round is complete, start a new round
+        // This creates a continuous game loop
+        this.round();
     }
 }
 
-export default Battle;

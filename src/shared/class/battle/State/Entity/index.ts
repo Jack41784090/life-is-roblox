@@ -2,11 +2,11 @@ import { atom, Atom } from "@rbxts/charm";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
+import { EventBus, GameEvent } from "../../Events/EventBus";
 import { AbilitySet, AbilityType, ActiveAbilityState, iAbility, iActiveAbility } from "../Ability/types";
 import FightingStyle from "../FightingStyle";
 import { Default } from "../FightingStyle/const";
 import { EntityChangeable, EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate, iEntity } from "./types";
-
 
 export default class Entity implements iEntity {
     // server-controlled properties
@@ -21,12 +21,13 @@ export default class Entity implements iEntity {
 
     private stance: EntityStance = EntityStance.High;
     private fightingStyle: FightingStyle = Default();
+    private eventBus?: EventBus;
 
     qr: Vector2;
     armed?: keyof typeof Enum.KeyCode;
     team?: string;
 
-    constructor(options: EntityInit) {
+    constructor(options: EntityInit, eventBus?: EventBus) {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
@@ -37,6 +38,7 @@ export default class Entity implements iEntity {
         this.pos = atom(options.pos ?? 0);
         this.mana = atom(options.mana ?? 0);
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
+        this.eventBus = eventBus;
     }
 
     state(): EntityState {
@@ -61,7 +63,10 @@ export default class Entity implements iEntity {
     //#region get stats
     set(property: EntityChangeable, by: number) {
         print(`${this.name}: Changing ${property} by ${by}`);
+        const oldValue = this[property]();
         this[property](math.max(0, by));
+
+
         return this[property];
     }
 
@@ -118,9 +123,11 @@ export default class Entity implements iEntity {
     public changeHP(num: number) {
         print(`${this.name}: Changing HP by ${num}`);
 
+        const oldHip = this.hip();
         this.hip = atom(this.hip() + num);
         const maxHP = calculateRealityValue(Reality.HP, this.stats);
-        const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9); print(hpPercentage)
+        const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9); print(hpPercentage);
+
     }
     public heal(num: number) {
         if (num < 0) return;
@@ -131,6 +138,8 @@ export default class Entity implements iEntity {
         this.changeHP(-num);
     }
     public updateStats(u: EntityStatsUpdate) {
+        let changed = false;
+
         for (const [stat, value] of pairs(u)) {
             if (this.stats[stat] === undefined) {
                 warn(`Stat ${stat} not found`);
@@ -138,14 +147,22 @@ export default class Entity implements iEntity {
             }
             if (typeOf(stat) === 'string' && typeOf(value) === 'number') {
                 this.stats[stat] = value;
+                changed = true;
             }
         }
     }
     public update(u: EntityUpdate) {
         // print(`Updating entity ${this.name} with`, u);
-        if (u.stats) this.updateStats(u.stats);
+        let changed = false;
+
+        if (u.stats) {
+            this.updateStats(u.stats);
+            changed = true;
+        }
+
         for (const [k, v] of pairs(u)) {
             if (this[k as keyof this] === undefined) continue;
+
             switch (k) {
                 case 'hip':
                 case 'sta':
@@ -154,24 +171,38 @@ export default class Entity implements iEntity {
                 case 'mana':
                     print(`Changing ${k} by ${v}`);
                     this[k as EntityChangeable](v as number);
+                    changed = true;
                     break;
                 default:
                     print(`Changing ${k} to ${v}`);
                     this[k as keyof this] = v as unknown as any;
+                    changed = true;
             }
         }
     }
     public setStance(stance: EntityStance) {
+        if (this.stance === stance) return;
         this.stance = stance;
     }
 
     public setCell(q: number, r: number): void;
     public setCell(qr: Vector2): void
     public setCell(q: number | Vector2, r?: number) {
+        const oldPosition = new Vector2(this.qr.X, this.qr.Y);
+
         if (typeOf(q) === 'number') {
             this.qr = new Vector2(q as number, r as number);
         } else {
             this.qr = q as Vector2;
+        }
+
+        // Emit entity moved event if EventBus is available and position changed
+        if (this.eventBus && oldPosition && oldPosition !== this.qr) {
+            this.eventBus.emit(GameEvent.ENTITY_MOVED, {
+                entityId: this.playerID,
+                from: oldPosition,
+                to: this.qr
+            });
         }
     }
     //#endregion

@@ -2,7 +2,7 @@ import { MOVEMENT_COST } from "shared/const";
 import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/types/battle-types";
 import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus } from "../Events/EventBus";
+import { EventBus, GameEvent } from "../Events/EventBus";
 import Entity from "./Entity";
 import { EntityInit, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
@@ -15,6 +15,13 @@ import { TeamManager } from "./Managers/TeamManager";
  * Main game state controller that manages entities, grid, and teams
  * Handles all state transitions and game actions
  */
+
+export interface EntityMovedEventData {
+    entityId: number;
+    from: Vector2;
+    to: Vector2;
+}
+
 export class GameState {
     protected logger = Logger.createContextLogger("GameState");
     private eventBus: EventBus;
@@ -24,8 +31,8 @@ export class GameState {
     private creID: number | undefined;
 
     constructor(config: StateConfig) {
-        this.gridManager = new GridManager(config);
         this.eventBus = new EventBus();
+        this.gridManager = new GridManager(config, this.eventBus);
         const entitiesInit: EntityInit[] = this.getEntitiesInitFromTeamMap(config.teamMap);
         this.entityManager = new EntityManager(entitiesInit, this.gridManager, this.eventBus); // Pass eventBus to EntityManager
         this.teamManager = new TeamManager(this.entityManager.getTeamMap());
@@ -173,6 +180,25 @@ export class GameState {
         const previousPosition = entity.qr || new Vector2(0, 0);
         entity.setCell(cell.qr());
         cell.pairWith(entity);
+
+        // Emit event for entity movement and grid cell update
+        if (entity.qr && previousPosition === entity.qr) {
+            // Emit entity moved event
+            this.eventBus.emit(GameEvent.ENTITY_MOVED, {
+                entityId: entity.playerID,
+                from: previousPosition,
+                to: entity.qr
+            } as EntityMovedEventData);
+
+            // Emit grid cell updated event for both cells
+            this.eventBus.emit(GameEvent.GRID_CELL_UPDATED, {
+                newPosition: entity.qr,
+                previousPosition
+            });
+
+            // Also emit a general grid update
+            this.eventBus.emit(GameEvent.GRID_UPDATED, this.gridManager.getGridState());
+        }
     }
 
     public getCell(qr: Vector2): HexCell | undefined {
@@ -321,6 +347,8 @@ export class GameState {
         fromCell.entity = undefined;
         entity.set('pos', entity.get('pos') - costOfMovement);
         this.setCell(entity, toCell);
+
+        // No need to emit here as setCell already does it
     }
     //#endregion
 

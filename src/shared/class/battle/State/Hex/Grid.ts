@@ -3,6 +3,7 @@ import { QR } from "shared/class/XY";
 import { HEXAGON_HEIGHT, HEXAGON_MAGIC } from "shared/const";
 import { CellTerrain, HexCellState, HexGridConfig, HexGridState } from "shared/types/battle-types";
 import Logger from "shared/utils/Logger";
+import { EventBus, GameEvent } from "../../Events/EventBus";
 import HexCell from "./Cell";
 import { Hex, Layout } from "./Layout";
 
@@ -17,8 +18,9 @@ export default class HexGrid {
     size: number;
     name: string;
     radius: number;
+    private eventBus?: EventBus;
 
-    constructor(config: HexGridConfig) {
+    constructor(config: HexGridConfig, eventBus?: EventBus) {
         const { center, size, radius, name } = config;
         assert(size > 0, "Cell size must be a positive number.");
         assert(radius > 0, "Radius must be a positive number.");
@@ -29,6 +31,7 @@ export default class HexGrid {
         this.center = center;
         this.size = size;
         this.name = name;
+        this.eventBus = eventBus;
         this.cellsQR = new QR<HexCell>(this.radius);
         this.layout = new Layout(
             Layout.pointy,
@@ -44,6 +47,7 @@ export default class HexGrid {
             this.model.Parent = game.Workspace;
         }
     }
+
     /**
      * Initializes the hexagonal grid with the specified radius.
      * This method creates hexagonal cells within the grid based on the radius,
@@ -67,10 +71,16 @@ export default class HexGrid {
                     height: HEXAGON_HEIGHT,
                     terrain: CellTerrain.plains,
                     gridRef: grid,
+                    eventBus: this.eventBus
                 });
                 this.cells.push(cell);
                 this.cellsQR.set(q, r, cell);
             }
+        }
+
+        // Emit grid updated event if EventBus is available
+        if (this.eventBus) {
+            this.eventBus.emit(GameEvent.GRID_UPDATED, this.info());
         }
     }
 
@@ -78,17 +88,26 @@ export default class HexGrid {
 
     private updateAllCells(config: HexCellState[]) {
         this.cells = config.map(c => {
-            const newCell = this.cellsQR.get(c.qr) || new HexCell({ ...c, gridRef: this });
+            const newCell = this.cellsQR.get(c.qr) || new HexCell({
+                ...c,
+                gridRef: this,
+                eventBus: this.eventBus
+            });
             this.cellsQR.set(c.qr.X, c.qr.Y, newCell);
             newCell.update(c);
             return newCell;
-        })
+        });
+
+        // Emit grid updated event if EventBus is available
+        if (this.eventBus) {
+            this.eventBus.emit(GameEvent.GRID_UPDATED, this.info());
+        }
     }
 
     private updateOneCell(q: number, r: number, config: Partial<HexCellState>) {
         const cell = this.cellsQR.get(q, r);
         if (cell) {
-            cell.update(config)
+            cell.update(config);
         }
         else {
             this.logger.warn(`Cell Update failed: invalid qr(${q},${r})`);
@@ -96,6 +115,7 @@ export default class HexGrid {
     }
 
     private updateCenter(center: Vector2) {
+        const oldCenter = new Vector2(this.center.X, this.center.Y);
         this.center = center;
         this.layout = new Layout(
             Layout.pointy,
@@ -105,6 +125,11 @@ export default class HexGrid {
             ),
             new Vector2(this.center.X, this.center.Y),
         );
+
+        // Emit grid updated event if EventBus is available and center changed
+        if (this.eventBus && oldCenter !== (center)) {
+            this.eventBus.emit(GameEvent.GRID_UPDATED, this.info());
+        }
     }
 
     private updateRadius(radius: number) {
@@ -115,7 +140,13 @@ export default class HexGrid {
         this.cellsQR.reset(() => { });
         this.cellsQR = new QR<HexCell>(this.radius);
         this.cells = [];
+
+        // Emit grid updated event if EventBus is available
+        if (this.eventBus) {
+            this.eventBus.emit(GameEvent.GRID_UPDATED, this.info());
+        }
     }
+
     /**
      * radius + cells:  complete change
      * cells:           individual cell change
@@ -124,22 +155,41 @@ export default class HexGrid {
      * @param config 
      */
     public update(config: Partial<HexGridState>) {
+        let changed = false;
+
         // this.logger.info("Updating grid with ", config);
         for (const [x, y] of pairs(config)) {
             if (x === 'cellsMap') continue; // cellsMap is not a property of the grid, but a derived property
-            if (typeOf(y) === typeOf(this[x])) this[x as keyof this] = y as unknown as any;
+            if (typeOf(y) === typeOf(this[x])) {
+                if (this[x as keyof this] !== y) {
+                    this[x as keyof this] = y as unknown as any;
+                    changed = true;
+                }
+            }
         }
 
         if (config.center) {
             this.updateCenter(config.center);
+            changed = true;
         }
 
         if (config.cells && config.radius) {
             this.updateRadius(config.radius);
             this.updateAllCells(config.cells);
+            changed = true;
         }
         else if (config.radius) {
             this.updateRadius(config.radius);
+            changed = true;
+        }
+        else if (config.cells) {
+            this.updateAllCells(config.cells);
+            changed = true;
+        }
+
+        // Emit grid updated event if EventBus is available and grid changed
+        if (changed && this.eventBus) {
+            this.eventBus.emit(GameEvent.GRID_UPDATED, this.info());
         }
 
         // this.cells.clear(); this.cellsQR.reset();

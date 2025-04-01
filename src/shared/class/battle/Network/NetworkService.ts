@@ -200,6 +200,17 @@ export class NetworkService {
         }
     }
 
+    public sendEntityMoved(player: Player, data: { entityId: number, from: Vector2, to: Vector2 }): void {
+        if (RunService.IsServer()) {
+            // If there was a remote event for entity movement, you would fire it here
+            // For now, we'll use the force update mechanism
+            this.forceClientUpdate(player);
+
+            // Notify subscribers on the receiving end
+            this.entityMovedCallbacks.forEach(callback => callback(data));
+        }
+    }
+
     // UI-related remotes
     public unmountUI(tag: GuiTag) {
         if (RunService.IsServer()) {

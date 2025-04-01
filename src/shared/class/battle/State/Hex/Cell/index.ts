@@ -1,4 +1,5 @@
 import { CellTerrain, HexCellConfig, HexCellState, PlayerID } from "shared/types/battle-types";
+import { EventBus, GameEvent } from "../../../Events/EventBus";
 import Entity from "../../Entity";
 import HexGrid from "../Grid";
 import { Hex } from "../Layout";
@@ -10,8 +11,9 @@ export default class HexCell {
     public gridRef: HexGrid;
     public size = 4;
     public height: number;
+    private eventBus?: EventBus;
 
-    constructor({ qr: qrs, height, size, terrain, gridRef }: HexCellConfig) {
+    constructor({ qr: qrs, height, size, terrain, gridRef, eventBus }: HexCellConfig & { eventBus?: EventBus }) {
         const { X: q, Y: r } = qrs;
         const s = -q - r;
         this.qrs = new Vector3(q, r, s);
@@ -19,6 +21,7 @@ export default class HexCell {
         this.gridRef = gridRef;
         this.size = size;
         this.height = height;
+        this.eventBus = eventBus;
     }
 
     public static readonly directions = [
@@ -32,18 +35,45 @@ export default class HexCell {
 
     //#region Modifying
     public pairWith(cre: Entity) {
+        const previousEntity = this.entity;
         this.entity = cre.playerID;
+
+        // Emit cell updated event if EventBus is available and entity changed
+        if (this.eventBus && previousEntity !== this.entity) {
+            this.eventBus.emit(GameEvent.GRID_CELL_UPDATED, {
+                cell: this,
+                previousEntity: previousEntity,
+                newEntity: this.entity,
+                position: this.qr()
+            });
+        }
     }
 
     public update(config: Partial<HexCellState>) {
-        // print(`Updating cell ${this.qrs} with config`, config);
+        let changed = false;
+        const previousState = this.info();
+
         for (const [x, y] of pairs(config)) {
             if (typeOf(this[x as keyof this]) === typeOf(y)) {
-                this[x as keyof this] = y as unknown as any
+                if (this[x as keyof this] !== y) {
+                    this[x as keyof this] = y as unknown as any;
+                    changed = true;
+                }
             }
-            else if (x === 'entity') {
+            else if (x === 'entity' && this.entity !== y) {
                 this.entity = y as number;
+                changed = true;
             }
+        }
+
+        // Emit cell updated event if EventBus is available and cell changed
+        if (changed && this.eventBus) {
+            this.eventBus.emit(GameEvent.GRID_CELL_UPDATED, {
+                cell: this,
+                previousState,
+                newState: this.info(),
+                position: this.qr()
+            });
         }
     }
     //#endregion

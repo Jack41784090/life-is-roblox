@@ -36,14 +36,15 @@ export class EntityManager {
      */
     public createEntity(config: EntityInit): Entity {
         this.logger.info(`Creating entity with ID: ${config.playerID}, name: ${config.name}`);
-        const entity = new Entity(config);
+
+        // Pass the EventBus to the Entity constructor
+        const entity = new Entity(config, this.eventBus);
         this.entities.set(config.playerID, entity);
 
         // Emit creation event
         if (this.eventBus) {
             this.eventBus.emit(GameEvent.ENTITY_CREATED, entity);
         }
-
         this.logger.debug(`Entity created: ${entity.name} (${entity.playerID})`);
         return entity;
     }
