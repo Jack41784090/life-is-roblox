@@ -3,12 +3,13 @@ import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import { uiFolder } from "shared/const/assets";
-import { math_map } from "shared/utils";
+import { V3COPY, math_map } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
 import Going from "./Going";
 import { CConfig, CState, MovementConfig } from "./types";
 
+//#region Constants
 const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
     maxWalkSpeed: 8,
     maxAcc: 0.25,
@@ -22,9 +23,19 @@ const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
     turnSpeedAtMaxVelocity: 0.3,
 };
 
+const DEFAULT_FACING_DIRECTION = new Vector3(0, 0, -1);
+const MAX_POSITION_DELTA = 10; // Maximum reasonable position change per frame
+const POSITION_VALIDITY_THRESHOLD = 1e6;
+const MOMENTUM_CLEANUP_THRESHOLD = 0.05;
+//#endregion
+
+/**
+ * Character controller for NPC entities
+ * Handles movement physics, animations, and pathfinding
+ */
 export default class C {
+    //#region Infrastructure
     protected logger = Logger.createContextLogger("C");
-    //#region infrastructure
     protected associatedPlace: Place;
     protected id: string;
     protected model: Model = new Instance('Model');
@@ -33,21 +44,24 @@ export default class C {
     protected connections: Array<() => void> = [];
     protected state: CState = CState.IDLE;
     protected prevState = CState.IDLE;
+
+    // UI Components
     protected nameTag?: BillboardGui;
     private nameTagLabel?: TextBox;
     private speechBubble = uiFolder.WaitForChild('speechbubble').Clone() as Part;
     private speechBubbleTextBox = this.speechBubble.FindFirstChildOfClass('BillboardGui')?.FindFirstChildOfClass('TextBox') as TextBox;
     //#endregion
 
-    //#region walking
-    protected hurrying: boolean = false;
-    protected walkingDirection: Vector3 = new Vector3();
-    protected facingDirection: Vector3 = new Vector3(0, 0, -1); // Default facing direction
-    protected targetFacingDirection: Vector3 = new Vector3(0, 0, -1);
+    //#region Movement Properties
+    // Basic movement state
+    protected hurrying = false;
+    protected walkingDirection = new Vector3();
+    protected facingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
+    protected targetFacingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
     protected walkSpeedFractionAtom: Atom<number>;
     protected walkSpeedTracker: RBXScriptConnection;
 
-    // Movement physics configuration
+    // Movement config values
     protected movementConfig: MovementConfig;
     protected maxWalkSpeed: number;
     protected maxAcc: number;
@@ -56,19 +70,25 @@ export default class C {
     protected decelerateMultiplier: number;
     protected sprintMultiplier: number;
 
-    // Advanced movement properties
-    protected velocity: Vector3 = new Vector3();
+    // Physics state
+    protected velocity = new Vector3();
     protected lastPosition: Vector3;
-    protected momentum: Vector3 = new Vector3(); // Stores accumulated momentum
-    protected intendedDirection: Vector3 = new Vector3(); // Direction player wants to move in
+    protected momentum = new Vector3();
+    protected intendedDirection = new Vector3();
     //#endregion
 
-    //#region mind
+    //#region Pathfinding
     protected currentDestination?: Vector3;
     protected currentGoing?: Going;
     protected currentWaypoint?: PathWaypoint;
+    private waypointArriveTimeout?: ReturnType<typeof setTimeout>;
     //#endregion
 
+    /**
+     * Creates a character controller
+     * @param config The character configuration
+     * @param place The place this character belongs to
+     */
     constructor(config: CConfig, place: Place) {
         this.id = config.id;
         this.associatedPlace = place;
@@ -99,7 +119,15 @@ export default class C {
             this.walkSpeedFractionAtom(this.humanoid.WalkSpeed / this.maxWalkSpeed);
         });
 
-        // Main update loop - Use connections array to properly track and clean up
+        // Set up main update loop
+        this.initializeUpdateLoop();
+    }
+
+    //#region Initialization Methods
+    /**
+     * Sets up the main update loop for the character
+     */
+    private initializeUpdateLoop(): void {
         const renderSteppedConnection = RunService.RenderStepped.Connect(dt => {
             this.updateMovementPhysics(dt);
             this.stateUpdater();
@@ -111,8 +139,33 @@ export default class C {
         this.connections.push(() => renderSteppedConnection.Disconnect());
     }
 
+    /**
+     * Spawns the character model in the world
+     */
+    private spawn(config: CConfig): void {
+        try {
+            const template = ReplicatedStorage.WaitForChild('Models')
+                .WaitForChild("NPCs")
+                .WaitForChild(this.id) as Model;
+            assert(template.IsA('Model'), `Model '${this.id}' not found`);
+            this.model = template.Clone();
+            this.model.Parent = this.associatedPlace.getModel();
+            this.model.Name = config.displayName;
+            this.model.PrimaryPart!.CFrame = new CFrame(config.spawnLocation);
+            this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
+            this.nameTagLabel = this.nameTag?.FindFirstChildOfClass('TextBox') as TextBox;
+        } catch (e) {
+            this.logger.warn(`Failed to spawn: ${e}`);
+        }
+    }
+    //#endregion
+
+    //#region Movement Physics
+    /**
+     * Updates character movement physics
+     * @param dt Delta time since last frame
+     */
     private updateMovementPhysics(dt: number): void {
-        // #region Preupdate Safety
         // Safety check for extreme delta time values
         if (dt <= 0 || dt > 1) {
             return;
@@ -135,35 +188,53 @@ export default class C {
             return;
         }
 
-        // Make validation checks for facing-vectors
-        if (!this.isValidVector(this.facingDirection)) {
-            this.facingDirection = new Vector3(0, 0, -1);
-        }
-        if (!this.isValidVector(this.targetFacingDirection)) {
-            this.targetFacingDirection = new Vector3(0, 0, -1);
-        }
-        //#endregion
+        // Validate facing vectors
+        this.validateFacingVectors();
 
-        // Calculate horizontal velocity with position change limit to prevent extreme values
-        const maxPositionDelta = 10; // Maximum reasonable position change per frame
-        const horizontalDelta = new Vector3(
-            math.clamp(currentPosition.X - this.lastPosition.X, -maxPositionDelta, maxPositionDelta),
-            0,
-            math.clamp(currentPosition.Z - this.lastPosition.Z, -maxPositionDelta, maxPositionDelta)
-        );
+        // Calculate horizontal velocity with position change limit
+        const horizontalDelta = this.calculateHorizontalDelta(currentPosition);
 
-        // Update velocity based on position change with safety check
+        // Update velocity and position tracking
         this.velocity = horizontalDelta.div(dt);
         this.lastPosition = currentPosition;
-        this.updateMomentum(dt);
 
+        // Apply momentum physics and calculate target direction
+        this.updateMomentum(dt);
         if (this.walkingDirection.Magnitude > 0) {
             this.calculateTargetDirection();
         }
 
+        // Update facing direction with dynamic turn speed
+        this.updateFacingDirection(dt);
+    }
 
-        //#region Turn Speed
+    /**
+     * Ensures facing vectors are valid
+     */
+    private validateFacingVectors(): void {
+        if (!this.isValidVector(this.facingDirection)) {
+            this.facingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
+        }
+        if (!this.isValidVector(this.targetFacingDirection)) {
+            this.targetFacingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
+        }
+    }
 
+    /**
+     * Calculates horizontal movement delta with safety limits
+     */
+    private calculateHorizontalDelta(currentPosition: Vector3): Vector3 {
+        return new Vector3(
+            math.clamp(currentPosition.X - this.lastPosition.X, -MAX_POSITION_DELTA, MAX_POSITION_DELTA),
+            0,
+            math.clamp(currentPosition.Z - this.lastPosition.Z, -MAX_POSITION_DELTA, MAX_POSITION_DELTA)
+        );
+    }
+
+    /**
+     * Updates the character's facing direction
+     */
+    private updateFacingDirection(dt: number): void {
         // Calculate angle between current and target direction for dynamic turning
         const dotProduct = this.facingDirection.Dot(this.targetFacingDirection);
         const angleSize = 1 - math.abs(dotProduct); // 0 when parallel, 1 when perpendicular
@@ -182,9 +253,18 @@ export default class C {
 
         // Only adjust orientation if we're actually moving
         if (this.momentum.Magnitude < 0.1) return;
+
         const rootPart = this.model.PrimaryPart;
         if (!rootPart) return;
 
+        // Apply rotation to model without changing position
+        this.applyRotationToModel(rootPart);
+    }
+
+    /**
+     * Applies rotation to the model based on facing direction
+     */
+    private applyRotationToModel(rootPart: BasePart): void {
         // Create a safe look vector that preserves Y position
         const currentPos = rootPart.Position;
         const facingVector = new Vector3(this.facingDirection.X, 0, this.facingDirection.Z).Unit;
@@ -197,14 +277,16 @@ export default class C {
         // Create a lookAt CFrame but only use it for direction
         const lookCFrame = CFrame.lookAt(currentPos, targetPos);
 
-        // IMPORTANT: Only rotate the model, DO NOT change its position
+        // Only rotate the model, DO NOT change its position
         rootPart.CFrame = new CFrame(
             currentPos, // Keep current position exactly as is
             lookCFrame.LookVector.add(currentPos) // Only use the orientation
         );
     }
 
-    // Calculate dynamic turn speed based on velocity
+    /**
+     * Calculates dynamic turn speed based on velocity
+     */
     private calculateDynamicTurnSpeed(): number {
         const baseTurnSpeed = this.movementConfig.turnSpeed;
         const velocityMagnitude = this.velocity.Magnitude;
@@ -217,38 +299,58 @@ export default class C {
         return baseTurnSpeed * speedFactor;
     }
 
-    // Update momentum based on current inputs and existing momentum
+    /**
+     * Updates momentum based on current inputs and existing momentum
+     */
     private updateMomentum(dt: number): void {
         if (!this.isValidVector(this.momentum)) {
             this.momentum = new Vector3();
         }
 
-        // Calculate how much of previous momentum to retain (based on speed and config)
-        const _speedFactor = math.min(this.velocity.Magnitude / (this.maxWalkSpeed * this.sprintMultiplier), 1);
-        const _baseRetention = this.movementConfig.momentumRetention;
-        const retention = math.clamp(_baseRetention + (_speedFactor * 0.05), 0, 0.98);
+        // Calculate how much of previous momentum to retain
+        const speedFactor = math.min(this.velocity.Magnitude / (this.maxWalkSpeed * this.sprintMultiplier), 1);
+        const baseRetention = this.movementConfig.momentumRetention;
+        const retention = math.clamp(baseRetention + (speedFactor * 0.05), 0, 0.98);
 
-        // Gradually shift momentum toward intended direction
+        // Update momentum based on walking direction
+        this.applyMomentumPhysics(retention);
+
+        // Apply the momentum to actual movement if significant
+        this.applyMomentumToMovement();
+    }
+
+    /**
+     * Applies momentum physics calculations
+     */
+    private applyMomentumPhysics(retention: number): void {
         if (this.walkingDirection.Magnitude > 0) {
             // Blend current momentum with new direction
             this.momentum = this.momentum.mul(retention).add(
                 this.walkingDirection.mul(1 - retention)
             );
         } else {
-            // When not providing input, just retain existing momentum with some decay
+            // When not providing input, just retain existing momentum with decay
             this.momentum = this.momentum.mul(retention * 0.98);
         }
+    }
 
-        // Apply the momentum to actual movement if it's significant
+    /**
+     * Applies momentum to actual character movement
+     */
+    private applyMomentumToMovement(): void {
         if (!this.humanoid) return;
+
         const momentumMagnitude = this.momentum.Magnitude;
-        if (momentumMagnitude > 0 && momentumMagnitude < 0.05) {
+        if (momentumMagnitude > 0 && momentumMagnitude < MOMENTUM_CLEANUP_THRESHOLD) {
             this.momentum = new Vector3();
         }
+
         this.humanoid.Move(this.momentum);
     }
 
-    // Calculate target direction considering resistance to direction changes
+    /**
+     * Calculate target direction considering resistance to direction changes
+     */
     private calculateTargetDirection(): void {
         // Store intended direction separately
         this.intendedDirection = this.walkingDirection.Unit;
@@ -272,75 +374,64 @@ export default class C {
             this.targetFacingDirection = this.intendedDirection;
         }
     }
+    //#endregion
 
-    // Helper method to check if a position is valid (not NaN, infinite, or extreme)
+    //#region Validation Utilities
+    /**
+     * Checks if a position is valid (not NaN, infinite, or extreme)
+     */
     private isValidPosition(position: Vector3): boolean {
-        // Check for NaN or infinite values
-        if (
-            !position ||
-            !typeIs(position.X, "number") ||
-            !typeIs(position.Y, "number") ||
-            !typeIs(position.Z, "number") ||
-            math.abs(position.X) > 1e6 ||
-            math.abs(position.Y) > 1e6 ||
-            math.abs(position.Z) > 1e6
-        ) {
-            return false;
-        }
-        return true;
+        return this.isValidVector(position);
     }
 
-    // Helper method to check if a vector is valid
+    /**
+     * Checks if a vector is valid (not NaN, infinite, or extreme)
+     */
     private isValidVector(vector: Vector3): boolean {
-        // Check for NaN, infinite, or zero magnitude
         if (
             !vector ||
             !typeIs(vector.X, "number") ||
             !typeIs(vector.Y, "number") ||
             !typeIs(vector.Z, "number") ||
-            math.abs(vector.X) > 1e6 ||
-            math.abs(vector.Y) > 1e6 ||
-            math.abs(vector.Z) > 1e6
+            math.abs(vector.X) > POSITION_VALIDITY_THRESHOLD ||
+            math.abs(vector.Y) > POSITION_VALIDITY_THRESHOLD ||
+            math.abs(vector.Z) > POSITION_VALIDITY_THRESHOLD
         ) {
             return false;
         }
         return true;
     }
 
-    // Safely interpolate between vectors
     /**
-     * Performs a safe linear interpolation between two vectors.
+     * Safely interpolate between vectors
      * 
-     * This method handles edge cases such as invalid vectors or zero magnitude results.
-     * It ensures the interpolation alpha is clamped between 0 and 1, and returns a unit vector.
-     * 
-     * @param v1 - The starting vector
-     * @param v2 - The ending vector
-     * @param alpha - The interpolation factor (will be clamped to [0,1])
-     * @returns A unit vector representing the interpolated direction, or Vector3(0,0,-1) if the result would be invalid
+     * Handles edge cases such as invalid vectors or zero magnitude results.
+     * Ensures the interpolation alpha is clamped between 0 and 1, and returns a unit vector.
      */
     private safeLerp(v1: Vector3, v2: Vector3, alpha: number): Vector3 {
         // First ensure both vectors are valid
         if (!this.isValidVector(v1) || !this.isValidVector(v2)) {
-            return new Vector3(0, 0, -1);
+            return V3COPY(DEFAULT_FACING_DIRECTION)
         }
 
         const safeAlpha = math.clamp(alpha, 0, 1);
         let result = v1.Lerp(v2, safeAlpha);
 
         if (!this.isValidVector(result)) {
-            return new Vector3(0, 0, -1);
+            return V3COPY(DEFAULT_FACING_DIRECTION)
         }
 
         // Ensure we return a unit vector
         if (result.Magnitude < 0.001) {
-            return new Vector3(0, 0, -1);
+            return V3COPY(DEFAULT_FACING_DIRECTION)
         } else {
             return result.Unit;
         }
     }
 
-    // Reset character to a known good position
+    /**
+     * Reset character to a known good position
+     */
     private resetToPosition(position: Vector3): void {
         if (!this.model || !this.model.PrimaryPart) {
             return;
@@ -354,7 +445,12 @@ export default class C {
 
         this.logger.warn(`Reset character to position: ${position}`);
     }
+    //#endregion
 
+    //#region UI and Communication
+    /**
+     * Displays a speech bubble with the given message
+     */
     public speak(message: string) {
         if (!this.speechBubble || !this.speechBubbleTextBox || !this.model) {
             this.logger.warn(`Cannot speak - speech bubble components not initialized`);
@@ -378,30 +474,21 @@ export default class C {
         }, message.size() * 0.2);
     }
 
+    /**
+     * Sets the text displayed in the character's nametag
+     */
     protected setNametag(mes: string) {
         const textbox = this.nameTagLabel;
         if (textbox) {
             textbox.Text = mes;
         }
     }
+    //#endregion
 
-    private spawn(config: CConfig) {
-        try {
-            const template = ReplicatedStorage.WaitForChild('Models')
-                .WaitForChild("NPCs")
-                .WaitForChild(this.id) as Model;
-            assert(template.IsA('Model'), `Model '${this.id}' not found`);
-            this.model = template.Clone();
-            this.model.Parent = this.associatedPlace.getModel();
-            this.model.Name = config.displayName;
-            this.model.PrimaryPart!.CFrame = new CFrame(config.spawnLocation);
-            this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
-            this.nameTagLabel = this.nameTag?.FindFirstChildOfClass('TextBox') as TextBox;
-        } catch (e) {
-            this.logger.warn(`Failed to spawn: ${e}`);
-        }
-    }
-
+    //#region Position and Movement
+    /**
+     * Gets the current character position with validation
+     */
     public getPosition(): Vector3 {
         if (!this.model || !this.model.PrimaryPart) {
             return new Vector3();
@@ -418,7 +505,63 @@ export default class C {
         }
     }
 
-    private waypointArriveTimeout?: ReturnType<typeof setTimeout>;
+    /**
+     * Initiates movement in the specified direction
+     */
+    protected startMoving(direction: Vector3) {
+        if (!direction || direction.Magnitude === 0) {
+            this.logger.warn(`Attempted to move with invalid direction`);
+            return;
+        }
+
+        // Make sure direction is valid
+        if (!this.isValidVector(direction)) {
+            this.logger.warn(`Invalid movement direction: ${direction}`);
+            return;
+        }
+
+        const dir = direction.Unit;
+        // Store the raw intended direction
+        this.walkingDirection = dir;
+        this.intendedDirection = dir;
+
+        // Target facing direction will be calculated in updateMovementPhysics
+        // with inertia and direction change resistance applied
+
+        // Move is now handled by updateMomentum to incorporate inertia
+    }
+
+    /**
+     * Stops the character's movement
+     */
+    protected stopMoving() {
+        this.walkingDirection = new Vector3();
+        this.intendedDirection = new Vector3();
+        // Momentum will gradually decay in updateMomentum
+    }
+
+    /**
+     * Toggles sprint/hurry mode
+     */
+    public setHurrying(hurrying: boolean): void {
+        this.hurrying = hurrying;
+    }
+    //#endregion
+
+    //#region Pathfinding
+    /**
+     * Sets a destination for the character to move to
+     */
+    public setDestination(destination: Vector3): boolean {
+        if (!destination) return false;
+
+        this.currentDestination = destination;
+        return true;
+    }
+
+    /**
+     * Processes current waypoint and determines if character has reached it
+     */
     private handleWaypoint(waypoint: PathWaypoint): boolean {
         // begin timeout
         this.waypointArriveTimeout = this.waypointArriveTimeout ?? setTimeout(() => {
@@ -448,6 +591,9 @@ export default class C {
         return true;
     }
 
+    /**
+     * Manages pathfinding to the current destination
+     */
     protected handleDestination() {
         if (!this.currentDestination) return;
 
@@ -494,11 +640,19 @@ export default class C {
 
         this.handleWaypoint(this.currentWaypoint);
     }
+    //#endregion
 
+    //#region State and Animation Management
+    /**
+     * Main update loop for AI decision making
+     */
     protected thoughtProcessTracker() {
         this.handleDestination();
     }
 
+    /**
+     * Handles animation state transitions based on current state
+     */
     protected stateChangeTracker() {
         const ah = this.animationHandler;
         if (!ah) return;
@@ -568,6 +722,9 @@ export default class C {
         }
     }
 
+    /**
+     * Updates character state based on movement and velocity
+     */
     protected stateUpdater() {
         const isMoving = this.walkingDirection.Magnitude > 0;
         const curSpd = this.humanoid.WalkSpeed;
@@ -589,6 +746,9 @@ export default class C {
         }
     }
 
+    /**
+     * Updates character acceleration and speed with physics-based model
+     */
     protected accelerationTracker(dt: number) {
         // Validate dt to prevent extreme acceleration changes
         if (dt <= 0 || dt > 1) {
@@ -685,36 +845,12 @@ export default class C {
             `\nMomentum: ${string.format("%.2f", this.momentum.Magnitude)}`
         );
     }
+    //#endregion
 
-    protected startMoving(direction: Vector3) {
-        if (!direction || direction.Magnitude === 0) {
-            this.logger.warn(`Attempted to move with invalid direction`);
-            return;
-        }
-
-        // Make sure direction is valid
-        if (!this.isValidVector(direction)) {
-            this.logger.warn(`Invalid movement direction: ${direction}`);
-            return;
-        }
-
-        const dir = direction.Unit;
-        // Store the raw intended direction
-        this.walkingDirection = dir;
-        this.intendedDirection = dir;
-
-        // Target facing direction will be calculated in updateMovementPhysics
-        // with inertia and direction change resistance applied
-
-        // Move is now handled by updateMomentum to incorporate inertia
-    }
-
-    protected stopMoving() {
-        this.walkingDirection = new Vector3();
-        this.intendedDirection = new Vector3();
-        // Momentum will gradually decay in updateMomentum
-    }
-
+    //#region Lifecycle Management
+    /**
+     * Cleans up all resources used by this character
+     */
     public destroy() {
         // Clean up connections first to prevent errors during destruction
         this.connections.forEach(conn => conn());
@@ -731,27 +867,19 @@ export default class C {
         }
     }
 
+    /**
+     * Returns the character's model
+     */
     public getModel() {
         return this.model;
     }
 
     /**
-     * Sets a destination for the character to move to
-     * @param destination The Vector3 position to move to
-     * @returns True if destination was set, false otherwise
+     * Returns the character's ID
      */
-    public setDestination(destination: Vector3): boolean {
-        if (!destination) return false;
-
-        this.currentDestination = destination;
-        return true;
+    public getModelID() {
+        return this.id;
     }
+    //#endregion
 
-    /**
-     * Toggles sprint/hurry mode
-     * @param hurrying Whether the character should hurry
-     */
-    public setHurrying(hurrying: boolean): void {
-        this.hurrying = hurrying;
-    }
 }
