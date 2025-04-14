@@ -1,5 +1,5 @@
-import { DialogueConfig, DialogueExpression, iDialogue, iScene, SceneConfig } from "shared/class/scene/types";
 import DialogueBox from "./Dialogue";
+import { DialogueConfig, DialogueExpression, iDialogue, iScene, SceneConfig } from "./types";
 
 export default class Scene implements iScene {
     readonly name: string;
