@@ -1,9 +1,11 @@
-import { useCamera, useDebounceState, useEventListener } from "@rbxts/pretty-react-hooks";
-import { useMemo } from "@rbxts/react";
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
+import { modelFolder } from "shared/const/assets";
 import remotes from "shared/remote";
 
+//===========================================================================
+// PLAYER AND DATASTORE UTILITIES
+//===========================================================================
 
 export function getPlayer(id?: number): Player | undefined {
     return id ? Players.GetPlayerByUserId(id!) : Players.LocalPlayer;
@@ -13,6 +15,10 @@ export function getDatastore(name: string): DataStore {
     return DataStoreService.GetDataStore(name);
 }
 
+//===========================================================================
+// INPUT UTILITIES
+//===========================================================================
+
 export function onInput(inputType: Enum.UserInputType, callback: (input: InputObject) => void) {
     return UserInputService.InputBegan.Connect((input: InputObject) => {
         if (input.UserInputType === inputType) {
@@ -21,9 +27,17 @@ export function onInput(inputType: Enum.UserInputType, callback: (input: InputOb
     });
 }
 
+//===========================================================================
+// TWEEN UTILITIES
+//===========================================================================
+
 export function getTween(object: Instance, info: TweenInfo, goal: { [key: string]: any }) {
     return TweenService.Create(object, info, goal);
 }
+
+//===========================================================================
+// CHARACTER UTILITIES
+//===========================================================================
 
 export function enableCharacter(character: Model) {
     for (const descendant of character.GetDescendants()) {
@@ -54,6 +68,10 @@ export function disableCharacter(character: Model) {
     }
 }
 
+//===========================================================================
+// MODEL AND ASSET UTILITIES
+//===========================================================================
+
 export function getCharacterModel(name: string, position: Vector3 = new Vector3()) {
     const humanoidTemplate = ReplicatedStorage.WaitForChild('Models').FindFirstChild(name) as Model;
     if (humanoidTemplate) {
@@ -66,6 +84,15 @@ export function getCharacterModel(name: string, position: Vector3 = new Vector3(
     else {
         warn("PresetHumanoid model not found in ReplicatedStorage.");
     }
+}
+
+/**
+ * Retrieves a model template from ReplicatedStorage by its identifier
+ * @param id The unique identifier of the model to retrieve
+ * @returns The model if found, otherwise undefined
+ */
+export function getModelTemplateByID(id: string) {
+    return modelFolder.FindFirstChild(id) as Model | undefined;
 }
 
 export function getDummyStats(): EntityStats {
@@ -92,6 +119,23 @@ export function getDummyCharacterModel(): Model {
     humanoid.Parent = game.Workspace;
     return humanoid;
 }
+
+export function createDummyEntityStats(qr: Vector2) {
+    return {
+        stats: getDummyStats(),
+        playerID: -4178,
+        hip: 0,
+        pos: 0,
+        org: 999,
+        mana: 999,
+        sta: 999,
+        qr,
+    }
+}
+
+//===========================================================================
+// DATASTORE UTILITIES
+//===========================================================================
 
 export function saveTexture(id: string, texture: string) {
     const [success, fail] = pcall(() => {
@@ -162,6 +206,10 @@ export function saveCharacterStats(character: EntityStats, overwrite = false) {
     if (!success) warn(fail);
 }
 
+//===========================================================================
+// HEX GRID UTILITIES
+//===========================================================================
+
 export function hexQRSToWorldXY(qrs: Vector3, cellSize: number) {
     const q = qrs.X;
     const r = qrs.Y;
@@ -182,17 +230,45 @@ export function hexGridQRSToWorldXY(qrs: Vector3, cellSize: number) {
     return new Vector3(x, 0, y);
 }
 
-// Function to get the world position from the mouse position
+//===========================================================================
+// CAMERA AND INPUT UTILITIES
+//===========================================================================
+
 export function getMouseWorldPosition(camera: Camera, mouse: Mouse): Vector3 | undefined {
     const mousePosition = new Vector2(mouse.X, mouse.Y);
     const ray = camera.ScreenPointToRay(mousePosition.X, mousePosition.Y);
 
-    // Optional: Use Raycast to find the exact intersection with the world
     const raycastResult = Workspace.Raycast(ray.Origin, ray.Direction.mul(1000));
     if (raycastResult) {
-        return raycastResult.Position; // Return the world position where the ray intersects an object
+        return raycastResult.Position;
     }
 }
+
+export function getDirectionFromKeyCode(keycode: Enum.KeyCode, relativeCam: Camera) {
+    const cameraDirection = relativeCam.CFrame.LookVector.Unit;
+    const upVector = new Vector3(0, 1, 0);
+
+    switch (keycode) {
+        case Enum.KeyCode.W:
+        case Enum.KeyCode.Up:
+            return cameraDirection;
+        case Enum.KeyCode.S:
+        case Enum.KeyCode.Down:
+            return cameraDirection.mul(-1);
+        case Enum.KeyCode.A:
+        case Enum.KeyCode.Left:
+            return cameraDirection.mul(-1).Cross(upVector);
+        case Enum.KeyCode.D:
+        case Enum.KeyCode.Right:
+            return cameraDirection.Cross(upVector);
+        default:
+            return new Vector3();
+    }
+}
+
+//===========================================================================
+// MATH UTILITIES
+//===========================================================================
 
 export function extractMapValues<T extends defined>(map: Map<any, T> | Record<any, T>, filter?: (i: T) => boolean): T[] {
     const va: T[] = [];
@@ -201,19 +277,13 @@ export function extractMapValues<T extends defined>(map: Map<any, T> | Record<an
     }
     return va;
 }
-export function requestData(requester: Player, datastoreName: string, key: string) {
-    if (RunService.IsClient()) {
-        return remotes.requestData(datastoreName, key);
-    }
-    else {
-        const datastore = getDatastore(datastoreName);
-        const [success, data] = pcall(() => datastore.GetAsync(key));
-        if (success) return data;
-        else {
-            warn(data); // error code
-            return undefined;
-        }
-    }
+
+export function mapRange(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
+    return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
+}
+
+export function copyVector3(vector: Vector3) {
+    return new Vector3(vector.X, vector.Y, vector.Z);
 }
 
 export function countObjectKeys(object: object) {
@@ -235,6 +305,7 @@ export function get2DManhattanDistance(a: Vector2 | Vector3, b: Vector2 | Vector
         throw "Invalid arguments: both arguments must be either Vector2 or Vector3";
     }
 }
+
 export function get2DEuclidDistance(a: Vector3, b: Vector3): number;
 export function get2DEuclidDistance(a: Vector2, b: Vector2): number;
 export function get2DEuclidDistance(a: Vector2 | Vector3, b: Vector2 | Vector3): number {
@@ -247,28 +318,87 @@ export function get2DEuclidDistance(a: Vector2 | Vector3, b: Vector2 | Vector3):
     }
 }
 
+//===========================================================================
+// PHYSICS AND COLLISION UTILITIES
+//===========================================================================
+
+export function getPartsInArea(part: BasePart): BasePart[] {
+    const overlapParams = new OverlapParams();
+    overlapParams.FilterType = Enum.RaycastFilterType.Exclude;
+    overlapParams.FilterDescendantsInstances = [part];
+
+    return Workspace.GetPartBoundsInBox(
+        part.CFrame,
+        part.Size,
+        overlapParams
+    );
+}
+
+export function createTouchDetector(sensitivePart: BasePart, callback: (hit: BasePart) => void) {
+    return RunService.RenderStepped.Connect(() => {
+        for (const part of getPartsInArea(sensitivePart)) {
+            if (part.Parent && part.Parent.IsA("Model")) {
+                callback(part);
+            }
+        }
+    });
+}
+
+//===========================================================================
+// DEBUG UTILITIES
+//===========================================================================
+
+export function visualizePosition(position: Vector3, color: Color3 = new Color3(1, 0, 0), duration: number = 5) {
+    const marker = new Instance("Part");
+    marker.Anchored = true;
+    marker.CanCollide = false;
+    marker.Size = new Vector3(0.5, 0.5, 0.5);
+    marker.Position = position;
+    marker.Material = Enum.Material.Neon;
+    marker.BrickColor = new BrickColor(color);
+    marker.Transparency = 0.5;
+    marker.Shape = Enum.PartType.Ball;
+    marker.Parent = Workspace;
+
+    const billboardGui = new Instance("BillboardGui");
+    billboardGui.Size = new UDim2(0, 200, 0, 50);
+    billboardGui.StudsOffset = new Vector3(0, 1, 0);
+    billboardGui.AlwaysOnTop = true;
+    billboardGui.Parent = marker;
+
+    const textLabel = new Instance("TextLabel");
+    textLabel.Size = UDim2.fromScale(1, 1);
+    textLabel.BackgroundTransparency = 1;
+    textLabel.TextColor3 = new Color3(1, 1, 1);
+    textLabel.Text = `X: ${math.floor(position.X)} Y: ${math.floor(position.Y)} Z: ${math.floor(position.Z)}`;
+    textLabel.TextSize = 14;
+    textLabel.Font = Enum.Font.GothamMedium;
+    textLabel.Parent = billboardGui;
+
+    task.delay(duration, () => {
+        marker.Destroy();
+    });
+
+    return marker;
+}
+
+//===========================================================================
+// PRIORITY QUEUE CLASS
+//===========================================================================
+
 export class PriorityQueue<T extends defined> {
     public heap: T[] = [];
     private priorityFunction: (element: T) => number;
 
-    /**
-     * Creates a new PriorityQueue with a given priority function.
-     * @param priorityFunction - A function that takes an element and returns its priority as a number.
-     */
     constructor(priorityFunction: (element: T) => number) {
         this.priorityFunction = priorityFunction;
     }
 
-    /** Inserts an element into the priority queue. */
     public enqueue(element: T): void {
         this.heap.push(element);
         this.heapifyUp(this.heap.size() - 1);
     }
 
-    /**
-     * Removes and returns the element with the highest priority (lowest priority number).
-     * Returns `undefined` if the queue is empty.
-     */
     public dequeue(): T | undefined {
         if (this.heap.size() === 0) {
             return undefined;
@@ -282,27 +412,22 @@ export class PriorityQueue<T extends defined> {
         return rootElement;
     }
 
-    /** Returns the element with the highest priority without removing it. */
     public peek(index: number = 0): T | undefined {
         return this.heap.size() > 0 ? this.heap[index] : undefined;
     }
 
-    /** Returns the number of elements in the priority queue. */
     public size(): number {
         return this.heap.size();
     }
 
-    /** Checks if the priority queue is empty. */
     public isEmpty(): boolean {
         return this.heap.size() === 0;
     }
 
-    /** Swaps two elements in the heap by their indices. */
     private swap(i: number, j: number): void {
         [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
     }
 
-    /** Moves the element at the given index up to maintain the heap property. */
     private heapifyUp(index: number): void {
         let currentIndex = index;
         while (currentIndex > 0) {
@@ -319,7 +444,6 @@ export class PriorityQueue<T extends defined> {
         }
     }
 
-    /** Moves the element at the given index down to maintain the heap property. */
     private heapifyDown(index: number): void {
         let currentIndex = index;
         const length = this.heap.size();
@@ -360,8 +484,11 @@ export class PriorityQueue<T extends defined> {
             warn("HeapifyDown took too long to complete.", currentIndex, this.heap);
         }
     }
-
 }
+
+//===========================================================================
+// REALITY CALCULATIONS
+//===========================================================================
 
 export function calculateRealityValue(reality: Reality, stats: EntityStats): number {
     switch (reality) {
@@ -389,6 +516,10 @@ export function calculateRealityValue(reality: Reality, stats: EntityStats): num
     }
 }
 
+//===========================================================================
+// ATTACK UTILITIES
+//===========================================================================
+
 export function isAttackKills(attackerAction: AttackAction) {
     const { ability, executed } = attackerAction
     const { using, target } = ability
@@ -406,114 +537,64 @@ export function isAttackKills(attackerAction: AttackAction) {
     return target.hip - damage <= 0;
 }
 
+//===========================================================================
+// MISCELLANEOUS UTILITIES
+//===========================================================================
+
 export function warnWrongSideCall(method: string, mes = "called on the wrong side") {
     warn(`${method}: ${mes}`);
 }
 
-interface ScaleFunction {
-    /**
-     * Scales `pixels` based on the current viewport size and rounds the result.
-     */
-    (pixels: number): number;
-    /**
-     * Scales `pixels` and rounds the result to the nearest even number.
-     */
-    even: (pixels: number) => number;
-    /**
-     * Scales a number based on the current viewport size without rounding.
-     */
-    scale: (percent: number) => number;
-    /**
-     * Scales `pixels` and rounds the result down.
-     */
-    floor: (pixels: number) => number;
-    /**
-     * Scales `pixels` and rounds the result up.
-     */
-    ceil: (pixels: number) => number;
+export function requestData(requester: Player, datastoreName: string, key: string) {
+    if (RunService.IsClient()) {
+        return remotes.requestData(datastoreName, key);
+    }
+    else {
+        const datastore = getDatastore(datastoreName);
+        const [success, data] = pcall(() => datastore.GetAsync(key));
+        if (success) return data;
+        else {
+            warn(data); // error code
+            return undefined;
+        }
+    }
 }
 
-const BASE_RESOLUTION = new Vector2(1280, 832);
-const MIN_SCALE = 0.75;
-const DOMINANT_AXIS = 0.5;
+//===========================================================================
+// COLOR UTILITIES
+//===========================================================================
 
-/**
- * @see https://discord.com/channels/476080952636997633/476080952636997635/1146857136358432900
- */
-function calculateScale(viewport: Vector2) {
-    const width = math.log(viewport.X / BASE_RESOLUTION.X, 2);
-    const height = math.log(viewport.Y / BASE_RESOLUTION.Y, 2);
-    const centered = width + (height - width) * DOMINANT_AXIS;
-
-    return math.max(2 ** centered, MIN_SCALE);
-}
-
-export function usePx(): ScaleFunction {
-    const camera = useCamera();
-
-    const [scale, setScale] = useDebounceState(calculateScale(camera.ViewportSize), {
-        wait: 0.2,
-        leading: true,
-    });
-
-    useEventListener(camera.GetPropertyChangedSignal("ViewportSize"), () => {
-        setScale(calculateScale(camera.ViewportSize));
-    });
-
-    return useMemo(() => {
-        const api = {
-            even: (value: number) => math.round(value * scale * 0.5) * 2,
-            scale: (value: number) => value * scale,
-            floor: (value: number) => math.floor(value * scale),
-            ceil: (value: number) => math.ceil(value * scale),
-        };
-
-        setmetatable(api, {
-            __call: (_, value) => math.round((value as number) * scale),
-        });
-
-        return api as ScaleFunction;
-    }, [scale]);
-}
-
-/**
- * @param color The color to brighten or darken
- * @param brightness The amount to brighten or darken the color
- * @param vibrancy How much saturation changes with brightness
- */
 export function brighten(color: Color3, brightness: number, vibrancy = 0.5) {
     const [h, s, v] = color.ToHSV();
     return Color3.fromHSV(h, math.clamp(s - brightness * vibrancy, 0, 1), math.clamp(v + brightness, 0, 1));
 }
 
-/**
- * @param color The color to saturate or desaturate
- * @param saturation How much to add or remove from the color's saturation
- */
 export function saturate(color: Color3, saturation: number) {
     const [h, s, v] = color.ToHSV();
     return Color3.fromHSV(h, math.clamp(s + saturation, 0, 1), v);
 }
 
-/**
- * @returns How bright the color is
- */
 export function getLuminance(color: Color3) {
     return color.R * 0.299 + color.G * 0.587 + color.B * 0.114;
 }
 
-/**
- * @returns Whether the color is bright, for determining foreground color
- */
 export function isBright(color: Color3) {
     return getLuminance(color) > 0.65;
 }
+
+//===========================================================================
+// SPRING CONFIGURATIONS
+//===========================================================================
 
 export const springs = {
     ...config.spring,
     bubbly: { tension: 300, friction: 20, mass: 1.2 },
     responsive: { tension: 600, friction: 34, mass: 0.7 },
 } satisfies { [config: string]: SpringOptions };
+
+//===========================================================================
+// TEST BUTTONS
+//===========================================================================
 
 export function getTestButtons() {
     return [
@@ -541,6 +622,10 @@ export function getTestButtons() {
     ]
 }
 
+//===========================================================================
+// ATOM UTILITIES
+//===========================================================================
+
 import { AtomMap } from "@rbxts/charm-sync";
 
 type NestedAtomMap = {
@@ -551,13 +636,6 @@ type FlattenNestedAtoms<T extends NestedAtomMap> = {
     readonly [K in keyof T as `${string & K}/${string & keyof T[K]}`]: T[K][Extract<keyof T[K], string>];
 };
 
-/**
- * Assigns unique prefixes to each atom and flattens them into a single map.
- * Should be passed to Charm's Sync API.
- *
- * @param maps The maps of atoms to flatten.
- * @returns The flattened map of atoms.
- */
 export function flattenAtoms<T extends NestedAtomMap>(maps: T): FlattenNestedAtoms<T>;
 
 export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtomMap> {
@@ -572,19 +650,16 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
     return flattened;
 }
 
+//===========================================================================
+// PAYLOAD FILTERING
+//===========================================================================
+
 import { SyncPayload } from "@rbxts/charm-sync";
 import { iAbility } from "shared/class/battle/State/Ability/types";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { GlobalAtoms } from "shared/datastore";
 import { AttackAction, Reality } from "shared/types/battle-types";
 
-/**
- * Filters the payload to only include the player's data.
- *
- * @param player The player to send the payload to.
- * @param payload The payload to filter.
- * @returns A new payload that only includes the player's data.
- */
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {
     if (payload.type === "init") {
         return {
@@ -607,119 +682,4 @@ export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>)
             },
         },
     };
-}
-
-const models = ReplicatedStorage.WaitForChild("Models") as Folder;
-export function getModelTemplateByID(id: string) {
-    return models.FindFirstChild(id) as Model | undefined;
-}
-
-export function getDummyNumbers(qr: Vector2) {
-    return {
-        stats: getDummyStats(),
-        playerID: -4178,
-        hip: 0,
-        pos: 0,
-        org: 999,
-        mana: 999,
-        sta: 999,
-        qr,
-    }
-}
-
-
-export function getDirectionFromEnumKeyCode(keycode: Enum.KeyCode, relativeCam: Camera) {
-    const cameraPointTowards = relativeCam.CFrame.LookVector;
-    switch (keycode) {
-        case Enum.KeyCode.W:
-        case Enum.KeyCode.Up:
-            return cameraPointTowards.Unit;
-        case Enum.KeyCode.S:
-        case Enum.KeyCode.Down:
-            return cameraPointTowards.Unit.mul(-1);
-        case Enum.KeyCode.A:
-        case Enum.KeyCode.Left:
-            return cameraPointTowards.Unit.mul(-1).Cross(new Vector3(0, 1, 0));
-        case Enum.KeyCode.D:
-        case Enum.KeyCode.Right:
-            return cameraPointTowards.Unit.Cross(new Vector3(0, 1, 0));
-        default:
-            return new Vector3();
-    }
-}
-
-export function math_map(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
-    return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
-}
-
-export function getPartsInArea(part: BasePart): BasePart[] {
-    const overlapParams = new OverlapParams();
-    overlapParams.FilterType = Enum.RaycastFilterType.Exclude;
-    overlapParams.FilterDescendantsInstances = [part];
-
-    // Get parts in the area of this part
-    const partsInArea = Workspace.GetPartBoundsInBox(
-        part.CFrame,
-        part.Size,
-        overlapParams
-    );
-
-    return partsInArea;
-}
-
-export function newTouched(sensitivePart: BasePart, callBack: (hit: BasePart) => void) {
-    return RunService.RenderStepped.Connect((deltaTime) => {
-        const partsInArea = getPartsInArea(sensitivePart);
-        for (const part of partsInArea) {
-            if (part.Parent && part.Parent.IsA("Model")) {
-                callBack(part);
-            }
-        }
-    });
-}
-
-/**
- * Visualizes a position in the world with a temporary part for debugging purposes
- * @param position The world position to visualize
- * @param color Optional color for the marker (default is red)
- * @param duration How long the marker should remain visible (default 5 seconds)
- */
-export function visualizePosition(position: Vector3, color: Color3 = new Color3(1, 0, 0), duration: number = 5) {
-    const marker = new Instance("Part");
-    marker.Anchored = true;
-    marker.CanCollide = false;
-    marker.Size = new Vector3(0.5, 0.5, 0.5);
-    marker.Position = position;
-    marker.Material = Enum.Material.Neon;
-    marker.BrickColor = new BrickColor(color);
-    marker.Transparency = 0.5;
-    marker.Shape = Enum.PartType.Ball;
-    marker.Parent = Workspace;
-
-    // Add a billboardgui with position info
-    const billboardGui = new Instance("BillboardGui");
-    billboardGui.Size = new UDim2(0, 200, 0, 50);
-    billboardGui.StudsOffset = new Vector3(0, 1, 0);
-    billboardGui.AlwaysOnTop = true;
-    billboardGui.Parent = marker;
-
-    const textLabel = new Instance("TextLabel");
-    textLabel.Size = UDim2.fromScale(1, 1);
-    textLabel.BackgroundTransparency = 1;
-    textLabel.TextColor3 = new Color3(1, 1, 1);
-    textLabel.Text = `X: ${math.floor(position.X)} Y: ${math.floor(position.Y)} Z: ${math.floor(position.Z)}`;
-    textLabel.TextSize = 14;
-    textLabel.Font = Enum.Font.GothamMedium;
-    textLabel.Parent = billboardGui;
-
-    // Remove after duration
-    task.delay(duration, () => {
-        marker.Destroy();
-    });
-
-    return marker;
-}
-
-export function V3COPY(v3: Vector3) {
-    return new Vector3(v3.X, v3.Y, v3.Z);
 }

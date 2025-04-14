@@ -2,7 +2,7 @@ import { Workspace } from "@rbxts/services";
 import { PlaceName } from "shared/const";
 import { locationFolder } from "shared/const/assets";
 import { PlaceConfig } from "shared/types/explorer-types";
-import { newTouched } from "shared/utils";
+import { createTouchDetector } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import NPC from "../NPC";
 import { NPCConfig } from "../NPC/types";
@@ -13,7 +13,7 @@ import { DEBUG_PORTALS, IndoorLocationName } from "./Indoors/types";
 // Debug flag to control logging across all portal-related classes
 
 export default class Place {
-    private logger = Logger.createContextLogger("Place");
+    protected logger = Logger.createContextLogger("Place");
     private location: string;
     private model: Model;
     private NPCCs: NPCConfig[];
@@ -75,7 +75,7 @@ export default class Place {
                     this.indoorLocations.set(locationName, indoorLocation);
 
                     // Set up entrance teleport trigger
-                    const connection = newTouched(part, (hit) => {
+                    const connection = createTouchDetector(part, (hit) => {
                         if (this.explorer && hit.IsDescendantOf(this.explorer.getModel())) {
                             // Only trigger if player is not already in portal zone
                             if (!this.playersInPortalZones.get(portalId)) {

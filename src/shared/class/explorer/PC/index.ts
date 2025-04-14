@@ -1,5 +1,5 @@
 import { RunService, UserInputService, Workspace } from "@rbxts/services";
-import { getDirectionFromEnumKeyCode } from "shared/utils";
+import { getDirectionFromKeyCode } from "shared/utils";
 import C from "../C";
 import Place from "../Place";
 
@@ -36,7 +36,7 @@ export default class PC extends C {
             // print(`Checking key ${key}`, UserInputService.IsKeyDown(key));
             if (UserInputService.IsKeyDown(key) && Workspace.CurrentCamera) {
                 this.hurrying = UserInputService.IsKeyDown(Enum.KeyCode.LeftShift);
-                direction = direction.add(getDirectionFromEnumKeyCode(key, Workspace.CurrentCamera));
+                direction = direction.add(getDirectionFromKeyCode(key, Workspace.CurrentCamera));
             }
         }
 

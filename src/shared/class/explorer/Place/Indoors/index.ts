@@ -1,6 +1,6 @@
 import { Workspace } from "@rbxts/services";
 import { indoorsFolder } from "shared/const/assets";
-import { newTouched, visualizePosition } from "shared/utils";
+import { createTouchDetector, visualizePosition } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "..";
 import { DEBUG_PORTALS, IndoorLocationConfig, IndoorLocationName } from "./types";
@@ -126,7 +126,7 @@ export default class IndoorLocation {
         const entrancePart = entrance as BasePart;
 
         // Handle entry to portal zone
-        this.portalBoundboxConnection = newTouched(entrancePart, (hit) => {
+        this.portalBoundboxConnection = createTouchDetector(entrancePart, (hit) => {
             if (this.playerInPortalZone) return;
 
             const character = this.findCharacterFromHit(hit);

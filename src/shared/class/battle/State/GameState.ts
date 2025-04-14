@@ -1,6 +1,6 @@
 import { MOVEMENT_COST } from "shared/const";
 import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/types/battle-types";
-import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
+import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import Entity from "./Entity";
@@ -58,7 +58,7 @@ export class GameState {
     private initialiseTestingDummies() {
         const vacant = this.gridManager.getAllCells().find((cell) => cell.isVacant());
         assert(vacant, "No vacant cell found for dummy entity");
-        const dummy = this.createEntity("Test", getDummyNumbers(vacant.qr()));
+        const dummy = this.createEntity("Test", createDummyEntityStats(vacant.qr()));
         this.teamManager.addEntityToTeam("Test", dummy);
         this.setCell(dummy, vacant);
     }

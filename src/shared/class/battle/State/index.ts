@@ -1,5 +1,5 @@
 import { AttackAction, BattleAction, ClashResult, ClashResultFate, HexGridState, MoveAction, PlayerID, Reality, StateConfig, StateState, TILE_SIZE, TeamState } from "shared/types/battle-types";
-import { calculateRealityValue, getDummyNumbers, requestData } from "shared/utils";
+import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import logger from "shared/utils/Logger";
 import { ActiveAbility } from "./Ability";
 import { ActiveAbilityState } from "./Ability/types";
@@ -404,7 +404,7 @@ export default class State {
 
     private initialiseTestingDummies() {
         const vacant = this.grid.cells.find((c) => c.isVacant())!;
-        const dummy = this.createEntity("Test", getDummyNumbers(vacant.qr()));
+        const dummy = this.createEntity("Test", createDummyEntityStats(vacant.qr()));
         this.teams.push(new Team("Test", [dummy]));
         this.setCell(dummy, vacant);
     }

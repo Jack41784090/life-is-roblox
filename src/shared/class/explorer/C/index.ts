@@ -3,7 +3,7 @@ import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import { uiFolder } from "shared/const/assets";
-import { V3COPY, math_map } from "shared/utils";
+import { copyVector3, disableCharacter, enableCharacter, mapRange } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
 import Going from "./Going";
@@ -34,6 +34,7 @@ const MOMENTUM_CLEANUP_THRESHOLD = 0.05;
  * Handles movement physics, animations, and pathfinding
  */
 export default class C {
+    //#region PROPERTIES:
     //#region Infrastructure
     protected logger = Logger.createContextLogger("C");
     protected associatedPlace: Place;
@@ -44,6 +45,7 @@ export default class C {
     protected connections: Array<() => void> = [];
     protected state: CState = CState.IDLE;
     protected prevState = CState.IDLE;
+    protected visible: boolean = true;
 
     // UI Components
     protected nameTag?: BillboardGui;
@@ -56,8 +58,8 @@ export default class C {
     // Basic movement state
     protected hurrying = false;
     protected walkingDirection = new Vector3();
-    protected facingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
-    protected targetFacingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
+    protected facingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
+    protected targetFacingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
     protected walkSpeedFractionAtom: Atom<number>;
     protected walkSpeedTracker: RBXScriptConnection;
 
@@ -82,6 +84,8 @@ export default class C {
     protected currentGoing?: Going;
     protected currentWaypoint?: PathWaypoint;
     private waypointArriveTimeout?: ReturnType<typeof setTimeout>;
+    //#endregion
+
     //#endregion
 
     /**
@@ -213,10 +217,10 @@ export default class C {
      */
     private validateFacingVectors(): void {
         if (!this.isValidVector(this.facingDirection)) {
-            this.facingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
+            this.facingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
         }
         if (!this.isValidVector(this.targetFacingDirection)) {
-            this.targetFacingDirection = V3COPY(DEFAULT_FACING_DIRECTION)
+            this.targetFacingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
         }
     }
 
@@ -411,19 +415,19 @@ export default class C {
     private safeLerp(v1: Vector3, v2: Vector3, alpha: number): Vector3 {
         // First ensure both vectors are valid
         if (!this.isValidVector(v1) || !this.isValidVector(v2)) {
-            return V3COPY(DEFAULT_FACING_DIRECTION)
+            return copyVector3(DEFAULT_FACING_DIRECTION)
         }
 
         const safeAlpha = math.clamp(alpha, 0, 1);
         let result = v1.Lerp(v2, safeAlpha);
 
         if (!this.isValidVector(result)) {
-            return V3COPY(DEFAULT_FACING_DIRECTION)
+            return copyVector3(DEFAULT_FACING_DIRECTION)
         }
 
         // Ensure we return a unit vector
         if (result.Magnitude < 0.001) {
-            return V3COPY(DEFAULT_FACING_DIRECTION)
+            return copyVector3(DEFAULT_FACING_DIRECTION)
         } else {
             return result.Unit;
         }
@@ -780,7 +784,7 @@ export default class C {
             if (this.velocity.Magnitude > 0.1 && this.walkingDirection.Magnitude > 0.1) {
                 const alignmentDot = this.velocity.Unit.Dot(this.walkingDirection.Unit);
                 // Bonus for moving in same direction, penalty for moving against momentum
-                alignmentBonus = math_map(alignmentDot, -1, 1, 0.5, 1.5);
+                alignmentBonus = mapRange(alignmentDot, -1, 1, 0.5, 1.5);
             }
 
             this.acc(math.min(
@@ -800,7 +804,7 @@ export default class C {
                 if (this.velocity.Magnitude > 0.1 && this.walkingDirection.Magnitude > 0.1) {
                     const directionDot = this.velocity.Unit.Dot(this.walkingDirection.Unit);
                     // Higher penalty when changing direction sharply
-                    directionChangePenalty = math_map(directionDot, -1, 1, 1.8, 0.7);
+                    directionChangePenalty = mapRange(directionDot, -1, 1, 1.8, 0.7);
                 }
 
                 // Gentle deceleration when still moving, with direction change penalty
@@ -882,4 +886,27 @@ export default class C {
     }
     //#endregion
 
+    public hide() {
+        if (this.visible) {
+            this.toggleVisibility();
+        }
+    }
+
+    public show() {
+        if (!this.visible) {
+            this.toggleVisibility();
+        }
+    }
+
+    public toggleVisibility() {
+        this.visible = !this.visible;
+        if (this.model) {
+            if (this.visible) {
+                enableCharacter(this.model);
+            }
+            else {
+                disableCharacter(this.model);
+            }
+        }
+    }
 }
