@@ -1,93 +1,10 @@
 import { RunService } from "@rbxts/services";
-import { modelFolder } from "shared/const/assets";
-import { PlaceConfig } from "shared/types/explorer-types";
 import Logger from "shared/utils/Logger";
-import C from "../explorer/C";
-import { CConfig } from "../explorer/C/types";
-import Place from "../explorer/Place";
-
-export enum CutsceneAction {
-    idle,
-    action1,
-    action2,
-}
-type CutsceneScriptConfig = {
-    triggerMap: TriggerMap,
-}
-
-type TriggerPair = [number, Trigger];
-export type TriggerMap = Array<TriggerPair>
-
-export class Trigger {
-    constructor(
-        public modelID: string,
-        public cutsceneAction: CutsceneAction,
-        public activated: boolean,
-        public finished: boolean,
-    ) {
-
-    }
-}
-
-export class CutsceneScript {
-    private triggerMap: TriggerMap;
-
-    constructor(config: CutsceneScriptConfig) {
-        this.triggerMap = config.triggerMap;
-    }
-
-    public getSortedTriggerMap() {
-        return this.triggerMap.sort((a, b) => {
-            return a[0] - b[0] < 0;
-        })
-    }
-}
-
-type Prop = {
-    location: Vector3,
-    modelID: string,
-}
-
-type SetConfig = PlaceConfig;
-type ActorConfig = CConfig & Prop & {
-    set: Set;
-};
-
-class Set extends Place {
-    constructor(config: SetConfig) {
-        super(config);
-    }
-}
-
-class Actor extends C {
-    constructor(actorConfig: ActorConfig) {
-        super(actorConfig, actorConfig.set);
-    }
-}
-
-export class CutsceneSet {
-    private logger = Logger.createContextLogger("CutsceneSet")
-    constructor(
-        public setting: Prop,
-        public actors: Actor[],
-        public props: Prop[],
-    ) {
-
-    }
-
-    private getModel(id: string) {
-        return modelFolder.FindFirstChild(id);
-    }
-
-    public getActor(targetedModel: string) {
-        return this.actors.find(a => a.getModelID() === targetedModel);
-    }
-}
-
-type CutsceneConfig = {
-    script: CutsceneScript;
-    set: CutsceneSet;
-}
+import { CutsceneScript } from "./Script";
+import { CutsceneConfig } from "./Script/type";
+import { CutsceneSet } from "./Set";
+import { Trigger } from "./Trigger";
+import { TriggerPair } from "./Trigger/types";
 
 export class Cutscene {
     private logger = Logger.createContextLogger("Cutscene")

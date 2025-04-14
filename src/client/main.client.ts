@@ -2,7 +2,7 @@ import { Players, StarterGui } from "@rbxts/services";
 import ClientSide from "shared/class/battle/ClientSide";
 import { Cutscene } from "shared/class/scene/Cutscene";
 import { CutsceneScript } from "shared/class/scene/Cutscene/Script";
-import { CutsceneSet } from "shared/class/scene/Cutscene/Script/Set";
+import { CutsceneSet } from "shared/class/scene/Cutscene/Set";
 import { Trigger } from "shared/class/scene/Cutscene/Trigger";
 import { CutsceneAction } from "shared/class/scene/Cutscene/types";
 import remotes from "shared/remote";
