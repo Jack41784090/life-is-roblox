@@ -719,3 +719,7 @@ export function visualizePosition(position: Vector3, color: Color3 = new Color3(
 
     return marker;
 }
+
+export function V3COPY(v3: Vector3) {
+    return new Vector3(v3.X, v3.Y, v3.Z);
+}
