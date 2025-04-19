@@ -21,7 +21,7 @@ export interface LoggerConfig {
 export class Logger {
     private static instance: Logger;
     private config: LoggerConfig = {
-        minLevel: LogLevel.INFO,
+        minLevel: LogLevel.DEBUG,
         includeTimestamp: false,
         includeSource: true
     };
@@ -117,6 +117,10 @@ export class ContextLogger {
         private logger: Logger,
         private context: string
     ) { }
+
+    public recontext(newContext: string): void {
+        this.context = newContext;
+    }
 
     public debug(...messages: (defined | undefined)[]): void {
         // Fix: append context to messages array before spreading
