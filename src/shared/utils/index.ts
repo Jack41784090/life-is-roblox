@@ -270,6 +270,11 @@ export function getDirectionFromKeyCode(keycode: Enum.KeyCode, relativeCam: Came
 // MATH UTILITIES
 //===========================================================================
 
+export function formatVector3(vector: Vector3): string {
+    return `(${math.floor(vector.X * 100) / 100}, ${math.floor(vector.Y * 100) / 100}, ${math.floor(vector.Z * 100) / 100})`;
+}
+
+
 export function extractMapValues<T extends defined>(map: Map<any, T> | Record<any, T>, filter?: (i: T) => boolean): T[] {
     const va: T[] = [];
     for (const [k, v] of pairs(map)) {

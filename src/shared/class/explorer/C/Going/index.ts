@@ -1,7 +1,9 @@
 import { PathfindingService, Workspace } from "@rbxts/services";
+import Logger from "shared/utils/Logger";
 import { GoingConfig } from "./types";
 
 export default class Going {
+    protected logger = Logger.createContextLogger("Going");
     protected currentDestination: Vector3;
     protected blockedHandle?: RBXScriptConnection;
     protected characterModel: Model;
@@ -11,7 +13,7 @@ export default class Going {
     private path?: Path;
 
     constructor(config: GoingConfig) {
-        // print(`[GOing] new`)
+
         this.currentDestination = config.destination;
         this.characterModel = config.characterModel;
     }
@@ -30,21 +32,20 @@ export default class Going {
             this.path!.ComputeAsync(this.characterModel.PrimaryPart!.Position, this.currentDestination!);
         })
         if (success && this.path.Status === Enum.PathStatus.Success) {
-            // print(`[Going] Path calculated`, this.path.GetWaypoints());
+            this.logger.debug(`Path calculated`, this.path.GetWaypoints());
 
             this.isCalculated = true;
             this.calculatingPath = false;
             const waypoints = this.path.GetWaypoints();
             this.wayPoints = waypoints
             this.blockedHandle = this.path.Blocked.Connect((blockedWaypointIndex) => {
-                warn(`[Going] Blocked at waypoint ${blockedWaypointIndex}`);
+                this.logger.warn(`[Going] Blocked at waypoint ${blockedWaypointIndex}`);
                 this.destroy();
                 this.calculatePath();
             })
         }
         else if (err) {
-            warn(err);
-
+            this.logger.warn(err);
         }
     }
 
