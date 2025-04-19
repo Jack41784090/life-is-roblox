@@ -10,6 +10,7 @@ export const modelFolder = ReplicatedStorage.WaitForChild("Models") as Folder;
 export const NPCFolder = modelFolder.WaitForChild("NPCs") as Folder;
 export const locationFolder = ReplicatedStorage.WaitForChild("Locations") as Folder;
 export const indoorsFolder = locationFolder.WaitForChild("Indoors") as Folder;
+export const scenesFolder = ReplicatedStorage.WaitForChild("Scenes") as Folder;
 
 export const UNIVERSAL_PHYS = new Map<string, iActiveAbility>([
     ['High Slash', {

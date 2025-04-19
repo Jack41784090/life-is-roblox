@@ -1,5 +1,3 @@
-import { CutsceneScript } from ".";
-import { CutsceneSet } from "../Set";
 import { TriggerMap } from "../Trigger/types";
 
 export type CutsceneScriptConfig = {
@@ -7,6 +5,7 @@ export type CutsceneScriptConfig = {
 }
 
 export type CutsceneConfig = {
-    script: CutsceneScript;
-    set: CutsceneSet;
+    centreOfScene: Vector3;
+    triggerMap: TriggerMap;
+    sceneModel: string;
 }

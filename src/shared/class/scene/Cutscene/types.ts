@@ -1,5 +1,4 @@
 import { CConfig } from "shared/class/explorer/C/types";
-import { Set } from "./Set";
 
 
 
@@ -7,6 +6,7 @@ export enum CutsceneAction {
     idle,
     action1,
     action2,
+    Move,
 }
 
 
@@ -16,7 +16,4 @@ export type Prop = {
 }
 
 
-export type ActorConfig = CConfig & Prop & {
-    set: Set;
-};
-
+export type ActorConfig = CConfig;

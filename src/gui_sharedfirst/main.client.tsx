@@ -3,8 +3,9 @@ import React from "@rbxts/react";
 import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 import { setInterval } from "@rbxts/set-timeout";
 import Explorer from "shared/class/explorer";
-import Scene from "shared/class/scene/Old/Scene";
-import { DialogueExpression } from "shared/class/scene/Old/types";
+import { Cutscene } from "shared/class/scene/Cutscene";
+import { Trigger } from "shared/class/scene/Cutscene/Trigger";
+import { CutsceneAction } from "shared/class/scene/Cutscene/types";
 import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
 import GuiMothership from "./new_components/main";
@@ -110,30 +111,41 @@ function enterBattle() {
     remotes.battle.request();
 }
 function enterStory() {
-    const scene = new Scene({
-        name: "Test Scene",
-        hasCover: true
-    });
-    scene.addDialogue({
-        text: 'Hello, World!',
-        speaker: 'NPC',
-        expression: DialogueExpression.Neutral,
-        alignment: 'top',
-        effects: []
-    }, {
-        text: 'Hello back',
-        speaker: 'NPC2',
-        expression: DialogueExpression.Neutral,
-        alignment: 'center',
-        effects: []
-    }, {
-        text: 'Goodbye',
-        speaker: '',
-        expression: DialogueExpression.Neutral,
-        alignment: 'bottom',
-        effects: []
+    // const scene = new Scene({
+    //     name: "Test Scene",
+    //     hasCover: true
+    // });
+    // scene.addDialogue({
+    //     text: 'Hello, World!',
+    //     speaker: 'NPC',
+    //     expression: DialogueExpression.Neutral,
+    //     alignment: 'top',
+    //     effects: []
+    // }, {
+    //     text: 'Hello back',
+    //     speaker: 'NPC2',
+    //     expression: DialogueExpression.Neutral,
+    //     alignment: 'center',
+    //     effects: []
+    // }, {
+    //     text: 'Goodbye',
+    //     speaker: '',
+    //     expression: DialogueExpression.Neutral,
+    //     alignment: 'bottom',
+    //     effects: []
+    // })
+    // scene.playFromBeginning();
+
+
+    const cs = new Cutscene({
+        triggerMap: [
+            [1, new Trigger('modelid', CutsceneAction.action1, false, false)],
+        ],
+        centreOfScene: new Vector3(0, 0, 0),
+        sceneModel: 'TestScene',
     })
-    scene.playFromBeginning();
+
+    cs.playFromStart();
 }
 function mainMenuSetup() {
     print("Setting up main menu");

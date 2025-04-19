@@ -1,5 +1,5 @@
 import { Atom, atom } from "@rbxts/charm";
-import { ReplicatedStorage, RunService, TweenService } from "@rbxts/services";
+import { ReplicatedStorage, RunService, TweenService, Workspace } from "@rbxts/services";
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import { uiFolder } from "shared/const/assets";
@@ -14,15 +14,16 @@ const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
     maxWalkSpeed: 8,
     maxAcc: 0.25,
     accSpeed: 0.8,
-    decelerateMultiplier: 8.8,
+    decelerateMultiplier: 9.5,
     sprintMultiplier: 2.5,
     turnSpeed: 8.0,
-    inertiaFactor: 1.5,
-    momentumRetention: 0.92,
+    inertiaFactor: 1.0,
+    momentumRetention: 0.7,
     directionChangeResistance: 0.7,
     turnSpeedAtMaxVelocity: 0.3,
 };
 
+const DESTINATION_THRESHOLD = 5; // Threshold for reaching destination
 const DEFAULT_FACING_DIRECTION = new Vector3(0, 0, -1);
 const MAX_POSITION_DELTA = 10; // Maximum reasonable position change per frame
 const POSITION_VALIDITY_THRESHOLD = 1e6;
@@ -37,7 +38,7 @@ export default class C {
     //#region PROPERTIES:
     //#region Infrastructure
     protected logger = Logger.createContextLogger("C");
-    protected associatedPlace: Place;
+    protected associatedPlace?: Place;
     protected id: string;
     protected model: Model = new Instance('Model');
     protected humanoid: Humanoid;
@@ -93,7 +94,7 @@ export default class C {
      * @param config The character configuration
      * @param place The place this character belongs to
      */
-    constructor(config: CConfig, place: Place) {
+    constructor(config: CConfig, place?: Place) {
         this.id = config.id;
         this.associatedPlace = place;
         this.spawn(config);
@@ -153,7 +154,7 @@ export default class C {
                 .WaitForChild(this.id) as Model;
             assert(template.IsA('Model'), `Model '${this.id}' not found`);
             this.model = template.Clone();
-            this.model.Parent = this.associatedPlace.getModel();
+            this.model.Parent = this.associatedPlace ? this.associatedPlace.getModel() : Workspace;
             this.model.Name = config.displayName;
             this.model.PrimaryPart!.CFrame = new CFrame(config.spawnLocation);
             this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
@@ -557,8 +558,6 @@ export default class C {
      * Sets a destination for the character to move to
      */
     public setDestination(destination: Vector3): boolean {
-        if (!destination) return false;
-
         this.currentDestination = destination;
         return true;
     }
@@ -580,10 +579,9 @@ export default class C {
 
         // look at the difference
         const diff = waypointPos.sub(currentPos);
-        const threshold = 1;
 
         // if the difference is less than the threshold, then we reached the waypoint
-        if (diff.Magnitude <= threshold) {
+        if (diff.Magnitude <= DESTINATION_THRESHOLD) {
             this.currentWaypoint = undefined
             this.waypointArriveTimeout?.();
             this.waypointArriveTimeout = undefined
@@ -899,6 +897,7 @@ export default class C {
     }
 
     public toggleVisibility() {
+        this.logger.debug(`[${this.id}] Toggling visibility ${this.visible} => ${!this.visible}`);
         this.visible = !this.visible;
         if (this.model) {
             if (this.visible) {

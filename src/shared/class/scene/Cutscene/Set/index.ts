@@ -1,30 +1,79 @@
 import C from "shared/class/explorer/C";
-import Place from "shared/class/explorer/Place";
 import Logger from "shared/utils/Logger";
-import { ActorConfig, Prop } from "../types";
+import { ActorConfig } from "../types";
 import { SetConfig } from "./types";
-
-
-export class Set extends Place {
-    constructor(config: SetConfig) {
-        super(config);
-    }
-}
 
 class Actor extends C {
     constructor(actorConfig: ActorConfig) {
-        super(actorConfig, actorConfig.set);
+        super(actorConfig);
+        this.logger.recontext("Actor");
+        this.logger.info("Actor created", actorConfig);
     }
 }
 
 export class CutsceneSet {
-    private logger = Logger.createContextLogger("CutsceneSet")
-    constructor(
-        public setting: Prop,
-        public actors: Actor[],
-        public props: Prop[],
-    ) {
+    private actorShells: ActorConfig[];
+    public actors: Actor[] = [];
+    private logger = Logger.createContextLogger("CutsceneSet");
+    private showing = false;
+    private cutsceneModel: Model;
+    private setModel: Model;
+    private scriptModel: Model;
+    private centreOfScene: Vector3;
 
+    constructor(
+        public setting: SetConfig,
+    ) {
+        this.cutsceneModel = setting.cutsceneModel;
+        this.setModel = setting.cutsceneModel.WaitForChild("Set") as Model;
+        this.scriptModel = setting.cutsceneModel.WaitForChild("Script") as Model;
+        this.centreOfScene = setting.centreOfScene;
+        this.actorShells = setting.actors;
+        this.logger.info("Cutscene set created", setting);
+    }
+
+    public show() {
+        if (this.showing) {
+            this.logger.warn("Cutscene set is already showing");
+            return;
+        }
+        this.showing = true;
+
+        // showing the set
+        const setModel = this.setModel;
+        this.cutsceneModel.Parent = game.Workspace;
+        this.cutsceneModel.PivotTo(new CFrame(this.centreOfScene));
+        setModel.Parent = game.Workspace;
+        const setModelDescendants = setModel.GetDescendants();
+        for (const descendant of setModelDescendants) {
+            if (descendant.IsA("BasePart")) {
+                descendant.CanCollide = true;
+                descendant.Anchored = true;
+                descendant.Transparency = 0;
+            }
+        }
+
+        const scriptModel = this.scriptModel;
+        const scriptModelDescendants = scriptModel.GetDescendants();
+        for (const descendant of scriptModelDescendants) {
+            if (descendant.IsA("BasePart")) {
+                descendant.CanCollide = false;
+                descendant.Anchored = true;
+                descendant.Transparency = 1;
+            }
+        }
+
+
+        // showing all actors
+        this.actors = this.actorShells.map(actorConfig => {
+            const actor = new Actor(actorConfig);
+            actor.getModel().Parent = this.cutsceneModel;
+            return actor;
+        });
+    }
+
+    public getModel() {
+        return this.cutsceneModel;
     }
 
     public getActor(targetedModel: string) {

@@ -24,7 +24,7 @@ export default class NPC extends C {
     }
 
     protected followPlayerScript() {
-        const playerPos = this.associatedPlace.getExplorerPosition();
+        const playerPos = this.associatedPlace?.getExplorerPosition();
         if (!playerPos) return;
 
         const thisPos = this.model.PrimaryPart!.Position;

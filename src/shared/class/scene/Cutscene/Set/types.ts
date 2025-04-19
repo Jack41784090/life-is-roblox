@@ -1,3 +1,7 @@
-import { PlaceConfig } from "shared/types/explorer-types";
+import { ActorConfig } from "../types";
 
-export type SetConfig = PlaceConfig;
+export type SetConfig = {
+    cutsceneModel: Model,
+    centreOfScene: Vector3,
+    actors: ActorConfig[]
+};
