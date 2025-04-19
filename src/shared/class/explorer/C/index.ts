@@ -3,7 +3,7 @@ import { ReplicatedStorage, RunService, TweenService, Workspace } from "@rbxts/s
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
 import { uiFolder } from "shared/const/assets";
-import { copyVector3, disableCharacter, enableCharacter, mapRange } from "shared/utils";
+import { copyVector3, disableCharacter, enableCharacter, formatVector3, mapRange } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
 import Going from "./Going";
@@ -23,7 +23,8 @@ const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
     turnSpeedAtMaxVelocity: 0.3,
 };
 
-const DESTINATION_THRESHOLD = 5; // Threshold for reaching destination
+const DESTINATION_THRESHOLD = 3; // Threshold for reaching destination
+const WAYPOINT_THRESHOLD = 1; // Threshold for reaching destination
 const DEFAULT_FACING_DIRECTION = new Vector3(0, 0, -1);
 const MAX_POSITION_DELTA = 10; // Maximum reasonable position change per frame
 const POSITION_VALIDITY_THRESHOLD = 1e6;
@@ -568,7 +569,7 @@ export default class C {
     private handleWaypoint(waypoint: PathWaypoint): boolean {
         // begin timeout
         this.waypointArriveTimeout = this.waypointArriveTimeout ?? setTimeout(() => {
-            this.logger.warn(`[Going] Timeout at waypoint ${waypoint.Position}`);
+            this.logger.warn(`Timeout at waypoint ${waypoint.Position}`);
             this.currentGoing?.destroy();
             this.currentGoing = undefined;
             this.currentWaypoint = undefined;
@@ -581,7 +582,8 @@ export default class C {
         const diff = waypointPos.sub(currentPos);
 
         // if the difference is less than the threshold, then we reached the waypoint
-        if (diff.Magnitude <= DESTINATION_THRESHOLD) {
+        if (diff.Magnitude <= WAYPOINT_THRESHOLD) {
+            this.logger.debug(`Reached waypoint ${formatVector3(waypointPos)}`);
             this.currentWaypoint = undefined
             this.waypointArriveTimeout?.();
             this.waypointArriveTimeout = undefined
@@ -601,6 +603,7 @@ export default class C {
 
         // want to go somewhere, but not going yet
         if (!this.currentGoing) {
+            this.logger.debug(`Starting to go to ${formatVector3(this.currentDestination)}`);
             try {
                 this.currentGoing = new Going({
                     destination: this.currentDestination,
@@ -616,11 +619,13 @@ export default class C {
 
         // going somewhere, still thinking the path
         if (this.currentGoing.calculatingPath) {
+            this.logger.debug(`Still calculating path to ${formatVector3(this.currentDestination)}`);
             return;
         }
 
         // not calculating, and is not calculated, so calculate
         if (this.currentGoing.isCalculated === false) {
+            this.logger.debug(`Calculating path to ${formatVector3(this.currentDestination)}`);
             try {
                 this.currentGoing.calculatePath();
             } catch (e) {
@@ -635,8 +640,16 @@ export default class C {
         // get the waypoint
         this.currentWaypoint = this.currentWaypoint ?? this.currentGoing.nextWaypoint();
         if (!this.currentWaypoint) {
+            this.logger.debug(`No more waypoints`);
             this.currentGoing.destroy();
             this.currentGoing = undefined;
+
+            const distanceToDestination = this.currentDestination.sub(this.getPosition()).Magnitude;
+            this.logger.debug(`Distance to destination: ${distanceToDestination}`);
+            if (distanceToDestination <= DESTINATION_THRESHOLD) {
+                this.logger.debug(`Reached destination ${formatVector3(this.currentDestination)}`);
+                this.currentDestination = undefined;
+            }
             return;
         }
 
