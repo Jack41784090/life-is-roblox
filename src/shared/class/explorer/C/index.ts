@@ -219,9 +219,11 @@ export default class C {
      */
     private validateFacingVectors(): void {
         if (!this.isValidVector(this.facingDirection)) {
+            this.logger.warn(`Invalid facing direction detected: ${this.facingDirection}`);
             this.facingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
         }
         if (!this.isValidVector(this.targetFacingDirection)) {
+            this.logger.warn(`Invalid target facing direction detected: ${this.targetFacingDirection}`);
             this.targetFacingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
         }
     }
@@ -260,17 +262,11 @@ export default class C {
         // Only adjust orientation if we're actually moving
         if (this.momentum.Magnitude < 0.1) return;
 
+
+        // Apply rotation to model without changing position
         const rootPart = this.model.PrimaryPart;
         if (!rootPart) return;
 
-        // Apply rotation to model without changing position
-        this.applyRotationToModel(rootPart);
-    }
-
-    /**
-     * Applies rotation to the model based on facing direction
-     */
-    private applyRotationToModel(rootPart: BasePart): void {
         // Create a safe look vector that preserves Y position
         const currentPos = rootPart.Position;
         const facingVector = new Vector3(this.facingDirection.X, 0, this.facingDirection.Z).Unit;
@@ -296,7 +292,7 @@ export default class C {
     private calculateDynamicTurnSpeed(): number {
         const baseTurnSpeed = this.movementConfig.turnSpeed;
         const velocityMagnitude = this.velocity.Magnitude;
-        const speedFraction = math.min(velocityMagnitude / (this.maxWalkSpeed * this.sprintMultiplier), 1);
+        const speedFraction = math.min(this.walkSpeedFractionAtom(), 1);
 
         // Linear interpolation between base turn speed and turn speed at max velocity
         const minTurnSpeedFactor = this.movementConfig.turnSpeedAtMaxVelocity;
@@ -314,7 +310,7 @@ export default class C {
         }
 
         // Calculate how much of previous momentum to retain
-        const speedFactor = math.min(this.velocity.Magnitude / (this.maxWalkSpeed * this.sprintMultiplier), 1);
+        const speedFactor = math.min(this.walkSpeedFractionAtom(), 1);
         const baseRetention = this.movementConfig.momentumRetention;
         const retention = math.clamp(baseRetention + (speedFactor * 0.05), 0, 0.98);
 
@@ -361,24 +357,29 @@ export default class C {
         // Store intended direction separately
         this.intendedDirection = this.walkingDirection.Unit;
 
-        if (this.velocity.Magnitude > this.maxWalkSpeed * 0.3) {
-            const resistanceFactor = math.min(
-                this.velocity.Magnitude / (this.maxWalkSpeed * this.sprintMultiplier),
-                1
-            ) * this.movementConfig.directionChangeResistance;
+        const resistanceFactor = math.min(
+            this.walkSpeedFractionAtom(),
+            1
+        ) * this.movementConfig.directionChangeResistance;
 
-            const momentumDir = this.momentum.Magnitude > 0.1 ? this.momentum.Unit : this.facingDirection;
-            const dot = momentumDir.Dot(this.intendedDirection);
-            const angleFactor = (1 - dot) * resistanceFactor;
-            const blendFactor = math.clamp(angleFactor, 0, 0.9);
+        const momentumDir = this.momentum.Magnitude > 0.1 ? this.momentum.Unit : this.facingDirection;
+        const dot = momentumDir.Dot(this.intendedDirection);
+        const angleFactor = (1 - dot) * resistanceFactor;
+        const blendFactor = math.clamp(angleFactor, 0, 0.9);
 
-            this.targetFacingDirection = this.intendedDirection.Lerp(
-                momentumDir,
-                blendFactor
-            ).Unit;
-        } else {
-            this.targetFacingDirection = this.intendedDirection;
-        }
+        this.targetFacingDirection = this.intendedDirection.Lerp(
+            momentumDir,
+            blendFactor
+        ).Unit;
+
+        this.logger.debug(`
+            Intended Direction: ${formatVector3(this.intendedDirection)},
+            Momentum Direction: ${formatVector3(momentumDir)},
+            Dot Product: ${string.format("%.2f", dot)},
+            Angle Factor: ${string.format("%.2f", angleFactor)},
+            Blend Factor: ${string.format("%.2f", blendFactor)}
+            Target Facing Direction: ${formatVector3(this.targetFacingDirection)},
+        `);
     }
     //#endregion
 
@@ -403,6 +404,7 @@ export default class C {
             math.abs(vector.Y) > POSITION_VALIDITY_THRESHOLD ||
             math.abs(vector.Z) > POSITION_VALIDITY_THRESHOLD
         ) {
+            this.logger.warn(`Invalid vector detected: ${vector}`);
             return false;
         }
         return true;
