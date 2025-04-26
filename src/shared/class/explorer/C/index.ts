@@ -572,9 +572,17 @@ export default class C {
     /**
      * Sets a destination for the character to move to
      */
-    public setDestination(destination: Vector3): boolean {
+    public async setDestination(destination: Vector3): Promise<boolean> {
         this.currentDestination = destination;
-        return true;
+        return new Promise((resolve) => {
+            const checkDest = RunService.RenderStepped.Connect(() => {
+                const reached = this.handleDestination();
+                if (reached) {
+                    checkDest.Disconnect();
+                    resolve(true);
+                }
+            });
+        });
     }
 
     /**
@@ -664,6 +672,7 @@ export default class C {
                 this.logger.debug(`Reached destination ${formatVector3(this.currentDestination)}`);
                 this.currentDestination = undefined;
                 this.stopMoving();
+                return true;
             }
             return;
         }
@@ -777,7 +786,7 @@ export default class C {
      * Main update loop for AI decision making
      */
     protected thoughtProcessTracker() {
-        this.handleDestination();
+        // this.handleDestination();
     }
 
     /**

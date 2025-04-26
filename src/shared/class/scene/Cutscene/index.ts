@@ -9,13 +9,26 @@ import { TriggerPair } from "./Trigger/types";
 import { ActorConfig, CutsceneAction } from "./types";
 
 export class Cutscene {
-    private modelName: string;
-    private model?: Model;
+    getAny(lookAtActor: string) {
+        return this.cutsceneSet.getAny(lookAtActor);
+    }
+    getActor(modelID: string) {
+        return this.cutsceneSet.getActor(modelID);
+    }
+    getCamera() {
+        return this.cutsceneSet.getCamera();
+    }
     private logger = Logger.createContextLogger("Cutscene")
+
+    private triggeredMap: Map<string, boolean> = new Map<string, boolean>();
     private script: CutsceneScript;
+    private cutsceneSet: CutsceneSet;
+
     private runtime?: RBXScriptConnection;
     private elapsedTime: number = -1;
-    private cutsceneSet: CutsceneSet;
+
+    private modelName: string;
+    private model?: Model;
     private camMoves: Model;
     private charMoves: Model;
 
@@ -35,9 +48,28 @@ export class Cutscene {
             const t = d.FindFirstChildWhichIsA('NumberValue');
             if (!t || !dd) return;
             if (t.Value === 0) starInitPosition.set(dd.Value, d.Position);
+            config.triggerMap.push([t.Value, new MoveTrigger({
+                modelID: dd.Value,
+                cutsceneAction: CutsceneAction.Move,
+                dest: d,
+                name: d.Name,
+            })] as TriggerPair);
+            this.triggeredMap.set(d.Name, false);
             return d;
         });
-        const camMovesDescendants = this.camMoves.GetDescendants();
+        const camMovesDescendants = this.camMoves.GetDescendants().mapFiltered(d => {
+            if (!d.IsA('BasePart')) return;
+            const t = d.FindFirstChildWhichIsA('NumberValue');
+            if (!t) return;
+            config.triggerMap.push([t.Value, new MoveTrigger({
+                modelID: 'camera',
+                cutsceneAction: CutsceneAction.Move,
+                dest: d,
+                name: d.Name,
+            })] as TriggerPair);
+            this.triggeredMap.set(d.Name, false);
+            return d;
+        })
         const actorshells: ActorConfig[] = [];
         starInitPosition.forEach((pos, actorName) => {
             const actor = {
@@ -48,31 +80,6 @@ export class Cutscene {
             actorshells.push(actor);
         })
 
-        camMovesDescendants.forEach(d => {
-            if (!d.IsA('BasePart')) {
-                d.Destroy();
-                return;
-            }
-            const t = d.FindFirstChildWhichIsA('NumberValue');
-            if (!t) {
-                d.Destroy();
-                return;
-            }
-            config.triggerMap.push([t.Value, new MoveTrigger({
-                modelID: 'camera',
-                cutsceneAction: CutsceneAction.Move,
-                dest: d,
-            })] as TriggerPair);
-        });
-        charMovesDescendants.forEach(d => {
-            const dd = d.FindFirstChildWhichIsA('StringValue')!;
-            const t = d.FindFirstChildWhichIsA('NumberValue')!;
-            config.triggerMap.push([t.Value, new MoveTrigger({
-                modelID: dd.Value,
-                cutsceneAction: CutsceneAction.Move,
-                dest: d,
-            })] as TriggerPair);
-        })
         this.script = new CutsceneScript({
             triggerMap: config.triggerMap,
         })
@@ -81,6 +88,15 @@ export class Cutscene {
             centreOfScene: config.centreOfScene,
             actors: actorshells,
         })
+    }
+
+    public isXTriggerActivated(triggerName: string) {
+        const trigger = this.triggeredMap.get(triggerName);
+        if (trigger === undefined) {
+            this.logger.error("Trigger not found", triggerName);
+            return false;
+        }
+        return trigger;
     }
 
     public createModel() {
@@ -163,7 +179,15 @@ export class Cutscene {
         }
         // For all other triggers or non-zero time triggers, use the OOP approach
         else {
-            trigger.run(this.cutsceneSet);
+            trigger.run(this);
         }
+
+        const checkFinish = RunService.RenderStepped.Connect(() => {
+            if (trigger.finished) {
+                this.triggeredMap.set(trigger.name, true);
+                this.logger.info(`Trigger ${trigger.name} finished`);
+                checkFinish.Disconnect();
+            }
+        })
     }
 }

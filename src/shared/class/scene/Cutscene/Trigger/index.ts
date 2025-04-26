@@ -1,36 +1,50 @@
+import { RunService } from "@rbxts/services";
 import Logger, { ContextLogger } from "shared/utils/Logger";
-import { CutsceneActor, CutsceneSet } from "../Set";
+import { Cutscene } from "..";
+import { CutsceneActor } from "../Set";
 import { LookAtTriggerConfig, MoveTriggerConfig, TriggerConfig } from "./types";
 
 
 export class Trigger {
+    public readonly name: string;
     protected logger: ContextLogger;
     public activated: boolean = false;
     public finished: boolean = false;
     public modelID: string;
+    public activateAfter?: string;
 
     constructor(config: TriggerConfig) {
+        this.logger = Logger.createContextLogger(`Trigger(${config.modelID})`);
         this.modelID = config.modelID;
-        this.logger = Logger.createContextLogger(`Trigger(${this.modelID})`);
+        this.activateAfter = config.activateAfter;
+        this.name = config.name;
     }
 
-    public run(cutsceneSet: CutsceneSet) {
+    public async run(cutscene: Cutscene): Promise<Camera | CutsceneActor | undefined> {
         // Implement the logic for what happens when the trigger is activated
         // This could be a function that is called when the trigger is activated
         // For example, you could call a method on the model to make it do something
         // or you could change the state of the cutscene
         this.activated = true;
-
-
         const actor = this.modelID === "camera" ?
-            cutsceneSet.getCamera() :
-            cutsceneSet.getActor(this.modelID);
+            cutscene.getCamera() :
+            cutscene.getActor(this.modelID);
         if (!actor) {
             this.logger.error("No actor found with id", this.modelID);
             return;
         }
 
-        return actor;
+        return this.activateAfter ?
+            new Promise(resolve => {
+                const checkTriggered = RunService.RenderStepped.Connect(() => {
+                    if (cutscene.isXTriggerActivated(this.activateAfter!)) {
+                        this.logger.debug("Trigger activated after", this.activateAfter);
+                        checkTriggered.Disconnect();
+                        resolve(actor);
+                    }
+                })
+            }) :
+            actor;
     }
 }
 
@@ -41,17 +55,21 @@ export class MoveTrigger extends Trigger {
         this.dest = config.dest;
     }
 
-    public run(cutsceneSet: CutsceneSet) {
-        const actor = super.run(cutsceneSet);
+    public async run(cutscene: Cutscene) {
+        const actor = await super.run(cutscene);
         if (!actor) return;
 
         this.logger.debug(`Moving to ${this.dest.Position}`);
 
         if (actor instanceof CutsceneActor) {
-            actor.setDestination(this.dest.Position);
+            actor.setDestination(this.dest.Position).then(() => {
+                this.logger.debug("Move finished");
+                this.finished = true;
+            });
         }
         else {
             actor.CFrame = this.dest.CFrame;
+            this.finished = true;
         }
 
         return actor;
@@ -65,12 +83,12 @@ export class LookAtTrigger extends Trigger {
         this.lookAtActor = config.lookAtActor;
     }
 
-    public run(cutsceneSet: CutsceneSet) {
-        const actor = super.run(cutsceneSet);
+    public async run(cutscene: Cutscene) {
+        const actor = await super.run(cutscene);
         if (!actor) return;
 
         this.logger.debug(`Looking at ${this.lookAtActor}`);
-        const lookAt = cutsceneSet.getAny(this.lookAtActor);
+        const lookAt = cutscene.getAny(this.lookAtActor);
         if (!lookAt) {
             this.logger.error("No actor found with id", this.lookAtActor);
             return;
@@ -86,6 +104,7 @@ export class LookAtTrigger extends Trigger {
             actor.CFrame = CFrame.lookAt(actor.CFrame.Position, lookAtPosition);
         }
 
+        this.finished = true;
         return actor;
     }
 }
