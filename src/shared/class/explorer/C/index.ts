@@ -91,6 +91,13 @@ export default class C {
     private waypointArriveTimeout?: ReturnType<typeof setTimeout>;
     //#endregion
 
+    //#region Head Tracking
+    // Store previous rotation to smooth transitions and prevent sudden spins
+    private lastHeadTargetAngles: Vector3 = new Vector3();
+    private originalNeckC0?: CFrame; // Store the original neck C0 instead of using a hardcoded value
+    private readonly HEAD_TURN_SPEED = 3; // Lower number = smoother but slower head rotation
+    //#endregion
+
     //#endregion
 
     /**
@@ -144,6 +151,7 @@ export default class C {
             this.stateChangeTracker();
             this.accelerationTracker(dt);
             this.thoughtProcessTracker();
+            this.trackingHead(dt);
         });
 
         this.connections.push(() => renderSteppedConnection.Disconnect());
@@ -665,11 +673,103 @@ export default class C {
     //#endregion
 
     //#region State and Animation Management
-    protected trackingHead() {
-        if (this.lookingAt && this.head) {
-            this.logger.debug(`Tracking head to ${formatVector3(this.lookingAt)}`);
-            const lookAtCFrame = CFrame.lookAt(this.head.Position, this.lookingAt);
-            this.head.CFrame = lookAtCFrame.mul(CFrame.Angles(0, math.pi, 0)); // Adjust for head orientation
+    protected trackingHead(dt?: number) {
+        if (!this.head) return;
+
+        const safedt = dt || 0.03; // Default to 30fps equivalent if no dt provided
+        const neck = this.head.FindFirstChild("Neck") as Motor6D;
+
+        // Initialize the default C0 if we haven't stored it yet
+        if (neck && !this.originalNeckC0) {
+            this.originalNeckC0 = neck.C0;
+        }
+
+        if (this.lookingAt && this.head && neck) {
+            if (math.random() < 0.1) {
+                this.logger.debug(`Looking at ${formatVector3(this.lookingAt)}`);
+            }
+
+            // Check if lookingAt is valid first
+            if (!this.isValidPosition(this.lookingAt)) {
+                return;
+            }
+
+            try {
+                // Get vectors needed for angle calculation
+                const headPos = this.head.Position;
+                const targetVec = this.lookingAt.sub(headPos);
+
+                // Skip if target is too close to accurately determine direction
+                if (targetVec.Magnitude < 0.1) {
+                    return;
+                }
+
+                // Get the character's facing direction
+                const characterFacing = this.model.PrimaryPart ?
+                    this.model.PrimaryPart.CFrame.LookVector :
+                    new Vector3(0, 0, -1);
+
+                // Calculate the target in relation to the character's orientation
+                const targetDir = targetVec.Unit;
+
+                // Calculate the horizontal angle (yaw) in the XZ plane
+                const forwardVec = new Vector3(characterFacing.X, 0, characterFacing.Z).Unit;
+                const targetVecXZ = new Vector3(targetDir.X, 0, targetDir.Z).Unit;
+
+                // Use dot and cross products to get the signed angle
+                const dotXZ = forwardVec.Dot(targetVecXZ);
+                const crossXZ = forwardVec.Cross(targetVecXZ);
+                const yawAngle = math.atan2(crossXZ.Y, dotXZ);
+
+                // Calculate pitch (up/down angle)
+                const flatDist = new Vector3(targetVec.X, 0, targetVec.Z).Magnitude;
+                const pitchAngle = math.atan2(targetVec.Y, flatDist);
+
+                // Limit angles to prevent unnatural poses
+                const MAX_PITCH = math.rad(30); // Limit up/down angle
+                const MAX_YAW = math.rad(70);   // Limit left/right angle
+
+                const clampedYaw = math.clamp(yawAngle, -MAX_YAW, MAX_YAW);
+                const clampedPitch = math.clamp(pitchAngle, -MAX_PITCH, MAX_PITCH);
+
+                // Smooth the transition to new angles
+                const turnSpeed = safedt * this.HEAD_TURN_SPEED;
+                this.lastHeadTargetAngles = new Vector3(
+                    this.lastHeadTargetAngles.X + (clampedPitch - this.lastHeadTargetAngles.X) * turnSpeed,
+                    this.lastHeadTargetAngles.Y + (clampedYaw - this.lastHeadTargetAngles.Y) * turnSpeed,
+                    0
+                );
+
+                // Create rotation CFrame based on the original neck orientation
+                if (this.originalNeckC0) {
+                    // Apply rotation to original orientation to preserve the proper rest pose
+                    const rotCF = CFrame.Angles(this.lastHeadTargetAngles.X, this.lastHeadTargetAngles.Y, 0);
+                    neck.C0 = this.originalNeckC0.mul(rotCF);
+                }
+            } catch (e) {
+                // If anything goes wrong, reset to original orientation
+                if (this.originalNeckC0) {
+                    neck.C0 = this.originalNeckC0;
+                }
+            }
+        } else if (neck && this.originalNeckC0) {
+            // When not looking at anything, smoothly return to original position
+            const turnSpeed = safedt * this.HEAD_TURN_SPEED * 0.5;
+
+            this.lastHeadTargetAngles = new Vector3(
+                this.lastHeadTargetAngles.X * (1 - turnSpeed),
+                this.lastHeadTargetAngles.Y * (1 - turnSpeed),
+                0
+            );
+
+            if (math.abs(this.lastHeadTargetAngles.X) < 0.01 && math.abs(this.lastHeadTargetAngles.Y) < 0.01) {
+                // Close enough to original position
+                neck.C0 = this.originalNeckC0;
+            } else {
+                // Continue transitioning to original position
+                const rotCF = CFrame.Angles(this.lastHeadTargetAngles.X, this.lastHeadTargetAngles.Y, 0);
+                neck.C0 = this.originalNeckC0.mul(rotCF);
+            }
         }
     }
 
@@ -678,7 +778,6 @@ export default class C {
      */
     protected thoughtProcessTracker() {
         this.handleDestination();
-        this.trackingHead();
     }
 
     /**
