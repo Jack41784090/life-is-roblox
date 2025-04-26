@@ -42,6 +42,8 @@ export default class C {
     protected associatedPlace?: Place;
     protected id: string;
     protected model: Model = new Instance('Model');
+
+    protected head?: BasePart;
     protected humanoid: Humanoid;
     protected animationHandler: AnimationHandler;
     protected connections: Array<() => void> = [];
@@ -58,6 +60,7 @@ export default class C {
 
     //#region Movement Properties
     // Basic movement state
+    protected lookingAt?: Vector3;
     protected hurrying = false;
     protected walkingDirection = new Vector3();
     protected facingDirection = copyVector3(DEFAULT_FACING_DIRECTION)
@@ -99,6 +102,7 @@ export default class C {
         this.id = config.id;
         this.associatedPlace = place;
         this.spawn(config);
+        this.head = this.model.FindFirstChild('Head') as BasePart | undefined
 
         // Initialize movement configuration with defaults or provided config
         this.movementConfig = config.movementConfig ?? DEFAULT_MOVEMENT_CONFIG;
@@ -661,11 +665,20 @@ export default class C {
     //#endregion
 
     //#region State and Animation Management
+    protected trackingHead() {
+        if (this.lookingAt && this.head) {
+            this.logger.debug(`Tracking head to ${formatVector3(this.lookingAt)}`);
+            const lookAtCFrame = CFrame.lookAt(this.head.Position, this.lookingAt);
+            this.head.CFrame = lookAtCFrame.mul(CFrame.Angles(0, math.pi, 0)); // Adjust for head orientation
+        }
+    }
+
     /**
      * Main update loop for AI decision making
      */
     protected thoughtProcessTracker() {
         this.handleDestination();
+        this.trackingHead();
     }
 
     /**
@@ -926,13 +939,6 @@ export default class C {
     }
 
     public lookAt(lookAt: Vector3) {
-        const head = this.model.FindFirstChild('Neck') as BasePart;
-        if (!head) {
-            this.logger.warn(`Head not found in model '${this.id}'`);
-            return;
-        }
-
-        const lookAtCFrame = CFrame.lookAt(head.Position, lookAt);
-        head.CFrame = lookAtCFrame.mul(CFrame.Angles(0, math.pi, 0)); // Adjust for head orientation
+        this.lookingAt = lookAt;
     }
 }
