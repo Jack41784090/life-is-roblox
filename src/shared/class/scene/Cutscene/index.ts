@@ -1,4 +1,4 @@
-import { RunService } from "@rbxts/services";
+import { RunService, Workspace } from "@rbxts/services";
 import { scenesFolder } from "shared/const/assets";
 import Logger from "shared/utils/Logger";
 import { CutsceneScript } from "./Script";
@@ -144,15 +144,26 @@ export class Cutscene {
         const trigger = triggerPair[1];
         this.logger.info(`Running Trigger`, trigger);
 
-        // Execute the trigger using its run method
-        trigger.run(this.cutsceneSet);
-
-        // Handle special case for time=0 (immediate positioning)
+        // For time=0 MoveTrigger, handle with immediate positioning instead of pathfinding
         if (time === 0 && trigger instanceof MoveTrigger) {
-            const actor = this.cutsceneSet.getActor(trigger.modelID);
-            if (actor && trigger.modelID !== 'camera') {
-                actor.getModel().PivotTo(trigger.dest.CFrame);
+            if (trigger.modelID === 'camera') {
+                // Handle camera immediate positioning
+                Workspace.CurrentCamera!.CFrame = trigger.dest.CFrame;
+            } else {
+                // Handle actor immediate positioning
+                const actor = this.cutsceneSet.getActor(trigger.modelID);
+                if (actor) {
+                    actor.getModel().PivotTo(trigger.dest.CFrame);
+                } else {
+                    this.logger.error("No actor found with id", trigger.modelID);
+                }
             }
+            trigger.activated = true;
+            trigger.finished = true;
+        }
+        // For all other triggers or non-zero time triggers, use the OOP approach
+        else {
+            trigger.run(this.cutsceneSet);
         }
     }
 }
