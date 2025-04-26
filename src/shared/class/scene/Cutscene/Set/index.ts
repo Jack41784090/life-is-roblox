@@ -1,9 +1,10 @@
+import { Workspace } from "@rbxts/services";
 import C from "shared/class/explorer/C";
 import Logger from "shared/utils/Logger";
 import { ActorConfig } from "../types";
 import { SetConfig } from "./types";
 
-class Actor extends C {
+export class CutsceneActor extends C {
     constructor(actorConfig: ActorConfig) {
         super(actorConfig);
         this.logger.recontext("Actor");
@@ -13,7 +14,7 @@ class Actor extends C {
 
 export class CutsceneSet {
     private actorShells: ActorConfig[];
-    public actors: Actor[] = [];
+    public actors: CutsceneActor[] = [];
     private logger = Logger.createContextLogger("CutsceneSet");
     private showing = false;
     private cutsceneModel: Model;
@@ -66,7 +67,7 @@ export class CutsceneSet {
 
         // showing all actors
         this.actors = this.actorShells.map(actorConfig => {
-            const actor = new Actor(actorConfig);
+            const actor = new CutsceneActor(actorConfig);
             actor.getModel().Parent = this.cutsceneModel;
             return actor;
         });
@@ -76,7 +77,23 @@ export class CutsceneSet {
         return this.cutsceneModel;
     }
 
+    public getAny(model: string) {
+        return model === "camera" ?
+            this.getCamera() :
+            this.getActor(model);
+    }
+
     public getActor(targetedModel: string) {
         return this.actors.find(a => a.getModelID() === targetedModel);
+    }
+
+    public getCamera() {
+        const camera = this.cutsceneModel.FindFirstChild("Camera") ?? Workspace.CurrentCamera;
+        if (camera && camera.IsA("Camera")) {
+            return camera;
+        } else {
+            this.logger.error("No camera found in cutscene model");
+            return undefined;
+        }
     }
 }

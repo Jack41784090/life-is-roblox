@@ -1,12 +1,12 @@
-import { RunService, Workspace } from "@rbxts/services";
+import { RunService } from "@rbxts/services";
 import { scenesFolder } from "shared/const/assets";
 import Logger from "shared/utils/Logger";
 import { CutsceneScript } from "./Script";
 import { CutsceneConfig } from "./Script/type";
 import { CutsceneSet } from "./Set";
-import { Trigger } from "./Trigger";
-import { MoveTrigger, TriggerPair } from "./Trigger/types";
-import { ActorConfig } from "./types";
+import { MoveTrigger } from "./Trigger";
+import { TriggerPair } from "./Trigger/types";
+import { ActorConfig, CutsceneAction } from "./types";
 
 export class Cutscene {
     private modelName: string;
@@ -58,20 +58,20 @@ export class Cutscene {
                 d.Destroy();
                 return;
             }
-            config.triggerMap.push([t.Value, {
+            config.triggerMap.push([t.Value, new MoveTrigger({
                 modelID: 'camera',
-                activated: false,
+                cutsceneAction: CutsceneAction.Move,
                 dest: d,
-            }] as TriggerPair);
+            })] as TriggerPair);
         });
         charMovesDescendants.forEach(d => {
             const dd = d.FindFirstChildWhichIsA('StringValue')!;
             const t = d.FindFirstChildWhichIsA('NumberValue')!;
-            config.triggerMap.push([t.Value, {
+            config.triggerMap.push([t.Value, new MoveTrigger({
                 modelID: dd.Value,
-                activated: false,
+                cutsceneAction: CutsceneAction.Move,
                 dest: d,
-            } as MoveTrigger] as TriggerPair);
+            })] as TriggerPair);
         })
         this.script = new CutsceneScript({
             triggerMap: config.triggerMap,
@@ -143,37 +143,15 @@ export class Cutscene {
         const time = triggerPair[0];
         const trigger = triggerPair[1];
         this.logger.info(`Running Trigger`, trigger);
-        trigger.activated = true;
 
-        const targetedModel = trigger.modelID;
-        if (targetedModel === 'camera') {
-            const mTrigger = trigger as MoveTrigger;
-            const nTrigger = trigger as Trigger;
-            if (mTrigger.dest) {
-                Workspace.CurrentCamera!.CFrame = mTrigger.dest.CFrame;
-            }
-            else {
-                // 
-            }
-        }
-        else {
-            const actor = this.cutsceneSet.getActor(targetedModel);
-            if (!actor) {
-                this.logger.error("No actor found with id", targetedModel);
-                return;
-            }
-            const mTrigger = trigger as MoveTrigger;
-            const nTrigger = trigger as Trigger;
-            if (mTrigger.dest) {
-                if (time === 0) {
-                    actor.getModel().PivotTo(mTrigger.dest.CFrame);
-                }
-                else {
-                    actor.setDestination(mTrigger.dest.Position);
-                }
-            }
-            else {
-                // 
+        // Execute the trigger using its run method
+        trigger.run(this.cutsceneSet);
+
+        // Handle special case for time=0 (immediate positioning)
+        if (time === 0 && trigger instanceof MoveTrigger) {
+            const actor = this.cutsceneSet.getActor(trigger.modelID);
+            if (actor && trigger.modelID !== 'camera') {
+                actor.getModel().PivotTo(trigger.dest.CFrame);
             }
         }
     }

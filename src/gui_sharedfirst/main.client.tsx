@@ -4,7 +4,7 @@ import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage,
 import { setInterval } from "@rbxts/set-timeout";
 import Explorer from "shared/class/explorer";
 import { Cutscene } from "shared/class/scene/Cutscene";
-import { Trigger } from "shared/class/scene/Cutscene/Trigger";
+import { LookAtTrigger } from "shared/class/scene/Cutscene/Trigger";
 import { CutsceneAction } from "shared/class/scene/Cutscene/types";
 import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
@@ -139,7 +139,11 @@ function enterStory() {
 
     const cs = new Cutscene({
         triggerMap: [
-            [1, new Trigger('modelid', CutsceneAction.action1, false, false)],
+            [1, new LookAtTrigger({
+                modelID: 'entity_adalbrecht',
+                cutsceneAction: CutsceneAction.action1,
+                lookAtActor: 'camera',
+            })],
         ],
         centreOfScene: new Vector3(0, 0, 0),
         sceneModel: 'TestScene',

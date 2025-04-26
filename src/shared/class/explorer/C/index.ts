@@ -372,14 +372,14 @@ export default class C {
             blendFactor
         ).Unit;
 
-        this.logger.debug(`
-            Intended Direction: ${formatVector3(this.intendedDirection)},
-            Momentum Direction: ${formatVector3(momentumDir)},
-            Dot Product: ${string.format("%.2f", dot)},
-            Angle Factor: ${string.format("%.2f", angleFactor)},
-            Blend Factor: ${string.format("%.2f", blendFactor)}
-            Target Facing Direction: ${formatVector3(this.targetFacingDirection)},
-        `);
+        // this.logger.debug(`
+        //     Intended Direction: ${formatVector3(this.intendedDirection)},
+        //     Momentum Direction: ${formatVector3(momentumDir)},
+        //     Dot Product: ${string.format("%.2f", dot)},
+        //     Angle Factor: ${string.format("%.2f", angleFactor)},
+        //     Blend Factor: ${string.format("%.2f", blendFactor)}
+        //     Target Facing Direction: ${formatVector3(this.targetFacingDirection)},
+        // `);
     }
     //#endregion
 
@@ -651,6 +651,7 @@ export default class C {
             if (distanceToDestination <= DESTINATION_THRESHOLD) {
                 this.logger.debug(`Reached destination ${formatVector3(this.currentDestination)}`);
                 this.currentDestination = undefined;
+                this.stopMoving();
             }
             return;
         }
@@ -922,5 +923,16 @@ export default class C {
                 disableCharacter(this.model);
             }
         }
+    }
+
+    public lookAt(lookAt: Vector3) {
+        const head = this.model.FindFirstChild('Neck') as BasePart;
+        if (!head) {
+            this.logger.warn(`Head not found in model '${this.id}'`);
+            return;
+        }
+
+        const lookAtCFrame = CFrame.lookAt(head.Position, lookAt);
+        head.CFrame = lookAtCFrame.mul(CFrame.Angles(0, math.pi, 0)); // Adjust for head orientation
     }
 }
