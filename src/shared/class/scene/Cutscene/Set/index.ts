@@ -33,14 +33,7 @@ export class CutsceneSet {
         this.logger.info("Cutscene set created", setting);
     }
 
-    public show() {
-        if (this.showing) {
-            this.logger.warn("Cutscene set is already showing");
-            return;
-        }
-        this.showing = true;
-
-        // showing the set
+    private showSetModels() {
         const setModel = this.setModel;
         this.cutsceneModel.Parent = game.Workspace;
         this.cutsceneModel.PivotTo(new CFrame(this.centreOfScene));
@@ -53,7 +46,9 @@ export class CutsceneSet {
                 descendant.Transparency = 0;
             }
         }
+    }
 
+    private hideScriptVisualAid() {
         const scriptModel = this.scriptModel;
         const scriptModelDescendants = scriptModel.GetDescendants();
         for (const descendant of scriptModelDescendants) {
@@ -63,14 +58,25 @@ export class CutsceneSet {
                 descendant.Transparency = 1;
             }
         }
+    }
 
-
-        // showing all actors
+    private initializeActors() {
         this.actors = this.actorShells.map(actorConfig => {
             const actor = new CutsceneActor(actorConfig);
             actor.getModel().Parent = this.cutsceneModel;
             return actor;
         });
+    }
+
+    public show() {
+        if (this.showing) {
+            this.logger.warn("Cutscene set is already showing");
+            return;
+        }
+        this.showing = true;
+        this.showSetModels()
+        this.hideScriptVisualAid();
+        this.initializeActors();
     }
 
     public getModel() {
