@@ -1,5 +1,6 @@
 import { Players } from "@rbxts/services";
 import { uiFolder } from "shared/const/assets";
+import logger from "shared/utils/Logger";
 import { DialogueAlignment, DialogueBoxConfig } from "./types";
 
 const DIALOGUE_TEXT_PROPERTY_NAME = 'DialogueText';
@@ -50,7 +51,7 @@ export default class DialogueBox {
     }
 
     public align(alignment: DialogueAlignment) {
-        print(`alignment: ${alignment}`);
+        logger.info(`alignment: ${alignment}`);
         switch (alignment) {
             case "top": {
                 this.gradientFrame.AnchorPoint = new Vector2(0, 0);

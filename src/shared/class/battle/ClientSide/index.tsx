@@ -4,6 +4,7 @@ import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills, warnWrongSideCall } from "shared/utils";
+import logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import { EntityMovedEventData } from "../Network/SyncSystem";
 import ClientGameState from '../State/ClientGameState';
@@ -120,7 +121,7 @@ export default class ClientSide {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
             }
         } catch (err) {
-            warn(`Failed to handle action menu mount: ${err}`);
+            logger.error(`Failed to handle action menu mount: ${err}`, "BattleClient");
         }
     }
 
@@ -158,7 +159,7 @@ export default class ClientSide {
                 }
             }
         }).catch(err => {
-            warn(`Failed to update state: ${err}`);
+            logger.error(`Failed to update state: ${err}`, "BattleClient");
         });
     }
 
@@ -168,10 +169,10 @@ export default class ClientSide {
 
     private handleEntityChosen = async () => {
         try {
-            print("Chosen: waiting for animating to end");
+            logger.debug("Chosen: waiting for animating to end", "BattleClient");
             await this.animating;
 
-            print("Getting local entity");
+            logger.debug("Getting local entity", "BattleClient");
             const entity = await this.localEntity();
             this.exitMovement();
 
@@ -184,16 +185,16 @@ export default class ClientSide {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
             }
         } catch (err) {
-            warn(`Failed to handle entity chosen: ${err}`);
+            logger.error(`Failed to handle entity chosen: ${err}`, "BattleClient");
         }
     }
 
     private handleAnimationRequest(ac: AccessToken) {
         if (!ac.action) {
-            warn("No action found in animate call", ac);
+            logger.warn("No action found in animate call", "BattleClient");
             return;
         }
-        print("Received action", ac.action);
+        logger.debug("Received action: " + ac.action.type, "BattleClient");
         switch (ac.action.type) {
             case ActionType.Attack:
                 const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
@@ -212,7 +213,7 @@ export default class ClientSide {
 
         const path = this.state.getGridManager().findPath(ma.from, ma.to, cre.get('pos'));
         if (!path) {
-            warn("No path found for move action", ma);
+            logger.warn("No path found for move action", ma);
             return;
         }
 
@@ -271,7 +272,7 @@ export default class ClientSide {
             t.members.forEach(e => {
                 const currentAtom = this.readinessIconMap[e.playerID]
                 if (currentAtom) {
-                    print(`readinessicon: ${currentAtom()} => ${e.pos}`)
+                    logger.debug(`readinessicon: ${currentAtom()} => ${e.pos}`, "BattleClient");
                     currentAtom(e.pos);
                 }
                 else {
@@ -314,7 +315,7 @@ export default class ClientSide {
                 crMap[e.playerID] = crMap[e.playerID] ?? atom(e.get('pos'))
             }
             else {
-                warn(`Entity not found for player ${p.UserId}`);
+                logger.warn(`Entity not found for player ${p.UserId}`, "BattleClient");
             }
         }
         const readinessIcons: ReadinessIcon[] = [];
@@ -325,7 +326,7 @@ export default class ClientSide {
                 readiness
             })
         }
-        print("Readiness Icons", readinessIcons);
+        logger.debug("Readiness Icons", readinessIcons, "BattleClient");
         return readinessIcons;
     }
     //#endregion
@@ -349,7 +350,7 @@ export default class ClientSide {
                 run: () => {
                     remotes.battle.requestToAct().then(async accessToken => {
                         if (!accessToken.token) {
-                            warn(`${Players.LocalPlayer.Name} has received no access token`);
+                            logger.warn(`${Players.LocalPlayer.Name} has received no access token`, "BattleClient");
                             return;
                         }
                         const newAccessToken = {
@@ -405,7 +406,7 @@ export default class ClientSide {
      *    - Mount the ability slots for the current entity.
      */
     private async enterMovement(accessToken: AccessToken) {
-        print("Entering movement mode");
+        logger.debug("Entering movement mode", "BattleClient");
         const localE = await this.localEntity()
 
         this.controlLocks.set(Enum.KeyCode.X, true);
@@ -458,7 +459,7 @@ export default class ClientSide {
     //#region Animations
 
     private async playAttackAnimation(aa: AttackAction) {
-        print("Playing attack animation", aa);
+        logger.debug("Playing attack animation", aa, "BattleClient");
         const { animation } = aa.ability;
         const attacker = this.EHCGMS.findEntityG(aa.by);
         const attackerAnimationHandler = attacker.animationHandler;
@@ -484,7 +485,7 @@ export default class ClientSide {
             });
 
         if (!attackAnimation) {
-            warn("[playAttackAnimation] Attacker animation track not found.");
+            logger.warn("[playAttackAnimation] Attacker animation track not found.", "BattleClient");
             return;
         }
 
@@ -549,7 +550,7 @@ export default class ClientSide {
             }
         }
         catch (error) {
-            warn(`[playAttackAnimation] Error during attack animation: ${error}`);
+            logger.error(`[playAttackAnimation] Error during attack animation: ${error}`, "BattleClient");
         }
 
         attacker.playAudio(EntityStatus.Idle);
@@ -577,11 +578,11 @@ export default class ClientSide {
      * @param track The animation track to monitor.
      */
     private async waitForAnimationEnd(track?: AnimationTrack): Promise<void> {
-        print("TRACK", track?.Name, "Waiting end", track);
+        logger.debug("TRACK", track?.Name, "Waiting end", track, "BattleClient");
         if (!track) return;
         return new Promise((resolve) => {
             track.Ended.Once(() => {
-                print("TRACK", track?.Name, "Animation ended", track);
+                logger.debug("TRACK", track?.Name, "Animation ended", track, "BattleClient");
                 resolve();
             });
         });
@@ -597,7 +598,7 @@ export default class ClientSide {
         // Listen for entity movement events from the local event bus
         this.eventBus.subscribe(GameEvent.ENTITY_MOVED, (data: unknown) => {
             const movedData = data as EntityMovedEventData;
-            print(`Client received entity moved event: Entity ${movedData.entityId} moved from ${movedData.from} to ${movedData.to}`);
+            logger.debug(`Client received entity moved event: Entity ${movedData.entityId} moved from ${movedData.from} to ${movedData.to}`, "BattleClient");
 
             // Update the visual representation of the entity
             const entity = this.state.getEntityManager().getEntity(movedData.entityId);
@@ -622,13 +623,13 @@ export default class ClientSide {
         // Listen for entity updated events
         this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
             const updatedEntity = entity as Entity;
-            print(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`);
+            logger.debug(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`, "BattleClient");
 
             // Update the readiness icon if this entity has one
             const readinessIcon = this.readinessIconMap[updatedEntity.playerID];
             if (readinessIcon) {
                 readinessIcon(updatedEntity.get('pos'));
-                print(`Updated readiness icon for ${updatedEntity.name} to ${updatedEntity.get('pos')}`);
+                logger.debug(`Updated readiness icon for ${updatedEntity.name} to ${updatedEntity.get('pos')}`, "BattleClient");
             }
 
             // Update visual representation if needed
@@ -641,7 +642,7 @@ export default class ClientSide {
 
         // Listen for grid update events
         this.eventBus.subscribe(GameEvent.GRID_UPDATED, (gridState: unknown) => {
-            print("Client received grid updated event");
+            logger.debug("Client received grid updated event", "BattleClient");
 
             // Sync grid visuals with the updated state
             this.EHCGMS.syncGrid(this.state.getGridState());
@@ -650,14 +651,14 @@ export default class ClientSide {
         // Listen for turn started events
         this.eventBus.subscribe(GameEvent.TURN_STARTED, (entity: unknown) => {
             const turnEntity = entity as Entity;
-            print(`Client received turn started event for entity: ${turnEntity.name} (${turnEntity.playerID})`);
+            logger.debug(`Client received turn started event for entity: ${turnEntity.name} (${turnEntity.playerID})`, "BattleClient");
 
             // Check if it's the local player's turn
             if (turnEntity.playerID === Players.LocalPlayer.UserId) {
-                print("It's local player's turn!");
+                logger.debug("It's local player's turn!", "BattleClient");
                 this.handleEntityChosen();
             } else {
-                print("It's another player's turn");
+                logger.debug("It's another player's turn", "BattleClient");
                 this.handleOtherPlayersTurn();
             }
         });

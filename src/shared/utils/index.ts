@@ -2,6 +2,7 @@ import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { modelFolder } from "shared/const/assets";
 import remotes from "shared/remote";
+import logger from "./Logger";
 
 //===========================================================================
 // PLAYER AND DATASTORE UTILITIES
@@ -82,7 +83,7 @@ export function getCharacterModel(name: string, position: Vector3 = new Vector3(
         return humanoidClone;
     }
     else {
-        warn("PresetHumanoid model not found in ReplicatedStorage.");
+        logger.warn("PresetHumanoid model not found in ReplicatedStorage.", "ModelUtils");
     }
 }
 
@@ -142,7 +143,7 @@ export function saveTexture(id: string, texture: string) {
         const ds = getDatastore("decalTexture");
         ds.SetAsync(id, texture);
     })
-    if (!success) warn(fail);
+    if (!success) logger.error(fail as defined, "DataStoreUtils");
 }
 
 export function getTexture(id: string): string {
@@ -150,7 +151,7 @@ export function getTexture(id: string): string {
     const [success, data] = pcall(() => ds.GetAsync(id));
     if (success) return data as string;
     else {
-        warn(data);
+        logger.error(data as defined, "DataStoreUtils");
         return "";
     }
 }
@@ -160,7 +161,7 @@ export function getAbility(name: string): iAbility | undefined {
     const [success, data] = pcall(() => ds.GetAsync(name));
     if (success) return data as iAbility;
     else {
-        warn(data);
+        logger.error(data as defined, "DataStoreUtils");
         return undefined;
     }
 }
@@ -172,7 +173,7 @@ export function saveAbility(...ability: iAbility[]) {
             ds.SetAsync(a.name, a);
         });
     })
-    if (!success) warn(fail);
+    if (!success) logger.error(fail as defined, "DataStoreUtils");
 }
 
 export function getCharacterStats(id: string): EntityStats | undefined {
@@ -180,7 +181,7 @@ export function getCharacterStats(id: string): EntityStats | undefined {
     const [success, data] = pcall(() => ds.GetAsync(id));
     if (success) return data as EntityStats;
     else {
-        warn(data);
+        logger.error(data as defined, "DataStoreUtils");
         return undefined;
     }
 }
@@ -189,21 +190,21 @@ export function saveCharacterStats(character: EntityStats, overwrite = false) {
     const [success, fail] = pcall(() => {
         const ds = getDatastore("characterStats");
         if (overwrite) {
-            warn(`Character [${character.id}] saved.`);
+            logger.info(`Character [${character.id}] saved.`, "DataStoreUtils");
             ds.SetAsync(character.id, character);
         }
         else {
             const data = getCharacterStats(character.id);
             if (data) {
-                warn(`Character [${character.id}] already exists.`);
-                warn(data);
+                logger.warn(`Character [${character.id}] already exists.`, "DataStoreUtils");
+                logger.debug(data, "DataStoreUtils");
             } else {
                 ds.SetAsync(character.id, character);
-                warn(`Character [${character.id}] saved.`);
+                logger.info(`Character [${character.id}] saved.`, "DataStoreUtils");
             }
         }
     })
-    if (!success) warn(fail);
+    if (!success) logger.error(fail as defined, "DataStoreUtils");
 }
 
 //===========================================================================
@@ -486,7 +487,7 @@ export class PriorityQueue<T extends defined> {
         }
 
         if (i >= this.heap.size() * 10) {
-            warn("HeapifyDown took too long to complete.", currentIndex, this.heap);
+            logger.warn("HeapifyDown took too long to complete.", "PriorityQueue");
         }
     }
 }
@@ -516,7 +517,7 @@ export function calculateRealityValue(reality: Reality, stats: EntityStats): num
         case Reality.Bravery:
             return (stats.wil * 2) + (stats.end * 1) + (stats.fai * 1);
         default:
-            warn(`Reality value for ${reality} not found`);
+            logger.warn(`Reality value for ${reality} not found`, "RealityCalculations");
             return 0;
     }
 }
@@ -538,7 +539,7 @@ export function isAttackKills(attackerAction: AttackAction) {
         return target.hip <= 0;
     }
 
-    print(`IsAttackKills: ${target.hip} - ${damage} <= 0`);
+    logger.debug(`IsAttackKills: ${target.hip} - ${damage} <= 0`, "AttackUtils");
     return target.hip - damage <= 0;
 }
 
@@ -547,7 +548,7 @@ export function isAttackKills(attackerAction: AttackAction) {
 //===========================================================================
 
 export function warnWrongSideCall(method: string, mes = "called on the wrong side") {
-    warn(`${method}: ${mes}`);
+    logger.warn(`${method}: ${mes}`, "MiscUtils");
 }
 
 export function requestData(requester: Player, datastoreName: string, key: string) {
@@ -559,7 +560,7 @@ export function requestData(requester: Player, datastoreName: string, key: strin
         const [success, data] = pcall(() => datastore.GetAsync(key));
         if (success) return data;
         else {
-            warn(data); // error code
+            logger.error(data as defined, "MiscUtils"); // error code
             return undefined;
         }
     }
@@ -606,21 +607,21 @@ export function getTestButtons() {
         {
             text: "Play",
             onClick: () => {
-                // print("Play button clicked!");
+                // logger.debug("Play button clicked!", "TestButtons");
             },
             backgroundColor: Color3.fromRGB(0, 255, 0),
         },
         {
             text: "Settings",
             onClick: () => {
-                // print("Settings button clicked!");
+                // logger.debug("Settings button clicked!", "TestButtons");
             },
             backgroundColor: Color3.fromRGB(0, 0, 255),
         },
         {
             text: "Exit",
             onClick: () => {
-                // print("Exit button clicked!");
+                // logger.debug("Exit button clicked!", "TestButtons");
             },
             backgroundColor: Color3.fromRGB(255, 0, 0),
         },

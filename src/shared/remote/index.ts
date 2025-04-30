@@ -4,6 +4,9 @@ import { t } from "@rbxts/t";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import { AccessToken, ActionType, Config, HexGridState, StateState, TeamState } from "shared/types/battle-types";
+import Logger from "shared/utils/Logger";
+
+const remoteLogger = Logger.createContextLogger("Remotes")
 
 const remotes = createRemotes({
     loadCharacter: remote<Server>(),
@@ -53,6 +56,22 @@ const remotes = createRemotes({
         }),
         createClient: remote<Client, [config: Partial<Config>]>(), //#endregion
     }),
+    // }, (nxt, rm) => {
+    //     return (...args: unknown[]) => {
+    //         const SCOPE = RunService.IsServer() ? 'Client=>Server' : 'Server=>Client';
+    //         if (rm.type === 'event') {
+    //             remoteLogger.info(`\n(${SCOPE}) ${rm.name}\n\n`, args)
+    //             return nxt(args);
+    //         }
+    //         else {
+    //             remoteLogger.info(`\n(${SCOPE} async) ${rm.name}\n`)
+    //             remoteLogger.info(`Parameters\n`, args)
+    //             const results = nxt(args)
+    //             remoteLogger.info("Returns\n", results)
+    //             return results
+    //         }
+    //     }
+    // })
 }, loggerMiddleware)
 
 export default remotes;

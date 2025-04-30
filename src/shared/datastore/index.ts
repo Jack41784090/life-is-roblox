@@ -5,7 +5,7 @@ import { t } from "@rbxts/t";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { PlayerData } from "shared/types/battle-types";
 import { flattenAtoms, getDummyStats } from "shared/utils";
-
+import logger from "shared/utils/Logger";
 
 export class Database {
     private static instance: Database;
@@ -107,7 +107,7 @@ export class Database {
             ...state,
             [id]: playerData,
         }));
-        print(this.datastore.players());
+        logger.info(this.datastore.players());
     }
 
     deletePlayerData(id: string) {
