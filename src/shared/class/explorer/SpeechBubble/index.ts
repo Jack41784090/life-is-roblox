@@ -1,5 +1,6 @@
 import { Atom, atom, subscribe } from "@rbxts/charm";
 import { RunService, TweenService, Workspace } from "@rbxts/services";
+import { portraitsFolder } from "shared/const/assets";
 import Logger from "shared/utils/Logger";
 import { SpeechBubbleConfig, SpeechBubbleState } from "./types";
 
@@ -15,6 +16,7 @@ export default class SpeechBubble {
     private billboardGui: BillboardGui;
     private bubbleFrame: Frame;
     private textLabel: TextLabel;
+    private portrait?: ImageLabel;
     private displaySubscription?: () => void;
     private stateSubscription?: () => void;
     private ancestryChangedConnection?: RBXScriptConnection;
@@ -44,6 +46,9 @@ export default class SpeechBubble {
         this.addPointer();
         this.addCornerRadius();
         this.addStroke();
+        if (config.portrait) {
+            this.addPortrait();
+        }
 
         // Set up reactive subscriptions
         this.setupSubscriptions();
@@ -60,11 +65,35 @@ export default class SpeechBubble {
         this.setupCleanupConnections();
     }
 
+    private addPortrait(): void {
+        const entityPortraitFolder = portraitsFolder.FindFirstChild(this.config.portrait!) as Folder;
+        if (!entityPortraitFolder) {
+            this.logger.error(`Portrait folder not found for ${this.config.portrait}`);
+            return;
+        }
+        const portraitImage = entityPortraitFolder.FindFirstChild("neutral") as Decal;
+        if (!portraitImage) {
+            this.logger.error(`Neutral portrait image not found for ${this.config.portrait}`);
+            return;
+        }
+        const id = portraitImage.Texture;
+
+        this.portrait = new Instance("ImageLabel");
+        this.portrait.Name = "Portrait";
+        this.portrait.Size = UDim2.fromScale(0.3, 1);
+        this.portrait.Position = UDim2.fromScale(0, 0);
+        this.portrait.BackgroundTransparency = 1;
+        this.portrait.Image = id;
+        this.portrait.Parent = this.bubbleFrame;
+        this.portrait.ScaleType = Enum.ScaleType.Crop;
+    }
+
     /**
      * Normalize config with default values where needed
      */
     private normalizeConfig(config: SpeechBubbleConfig): SpeechBubbleConfig {
         return {
+            ...config,
             parent: config.parent,
             message: config.message,
             backgroundColor: config.backgroundColor ?? Color3.fromRGB(255, 255, 255),
@@ -99,7 +128,7 @@ export default class SpeechBubble {
     private createBillboardGui(): BillboardGui {
         const gui = new Instance("BillboardGui");
         gui.Name = "SpeechBubbleGui";
-        gui.Size = new UDim2(0, 200, 0, 100);
+        gui.Size = new UDim2(0, 400, 0, 100);
         gui.StudsOffset = new Vector3(0, 0, 0);
         gui.AlwaysOnTop = true;
         gui.Adornee = this.container;
@@ -117,7 +146,7 @@ export default class SpeechBubble {
         frame.Position = UDim2.fromScale(0.5, 0.5);
         frame.AnchorPoint = new Vector2(0.5, 0.5);
         frame.BackgroundColor3 = this.config.backgroundColor ?? Color3.fromRGB(255, 255, 255);
-        frame.BackgroundTransparency = 0.2;
+        frame.BackgroundTransparency = 0.5;
         frame.BorderSizePixel = 0;
         frame.Parent = this.billboardGui;
         return frame;
@@ -130,15 +159,17 @@ export default class SpeechBubble {
         const label = new Instance("TextLabel");
         label.Name = "SpeechText";
         label.Size = UDim2.fromScale(0.9, 0.8);
-        label.Position = UDim2.fromScale(0.5, 0.45);
-        label.AnchorPoint = new Vector2(0.5, 0.5);
+        label.Position = UDim2.fromScale(
+            this.config.portrait ? 0.3 : 0.05
+            , 0.45);
+        label.AnchorPoint = new Vector2(0, 0.5);
         label.BackgroundTransparency = 1;
         label.TextColor3 = this.config.textColor ?? Color3.fromRGB(0, 0, 0);
         label.TextSize = 18;
         label.Font = Enum.Font.GothamMedium;
         label.TextWrapped = true;
         label.TextXAlignment = Enum.TextXAlignment.Left;
-        label.TextYAlignment = Enum.TextYAlignment.Top;
+        label.TextYAlignment = Enum.TextYAlignment.Center;
         label.Text = "";
         label.Parent = this.bubbleFrame;
         return label;
@@ -164,7 +195,7 @@ export default class SpeechBubble {
      */
     private addCornerRadius(): void {
         const corner = new Instance("UICorner");
-        corner.CornerRadius = new UDim(0.2, 0);
+        corner.CornerRadius = new UDim(0.05, 0);
         corner.Parent = this.bubbleFrame;
     }
 

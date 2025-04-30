@@ -20,6 +20,8 @@ export interface SpeechBubbleConfig {
 
     /** Optional extra time per character in seconds (defaults to 0.08) */
     extraTimePerChar?: number;
+
+    portrait?: string;
 }
 
 export enum SpeechBubbleState {

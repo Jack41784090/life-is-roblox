@@ -490,7 +490,8 @@ export default class C {
         const config: SpeechBubbleConfig = {
             parent: this.model.PrimaryPart,
             message: message,
-            ...(speechOptions || {})
+            portrait: this.id,
+            ...speechOptions
         };
 
         // Create the speech bubble using the SpeechBubble class
