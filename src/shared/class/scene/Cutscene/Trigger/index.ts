@@ -2,7 +2,7 @@ import { RunService } from "@rbxts/services";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import { Cutscene } from "..";
 import { CutsceneActor } from "../Set";
-import { LookAtTriggerConfig, MoveTriggerConfig, TriggerConfig } from "./types";
+import { LookAtTriggerConfig, MoveTriggerConfig, SpeakConfig, TriggerConfig } from "./types";
 
 
 export class Trigger {
@@ -114,9 +114,9 @@ export class LookAtTrigger extends Trigger {
 
 export class SpeakTrigger extends Trigger {
     public text: string;
-    constructor(config: TriggerConfig) {
+    constructor(config: SpeakConfig) {
         super(config);
-        this.text = config.name;
+        this.text = config.text;
     }
 
     public async run(cutscene: Cutscene) {

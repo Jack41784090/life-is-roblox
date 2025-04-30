@@ -15,6 +15,9 @@ export type MoveTriggerConfig = TriggerConfig & {
 export type LookAtTriggerConfig = TriggerConfig & {
     lookAtActor: string,
 }
+export type SpeakConfig = TriggerConfig & {
+    text: string
+}
 
 export type TriggerMap = Array<TriggerPair>
 export type TriggerPair = [number, Trigger];

@@ -4,7 +4,7 @@ import Logger from "shared/utils/Logger";
 import { CutsceneScript } from "./Script";
 import { CutsceneConfig } from "./Script/type";
 import { CutsceneSet } from "./Set";
-import { MoveTrigger } from "./Trigger";
+import { LookAtTrigger, MoveTrigger, SpeakTrigger, Trigger } from "./Trigger";
 import { TriggerPair } from "./Trigger/types";
 import { ActorConfig, CutsceneAction } from "./types";
 
@@ -30,33 +30,58 @@ export class Cutscene {
     private modelName: string;
     private model: Model;
 
-    private initialiseCharMoveTriggers(starInitPosition: Map<string, Vector3>) {
+    private initialiseCharMoveTriggers(starInitPosition: Map<string, Vector3>): [number, Trigger][] {
         this.logger.info("Initialising camera and character move parts")
         const scriptObj = this.model.WaitForChild("Script") as Model;
         const charMoves = scriptObj.WaitForChild("CharMoves") as Model;
         const newMoveTriggers = charMoves.GetDescendants().mapFiltered(d => {
-            if (!d.IsA('BasePart')) return;
             const actor = d.FindFirstChild('actor') as StringValue;
             const time = d.FindFirstChild('time') as NumberValue;
             const delay = d.FindFirstChild('delay') as NumberValue;
             const triggersAfter = d.FindFirstChild('triggersAfter') as StringValue;
+            const lookAt = d.FindFirstChild('lookAt') as StringValue;
+            const text = d.FindFirstChild('text') as StringValue;
             if (!time || !actor) return;
-            if (time.Value === 0) starInitPosition.set(actor.Value, d.Position);
             this.triggeredMap.set(d.Name, false);
-            return [time.Value, new MoveTrigger({
-                modelID: actor.Value,
-                cutsceneAction: CutsceneAction.Move,
-                dest: d,
-                name: d.Name,
-                triggersAfter: triggersAfter?.Value,
-                delay: delay?.Value,
-            })] as TriggerPair;
+            if (d.IsA('BasePart')) {
+                if (time.Value === 0) starInitPosition.set(actor.Value, d.Position);
+                return [time.Value, new MoveTrigger({
+                    modelID: actor.Value,
+                    cutsceneAction: CutsceneAction.Move,
+                    dest: d,
+                    name: d.Name,
+                    triggersAfter: triggersAfter?.Value,
+                    delay: delay?.Value,
+                })] as TriggerPair;
+            }
+            else if (d.IsA('StringValue')) {
+                switch (d.Value) {
+                    case 'LookAt':
+                        return [time.Value, new LookAtTrigger({
+                            modelID: actor.Value,
+                            cutsceneAction: CutsceneAction.Move,
+                            name: d.Name,
+                            triggersAfter: triggersAfter?.Value,
+                            delay: delay?.Value,
+                            lookAtActor: lookAt.Value
+                        })] as TriggerPair
+                    case 'Speak':
+                        return [time.Value, new SpeakTrigger({
+                            modelID: actor.Value,
+                            cutsceneAction: CutsceneAction.Move,
+                            name: d.Name,
+                            triggersAfter: triggersAfter?.Value,
+                            delay: delay?.Value,
+                            text: text.Value,
+                        })] as TriggerPair
+                }
+            }
         });
 
         return newMoveTriggers;
     }
 
-    private initialiseCamMoveTriggers() {
+    private initialiseCamMoveTriggers(): [number, Trigger][] {
         this.logger.info("Initialising camera move parts")
         const scriptObj = this.model.WaitForChild("Script") as Model;
         const camMoves = scriptObj.WaitForChild("CamMoves") as Model;
