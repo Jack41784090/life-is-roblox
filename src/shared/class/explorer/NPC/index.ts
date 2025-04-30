@@ -1,6 +1,7 @@
 import { RunService } from "@rbxts/services";
 import C from "../C";
 import Place from "../Place";
+import { SpeechBubbleConfig } from "../SpeechBubble/types";
 import { NPCConfig } from "./types";
 
 enum CState {
@@ -30,9 +31,15 @@ export default class NPC extends C {
         const thisPos = this.model.PrimaryPart!.Position;
         const diff = playerPos.sub(thisPos);
         if (diff.Magnitude > 5) {
-            this.speak("Where are you going?");
+            // Check if we're already talking
+            if (!this.speechBubble) {
+                const speechOptions: Partial<SpeechBubbleConfig> = {
+                    baseDisplayTime: 2,
+                };
+
+                this.speak("Where are you going?", speechOptions);
+            }
             this.currentDestination = playerPos;
-            // this.setNametag()
         }
     }
 }

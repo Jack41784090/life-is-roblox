@@ -1,11 +1,12 @@
 import { Atom, atom } from "@rbxts/charm";
-import { ReplicatedStorage, RunService, TweenService, Workspace } from "@rbxts/services";
+import { ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
-import { uiFolder } from "shared/const/assets";
 import { copyVector3, disableCharacter, enableCharacter, formatVector3, mapRange } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
+import SpeechBubble from "../SpeechBubble";
+import { SpeechBubbleConfig } from "../SpeechBubble/types";
 import Going from "./Going";
 import { CConfig, CState, MovementConfig } from "./types";
 
@@ -54,8 +55,7 @@ export default class C {
     // UI Components
     protected nameTag?: BillboardGui;
     private nameTagLabel?: TextBox;
-    private speechBubble = uiFolder.WaitForChild('speechbubble').Clone() as Part;
-    private speechBubbleTextBox = this.speechBubble.FindFirstChildOfClass('BillboardGui')?.FindFirstChildOfClass('TextBox') as TextBox;
+    protected speechBubble?: SpeechBubble;
     //#endregion
 
     //#region Movement Properties
@@ -469,29 +469,56 @@ export default class C {
 
     //#region UI and Communication
     /**
-     * Displays a speech bubble with the given message
+     * Displays a speech bubble with the given message using the SpeechBubble class
      */
-    public speak(message: string) {
-        if (!this.speechBubble || !this.speechBubbleTextBox || !this.model) {
-            this.logger.warn(`Cannot speak - speech bubble components not initialized`);
-            return;
+    public speak(message: string, speechOptions?: Partial<SpeechBubbleConfig>): Promise<boolean> {
+        if (!this.model) {
+            this.logger.warn(`Cannot speak - model is not initialized`);
+            return Promise.resolve(false);
         }
-
-        const speechBubble = this.speechBubble;
-        speechBubble.Transparency = 0;
-        speechBubble.Parent = this.model;
-
         if (!this.model.PrimaryPart) {
             this.logger.warn(`Cannot position speech bubble - model has no PrimaryPart`);
-            return;
+            return Promise.resolve(false);
         }
 
-        speechBubble.CFrame = this.model.PrimaryPart.CFrame.add(new Vector3(0, 7, 0));
-        this.speechBubbleTextBox.Text = message;
+        this.logger.debug(`Speaking: "${message}"`);
 
-        setTimeout(() => {
-            TweenService.Create(speechBubble, new TweenInfo(1), { Transparency: 1 }).Play();
-        }, message.size() * 0.2);
+        // Clean up any existing speech bubble first
+        this.cleanupActiveSpeechBubble();
+
+        // Create the speech bubble configuration
+        const config: SpeechBubbleConfig = {
+            parent: this.model.PrimaryPart,
+            message: message,
+            ...(speechOptions || {})
+        };
+
+        // Create the speech bubble using the SpeechBubble class
+        const speechBubble = new SpeechBubble(config);
+
+        // Store a reference to the active speech bubble for cleanup
+        this.speechBubble = speechBubble;
+
+        // Add connection to connections array for automatic cleanup
+        this.connections.push(() => {
+            this.cleanupActiveSpeechBubble();
+        });
+
+        // Return the finished promise from the speech bubble
+        return speechBubble.finished().then(done => {
+            if (done) this.cleanupActiveSpeechBubble();
+            return done;
+        });
+    }
+
+    /**
+     * Cleans up any active speech bubble
+     */
+    private cleanupActiveSpeechBubble(): void {
+        if (this.speechBubble) {
+            this.speechBubble.cleanup();
+            this.speechBubble = undefined;
+        }
     }
 
     /**
