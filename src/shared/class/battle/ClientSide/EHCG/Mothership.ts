@@ -1,7 +1,7 @@
 import EntityCellGraphicsTuple from "shared/class/battle/ClientSide/EHCG/Tuple";
 import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { QR } from "shared/class/XY";
-import { HexGridState, PlayerID, TeamState } from "shared/types/battle-types";
+import { HexGridState, PlayerID, StateState, TeamState } from "shared/types/battle-types";
 import { getModelTemplateByID } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Entity from "../../State/Entity";
@@ -111,6 +111,12 @@ export default class EntityHexCellGraphicsMothership {
                 size: this.size,
             })
         ))
+    }
+
+    async fullSync(stateState: StateState) {
+        const syncs: Promise<void>[] = [];
+        syncs.push(this.syncGrid(stateState.grid), this.syncTeams(stateState.teams))
+        return Promise.all(syncs)
     }
 
     async syncGrid(hgs: HexGridState) {

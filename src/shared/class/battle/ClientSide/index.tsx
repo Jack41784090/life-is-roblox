@@ -234,36 +234,12 @@ export default class ClientSide {
 
     //#region Updates
 
-    private async requestUpdateEntities() {
-        const r = await remotes.battle.requestSync.team();
-        this.state.sync({
-            teams: r,
-        });
-        await this.animating;
-        this.EHCGMS.syncTeams(r);
-        return r;
-    }
-
-    private async requestUpdateGrid() {
-        const r = await remotes.battle.requestSync.map();
-        this.state.sync({
-            grid: r,
-        })
-        await this.animating;
-        this.EHCGMS.syncGrid(r);
-        return r;
-    }
-
     private async requestUpdateStateAndReadinessMap() {
         const stateData = await remotes.battle.requestSync.state();
-
-        this.state.syncWithServerState(stateData);
-
+        await this.state.syncWithServerState(stateData);
         await this.animating;
-        this.EHCGMS.syncTeams(stateData.teams);
-        this.EHCGMS.syncGrid(stateData.grid);
-        this.updateReadinessMap(stateData);
-
+        await this.EHCGMS.fullSync(stateData)
+        await this.updateReadinessMap(stateData);
         return stateData;
     }
 
