@@ -28,49 +28,69 @@ export class Cutscene {
     private elapsedTime: number = -1;
 
     private modelName: string;
-    private model?: Model;
-    private camMoves: Model;
-    private charMoves: Model;
+    private model: Model;
+
+    private initialiseCharMoveTriggers(starInitPosition: Map<string, Vector3>) {
+        this.logger.info("Initialising camera and character move parts")
+        const scriptObj = this.model.WaitForChild("Script") as Model;
+        const charMoves = scriptObj.WaitForChild("CharMoves") as Model;
+        const newMoveTriggers = charMoves.GetDescendants().mapFiltered(d => {
+            if (!d.IsA('BasePart')) return;
+            const actor = d.FindFirstChild('actor') as StringValue;
+            const time = d.FindFirstChild('time') as NumberValue;
+            const delay = d.FindFirstChild('delay') as NumberValue;
+            const triggersAfter = d.FindFirstChild('triggersAfter') as StringValue;
+            if (!time || !actor) return;
+            if (time.Value === 0) starInitPosition.set(actor.Value, d.Position);
+            this.triggeredMap.set(d.Name, false);
+            return [time.Value, new MoveTrigger({
+                modelID: actor.Value,
+                cutsceneAction: CutsceneAction.Move,
+                dest: d,
+                name: d.Name,
+                triggersAfter: triggersAfter?.Value,
+                delay: delay?.Value,
+            })] as TriggerPair;
+        });
+
+        return newMoveTriggers;
+    }
+
+    private initialiseCamMoveTriggers() {
+        this.logger.info("Initialising camera move parts")
+        const scriptObj = this.model.WaitForChild("Script") as Model;
+        const camMoves = scriptObj.WaitForChild("CamMoves") as Model;
+        const camMovesDescendants = camMoves.GetDescendants().mapFiltered(d => {
+            if (!d.IsA('BasePart')) return;
+            const t = d.FindFirstChildWhichIsA('NumberValue');
+            if (!t) return;
+            this.triggeredMap.set(d.Name, false);
+            return [t.Value, new MoveTrigger({
+                modelID: 'camera',
+                cutsceneAction: CutsceneAction.Move,
+                dest: d,
+                name: d.Name,
+            })] as TriggerPair;
+        })
+
+        return camMovesDescendants;
+    }
 
     constructor(config: CutsceneConfig) {
         this.logger.info("Cutscene created", config);
 
         this.modelName = config.sceneModel;
+        const scene = scenesFolder.WaitForChild(this.modelName) as Model;
+        if (!scene) {
+            this.logger.error("Scene model not found in folder", this.modelName);
+            throw `Scene model not found in folder ${this.modelName}`;
+        }
+        this.model = scene.Clone();
 
-        const cutsceneModel = this.createModel();
-        const scriptObj = cutsceneModel.WaitForChild("Script") as Model;
-        this.camMoves = scriptObj.WaitForChild("CamMoves") as Model;
-        this.charMoves = scriptObj.WaitForChild("CharMoves") as Model;
-        const starInitPosition = new Map<string, Vector3>();
-        const charMovesDescendants = this.charMoves.GetDescendants().mapFiltered(d => {
-            if (!d.IsA('BasePart')) return;
-            const dd = d.FindFirstChildWhichIsA('StringValue');
-            const t = d.FindFirstChildWhichIsA('NumberValue');
-            if (!t || !dd) return;
-            if (t.Value === 0) starInitPosition.set(dd.Value, d.Position);
-            config.triggerMap.push([t.Value, new MoveTrigger({
-                modelID: dd.Value,
-                cutsceneAction: CutsceneAction.Move,
-                dest: d,
-                name: d.Name,
-            })] as TriggerPair);
-            this.triggeredMap.set(d.Name, false);
-            return d;
-        });
-        const camMovesDescendants = this.camMoves.GetDescendants().mapFiltered(d => {
-            if (!d.IsA('BasePart')) return;
-            const t = d.FindFirstChildWhichIsA('NumberValue');
-            if (!t) return;
-            config.triggerMap.push([t.Value, new MoveTrigger({
-                modelID: 'camera',
-                cutsceneAction: CutsceneAction.Move,
-                dest: d,
-                name: d.Name,
-            })] as TriggerPair);
-            this.triggeredMap.set(d.Name, false);
-            return d;
-        })
         const actorshells: ActorConfig[] = [];
+        const starInitPosition = new Map<string, Vector3>();
+        const moveTriggers = this.initialiseCharMoveTriggers(starInitPosition);
+        const camMoveTriggers = this.initialiseCamMoveTriggers();
         starInitPosition.forEach((pos, actorName) => {
             const actor = {
                 id: actorName,
@@ -80,11 +100,15 @@ export class Cutscene {
             actorshells.push(actor);
         })
 
+        const allMoveTriggers: TriggerPair[] = config.triggerMap;
+        moveTriggers.forEach(mt => allMoveTriggers.push(mt));
+        camMoveTriggers.forEach(mt => allMoveTriggers.push(mt));
+
         this.script = new CutsceneScript({
-            triggerMap: config.triggerMap,
+            triggerMap: allMoveTriggers,
         })
         this.cutsceneSet = new CutsceneSet({
-            cutsceneModel: cutsceneModel,
+            cutsceneModel: this.model,
             centreOfScene: config.centreOfScene,
             actors: actorshells,
         })
@@ -97,16 +121,6 @@ export class Cutscene {
             return false;
         }
         return trigger;
-    }
-
-    public createModel() {
-        const scene = scenesFolder.WaitForChild(this.modelName) as Model;
-        if (!scene) {
-            this.logger.error("Scene model not found in folder", this.modelName);
-            throw `Scene model not found in folder ${this.modelName}`;
-        }
-        this.model = scene.Clone();
-        return this.model;
     }
 
     public playFromStart() {

@@ -11,13 +11,15 @@ export class Trigger {
     public activated: boolean = false;
     public finished: boolean = false;
     public modelID: string;
-    public activateAfter?: string;
+    public triggersAfter?: string;
+    public delay = 0;
 
     constructor(config: TriggerConfig) {
         this.logger = Logger.createContextLogger(`Trigger(${config.modelID})`);
         this.modelID = config.modelID;
-        this.activateAfter = config.activateAfter;
+        this.triggersAfter = config.triggersAfter;
         this.name = config.name;
+        this.delay = config.delay ?? 0;
     }
 
     public async run(cutscene: Cutscene): Promise<Camera | CutsceneActor | undefined> {
@@ -34,12 +36,13 @@ export class Trigger {
             return;
         }
 
-        return this.activateAfter ?
+        return this.triggersAfter ?
             new Promise(resolve => {
                 const checkTriggered = RunService.RenderStepped.Connect(() => {
-                    if (cutscene.isXTriggerActivated(this.activateAfter!)) {
-                        this.logger.debug("Trigger activated after", this.activateAfter);
+                    if (cutscene.isXTriggerActivated(this.triggersAfter!)) {
                         checkTriggered.Disconnect();
+                        wait(this.delay)
+                        this.logger.debug("Trigger activated after", this.triggersAfter, "with delay", this.delay);
                         resolve(actor);
                     }
                 })

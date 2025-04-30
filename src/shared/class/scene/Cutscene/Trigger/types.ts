@@ -5,7 +5,8 @@ export type TriggerConfig = {
     name: string,
     modelID: string,
     cutsceneAction: CutsceneAction,
-    activateAfter?: string,
+    triggersAfter?: string,
+    delay?: number,
 }
 export type MoveTriggerConfig = TriggerConfig & {
     dest: BasePart,
