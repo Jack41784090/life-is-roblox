@@ -155,6 +155,23 @@ export class Cutscene {
         this.elapsedTime = -1;
     }
 
+    private handleImmediateMoveTrigger(trigger: MoveTrigger) {
+        if (trigger.modelID === 'camera') {
+            // Handle camera immediate positioning
+            Workspace.CurrentCamera!.CFrame = trigger.dest.CFrame;
+        } else {
+            // Handle actor immediate positioning
+            const actor = this.cutsceneSet.getActor(trigger.modelID);
+            if (actor) {
+                actor.getModel().PivotTo(trigger.dest.CFrame);
+            } else {
+                this.logger.error("No actor found with id", trigger.modelID);
+            }
+        }
+        trigger.activated = true;
+        trigger.finished = true;
+    }
+
     private runTrigger(triggerPair: TriggerPair) {
         const time = triggerPair[0];
         const trigger = triggerPair[1];
@@ -162,20 +179,7 @@ export class Cutscene {
 
         // For time=0 MoveTrigger, handle with immediate positioning instead of pathfinding
         if (time === 0 && trigger instanceof MoveTrigger) {
-            if (trigger.modelID === 'camera') {
-                // Handle camera immediate positioning
-                Workspace.CurrentCamera!.CFrame = trigger.dest.CFrame;
-            } else {
-                // Handle actor immediate positioning
-                const actor = this.cutsceneSet.getActor(trigger.modelID);
-                if (actor) {
-                    actor.getModel().PivotTo(trigger.dest.CFrame);
-                } else {
-                    this.logger.error("No actor found with id", trigger.modelID);
-                }
-            }
-            trigger.activated = true;
-            trigger.finished = true;
+            this.handleImmediateMoveTrigger(trigger)
         }
         // For all other triggers or non-zero time triggers, use the OOP approach
         else {
