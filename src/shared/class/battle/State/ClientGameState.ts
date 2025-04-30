@@ -15,12 +15,13 @@ export default class ClientGameState extends GameState {
     public syncWithServerState(stateData: StateState): void {
         this.logger.debug("Syncing with server state", stateData);
 
-        // Update modern state
         if (stateData.grid) {
+            this.logger.debug("| Updating grid state");
             this.getGridManager().updateGrid(stateData.grid);
         }
 
         if (stateData.teams) {
+            this.logger.debug("| Updating team states");
             const teammanager = this.getTeamManager();
             const entityManager = this.getEntityManager();
             teammanager.updateTeams(stateData.teams);
@@ -40,5 +41,12 @@ export default class ClientGameState extends GameState {
                 }
             }
         }
+
+        if (stateData.cre) {
+            this.logger.debug("| Updating CRE state");
+            this.setCRE(stateData.cre);
+        }
+
+        this.logger.debug("| Finished syncing with server state");
     }
 }

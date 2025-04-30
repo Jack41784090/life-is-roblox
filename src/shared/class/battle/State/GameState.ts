@@ -123,7 +123,7 @@ export class GameState {
         const entity = this.entityManager.createEntity(entityInit);
         const addSuccess = this.teamManager.addEntityToTeam(team, entity);
         if (!addSuccess) {
-            warn(`[GameState] Failed to add entity to team ${team}`);
+            this.logger.warn(`Failed to add entity to team ${team}`);
         }
         this.setCell(entity, entityInit.qr);
 
@@ -173,7 +173,7 @@ export class GameState {
         }
 
         if (!cell) {
-            warn(`[GameState] Cell not found for entity ${entity.playerID}`);
+            this.logger.warn(`Cell not found for entity ${entity.playerID}`);
             return;
         }
 
@@ -214,7 +214,7 @@ export class GameState {
         } else if (typeIs(id, "Vector2")) {
             return this.entityManager.getEntityAtPosition(id);
         } else {
-            warn("[GameState] Invalid ID type");
+            this.logger.warn("Invalid ID type");
             return undefined;
         }
     }
@@ -305,7 +305,7 @@ export class GameState {
                 this.move(action as MoveAction);
                 return;
             default:
-                warn(`[GameState] Unknown action type: ${action.type}`);
+                this.logger.warn(`Unknown action type: ${action.type}`);
                 return;
         }
     }
@@ -320,24 +320,24 @@ export class GameState {
         const toCell = this.gridManager.getCell(to);
 
         if (!fromCell || !toCell) {
-            warn("[GameState] Move failed: Invalid cell coordinates");
+            this.logger.warn("Move failed: Invalid cell coordinates");
             return;
         }
 
         const fromEntityID = fromCell.entity;
         if (!fromEntityID) {
-            warn("[GameState] Move failed: No entity at source position");
+            this.logger.warn("Move failed: No entity at source position");
             return;
         }
 
         if (toCell.entity) {
-            warn("[GameState] Move failed: Destination cell is occupied");
+            this.logger.warn("Move failed: Destination cell is occupied");
             return;
         }
 
         const entity = this.getEntity(fromEntityID);
         if (!entity) {
-            warn("[GameState] Move failed: Entity not found in manager");
+            this.logger.warn("Move failed: Entity not found in manager");
             return;
         }
 

@@ -2,6 +2,7 @@ import { atom, Atom } from "@rbxts/charm";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
+import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import { AbilitySet, AbilityType, ActiveAbilityState, iAbility, iActiveAbility } from "../Ability/types";
 import FightingStyle from "../FightingStyle";
@@ -22,6 +23,7 @@ export default class Entity implements iEntity {
     private stance: EntityStance = EntityStance.High;
     private fightingStyle: FightingStyle = Default();
     private eventBus?: EventBus;
+    private logger = Logger.createContextLogger("Entity");
 
     qr: Vector2;
     armed?: keyof typeof Enum.KeyCode;
@@ -62,7 +64,7 @@ export default class Entity implements iEntity {
 
     //#region get stats
     set(property: EntityChangeable, by: number) {
-        print(`${this.name}: Changing ${property} by ${by}`);
+        this.logger.info(`${this.name}: Changing ${property} by ${by}`);
         const oldValue = this[property]();
         this[property](math.max(0, by));
 
@@ -106,11 +108,11 @@ export default class Entity implements iEntity {
         const { direction: hittingDirection, using, target, type: abilityType } = incomingAbility;
         assert(abilityType === AbilityType.Active, `Ability ${incomingAbility.name} is not an active ability`);
         if (using === undefined) {
-            warn(`[Entity] ${this.name} is not able to react to ${incomingAbility.name} because it has no user`);
+            this.logger.warn(`${this.name} is not able to react to ${incomingAbility.name} because it has no user`);
             return;
         }
         if (target?.playerID !== this.playerID) {
-            warn(`[Entity] ${this.name} is not able to react to ${incomingAbility.name} because it is not the target`);
+            this.logger.warn(`${this.name} is not able to react to ${incomingAbility.name} because it is not the target`);
             return;
         }
 
@@ -121,13 +123,13 @@ export default class Entity implements iEntity {
 
     //#region Modifying
     public changeHP(num: number) {
-        print(`${this.name}: Changing HP by ${num}`);
+        this.logger.info(`${this.name}: Changing HP by ${num}`);
 
         const oldHip = this.hip();
         this.hip = atom(this.hip() + num);
         const maxHP = calculateRealityValue(Reality.HP, this.stats);
-        const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9); print(hpPercentage);
-
+        const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9);
+        this.logger.debug(`HP percentage: ${hpPercentage}`);
     }
     public heal(num: number) {
         if (num < 0) return;
@@ -142,7 +144,7 @@ export default class Entity implements iEntity {
 
         for (const [stat, value] of pairs(u)) {
             if (this.stats[stat] === undefined) {
-                warn(`Stat ${stat} not found`);
+                this.logger.warn(`Stat ${stat} not found`);
                 continue;
             }
             if (typeOf(stat) === 'string' && typeOf(value) === 'number') {
@@ -152,7 +154,7 @@ export default class Entity implements iEntity {
         }
     }
     public update(u: EntityUpdate) {
-        // print(`Updating entity ${this.name} with`, u);
+        // this.logger.debug(`Updating entity ${this.name} with`, u);
         let changed = false;
 
         if (u.stats) {
@@ -169,12 +171,12 @@ export default class Entity implements iEntity {
                 case 'org':
                 case 'pos':
                 case 'mana':
-                    print(`Changing ${k} by ${v}`);
+                    this.logger.info(`Changing ${k} by ${v}`);
                     this[k as EntityChangeable](v as number);
                     changed = true;
                     break;
                 default:
-                    print(`Changing ${k} to ${v}`);
+                    this.logger.info(`Changing ${k} to ${v}`);
                     this[k as keyof this] = v as unknown as any;
                     changed = true;
             }
