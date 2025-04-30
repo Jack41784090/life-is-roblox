@@ -335,6 +335,7 @@ export default class Battle {
             this.logger.error("No entity found for the next round");
             return;
         }
+        this.state.setCRE(entity.playerID);
 
         const players = this.state.getAllPlayers();
         const winningClient = players.find(p => p.UserId === entity.playerID);
