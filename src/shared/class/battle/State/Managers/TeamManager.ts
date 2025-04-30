@@ -40,7 +40,6 @@ export class TeamManager {
     }
 
     public getTeamStates(): TeamState[] {
-        warn("getTeamState is deprecated, use getTeamStates instead", this.teams);
         return this.teams.map(team => ({
             name: team.name,
             members: team.members.map(entity => entity.state()),
