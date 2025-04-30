@@ -12,6 +12,7 @@ export default class SpeechBubble {
     private logger = Logger.createContextLogger("SpeechBubble");
     private textAtom: Atom<string>;
     private stateAtom: Atom<SpeechBubbleState>;
+    private portraitAtom?: Atom<string>;
     private container: Part;
     private billboardGui: BillboardGui;
     private bubbleFrame: Frame;
@@ -19,12 +20,14 @@ export default class SpeechBubble {
     private portrait?: ImageLabel;
     private displaySubscription?: () => void;
     private stateSubscription?: () => void;
+    private portraitSubscription?: () => void;
     private ancestryChangedConnection?: RBXScriptConnection;
     private resolveFinished: (value: boolean) => void = () => { throw ("resolveFinished not set"); };
     private hasFinished = false;
     private finishedPromise: Promise<boolean>;
-    private config: SpeechBubbleConfig;
+    private config: Required<Omit<SpeechBubbleConfig, 'portrait'>> & { portrait?: string };
     private connections: (() => void)[] = [];
+    private portraitMap?: Map<string, string>;
 
     /**
      * Creates a new speech bubble attached to the specified parent
@@ -65,18 +68,35 @@ export default class SpeechBubble {
         this.setupCleanupConnections();
     }
 
-    private addPortrait(): void {
+    private initialisePortraitMap(): void {
+        this.portraitMap = new Map<string, string>();
         const entityPortraitFolder = portraitsFolder.FindFirstChild(this.config.portrait!) as Folder;
         if (!entityPortraitFolder) {
             this.logger.error(`Portrait folder not found for ${this.config.portrait}`);
             return;
         }
-        const portraitImage = entityPortraitFolder.FindFirstChild("neutral") as Decal;
-        if (!portraitImage) {
-            this.logger.error(`Neutral portrait image not found for ${this.config.portrait}`);
+        const portraitImages = entityPortraitFolder.GetChildren().filter(child => child.IsA("Decal"));
+        for (const image of portraitImages) {
+            const imageName = image.Name;
+            const imageId = image.Texture;
+            this.portraitMap.set(imageName, imageId);
+        }
+    }
+
+    private addPortrait(): void {
+        if (!this.config.portrait) {
+            this.logger.error("Portrait is not set in the config.");
             return;
         }
-        const id = portraitImage.Texture;
+        this.initialisePortraitMap();
+        const neutralPortraitID = this.portraitMap?.get('neutral');
+        if (!neutralPortraitID) {
+            this.logger.error(`Portrait image not found for ${this.config.portrait}`);
+            return;
+        }
+        // Create the portrait atom and set the image ID
+        const id = neutralPortraitID;
+        this.portraitAtom = atom(id);
 
         this.portrait = new Instance("ImageLabel");
         this.portrait.Name = "Portrait";
@@ -91,17 +111,19 @@ export default class SpeechBubble {
     /**
      * Normalize config with default values where needed
      */
-    private normalizeConfig(config: SpeechBubbleConfig): SpeechBubbleConfig {
-        return {
-            ...config,
+    private normalizeConfig(config: SpeechBubbleConfig): Required<Omit<SpeechBubbleConfig, 'portrait'>> & { portrait?: string } {
+        const normalizedConfig: Required<Omit<SpeechBubbleConfig, 'portrait'>> & { portrait?: string } = {
             parent: config.parent,
             message: config.message,
             backgroundColor: config.backgroundColor ?? Color3.fromRGB(255, 255, 255),
             textColor: config.textColor ?? Color3.fromRGB(0, 0, 0),
             typingSpeed: config.typingSpeed ?? 0.03,
             baseDisplayTime: config.baseDisplayTime ?? 1.5,
-            extraTimePerChar: config.extraTimePerChar ?? 0.08
+            extraTimePerChar: config.extraTimePerChar ?? 0.08,
+            portrait: config.portrait
         };
+
+        return normalizedConfig;
     }
 
     /**
@@ -145,7 +167,7 @@ export default class SpeechBubble {
         frame.Size = UDim2.fromScale(0, 0); // Start at size 0 for animation
         frame.Position = UDim2.fromScale(0.5, 0.5);
         frame.AnchorPoint = new Vector2(0.5, 0.5);
-        frame.BackgroundColor3 = this.config.backgroundColor ?? Color3.fromRGB(255, 255, 255);
+        frame.BackgroundColor3 = this.config.backgroundColor;
         frame.BackgroundTransparency = 0.5;
         frame.BorderSizePixel = 0;
         frame.Parent = this.billboardGui;
@@ -164,7 +186,7 @@ export default class SpeechBubble {
             , 0.45);
         label.AnchorPoint = new Vector2(0, 0.5);
         label.BackgroundTransparency = 1;
-        label.TextColor3 = this.config.textColor ?? Color3.fromRGB(0, 0, 0);
+        label.TextColor3 = this.config.textColor;
         label.TextSize = 18;
         label.Font = Enum.Font.GothamMedium;
         label.TextWrapped = true;
@@ -186,7 +208,7 @@ export default class SpeechBubble {
         pointer.Position = UDim2.fromScale(0.5, 1);
         pointer.AnchorPoint = new Vector2(0.5, 0);
         pointer.Image = "rbxassetid://172525946"; // Triangle shape
-        pointer.ImageColor3 = this.config.backgroundColor ?? Color3.fromRGB(255, 255, 255);
+        pointer.ImageColor3 = this.config.backgroundColor;
         pointer.Parent = this.bubbleFrame;
     }
 
@@ -232,6 +254,12 @@ export default class SpeechBubble {
                 this.disappear();
             } else if (newState === SpeechBubbleState.DESTROYED) {
                 this.cleanup();
+            }
+        });
+
+        this.portraitSubscription = subscribe(this.portraitAtom!, (newId) => {
+            if (this.portrait) {
+                this.portrait.Image = newId;
             }
         });
     }
@@ -295,6 +323,20 @@ export default class SpeechBubble {
         appearTween.Play();
     }
 
+    private togglePortraitSpeaking(): void {
+        if (!this.portrait) return;
+
+        const neutralPortraitID = this.portraitMap?.get('neutral');
+        const speakingPortraitID = this.portraitMap?.get('neutral_a');
+        if (!neutralPortraitID || !speakingPortraitID) {
+            this.logger.error(`Portrait image not found for ${this.config.portrait}, neutral: ${neutralPortraitID}, speaking: ${speakingPortraitID}`);
+            return;
+        }
+
+        const newIMage = this.portrait.Image === neutralPortraitID ? speakingPortraitID : neutralPortraitID;
+        this.portraitAtom?.(newIMage);
+    }
+
     /**
      * Start typewriter effect for text display
      */
@@ -310,11 +352,16 @@ export default class SpeechBubble {
                     this.textAtom(currentText);
                     i++;
 
+                    if (i % 5 === 0) {
+                        this.togglePortraitSpeaking(); // Toggle portrait speaking every 3 characters
+                    }
+
                     // Schedule next character
-                    task.delay(this.config.typingSpeed ?? 0.15, typeChar);
+                    task.delay(this.config.typingSpeed, typeChar);
                 } else {
                     // All characters have been typed
                     this.stateAtom(SpeechBubbleState.DISPLAYING);
+                    this.portraitAtom?.(this.portraitMap?.get('neutral')!); // Reset to neutral portrait
                 }
             };
 
@@ -329,8 +376,8 @@ export default class SpeechBubble {
      */
     private scheduleDisappearance(): void {
         // Calculate display duration based on message length
-        const displayDuration = this.config.baseDisplayTime ?? 1.5 +
-            (this.config.message.size() * (this.config.extraTimePerChar ?? 0.08));
+        const displayDuration = this.config.baseDisplayTime +
+            (this.config.message.size() * (this.config.extraTimePerChar));
 
         task.delay(displayDuration, () => {
             if (!this.hasFinished) {
@@ -367,6 +414,7 @@ export default class SpeechBubble {
         // Disconnect all subscriptions and connections
         if (this.displaySubscription) this.displaySubscription();
         if (this.stateSubscription) this.stateSubscription();
+        if (this.portraitSubscription) this.portraitSubscription();
 
         this.connections.forEach(conn => conn());
         this.connections.clear();
