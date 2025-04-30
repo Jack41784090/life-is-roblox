@@ -111,3 +111,32 @@ export class LookAtTrigger extends Trigger {
         return actor;
     }
 }
+
+export class SpeakTrigger extends Trigger {
+    public text: string;
+    constructor(config: TriggerConfig) {
+        super(config);
+        this.text = config.name;
+    }
+
+    public async run(cutscene: Cutscene) {
+        const actor = await super.run(cutscene);
+        if (!actor) return;
+
+        this.logger.debug(`Speaking ${this.text}`);
+
+        if (actor instanceof CutsceneActor) {
+            actor.speak(this.text).then(() => {
+                this.logger.debug("Speak finished");
+                this.finished = true;
+            });
+        }
+        else {
+            this.logger.error("Actor is not a CutsceneActor", actor);
+            return;
+        }
+
+        this.finished = true;
+        return actor;
+    }
+}
