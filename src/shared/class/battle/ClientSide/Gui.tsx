@@ -9,6 +9,7 @@ import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shar
 import remotes from "shared/remote";
 import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/types/battle-types";
 import { calculateRealityValue } from "shared/utils";
+import Logger from "shared/utils/Logger";
 import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
 import { GameState } from "../State/GameState";
@@ -17,6 +18,8 @@ import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import EntityCellGraphicsTuple from "./EHCG/Tuple";
 
 export default class Gui {
+    private logger = Logger.createContextLogger("BattleGUI");
+
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(icons: ReadinessIcon[]) {
         const ui = new Gui(icons);
@@ -44,7 +47,7 @@ export default class Gui {
     updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: GameState, EHCGMS: EntityHexCellGraphicsMothership }): void;
     updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
     updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
-        print(`Updating main UI with mode: ${mode}`, props);
+        this.logger.debug(`Updating main UI with mode: ${mode}`, props);
         const localPlayerID = Players.LocalPlayer.UserId;
         const localEntity = props.state?.getEntity(localPlayerID);
         const hpBar = localEntity ?
@@ -131,7 +134,7 @@ export default class Gui {
     mountAbilitySlots(cre: Entity) {
         const mountingAbilitySet = cre.getAllAbilitySets().find(a => a !== undefined);
         if (!mountingAbilitySet) {
-            warn("No ability set found for entity");
+            this.logger.warn("No ability set found for entity");
             return;
         }
         GuiMothership.mount(GuiTag.AbilitySlot,
@@ -154,7 +157,7 @@ export default class Gui {
         return <frame key={'SensitiveCells'}>
             {
                 props.EHCGMS.tuples().map((t) => {
-                    // print(c);
+                    // this.logger.debug("Cell:", c);
                     return <CellSurfaceElement
                         cell={t.cellGraphics}
                         onEnter={() => this.handleCellEnter(props, t)}
@@ -187,7 +190,7 @@ export default class Gui {
         assert(cre, `[handleCellEnter] Entity is not defined @${currentQR}`);
         const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics;
         if (!creG) {
-            warn(`[handleCellEnter] EntityGraphics not found for entity @${currentQR}`);
+            this.logger.warn(`EntityGraphics not found for entity @${currentQR}`);
             return;
         }
 
@@ -241,9 +244,9 @@ export default class Gui {
      * @param clickedtuple - The cell that was clicked.
      */
     private handleCellClick(props: UpdateMainUIConfig, clickedtuple: EntityCellGraphicsTuple) {
-        print("Cell clicked", clickedtuple);
+        this.logger.debug("Cell clicked", clickedtuple);
         if (clickedtuple.entityGraphics) {
-            print(props.state)
+            this.logger.debug("State", props.state);
             const clickedOnEntity = props.state.getEntity(clickedtuple.cellGraphics.qr);
             assert(clickedOnEntity, "Clicked on entity is not defined");
             this.clickedOnEntity(props, clickedOnEntity, props.accessToken);
@@ -269,7 +272,7 @@ export default class Gui {
      * - The current entity has no cell.
      */
     private clickedOnEntity(props: UpdateMainUIConfig, clickedOn: Entity, accessToken: AccessToken) {
-        print("Clicked on entity", clickedOn);
+        this.logger.debug("Clicked on entity", clickedOn);
         const { state } = props;
         const cre = state.getCRE();
         assert(cre, "Current entity is not defined");
@@ -279,7 +282,7 @@ export default class Gui {
         const keyed = cre.armed;
         const iability = cre.getEquippedAbilitySet()[keyed];
         if (!iability) {
-            warn("No ability keyed");
+            this.logger.warn("No ability keyed");
             return;
         }
 
@@ -299,7 +302,7 @@ export default class Gui {
     }
 
     private async clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
-        print("Clicked on empty cell", emptyTuple);
+        this.logger.debug("Clicked on empty cell", emptyTuple);
         const { state } = props;
         const start = state.getCREPosition();
         assert(start, "Start position is not defined");
@@ -322,7 +325,7 @@ export default class Gui {
         } as MoveAction;
         if (readinessIcon) {
             const distance = mainUIConfig.state.getDistance(start, dest);
-            print(`localreadinessIcon: ${readinessIcon()} => ${readinessIcon() - distance * MOVEMENT_COST}`);
+            this.logger.debug(`localreadinessIcon: ${readinessIcon()} => ${readinessIcon() - distance * MOVEMENT_COST}`);
             readinessIcon(readinessIcon() - distance * MOVEMENT_COST)
         }
         const res = await this.commitAction({
@@ -334,7 +337,7 @@ export default class Gui {
     }
 
     private async commitAction(ac: AccessToken) {
-        print("Committing action", ac);
+        this.logger.debug("Committing action", ac);
         const res = await remotes.battle.act(ac);
         return res;
     }
