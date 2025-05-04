@@ -124,7 +124,7 @@ export default class Pathfinding {
                 }
                 continue;
             }
-            const exploringCell = this.gridstate.cellsMap.get(AINode.coords);
+            const exploringCell = this.gridstate.cellsMap.get(`${AINode.coords.X},${AINode.coords.Y}`); // Get the cell at the new position
             if (!exploringCell) {
                 if (this.verbose) {
                     warn(`Cell does not exist @${AINode.x},${AINode.y}`);
@@ -135,7 +135,7 @@ export default class Pathfinding {
             const neighbors: HexCellState[] = [];
             for (const direction of HexCell.directions) {
                 const neighborPos = exploringCell.qr.add(new Vector2(direction.X, direction.Y));  // Add the direction vector to current qrs
-                const neighbor = this.gridstate.cellsMap.get(neighborPos);
+                const neighbor = this.gridstate.cellsMap.get(`${neighborPos.X},${neighborPos.Y}`); // Get the cell at the new position
                 if (neighbor) neighbors.push(neighbor);
             }
 

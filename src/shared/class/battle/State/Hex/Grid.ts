@@ -246,7 +246,7 @@ export default class HexGrid {
             name: this.name,
             cells: this.cells.map(c => c.info()),
             cellsMap: new Map(this.cells.map(c => {
-                return [c.qr(), c.info()]
+                return [`${c.qr().X},${c.qr().Y}`, c.info()]
             })),
         }
     }

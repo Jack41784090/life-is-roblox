@@ -132,7 +132,7 @@ export interface HexGridConfig {
 }
 export type HexGridState = HexGridConfig & {
     cells: Omit<HexCellConfig, 'gridRef'>[];
-    cellsMap: Map<Vector2, HexCellState>;
+    cellsMap: Map<`${number},${number}`, HexCellState>;
 }
 
 export interface HexCellConfig {
