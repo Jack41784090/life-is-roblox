@@ -1,7 +1,9 @@
 import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { Players } from "@rbxts/services";
-import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, CellGlowSurfaceElement, CellSurfaceElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
+import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
+import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
+import CellSurface from "gui_sharedfirst/new_components/battle/cell/surface";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import HPBar from "gui_sharedfirst/new_components/battle/statusBar/hpBar";
 import GuiMothership from "gui_sharedfirst/new_components/main";
@@ -122,7 +124,7 @@ export default class Gui {
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
-        const elements = cellsToGlow.mapFiltered((cell) => <CellGlowSurfaceElement cell={cell} />);
+        const elements = cellsToGlow.mapFiltered((cell) => <CellGlowingSurface cell={cell} />);
         GuiMothership.mount(GuiTag.Glow, <frame key={'GlowingPath'}>{elements}</frame>)
         return cellsToGlow;
     }
@@ -158,7 +160,7 @@ export default class Gui {
             {
                 props.EHCGMS.tuples().map((t) => {
                     // this.logger.debug("Cell:", c);
-                    return <CellSurfaceElement
+                    return <CellSurface
                         cell={t.cellGraphics}
                         onEnter={() => this.handleCellEnter(props, t)}
                         onclick={() => this.handleCellClick(props, t)}
