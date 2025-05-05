@@ -1,5 +1,5 @@
 import React from "@rbxts/react";
-import { ReadinessIcon } from "shared/types/battle-types";
+import { ReadinessIcon } from "shared/class/battle/types";
 import ReadinessIconElement from "./icon_element";
 
 interface Props {

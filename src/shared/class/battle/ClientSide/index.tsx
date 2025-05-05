@@ -1,8 +1,8 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Players, RunService, UserInputService } from "@rbxts/services";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/types/battle-types";
 import { isAttackKills } from "shared/utils";
 import logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";

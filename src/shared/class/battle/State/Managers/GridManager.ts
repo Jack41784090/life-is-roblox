@@ -1,5 +1,5 @@
 import { RunService } from "@rbxts/services";
-import { HexGridState, StateConfig, TILE_SIZE } from "shared/types/battle-types";
+import { HexGridState, StateConfig, TILE_SIZE } from "shared/class/battle/types";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import HexCell from "../Hex/Cell";

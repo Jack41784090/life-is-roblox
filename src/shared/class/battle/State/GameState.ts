@@ -1,5 +1,5 @@
+import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
-import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/types/battle-types";
 import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";

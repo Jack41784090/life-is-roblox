@@ -1,9 +1,9 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { RunService } from "@rbxts/services";
+import { AccessToken, Config, HexGridState, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import remotes from "shared/remote";
-import { AccessToken, Config, HexGridState, StateState, TeamState } from "shared/types/battle-types";
 
 /**
  * NetworkService - Abstracts all remote event communication

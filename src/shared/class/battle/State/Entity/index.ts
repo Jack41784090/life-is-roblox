@@ -1,6 +1,6 @@
 import { atom, Atom } from "@rbxts/charm";
+import { Reality } from "shared/class/battle/types";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
-import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";

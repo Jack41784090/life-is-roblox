@@ -1,7 +1,7 @@
 import EntityCellGraphicsTuple from "shared/class/battle/ClientSide/EHCG/Tuple";
 import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
+import { HexGridState, PlayerID, StateState, TeamState } from "shared/class/battle/types";
 import { QR } from "shared/class/XY";
-import { HexGridState, PlayerID, StateState, TeamState } from "shared/types/battle-types";
 import { getModelTemplateByID } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Entity from "../../State/Entity";

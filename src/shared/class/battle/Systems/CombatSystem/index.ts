@@ -1,12 +1,12 @@
-import { Entity } from "@rbxts/matter";
-import { AttackAction, ClashResult, ClashResultFate, PlayerID, Reality } from "shared/types/battle-types";
-import { calculateRealityValue } from "shared/utils";
+import { EventBus } from "shared/class/battle/Events/EventBus";
+import { EntityState } from "shared/class/battle/State/Entity/types";
+import { GameState } from "shared/class/battle/State/GameState";
+import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
+import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { AttackAction, ClashResult, ClashResultFate, PlayerID, Reality } from "shared/class/battle/types";
+import { calculateRealityValue, uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus } from "../../Events/EventBus";
-import { EntityState } from "../../State/Entity/types";
-import { GameState } from "../../State/GameState";
-import { ActiveAbility } from "./Ability";
-import { AbilityState, ActiveAbilityState } from "./Ability/types";
+import Entity from "../../State/Entity";
 
 interface HitResult {
     hitRoll: number;
@@ -40,10 +40,10 @@ export class CombatSystem {
         this.logger.debug(`Applying clash result:`, clashResult);
         attackAction.executed = true;
 
-        const attacker = this.getEntity(attackAction.by);
+        const attacker = this.gameState.getEntity(attackAction.by);
         assert(attacker, "Attacker not found");
 
-        const target = attackAction.against ? this.getEntity(attackAction.against) : undefined;
+        const target = attackAction.against ? this.gameState.getEntity(attackAction.against) : undefined;
 
         // 1. Attacker takes a swing, reducing his ability costs
         this.tireAttacker(attacker, attackAction.ability);
@@ -72,7 +72,7 @@ export class CombatSystem {
         return clashResult;
     }
     private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
-        const allEntities = this.getAllEntities();
+        const allEntities = this.gameState.getEntityManager().getAllEntities();
         const ability = new ActiveAbility({
             ...abilityState,
             using: allEntities.find(e => e.playerID === by),
@@ -86,19 +86,17 @@ export class CombatSystem {
     public resolveAttack(action: AttackAction): ClashResult {
         this.logger.debug(`Calculating clash for attack: ${action.by} -> ${action.against}`);
         const { using: attacker, target, chance: acc } = action.ability;
-
         if (!attacker || !target) {
-            this.logger.error("Attacker or target not found");
+            this.logger.error("Attacker or target not found", attacker, target);
             return { damage: 0, u_damage: 0, fate: "Miss", roll: 0, defendAttemptName: "", defendAttemptSuccessful: true, defendReactionUpdate: {} };
         }
         this.logger.info(`Clash: ${attacker.name} vs ${target.name} (acc: ${acc})`);
 
-        const { hitRoll, hitChance, critChance } = this.rollHit(acc, attacker, target);
-
+        const { hitRoll, hitChance, critChance } = this.rollHit([acc], attacker, target);
         const ability = this.rebuildAbility(action.ability, attacker.playerID, target.playerID);
-        const abilityDamage = ability.calculateDamage();
+        const abilityDamage = ability.calculateDamage(); this.logger.debug(`Ability damage: ${abilityDamage}`);
         const minDamage = abilityDamage * 0.5;
-        const maxDamage = abilityDamage;
+        const maxDamage = abilityDamage; this.logger.debug(`Min damage: ${minDamage}, Max damage: ${maxDamage}`);
 
         let fate: ClashResultFate = "Miss";
         let damage = 0;
@@ -130,19 +128,22 @@ export class CombatSystem {
         };
     }
 
-    public calculateDamage(attacker: EntityState, target: EntityState, ability: AbilityState): number {
-        // ...implementation...
-    }
+    // public calculateDamage(attacker: EntityState, target: EntityState, ability: AbilityState): number {
+    //     // ...implementation...
+    // }
 
     public applyDamage(targetId: number, amount: number): void {
         // ...implementation...
     }
 
-    private rollHit(acc: number, attacker: EntityState, defender: EntityState): HitResult {
+    private rollHit(accurDices: number[], attacker: EntityState, defender: EntityState): number {
         const hitRoll = math.random(1, 100);
-        const hitChance = acc - calculateRealityValue(Reality.Maneuver, defender.stats);
-        const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
-        return { hitRoll, hitChance, critChance };
+
+        const attackerManeuver = calculateRealityValue(Reality.Maneuver, attacker.stats);
+        const defenderManeuver = calculateRealityValue(Reality.Maneuver, defender.stats);
+
+
+        return defenderManeuver - attackerManeuver + accurDices.reduce((acc, val) => acc + uniformRandom(1, val), 0);
     }
 }
 

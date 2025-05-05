@@ -1,4 +1,4 @@
-import { StateConfig, StateState } from "shared/types/battle-types";
+import { StateConfig, StateState } from "shared/class/battle/types";
 import { GameState } from "./GameState";
 
 /**

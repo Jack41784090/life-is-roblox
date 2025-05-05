@@ -1,4 +1,4 @@
-import { TeamState } from "shared/types/battle-types";
+import { TeamState } from "shared/class/battle/types";
 import Logger from "shared/utils/Logger";
 import Entity from "../Entity";
 import Team from "../Team";

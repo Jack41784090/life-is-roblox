@@ -1,6 +1,6 @@
 import { RunService } from "@rbxts/services";
+import { ActionType, ActionValidator, Config, MoveAction } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
-import { ActionType, ActionValidator, Config, MoveAction } from "shared/types/battle-types";
 import { get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
 import { IDGenerator } from "../IDGenerator";

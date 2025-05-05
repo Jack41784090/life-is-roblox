@@ -1,4 +1,4 @@
-import { ReadinessIcon } from "shared/types/battle-types";
+import { ReadinessIcon } from "shared/class/battle/types";
 
 export interface iEntity {
     readonly playerID: number;

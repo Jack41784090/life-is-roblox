@@ -1,7 +1,7 @@
 import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect } from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
-import { ReadinessIcon } from "shared/types/battle-types";
+import { ReadinessIcon } from "shared/class/battle/types";
 import { springs } from "shared/utils";
 
 interface Props {

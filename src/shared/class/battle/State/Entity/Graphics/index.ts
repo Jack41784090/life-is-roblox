@@ -1,6 +1,6 @@
 import { TweenService } from "@rbxts/services";
+import { ClashResult, EntityStatus } from "shared/class/battle/types";
 import { CONDOR_BLOOD_RED } from "shared/const";
-import { ClashResult, EntityStatus } from "shared/types/battle-types";
 import Logger from "shared/utils/Logger";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
 import AnimationHandler, { AnimationOptions, AnimationType } from "./AnimationHandler";

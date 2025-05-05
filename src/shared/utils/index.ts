@@ -324,6 +324,10 @@ export function get2DEuclidDistance(a: Vector2 | Vector3, b: Vector2 | Vector3):
     }
 }
 
+export function uniformRandom(min: number, max: number): number {
+    return math.random() * (max - min) + min;
+}
+
 //===========================================================================
 // PHYSICS AND COLLISION UTILITIES
 //===========================================================================
@@ -663,8 +667,8 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 import { SyncPayload } from "@rbxts/charm-sync";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { iAbility } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { AttackAction, Reality } from "shared/class/battle/types";
 import { GlobalAtoms } from "shared/datastore";
-import { AttackAction, Reality } from "shared/types/battle-types";
 
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {
     if (payload.type === "init") {

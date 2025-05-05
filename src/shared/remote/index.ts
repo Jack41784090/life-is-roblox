@@ -1,9 +1,9 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
+import { AccessToken, ActionType, Config, HexGridState, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
-import { AccessToken, ActionType, Config, HexGridState, StateState, TeamState } from "shared/types/battle-types";
 import Logger from "shared/utils/Logger";
 
 const remoteLogger = Logger.createContextLogger("Remotes")

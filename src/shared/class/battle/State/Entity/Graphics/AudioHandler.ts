@@ -1,5 +1,5 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { EntityStatus } from "shared/types/battle-types";
+import { EntityStatus } from "shared/class/battle/types";
 import EntityGraphics from ".";
 
 export default class AudioHandler {

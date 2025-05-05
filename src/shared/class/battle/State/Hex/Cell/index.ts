@@ -1,4 +1,4 @@
-import { CellTerrain, HexCellConfig, HexCellState, PlayerID } from "shared/types/battle-types";
+import { CellTerrain, HexCellConfig, HexCellState, PlayerID } from "shared/class/battle/types";
 import { EventBus, GameEvent } from "../../../Events/EventBus";
 import Entity from "../../Entity";
 import HexGrid from "../Grid";

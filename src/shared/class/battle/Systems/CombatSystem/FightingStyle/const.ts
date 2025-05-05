@@ -1,5 +1,5 @@
+import { EntityStance } from "shared/class/battle/State/Entity/types";
 import FightingStyle from ".";
-import { EntityStance } from '../Entity/types';
 
 export const Default = () => new FightingStyle({
     reactionAbilities: [{

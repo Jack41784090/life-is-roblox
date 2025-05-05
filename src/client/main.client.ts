@@ -1,7 +1,7 @@
 import { Players, StarterGui } from "@rbxts/services";
 import ClientSide from "shared/class/battle/ClientSide";
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/class/battle/types";
 import remotes from "shared/remote";
-import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/types/battle-types";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);
 
 remotes.battle.createClient.connect(async (config) => {

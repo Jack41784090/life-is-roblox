@@ -1,4 +1,4 @@
-import { ReactiveAbility } from "../../Systems/CombatSystem/Ability";
+import { ReactiveAbility } from "../Ability";
 import { FightingStyleConfig } from "./type";
 
 export default class FightingStyle {

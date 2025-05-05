@@ -1,4 +1,4 @@
-import { ClashResult } from "shared/types/battle-types";
+import { ClashResult } from "shared/class/battle/types";
 import Entity from "../../../State/Entity";
 import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
 

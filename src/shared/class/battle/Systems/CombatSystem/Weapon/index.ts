@@ -1,4 +1,4 @@
-import { EntityStats } from "../Entity/types";
+import { EntityStats } from "../../../State/Entity/types";
 
 export default class Weapon {
     baseDamage = 10;

@@ -3,7 +3,7 @@ import { Collection, createCollection } from "@rbxts/lapis";
 import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
-import { PlayerData } from "shared/types/battle-types";
+import { PlayerData } from "shared/class/battle/types";
 import { flattenAtoms, getDummyStats } from "shared/utils";
 import logger from "shared/utils/Logger";
 

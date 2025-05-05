@@ -1,4 +1,4 @@
-import { HexCellState, HexGridState } from "shared/types/battle-types"
+import { HexCellState, HexGridState } from "shared/class/battle/types"
 import { PriorityQueue } from "shared/utils"
 import HexCell from "./State/Hex/Cell"
 
