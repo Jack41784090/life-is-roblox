@@ -258,7 +258,7 @@ export class GameState {
 
         // Update teams
         if (other.teams) {
-            this.teamManager.updateTeams(other.teams);
+            this.teamManager.updateTeams(other.teams, this.entityManager);
         }
 
         // Update CRE

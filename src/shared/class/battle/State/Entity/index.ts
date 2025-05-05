@@ -154,7 +154,7 @@ export default class Entity implements iEntity {
         }
     }
     public update(u: EntityUpdate) {
-        // this.logger.debug(`Updating entity ${this.name} with`, u);
+        this.logger.debug(`Updating entity ${this.name} with`, u);
         let changed = false;
 
         if (u.stats) {

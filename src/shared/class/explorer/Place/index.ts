@@ -47,11 +47,11 @@ export default class Place {
         return new Place({
             locationName: placeName,
             NPCs: [
-                // {
-                //     id: 'entity_adalbrecht',
-                //     displayName: 'NPC 1',
-                //     spawnLocation: spawnLocation.Position,
-                // },
+                {
+                    id: 'entity_adalbrecht',
+                    displayName: 'NPC 1',
+                    spawnLocation: spawnLocation.Position,
+                },
             ],
             model: locationFolder.WaitForChild(placeName) as Model,
         })

@@ -64,6 +64,7 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     findTupleByEntity(entity: Entity) {
+        this.logger.debug(this.tupleQR, 'by', entity.qr);
         return this.tupleQR.get(entity.qr);
     }
 
@@ -99,15 +100,16 @@ export default class EntityHexCellGraphicsMothership {
 
     positionTuple(qr: Vector2) {
         assert(this.grid.model, "Grid model not set");
-        return this.tupleQR.get(qr) ?? this.tupleQR.set(qr, new EntityCellGraphicsTuple(
-            new HexCellGraphics({
-                qr: qr,
-                parent: this.grid.model,
-                worldPosition: this.grid.findWorldPositionFromQRS(qr),
-                height: this.height,
-                size: this.size,
-            })
-        ))
+        return this.tupleQR.get(qr) ??
+            this.tupleQR.set(qr, new EntityCellGraphicsTuple(
+                new HexCellGraphics({
+                    qr: qr,
+                    parent: this.grid.model,
+                    worldPosition: this.grid.findWorldPositionFromQRS(qr),
+                    height: this.height,
+                    size: this.size,
+                })
+            ))
     }
 
     async fullSync(stateState: StateState) {
@@ -129,7 +131,6 @@ export default class EntityHexCellGraphicsMothership {
         for (const teamState of teamStates) {
             for (const entityState of teamState.members) {
                 const newQR = entityState.qr;
-                if (!newQR) continue;
                 const playerTuple = this.idTupleMap.get(entityState.playerID);
 
                 // 1. entity updated his location => move the tuple to the new location
