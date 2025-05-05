@@ -5,7 +5,7 @@ import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entit
 import { copyVector3, disableCharacter, enableCharacter, formatVector3, mapRange } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
-import SpeechBubble from "../SpeechBubble";
+import { createSpeechBubble } from "../SpeechBubble";
 import { SpeechBubbleConfig } from "../SpeechBubble/types";
 import Going from "./Going";
 import { CConfig, CState, MovementConfig } from "./types";
@@ -55,7 +55,11 @@ export default class C {
     // UI Components
     protected nameTag?: BillboardGui;
     private nameTagLabel?: TextBox;
-    protected speechBubble?: SpeechBubble;
+    protected speechBubble?: {
+        finished: Promise<boolean>;
+        close: () => void;
+        cleanup: () => void;
+    };
     //#endregion
 
     //#region Movement Properties
@@ -495,7 +499,7 @@ export default class C {
         };
 
         // Create the speech bubble using the SpeechBubble class
-        const speechBubble = new SpeechBubble(config);
+        const speechBubble = createSpeechBubble(config);
 
         // Store a reference to the active speech bubble for cleanup
         this.speechBubble = speechBubble;
@@ -506,7 +510,7 @@ export default class C {
         });
 
         // Return the finished promise from the speech bubble
-        return speechBubble.finished().then(done => {
+        return speechBubble.finished.then(done => {
             if (done) this.cleanupActiveSpeechBubble();
             return done;
         });
