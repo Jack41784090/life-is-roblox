@@ -117,18 +117,37 @@
 
 import { Players } from "@rbxts/services";
 import { Database } from "shared/datastore";
-import remotes from "shared/remote";
-import { getDatastore } from "shared/utils";
+import { saveCharacterStats } from "shared/utils";
 
-remotes.requestData.connect((player: Player, datastoreName, key) => {
-    const datastore = getDatastore(datastoreName);
-    const [success, data] = pcall(() => datastore.GetAsync(key));
-    if (success) return data;
-    else {
-        warn(data);
-        return undefined;
-    }
-})
+// remotes.requestData.onRequest((player: Player, datastoreName, key) => {
+//     const datastore = getDatastore(datastoreName);
+//     print(`Requesting data for ${datastoreName} with key ${key}`);
+//     const [success, data] = pcall(() => datastore.GetAsync(key));
+//     if (success) {
+//         print(`Data for ${datastoreName} with key ${key}:`, data);
+//         return data;
+//     }
+//     else {
+//         warn(data);
+//         return undefined;
+//     }
+// })
+
+saveCharacterStats({
+    id: "entity_adalbrecht",
+    str: 10, // Strength
+    dex: 10, // Dexterity
+    acr: 10, // Acrobatics
+    spd: 10, // Speed
+    siz: 10, // Size
+    int: 10, // Intelligence
+    spr: 10, // Spirituality
+    fai: 10, // Faith
+    cha: 10, // Charisma
+    beu: 10, // Beauty
+    wil: 10, // Willpower
+    end: 10  // Endurance
+}, true);
 
 Players.PlayerAdded.Connect(p => {
     const db = Database.Get()

@@ -1,5 +1,5 @@
 import { RunService } from "@rbxts/services";
-import { ActionType, ActionValidator, Config, MoveAction } from "shared/class/battle/types";
+import { ActionType, ActionValidator, BattleConfig, MoveAction } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
 import { get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
@@ -11,7 +11,7 @@ import { GameState } from "./State/GameState";
 import { TurnSystem } from "./Systems/TurnSystem";
 
 export default class Battle {
-    public static Create(config: Partial<Config>) {
+    public static Create(config: Partial<BattleConfig>) {
         if (RunService.IsServer()) {
             return new Battle(config);
         }
@@ -27,7 +27,7 @@ export default class Battle {
     private syncSystem: SyncSystem;
     private turnSystem: TurnSystem;
 
-    private constructor(config: Partial<Config>) {
+    private constructor(config: Partial<BattleConfig>) {
         this.logger.info(`Creation of Battle with config:`, config);
         assert(config.teamMap, "No team map provided");
         this.state = new GameState({

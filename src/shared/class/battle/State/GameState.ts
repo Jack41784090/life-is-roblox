@@ -3,7 +3,6 @@ import { MOVEMENT_COST } from "shared/const";
 import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
-import { CombatSystem } from "../Systems/CombatSystem";
 import Entity from "./Entity";
 import { EntityInit, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
@@ -30,9 +29,9 @@ export class GameState {
     private gridManager: GridManager;
     private teamManager: TeamManager;
     private creID: number | undefined;
-    private combatSystem: CombatSystem;
+    // private combatSystem: CombatSystem;
 
-    constructor(config: StateConfig) {
+    public constructor(config: StateConfig) {
         this.eventBus = new EventBus();
         this.gridManager = new GridManager(config, this.eventBus);
         const entitiesInit: EntityInit[] = this.getEntitiesInitFromTeamMap(config.teamMap);

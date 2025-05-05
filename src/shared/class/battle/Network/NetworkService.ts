@@ -1,6 +1,6 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { RunService } from "@rbxts/services";
-import { AccessToken, Config, HexGridState, StateState, TeamState } from "shared/class/battle/types";
+import { AccessToken, BattleConfig, HexGridState, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import remotes from "shared/remote";
@@ -279,7 +279,7 @@ export class NetworkService {
         }
     }
 
-    public createClientBattle(player: Player, config: Partial<Config>) {
+    public createClientBattle(player: Player, config: Partial<BattleConfig>) {
         if (RunService.IsServer()) {
             remotes.battle.createClient(player, config);
         }
@@ -292,12 +292,12 @@ export class NetworkService {
         }
     }
 
-    public async requestData(storeName: string, key: string) {
-        if (RunService.IsClient()) {
-            return remotes.requestData(storeName, key);
-        }
-        throw "Cannot call requestData on server";
-    }
+    // public async requestData(storeName: string, key: string) {
+    //     if (RunService.IsClient()) {
+    //         return remotes.requestData(storeName, key);
+    //     }
+    //     throw "Cannot call requestData on server";
+    // }
 
     public init() {
         if (RunService.IsClient()) {

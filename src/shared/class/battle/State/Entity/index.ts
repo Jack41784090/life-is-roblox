@@ -4,10 +4,12 @@ import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
-import { AbilitySet, AbilityType, ActiveAbilityState, iAbility, iActiveAbility } from "../../Systems/CombatSystem/Ability/types";
-import { EntityChangeable, EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate, iEntity } from "./types";
+import { AbilityConfig, AbilitySet, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
+import Armour from "../../Systems/CombatSystem/Armour";
+import Weapon from "../../Systems/CombatSystem/Weapon";
+import { EntityChangeable, EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate } from "./types";
 
-export default class Entity implements iEntity {
+export default class Entity {
     // server-controlled properties
     public playerID: number;
     public stats: EntityStats;
@@ -17,6 +19,9 @@ export default class Entity implements iEntity {
     private org: Atom<number>;
     private pos: Atom<number>;
     private mana: Atom<number>;
+
+    public armour?: Armour;
+    public weapon?: Weapon;
 
     private stance: EntityStance = EntityStance.High;
     private eventBus?: EventBus;
@@ -42,20 +47,15 @@ export default class Entity implements iEntity {
 
     state(): EntityState {
         return {
-            playerID: this.playerID,
+            ...this,
             stats: {
                 ...this.stats,
             },
-            team: this.team,
-            name: this.name,
-            armed: this.armed,
             sta: this.sta(),
             hip: this.hip(),
             org: this.org(),
             pos: this.pos(),
             mana: this.mana(),
-            qr: this.qr,
-            stance: this.stance,
         }
     }
 
@@ -83,15 +83,15 @@ export default class Entity implements iEntity {
         const allAbilities = this.getAllAbilities();
         const tempFirst = allAbilities.find(a => a.type === AbilityType.Active);
         const setOne: AbilitySet = {
-            'Q': tempFirst as iActiveAbility,
-            'W': tempFirst as iActiveAbility,
-            'E': tempFirst as iActiveAbility,
-            'R': tempFirst as iActiveAbility,
+            'Q': tempFirst as ActiveAbilityConfig,
+            'W': tempFirst as ActiveAbilityConfig,
+            'E': tempFirst as ActiveAbilityConfig,
+            'R': tempFirst as ActiveAbilityConfig,
         };
         return [setOne];
     }
 
-    getAllAbilities(): Array<iAbility> {
+    getAllAbilities(): Array<AbilityConfig> {
         const uniPhysAbilities = extractMapValues(UNIVERSAL_PHYS);
         return uniPhysAbilities;
     }

@@ -1,7 +1,6 @@
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { modelFolder } from "shared/const/assets";
-import remotes from "shared/remote";
 import logger from "./Logger";
 
 //===========================================================================
@@ -156,17 +155,17 @@ export function getTexture(id: string): string {
     }
 }
 
-export function getAbility(name: string): iAbility | undefined {
+export function getAbility(name: string): AbilityConfig | undefined {
     const ds = getDatastore("abilities");
     const [success, data] = pcall(() => ds.GetAsync(name));
-    if (success) return data as iAbility;
+    if (success) return data as AbilityConfig;
     else {
         logger.error(data as defined, "DataStoreUtils");
         return undefined;
     }
 }
 
-export function saveAbility(...ability: iAbility[]) {
+export function saveAbility(...ability: AbilityConfig[]) {
     const [success, fail] = pcall(() => {
         const ds = getDatastore("abilities");
         ability.forEach((a) => {
@@ -540,11 +539,11 @@ export function isAttackKills(attackerAction: AttackAction) {
     const { damage } = attackerAction.clashResult;
 
     if (executed) {
-        return target.hip <= 0;
+        return target.get('hip') <= 0;
     }
 
-    logger.debug(`IsAttackKills: ${target.hip} - ${damage} <= 0`, "AttackUtils");
-    return target.hip - damage <= 0;
+    logger.debug(`IsAttackKills: ${target.get('hip')} - ${damage} <= 0`, "AttackUtils");
+    return target.get('hip') - damage <= 0;
 }
 
 //===========================================================================
@@ -555,11 +554,9 @@ export function warnWrongSideCall(method: string, mes = "called on the wrong sid
     logger.warn(`${method}: ${mes}`, "MiscUtils");
 }
 
+
 export function requestData(requester: Player, datastoreName: string, key: string) {
-    if (RunService.IsClient()) {
-        return remotes.requestData(datastoreName, key);
-    }
-    else {
+    if (RunService.IsServer()) {
         const datastore = getDatastore(datastoreName);
         const [success, data] = pcall(() => datastore.GetAsync(key));
         if (success) return data;
@@ -666,7 +663,7 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 
 import { SyncPayload } from "@rbxts/charm-sync";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
-import { iAbility } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { AttackAction, Reality } from "shared/class/battle/types";
 import { GlobalAtoms } from "shared/datastore";
 

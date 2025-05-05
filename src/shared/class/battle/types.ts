@@ -7,7 +7,7 @@ import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/Systems/
 
 
 
-export type ClashResultFate = "Miss" | "Hit" | "CRIT"
+export type ClashResultFate = "Miss" | "Cling" | "Hit" | "CRIT"
 export enum Reality {
     HP = 'hp',
     Force = 'force',
@@ -92,8 +92,9 @@ export type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 export type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
 
 export type TeamMap = Record<string, Player[]>;
-export type Config = {
+export type BattleConfig = {
     camera?: Camera,
+    gs: GameState;
     worldCenter: Vector3,
     width: number;
     height: number;

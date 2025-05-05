@@ -5,8 +5,11 @@ import { GameState } from "./GameState";
  * Client-side wrapper for GameState that provides legacy compatibility
  */
 export default class ClientGameState extends GameState {
-    constructor(config: StateConfig) {
-        super(config);
+    constructor(config: Omit<StateConfig, 'teamMap'>) {
+        super({
+            ...config,
+            teamMap: {}
+        });
     }
 
     /**

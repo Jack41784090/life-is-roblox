@@ -1,13 +1,13 @@
 
 import React, { ReactComponent } from "@rbxts/react";
 import Entity from "shared/class/battle/State/Entity";
-import { iAbility } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { onInput } from "shared/utils";
 
 interface Ability1SlotElementProps {
     cre: Entity;
     abKey: keyof typeof Enum.KeyCode;
-    ability: iAbility;
+    ability: AbilityConfig;
     focus: boolean;
 }
 interface Ability1SlotElementState {

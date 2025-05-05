@@ -1,10 +1,8 @@
-import { EventBus } from "shared/class/battle/Events/EventBus";
-import { EntityState } from "shared/class/battle/State/Entity/types";
 import { GameState } from "shared/class/battle/State/GameState";
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
-import { AttackAction, ClashResult, ClashResultFate, PlayerID, Reality } from "shared/class/battle/types";
-import { calculateRealityValue, uniformRandom } from "shared/utils";
+import { AttackAction, ClashResultFate, PlayerID } from "shared/class/battle/types";
+import { uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Entity from "../../State/Entity";
 
@@ -14,11 +12,10 @@ interface HitResult {
     critChance: number;
 }
 
-export class CombatSystem {
+export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
     constructor(
         private gameState: GameState,
-        private eventBus: EventBus
     ) { }
 
     private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
@@ -55,8 +52,8 @@ export class CombatSystem {
         const { defendAttemptSuccessful, defendReactionUpdate } = clashResult
         if (target && defendAttemptSuccessful) {
             const { using: attackerUpdate, target: targetUpdate, clashResult: clashResultUpdate } = defendReactionUpdate;
-            if (attackerUpdate) this.syncOneEntity(attacker, attackerUpdate);
-            if (targetUpdate) this.syncOneEntity(target, targetUpdate);
+            // if (attackerUpdate) this.syncOneEntity(attacker, attackerUpdate);
+            // if (targetUpdate) this.syncOneEntity(target, targetUpdate);
             if (clashResultUpdate) {
                 for (const [stat, value] of pairs(clashResultUpdate)) {
                     (clashResult as unknown as Record<string, unknown>)[stat] = value;
@@ -71,6 +68,7 @@ export class CombatSystem {
 
         return clashResult;
     }
+
     private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
         const allEntities = this.gameState.getEntityManager().getAllEntities();
         const ability = new ActiveAbility({
@@ -83,67 +81,105 @@ export class CombatSystem {
 
     // ## 
 
-    public resolveAttack(action: AttackAction): ClashResult {
+    public resolveAttack(action: AttackAction) {
         this.logger.debug(`Calculating clash for attack: ${action.by} -> ${action.against}`);
-        const { using: attacker, target, chance: acc } = action.ability;
+        const attacker = this.gameState.getEntity(action.by);
+        const target = action.against !== undefined ? this.gameState.getEntity(action.against) : undefined;
         if (!attacker || !target) {
             this.logger.error("Attacker or target not found", attacker, target);
             return { damage: 0, u_damage: 0, fate: "Miss", roll: 0, defendAttemptName: "", defendAttemptSuccessful: true, defendReactionUpdate: {} };
         }
-        this.logger.info(`Clash: ${attacker.name} vs ${target.name} (acc: ${acc})`);
+        this.logger.debug(`Resolving attack from ${attacker.name || attacker.playerID} to ${target.name || target.playerID} using ability: ${action.ability.name || "unnamed"}`);
 
-        const { hitRoll, hitChance, critChance } = this.rollHit([acc], attacker, target);
-        const ability = this.rebuildAbility(action.ability, attacker.playerID, target.playerID);
-        const abilityDamage = ability.calculateDamage(); this.logger.debug(`Ability damage: ${abilityDamage}`);
-        const minDamage = abilityDamage * 0.5;
-        const maxDamage = abilityDamage; this.logger.debug(`Min damage: ${minDamage}, Max damage: ${maxDamage}`);
+        const abilityDices = action.ability.dices.map(d => d);
+        this.logger.debug(`Available ability dice: [${abilityDices.join(", ")}]`);
 
-        let fate: ClashResultFate = "Miss";
-        let damage = 0;
-        if (hitRoll <= hitChance) {
-            if (hitRoll <= hitChance * 0.1 + critChance) {
-                damage = math.random((minDamage + maxDamage) / 2, maxDamage) * 2;
-                fate = "CRIT";
+        let dice = abilityDices.pop();
+        let result: ClashResultFate = 'Miss'; // Default to miss
+        while (dice) {
+            this.logger.debug(`🎲 Attempting attack roll with d${dice}`);
+            result = this.resolveStrikeSequence([dice], attacker, target);
+            this.logger.info(`⚔️ Attack outcome: ${result}`);
+            if (result === 'Hit') {
+                break;
+            }
+            dice = abilityDices.pop();
+        }
+
+        this.logger.debug(`🏁 Attack resolution complete: ${result} with remaining [${abilityDices.join(', ')}]`);
+        // 3. Calculate the damage
+        // 4. Apply the damage to the target
+        // 5. Return the result
+    }
+
+    private resolveStrikeSequence(abilityDices: number[], attacker: Entity, target: Entity): ClashResultFate {
+        this.logger.debug(`🎯 Initiating attack sequence with dice: [d${abilityDices.join(", d")}]`);
+
+        // 1. Calculate if the attack hits
+        let die = abilityDices.pop();
+        let hits: boolean = false;
+        const dv = target.armour?.getDV() || 0;
+        const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
+
+        this.logger.debug(`🛡️ Target defense value (DV): ${dv}, Attacker accuracy bonus: ${bonusHit}`);
+
+        while (die && hits === false) {
+            if (!die) {
+                this.logger.debug(`❌ No more dice available for hit check`);
+                break;
+            }
+
+            const roll = uniformRandom(1, die);
+            const totalRoll = roll + bonusHit;
+            this.logger.debug(`🎯 Hit check: Rolled d${die}=${roll} + bonus ${bonusHit} = ${totalRoll} vs DV ${dv}`);
+
+            if (totalRoll >= dv) {
+                hits = true;
+                this.logger.debug(`✅ Hit successful! Roll ${totalRoll} ≥ DV ${dv}`);
             } else {
-                damage = math.random(minDamage, maxDamage);
-                fate = "Hit";
+                this.logger.debug(`❌🎯 Hit failed: Roll ${totalRoll} < DV ${dv}, trying next die`);
+                die = abilityDices.pop();
             }
         }
-        const clashResult = {
-            damage,
-            u_damage: damage,
-            fate,
-            roll: hitRoll
-        };
 
-        const reaction = ability.target!.getReaction(ability.getState());
-        const reactionUpdate = reaction?.react(ability.getState(), clashResult);
+        if (!hits) {
+            this.logger.info(`💨 MISS: No successful hit roll against DV ${dv}`);
+            return 'Miss';
+        }
 
-        damage = math.clamp(damage, 0, 1000);
-        return {
-            ...clashResult,
-            defendAttemptSuccessful: reaction?.defendAttemptSuccessful ?? false,
-            defendAttemptName: reaction?.name ?? "",
-            defendReactionUpdate: reactionUpdate ?? {},
-        };
-    }
+        // 2. Calculate if the attack penetrates
+        const pv = target.armour?.getPV() || 0;
+        const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
+        hits = false;
 
-    // public calculateDamage(attacker: EntityState, target: EntityState, ability: AbilityState): number {
-    //     // ...implementation...
-    // }
+        this.logger.debug(`🛡️ Checking armor penetration: Target PV: ${pv}, Attacker penetration bonus: ${bonusPen}`);
 
-    public applyDamage(targetId: number, amount: number): void {
-        // ...implementation...
-    }
+        while (die && hits === false) {
+            if (!die) {
+                this.logger.debug(`❌ No more dice available for penetration check`);
+                break;
+            }
 
-    private rollHit(accurDices: number[], attacker: EntityState, defender: EntityState): number {
-        const hitRoll = math.random(1, 100);
+            const roll = uniformRandom(1, die);
+            const totalRoll = roll + bonusPen;
+            this.logger.debug(`🗡️ Penetration check: Rolled d${die}=${roll} + bonus ${bonusPen} = ${totalRoll} vs PV ${pv}`);
 
-        const attackerManeuver = calculateRealityValue(Reality.Maneuver, attacker.stats);
-        const defenderManeuver = calculateRealityValue(Reality.Maneuver, defender.stats);
+            if (totalRoll >= pv) {
+                hits = true;
+                this.logger.debug(`✅ Penetration successful! Roll ${totalRoll} ≥ PV ${pv}`);
+            } else {
+                this.logger.debug(`❌🗡️ Penetration failed: Roll ${totalRoll} < PV ${pv}, trying next die`);
+                die = abilityDices.pop();
+            }
+        }
 
+        if (!hits) {
+            this.logger.info(`🛡️ CLING: Attack blocked by armor (PV ${pv})`);
+            return 'Cling';
+        }
 
-        return defenderManeuver - attackerManeuver + accurDices.reduce((acc, val) => acc + uniformRandom(1, val), 0);
+        this.logger.info(`💥 HIT: Attack penetrates armor and damages target`);
+        return 'Hit';
     }
 }
 

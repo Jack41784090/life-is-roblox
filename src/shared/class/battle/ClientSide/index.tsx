@@ -46,7 +46,6 @@ export default class ClientSide {
         this.state = new ClientGameState({
             width,
             worldCenter,
-            teamMap: {},
         });
 
         this.EHCGMS = new EntityHexCellGraphicsMothership(

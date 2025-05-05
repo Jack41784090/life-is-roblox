@@ -1,4 +1,6 @@
 import { ReadinessIcon } from "shared/class/battle/types";
+import Armour from "../../Systems/CombatSystem/Armour";
+import Weapon from "../../Systems/CombatSystem/Weapon";
 
 export interface iEntity {
     readonly playerID: number;
@@ -8,21 +10,23 @@ export interface iEntity {
     iconURL?: ReadinessIcon,
     model?: Instance,
     qr: Vector2,
+    weapon?: Weapon;
+    armour?: Armour;
 }
 export type EntityStats = {
     id: string;
-    str: number;
-    dex: number;
-    acr: number;
-    spd: number;
-    siz: number;
-    int: number;
-    spr: number;
-    fai: number;
-    cha: number;
-    beu: number;
-    wil: number;
-    end: number;
+    str: number; // Strength
+    dex: number; // Dexterity
+    acr: number; // Acrobatics
+    spd: number; // Speed
+    siz: number; // Size
+    int: number; // Intelligence
+    spr: number; // Spirituality
+    fai: number; // Faith
+    cha: number; // Charisma
+    beu: number; // Beauty
+    wil: number; // Willpower
+    end: number; // Endurance
 };
 export type EntityStatsNoID = Omit<EntityStats, 'id'>;
 export type EntityInitHardRequirements = {
@@ -43,6 +47,8 @@ export type EntityState = EntityInitHardRequirements & {
     armed?: keyof typeof Enum.KeyCode;
     qr?: Vector2;
     stance: EntityStance;
+    weapon?: Weapon;
+    armour?: Armour;
 }
 export type ReadonlyEntityState = Readonly<EntityState>;
 export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & {

@@ -1,41 +1,41 @@
 import { EntityStats } from "../../../State/Entity/types";
-import { AbilityPotency } from "./types";
+import { Potency } from "./types";
 
-export const potencyMap: Record<AbilityPotency, [keyof EntityStats, number][]> = {
-    [AbilityPotency.Strike]: [
+export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
+    [Potency.Strike]: [
         ['str', 1]
     ],
-    [AbilityPotency.Slash]: [
+    [Potency.Slash]: [
         ['str', 1]
     ],
-    [AbilityPotency.Stab]: [
+    [Potency.Stab]: [
         ['str', 1]
     ],
-    [AbilityPotency.TheWay]: [
+    [Potency.TheWay]: [
         ['fai', 1.1]
     ],
-    [AbilityPotency.Light]: [
+    [Potency.Light]: [
         ['fai', .4],
         ['wil', .6],
     ],
-    [AbilityPotency.Dark]: [
+    [Potency.Dark]: [
         ['cha', .25],
         ['wil', .75],
     ],
-    [AbilityPotency.Arcane]: [
+    [Potency.Arcane]: [
         ['int', .85],
         ['wil', .15],
     ],
-    [AbilityPotency.Elemental]: [
+    [Potency.Elemental]: [
         ['int', .65],
         ['spr', .35],
     ],
-    [AbilityPotency.Occult]: [
+    [Potency.Occult]: [
         ['wil', .1],
         ['spr', .4],
         ['cha', .5],
     ],
-    [AbilityPotency.Spiritual]: [
+    [Potency.Spiritual]: [
         ['spr', .9],
         ['wil', .1],
     ],

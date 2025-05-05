@@ -1,8 +1,8 @@
 import { ClashResult } from "shared/class/battle/types";
 import Entity from "../../../State/Entity";
-import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
+import { EntityStance, EntityUpdate } from "../../../State/Entity/types";
 
-export interface iAbility {
+export interface AbilityConfig {
     animation: string,
     name: string;
     description: string;
@@ -12,18 +12,24 @@ export interface iAbility {
     direction: EntityStance;
     using?: Entity;
     target?: Entity;
-    chance: number;
+    dices: number[];
     cost: {
         pos: number,
         mana: number,
     }
 }
-
-export type iActiveAbility = iAbility & {
-    potencies: Map<AbilityPotency, number>;
-    damageType: Map<AbilityDamageType, number>;
+export type ActiveAbilityConfig = AbilityConfig & {
+    potencies: Map<Potency, number>;
+    damageType: Map<DamageType, number>;
     range: NumberRange
 }
+export type ReactiveAbilityConfig = AbilityConfig & {
+    successReaction: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => ReactionUpdate;
+    failureReaction: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => ReactionUpdate;
+    getSuccessChance: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => number;
+}
+
+
 export type PreReactionClashResult = Omit<ClashResult, 'defendAttemptName' | 'defendAttemptSuccessful' | 'defendReactionUpdate'> & {
     defendAttemptName?: string;
     defendAttemptSuccessful?: boolean;
@@ -33,41 +39,17 @@ export type ReactionUpdate = {
     target?: EntityUpdate;
     clashResult?: Partial<PreReactionClashResult>;
 }
-export type iReactiveAbility = iAbility & {
-    successReaction: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => ReactionUpdate;
-    failureReaction: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => ReactionUpdate;
-    getSuccessChance: (againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) => number;
-}
-
-export type ActiveAbilityConfig = Omit<iActiveAbility, 'using' | 'target' | 'type'> & {
-    using?: Entity;
-    target?: Entity;
-}
-export type ReactiveAbilityConfig = Omit<iReactiveAbility, 'using' | 'target' | 'type'> & {
-    using?: Entity;
-    target?: Entity;
-}
-export type AbilityConfig = iActiveAbility | iReactiveAbility;
 
 
-export type AbilityState = Omit<AbilityConfig, 'using' | 'target'> & {
-    using?: EntityState;
-    target?: EntityState;
-}
-export type ActiveAbilityState = Omit<iActiveAbility, 'using' | 'target'> & {
-    using?: EntityState;
-    target?: EntityState;
-}
-export type ReactiveAbilityState = Omit<iReactiveAbility, 'using' | 'target'> & {
-    using?: EntityState;
-    target?: EntityState;
-}
+export type AbilityState = ActiveAbilityState | ReactiveAbilityState;
+export type ActiveAbilityState = ActiveAbilityConfig
+export type ReactiveAbilityState = ReactiveAbilityConfig;
 export type AbilitySet = {
-    [key in keyof typeof Enum.KeyCode]?: iActiveAbility;
+    [key in keyof typeof Enum.KeyCode]?: ActiveAbilityConfig;
 };
 
-type RequiredAbility = Required<iAbility>;
-export enum AbilityPotency {
+type RequiredAbility = Required<AbilityConfig>;
+export enum Potency {
     Strike = 'strike',
     Slash = 'slash',
     Stab = 'stab',
@@ -77,12 +59,12 @@ export enum AbilityPotency {
     Elemental = 'elemental',
     Occult = 'occult',
     Spiritual = 'spiritual',
-    TheWay = 'theWay',
+    TheWay = 'dawa',
 }
-export enum AbilityDamageType {
-    Blunt = 'blunt',
-    Slash = 'slash',
-    Pierce = 'pierce',
+export enum DamageType {
+    Crush = 'blunt',
+    Cut = 'slash',
+    Impale = 'pierce',
     Poison = 'poison',
     Fire = 'fire',
     Frost = 'frost',
