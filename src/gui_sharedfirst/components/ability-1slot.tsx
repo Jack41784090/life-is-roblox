@@ -19,7 +19,6 @@ export default class Ability1SlotElement extends React.Component<Ability1SlotEle
 
     constructor(props: Ability1SlotElementProps) {
         super(props);
-        print(props);
         this.setState({ focus: this.props.focus });
         this.onKeyClickScript = onInput(Enum.UserInputType.Keyboard, (input: InputObject) => {
             // print(input.KeyCode.Name, this.props.key, input.KeyCode.Name === this.props.key);

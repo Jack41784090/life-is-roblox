@@ -3,16 +3,17 @@ import { Players, RunService, UserInputService } from "@rbxts/services";
 import { GuiTag } from "shared/const";
 import remotes from "shared/remote";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/types/battle-types";
-import { isAttackKills, warnWrongSideCall } from "shared/utils";
+import { isAttackKills } from "shared/utils";
 import logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
+import { NetworkService } from "../Network/NetworkService";
 import { EntityMovedEventData } from "../Network/SyncSystem";
 import ClientGameState from '../State/ClientGameState';
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import BattleCam from "./BattleCamera";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
-import Gui from "./Gui";
+import BattleGui from "./Gui";
 
 export default class ClientSide {
     private graphicsInitialised: Promise<[StateState]>;
@@ -20,7 +21,7 @@ export default class ClientSide {
     private remotees: Array<() => void> = [];
     private animating: Promise<unknown> = Promise.resolve();
 
-    public gui: Gui;
+    public gui: BattleGui;
     public camera: BattleCam;
 
     private state: ClientGameState;
@@ -29,6 +30,7 @@ export default class ClientSide {
     private controlLocks: ControlLocks = new Map();
 
     private readinessIconMap: Record<PlayerID, Atom<number>> = {};
+    private networking: NetworkService = new NetworkService();
 
     private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
         const halfWidth = (width * size) / 2;
@@ -54,8 +56,10 @@ export default class ClientSide {
             this.state.getGridManager().getGrid()
         );
 
-        this.gui = Gui.Connect(this.getReadinessIcons());
+        this.setupRemoteListeners();
         this.setupEventListeners();
+
+        this.gui = BattleGui.Connect(this.getReadinessIcons());
         this.graphicsInitialised = this.initialiseGraphics();
     }
 
@@ -88,35 +92,16 @@ export default class ClientSide {
                 ...config,
                 size: TILE_SIZE,
             });
-
-            cs.setUpRemotes();
             cs.initialiseInputControl();
-
             return cs;
         }
     }
 
     //#region Remote Communications
-
-    private setUpRemotes() {
-        if (RunService.IsServer()) {
-            warnWrongSideCall("setUpRemote")
-            return;
-        }
-        this.cleanUpRemotes();
-        this.remotees = [
-            remotes.battle.ui.mount.actionMenu.connect(() => this.handleActionMenuMount()),
-            remotes.battle.ui.mount.otherPlayersTurn.connect(() => this.handleOtherPlayersTurn()),
-            remotes.battle.forceUpdate.connect(() => this.handleForceUpdate()),
-            remotes.battle.animate.connect((ac) => this.handleAnimationRequest(ac)),
-            remotes.battle.camera.hoi4.connect(() => this.handleCameraHoi4Mode()),
-            remotes.battle.chosen.connect(() => this.handleEntityChosen()),
-        ];
-    }
-
     private handleActionMenuMount = async () => {
+        logger.debug("Mounting action menu", "BattleClient");
         try {
-            const entity = await this.localEntity();
+            const entity = await this.localEntity(); print(`Entity: ${entity}`);
             if (entity) {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
             }
@@ -235,7 +220,7 @@ export default class ClientSide {
     //#region Updates
 
     private async requestUpdateStateAndReadinessMap() {
-        const stateData = await remotes.battle.requestSync.state();
+        const stateData = await this.networking.requestGameState();
         await this.state.syncWithServerState(stateData);
         await this.animating;
         await this.EHCGMS.fullSync(stateData)
@@ -324,7 +309,7 @@ export default class ClientSide {
             {
                 type: CharacterActionMenuAction.Move,
                 run: () => {
-                    remotes.battle.requestToAct().then(async accessToken => {
+                    this.networking.requestToAct().then(async accessToken => {
                         if (!accessToken.token) {
                             logger.warn(`${Players.LocalPlayer.Name} has received no access token`, "BattleClient");
                             return;
@@ -640,5 +625,16 @@ export default class ClientSide {
         });
     }
 
+    private setupRemoteListeners() {
+        const network = this.networking;
+        this.remotees.push(
+            network.onForceUpdate(this.handleForceUpdate),
+            network.onActionAnimate((at) => this.handleAnimationRequest(at)),
+            network.onActionMenuMount(this.handleActionMenuMount),
+            network.onOtherPlayersTurn(this.handleOtherPlayersTurn),
+            network.onCameraHoi4Mode(this.handleCameraHoi4Mode),
+            network.onEntityChosen(this.handleEntityChosen)
+        );
+    }
     //#endregion
 }

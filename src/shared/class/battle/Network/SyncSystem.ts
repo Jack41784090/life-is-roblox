@@ -41,26 +41,14 @@ export class SyncSystem {
         private eventBus: EventBus
     ) {
         this.logger.info("Initializing SyncSystem");
-        // Initialize the sync system
-        this.initialize();
-    }
-
-    /**
-     * Initialize the sync system by setting up event listeners
-     */
-    public initialize(): void {
-        this.logger.info("Setting up event listeners");
-        // Set up event listeners for state changes
         this.setupEventListeners();
-        this.logger.debug("SyncSystem initialization complete");
     }
 
     /**
      * Set up event listeners for game state changes
      */
     private setupEventListeners(): void {
-        this.logger.debug("Subscribing to entity movement events");
-        // Listen for entity movements
+        this.logger.debug("Setting up listeners for game state changes");
         this.unsubscribeFunctions.push(
             this.eventBus.subscribe(GameEvent.ENTITY_MOVED, (data: unknown) => {
                 const veri = t.interface({
@@ -74,12 +62,7 @@ export class SyncSystem {
                 }
                 this.logger.debug(`Entity movement detected: ID ${(data as EntityMovedEventData).entityId} from (${(data as EntityMovedEventData).from.X}, ${(data as EntityMovedEventData).from.Y}) to (${(data as EntityMovedEventData).to.X}, ${(data as EntityMovedEventData).to.Y})`);
                 this.broadcastEntityMove(data as EntityMovedEventData);
-            })
-        );
-
-        this.logger.debug("Subscribing to entity update events");
-        // Listen for entity updates
-        this.unsubscribeFunctions.push(
+            }),
             this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
                 const entityVerification = t.interface({
                     playerID: t.number,
@@ -93,21 +76,11 @@ export class SyncSystem {
                 const e = entity as unknown as Entity;
                 this.logger.debug(`Entity update detected: ${e.name} (ID: ${e.playerID})`);
                 this.broadcastEntityUpdate(e);
-            })
-        );
-
-        this.logger.debug("Subscribing to grid update events");
-        // Listen for grid changes
-        this.unsubscribeFunctions.push(
+            }),
             this.eventBus.subscribe(GameEvent.GRID_UPDATED, (gridData) => {
                 this.logger.debug("Grid update detected");
                 this.broadcastGridUpdate();
-            })
-        );
-
-        this.logger.debug("Subscribing to turn start events");
-        // Listen for turn changes
-        this.unsubscribeFunctions.push(
+            }),
             this.eventBus.subscribe(GameEvent.TURN_STARTED, (entity: unknown) => {
                 const entityVerification = t.interface({
                     playerID: t.number,
@@ -119,12 +92,7 @@ export class SyncSystem {
                 const e = entity as { playerID: number; entityId: number; position: Vector2 };
                 this.logger.info(`Turn started for entity ID: ${e.playerID}`);
                 this.broadcastTurnChange(e);
-            })
-        );
-
-        this.logger.debug("Subscribing to grid cell update events");
-        // Listen for grid cell updates
-        this.unsubscribeFunctions.push(
+            }),
             this.eventBus.subscribe(GameEvent.GRID_CELL_UPDATED, (data: unknown) => {
                 const veri = t.interface({
                     newPosition: t.Vector2,
@@ -132,7 +100,7 @@ export class SyncSystem {
                 })(data);
 
                 if (!veri) {
-                    this.logger.warn(`Grid cell update event received with invalid data`);
+                    this.logger.warn(`Grid cell update event received with invalid data`, data as defined);
                     return;
                 }
 
@@ -140,8 +108,16 @@ export class SyncSystem {
 
                 // This can be handled by the general grid update broadcast if needed
                 // For more granular updates in the future, we could add specific handling here
-            })
+            }),
         );
+
+
+        // remotes.battle.ui.mount.actionMenu.connect(() => this.handleActionMenuMount()),
+        // remotes.battle.ui.mount.otherPlayersTurn.connect(() => this.handleOtherPlayersTurn()),
+        // remotes.battle.forceUpdate.connect(() => this.handleForceUpdate()),
+        // remotes.battle.animate.connect((ac) => this.handleAnimationRequest(ac)),
+        // remotes.battle.camera.hoi4.connect(() => this.handleCameraHoi4Mode()),
+        // remotes.battle.chosen.connect(() => this.handleEntityChosen())
     }
 
     /**

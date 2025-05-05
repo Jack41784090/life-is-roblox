@@ -1,6 +1,6 @@
 
 import React, { Element, ReactComponent } from "@rbxts/react";
-import Gui from "shared/class/battle/ClientSide/Gui";
+import BattleGui from "shared/class/battle/ClientSide/Gui";
 import { AbilitySet } from "shared/class/battle/State/Ability/types";
 import Entity from "shared/class/battle/State/Entity";
 import Ability1SlotElement from "./ability-1slot";
@@ -8,7 +8,7 @@ import Ability1SlotElement from "./ability-1slot";
 interface AbilitySlotsElementProps {
     cre: Entity;
     abilitySet: AbilitySet;
-    gui: Gui;
+    gui: BattleGui;
 }
 interface AbilitySlotsElementState { }
 @ReactComponent
@@ -19,7 +19,6 @@ export default class AbilitySlotsElement extends React.Component<AbilitySlotsEle
 
     render() {
         const abilitySet = this.props.abilitySet;
-        print(abilitySet)
         const abilityButtons: (Element | undefined)[] = [
             abilitySet['Q'] ? <Ability1SlotElement cre={this.props.cre} abKey={'Q'} ability={abilitySet['Q']} focus={false} /> : undefined,
             abilitySet['W'] ? <Ability1SlotElement cre={this.props.cre} abKey={'W'} ability={abilitySet['W']} focus={false} /> : undefined,

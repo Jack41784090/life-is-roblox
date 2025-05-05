@@ -35,6 +35,19 @@ export class NetworkService {
                     this.turnChangedCallbacks.forEach(callback => {
                         callback({ entityId: 0 }); // Need to get actual entityId here
                     });
+                    this.entityChosenCallbacks.forEach(callback => callback());
+                }),
+
+                remotes.battle.ui.mount.actionMenu.connect(() => {
+                    this.actionMenuCallbacks.forEach(callback => callback());
+                }),
+
+                remotes.battle.ui.mount.otherPlayersTurn.connect(() => {
+                    this.otherPlayersTurnCallbacks.forEach(callback => callback());
+                }),
+
+                remotes.battle.camera.hoi4.connect(() => {
+                    this.cameraHoi4ModeCallbacks.forEach(callback => callback());
                 })
             );
         }
@@ -45,6 +58,10 @@ export class NetworkService {
     private readonly turnChangedCallbacks: ((data: { entityId: number }) => void)[] = [];
     private readonly actionAnimateCallbacks: ((action: AccessToken) => void)[] = [];
     private readonly forceUpdateCallbacks: (() => void)[] = [];
+    private readonly actionMenuCallbacks: (() => void)[] = [];
+    private readonly otherPlayersTurnCallbacks: (() => void)[] = [];
+    private readonly cameraHoi4ModeCallbacks: (() => void)[] = [];
+    private readonly entityChosenCallbacks: (() => void)[] = [];
 
     // Event subscriptions
     public onEntityMoved = (callback: (data: { entityId: number, from: Vector2, to: Vector2 }) => void): (() => void) => {
@@ -76,6 +93,38 @@ export class NetworkService {
         return () => {
             const index = this.forceUpdateCallbacks.indexOf(callback);
             if (index !== -1) this.forceUpdateCallbacks.remove(index);
+        };
+    };
+
+    public onActionMenuMount = (callback: () => void): (() => void) => {
+        this.actionMenuCallbacks.push(callback);
+        return () => {
+            const index = this.actionMenuCallbacks.indexOf(callback);
+            if (index !== -1) this.actionMenuCallbacks.remove(index);
+        };
+    };
+
+    public onOtherPlayersTurn = (callback: () => void): (() => void) => {
+        this.otherPlayersTurnCallbacks.push(callback);
+        return () => {
+            const index = this.otherPlayersTurnCallbacks.indexOf(callback);
+            if (index !== -1) this.otherPlayersTurnCallbacks.remove(index);
+        };
+    };
+
+    public onCameraHoi4Mode = (callback: () => void): (() => void) => {
+        this.cameraHoi4ModeCallbacks.push(callback);
+        return () => {
+            const index = this.cameraHoi4ModeCallbacks.indexOf(callback);
+            if (index !== -1) this.cameraHoi4ModeCallbacks.remove(index);
+        };
+    };
+
+    public onEntityChosen = (callback: () => void): (() => void) => {
+        this.entityChosenCallbacks.push(callback);
+        return () => {
+            const index = this.entityChosenCallbacks.indexOf(callback);
+            if (index !== -1) this.entityChosenCallbacks.remove(index);
         };
     };
 
@@ -271,5 +320,9 @@ export class NetworkService {
         this.turnChangedCallbacks.clear();
         this.actionAnimateCallbacks.clear();
         this.forceUpdateCallbacks.clear();
+        this.actionMenuCallbacks.clear();
+        this.otherPlayersTurnCallbacks.clear();
+        this.cameraHoi4ModeCallbacks.clear();
+        this.entityChosenCallbacks.clear();
     }
 }

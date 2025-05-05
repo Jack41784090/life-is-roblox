@@ -180,24 +180,9 @@ export default class Battle {
 
     private syncPlayerUIUpdates() {
         // Update Player UI's using the SyncSystem instead of direct network calls
-        const currentActorID = this.turnSystem.getCurrentActorID();
-
-        if (!currentActorID) {
-            this.logger.warn("No current actor ID found when syncing player UIs");
-            return;
-        }
-
-        const currentEntity = this.state.getEntity(currentActorID);
-        if (!currentEntity) {
-            this.logger.warn(`Current entity not found for ID: ${currentActorID}`);
-            return;
-        }
-
-        // Emit a turn started event - the SyncSystem will handle notifying clients
+        const currentActorID = this.turnSystem.getCurrentActorID(); if (!currentActorID) { this.logger.warn("No current actor ID found when syncing player UIs"); return; }
+        const currentEntity = this.state.getEntity(currentActorID); if (!currentEntity) { this.logger.warn(`Current entity not found for ID: ${currentActorID}`); return; }
         this.state.getEventBus().emit(GameEvent.TURN_STARTED, currentEntity);
-
-        // Let the SyncSystem handle broadcasting the state changes to all clients
-        // This replaces the individual network calls with a centralized sync approach
         this.logger.debug(`SyncSystem will notify clients about turn started for entity ID: ${currentActorID}`);
     }
 
@@ -324,8 +309,10 @@ export default class Battle {
             });
         });
 
-        await endPromise;
-        this.logger.debug("Turn end promise resolved");
+        return endPromise.then((p) => {
+            this.logger.info(`Round ended by ${p.Name}`);
+            // Clean up the event listeners for this round
+        });
     }
 
     private async round() {
@@ -339,13 +326,10 @@ export default class Battle {
 
         const players = this.state.getAllPlayers();
         const winningClient = players.find(p => p.UserId === entity.playerID);
-        this.logger.info(`Winning client: ${winningClient?.Name || "None"}`);
         if (!winningClient) {
             this.logger.error(`No winning client found for entity ${entity.name}`);
             return;
         }
-
-        this.logger.info(`Winning client: ${winningClient.Name}`);
 
         // Use syncPlayerUIUpdates which now relies on EventBus to notify clients
         this.syncPlayerUIUpdates();

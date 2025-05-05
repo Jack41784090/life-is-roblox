@@ -7,7 +7,7 @@ interface Props {
 }
 
 function ReadinessBar(props: Props) {
-    print(`Readiness Bar props`, props)
+    // print(`Readiness Bar props`, props)
     return (
         <frame
             key={"ReadinessBar"}

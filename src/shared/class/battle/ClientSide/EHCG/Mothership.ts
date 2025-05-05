@@ -64,9 +64,6 @@ export default class EntityHexCellGraphicsMothership {
     }
 
     findTupleByEntity(entity: Entity) {
-        if (!entity.qr) {
-            return undefined;
-        }
         return this.tupleQR.get(entity.qr);
     }
 

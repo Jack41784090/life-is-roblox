@@ -64,7 +64,7 @@ export default class Entity implements iEntity {
 
     //#region get stats
     set(property: EntityChangeable, by: number) {
-        this.logger.info(`${this.name}: Changing ${property} by ${by}`);
+        this.logger.debug(`${this.name}: Changing ${property} by ${by}`);
         const oldValue = this[property]();
         this[property](math.max(0, by));
 
@@ -123,7 +123,7 @@ export default class Entity implements iEntity {
 
     //#region Modifying
     public changeHP(num: number) {
-        this.logger.info(`${this.name}: Changing HP by ${num}`);
+        this.logger.debug(`${this.name}: Changing HP by ${num}`);
 
         const oldHip = this.hip();
         this.hip = atom(this.hip() + num);
@@ -171,12 +171,12 @@ export default class Entity implements iEntity {
                 case 'org':
                 case 'pos':
                 case 'mana':
-                    this.logger.info(`Changing ${k} by ${v}`);
+                    this.logger.debug(`Changing ${k} by ${v}`);
                     this[k as EntityChangeable](v as number);
                     changed = true;
                     break;
                 default:
-                    this.logger.info(`Changing ${k} to ${v}`);
+                    this.logger.debug(`Changing ${k} to ${v}`);
                     this[k as keyof this] = v as unknown as any;
                     changed = true;
             }

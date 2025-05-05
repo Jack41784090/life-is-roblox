@@ -19,12 +19,12 @@ import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import EntityCellGraphicsTuple from "./EHCG/Tuple";
 
-export default class Gui {
+export default class BattleGui {
     private logger = Logger.createContextLogger("BattleGUI");
 
     // Singleton pattern to connect the BattleGUI with the Battle instance
     static Connect(icons: ReadinessIcon[]) {
-        const ui = new Gui(icons);
+        const ui = new BattleGui(icons);
         return ui
     }
 
@@ -182,19 +182,12 @@ export default class Gui {
      * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
      */
     private handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
-        const currentQR = state.getCREPosition();
-        assert(currentQR, "[handleCellEnter] Current QR is not defined");
-        const currentCell = state.getCell(currentQR);
-        assert(currentCell, "[handleCellEnter] Current cell is not defined");
+        const currentQR = state.getCREPosition(); assert(currentQR, "[handleCellEnter] Current QR is not defined");
+        const currentCell = state.getCell(currentQR); assert(currentCell, "[handleCellEnter] Current cell is not defined");
         const oe = state.getEntity(tuple.cellGraphics.qr);
         const oeG = tuple.entityGraphics
-        const cre = state.getEntity(currentQR);
-        assert(cre, `[handleCellEnter] Entity is not defined @${currentQR}`);
-        const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics;
-        if (!creG) {
-            this.logger.warn(`EntityGraphics not found for entity @${currentQR}`);
-            return;
-        }
+        const cre = state.getEntity(currentQR); assert(cre, `[handleCellEnter] Entity is not defined @${currentQR}`);
+        const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics; if (!creG) { this.logger.warn(`EntityGraphics not found for entity @${currentQR}`); return; }
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();

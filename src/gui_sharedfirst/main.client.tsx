@@ -4,8 +4,6 @@ import { ContentProvider, Lighting, Players, ReplicatedFirst, ReplicatedStorage,
 import { setInterval } from "@rbxts/set-timeout";
 import Explorer from "shared/class/explorer";
 import { Cutscene } from "shared/class/scene/Cutscene";
-import { LookAtTrigger } from "shared/class/scene/Cutscene/Trigger";
-import { CutsceneAction } from "shared/class/scene/Cutscene/types";
 import { GuiTag, PlaceName } from "shared/const";
 import remotes from "shared/remote";
 import GuiMothership from "./new_components/main";
@@ -62,6 +60,7 @@ function mainMenuCameraSetup() {
 
 // Setup the main menu
 function enterPlayground() {
+    GuiMothership.unmount("MainMenu");
     const cam = Workspace.CurrentCamera;
     assert(cam, "No current camera")
 
@@ -107,10 +106,12 @@ function enterPlayground() {
 
 }
 function enterBattle() {
+    GuiMothership.unmount("MainMenu");
     print("Entering battle");
     remotes.battle.request();
 }
 function enterStory() {
+    GuiMothership.unmount("MainMenu");
     // const scene = new Scene({
     //     name: "Test Scene",
     //     hasCover: true
@@ -138,13 +139,7 @@ function enterStory() {
 
 
     const cs = new Cutscene({
-        triggerMap: [
-            [1, new LookAtTrigger({
-                modelID: 'entity_adalbrecht',
-                cutsceneAction: CutsceneAction.action1,
-                lookAtActor: 'camera',
-            })],
-        ],
+        triggerMap: [],
         centreOfScene: new Vector3(0, 0, 0),
         sceneModel: 'TestScene',
     })
@@ -207,7 +202,9 @@ remotes.battle.ui.startRoom.connect(s => {
 
 
 mainMenuCameraSetup();
-// enterBattle();
 mainMenuSetup();
+enterBattle();
+// enterStory();
+// enterPlayground();
 //#endregion
 
