@@ -661,8 +661,8 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 //===========================================================================
 
 import { SyncPayload } from "@rbxts/charm-sync";
-import { iAbility } from "shared/class/battle/State/Ability/types";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
+import { iAbility } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { GlobalAtoms } from "shared/datastore";
 import { AttackAction, Reality } from "shared/types/battle-types";
 

@@ -4,9 +4,7 @@ import { Reality } from "shared/types/battle-types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
-import { AbilitySet, AbilityType, ActiveAbilityState, iAbility, iActiveAbility } from "../Ability/types";
-import FightingStyle from "../FightingStyle";
-import { Default } from "../FightingStyle/const";
+import { AbilitySet, AbilityType, ActiveAbilityState, iAbility, iActiveAbility } from "../../Systems/CombatSystem/Ability/types";
 import { EntityChangeable, EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate, iEntity } from "./types";
 
 export default class Entity implements iEntity {
@@ -21,7 +19,6 @@ export default class Entity implements iEntity {
     private mana: Atom<number>;
 
     private stance: EntityStance = EntityStance.High;
-    private fightingStyle: FightingStyle = Default();
     private eventBus?: EventBus;
     private logger = Logger.createContextLogger("Entity");
 
@@ -117,7 +114,7 @@ export default class Entity implements iEntity {
         }
 
         // const matchingDirection = target.stance === hittingDirection;
-        return this.fightingStyle.getRandomReactionAbility();
+        // return this.fightingStyle.getRandomReactionAbility();
     }
     //#endregion
 

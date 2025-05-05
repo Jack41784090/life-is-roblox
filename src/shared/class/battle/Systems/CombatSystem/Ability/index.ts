@@ -1,5 +1,5 @@
-import Entity from "../Entity";
-import { EntityStance } from "../Entity/types";
+import Entity from "../../../State/Entity";
+import { EntityStance } from "../../../State/Entity/types";
 import { potencyMap } from "./const";
 import { AbilityConfig, AbilityDamageType, AbilityPotency, AbilityState, AbilityType, ActiveAbilityConfig, ActiveAbilityState, iAbility, iActiveAbility, iReactiveAbility, PreReactionClashResult, ReactionUpdate, ReactiveAbilityConfig, ReactiveAbilityState } from "./types";
 

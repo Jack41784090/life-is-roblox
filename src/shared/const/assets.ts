@@ -1,6 +1,6 @@
 import { ReplicatedStorage } from "@rbxts/services";
-import { AbilityDamageType, AbilityPotency, AbilityType, iActiveAbility } from "shared/class/battle/State/Ability/types";
 import { EntityStance } from "shared/class/battle/State/Entity/types";
+import { AbilityDamageType, AbilityPotency, AbilityType, iActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 
 export const HEXAGON = ReplicatedStorage.WaitForChild("PerfectHex") as UnionOperation;
 

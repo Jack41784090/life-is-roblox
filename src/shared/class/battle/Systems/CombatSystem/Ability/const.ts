@@ -1,4 +1,4 @@
-import { EntityStats } from "../Entity/types";
+import { EntityStats } from "../../../State/Entity/types";
 import { AbilityPotency } from "./types";
 
 export const potencyMap: Record<AbilityPotency, [keyof EntityStats, number][]> = {

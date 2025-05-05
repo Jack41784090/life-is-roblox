@@ -1,8 +1,8 @@
 
 import React, { Element, ReactComponent } from "@rbxts/react";
 import BattleGui from "shared/class/battle/ClientSide/Gui";
-import { AbilitySet } from "shared/class/battle/State/Ability/types";
 import Entity from "shared/class/battle/State/Entity";
+import { AbilitySet } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import Ability1SlotElement from "./ability-1slot";
 
 interface AbilitySlotsElementProps {

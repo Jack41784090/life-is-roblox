@@ -1,9 +1,9 @@
 import { Atom } from "@rbxts/charm";
 import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
-import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/State/Ability/types";
 import { EntityState } from "shared/class/battle/State/Entity/types";
 import { GameState } from "shared/class/battle/State/GameState";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
+import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 
 
 

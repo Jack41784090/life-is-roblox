@@ -2,11 +2,11 @@ import { Entity } from "@rbxts/matter";
 import { AttackAction, ClashResult, ClashResultFate, PlayerID, Reality } from "shared/types/battle-types";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus } from "../Events/EventBus";
-import { ActiveAbility } from "../State/Ability";
-import { AbilityState, ActiveAbilityState } from "../State/Ability/types";
-import { EntityState } from "../State/Entity/types";
-import { GameState } from "../State/GameState";
+import { EventBus } from "../../Events/EventBus";
+import { EntityState } from "../../State/Entity/types";
+import { GameState } from "../../State/GameState";
+import { ActiveAbility } from "./Ability";
+import { AbilityState, ActiveAbilityState } from "./Ability/types";
 
 interface HitResult {
     hitRoll: number;
@@ -140,7 +140,7 @@ export class CombatSystem {
 
     private rollHit(acc: number, attacker: EntityState, defender: EntityState): HitResult {
         const hitRoll = math.random(1, 100);
-        const hitChance = acc - calculateRealityValue(Reality.Maneuver, target.stats);
+        const hitChance = acc - calculateRealityValue(Reality.Maneuver, defender.stats);
         const critChance = calculateRealityValue(Reality.Precision, attacker.stats);
         return { hitRoll, hitChance, critChance };
     }

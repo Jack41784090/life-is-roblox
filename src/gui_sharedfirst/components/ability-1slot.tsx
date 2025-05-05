@@ -1,7 +1,7 @@
 
 import React, { ReactComponent } from "@rbxts/react";
-import { iAbility } from "shared/class/battle/State/Ability/types";
 import Entity from "shared/class/battle/State/Entity";
+import { iAbility } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { onInput } from "shared/utils";
 
 interface Ability1SlotElementProps {

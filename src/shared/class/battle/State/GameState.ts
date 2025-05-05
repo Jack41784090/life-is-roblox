@@ -3,6 +3,7 @@ import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState
 import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
+import { CombatSystem } from "../Systems/CombatSystem";
 import Entity from "./Entity";
 import { EntityInit, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
@@ -29,6 +30,7 @@ export class GameState {
     private gridManager: GridManager;
     private teamManager: TeamManager;
     private creID: number | undefined;
+    private combatSystem: CombatSystem;
 
     constructor(config: StateConfig) {
         this.eventBus = new EventBus();

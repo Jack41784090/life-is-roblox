@@ -1,6 +1,6 @@
 import { ClashResult } from "shared/types/battle-types";
-import Entity from "../Entity";
-import { EntityStance, EntityState, EntityUpdate } from "../Entity/types";
+import Entity from "../../../State/Entity";
+import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
 
 export interface iAbility {
     animation: string,
