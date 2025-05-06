@@ -1,18 +1,9 @@
-import { ReadinessIcon } from "shared/class/battle/types";
 import Armour from "../../Systems/CombatSystem/Armour";
+import { ArmourState } from "../../Systems/CombatSystem/Armour/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
+import { WeaponState } from "../../Systems/CombatSystem/Weapon/types";
+import { ReadinessIcon } from "../../types";
 
-export interface iEntity {
-    readonly playerID: number;
-    stats: EntityStats,
-    team?: string,
-    name: string,
-    iconURL?: ReadinessIcon,
-    model?: Instance,
-    qr: Vector2,
-    weapon?: Weapon;
-    armour?: Armour;
-}
 export type EntityStats = {
     id: string;
     str: number; // Strength
@@ -28,32 +19,37 @@ export type EntityStats = {
     wil: number; // Willpower
     end: number; // Endurance
 };
-export type EntityStatsNoID = Omit<EntityStats, 'id'>;
-export type EntityInitHardRequirements = {
-    qr: Vector2;
+
+// Base entity attributes that most entity types build upon
+export type EntityBaseAttributes = {
     playerID: number;
     stats: EntityStats;
+    qr: Vector2;
     hip: number;
     pos: number;
     org: number;
     sta: number;
     mana: number;
+};
+
+// Common equipment attributes
+export type EntityEquipment = {
+    weapon: Weapon;
+    armour: Armour;
+};
+
+export type EntityEquipmentState = {
+    weapon: WeaponState
+    armour: ArmourState
 }
-export type EntityInit = Partial<iEntity> & EntityInitHardRequirements;
-export type EntityStatsUpdate = Partial<EntityStatsNoID>;
-export type EntityState = EntityInitHardRequirements & {
-    name: string;
+
+export type EntityConfig = EntityBaseAttributes & Partial<EntityEquipmentState> & {
+    name?: string;
     team?: string;
-    armed?: keyof typeof Enum.KeyCode;
-    qr?: Vector2;
-    stance: EntityStance;
-    weapon?: Weapon;
-    armour?: Armour;
-}
-export type ReadonlyEntityState = Readonly<EntityState>;
-export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & {
-    playerID: number;
-}
+    iconURL?: ReadinessIcon;
+    model?: Model;
+};
+
 export enum EntityStance {
     High = 'high',
     Mid = 'mid',
@@ -61,4 +57,16 @@ export enum EntityStance {
     Prone = 'prone',
 }
 
-export type EntityChangeable = keyof Omit<EntityInitHardRequirements, 'qr' | 'playerID' | 'stats'>
+export type EntityState = EntityBaseAttributes & EntityEquipmentState & {
+    name: string;
+    team?: string;
+    armed?: keyof typeof Enum.KeyCode;
+    stance: EntityStance;
+};
+
+// Utility types
+export type EntityStatsNoID = Omit<EntityStats, 'id'>;
+export type EntityStatsUpdate = Partial<EntityStatsNoID>;
+export type ReadonlyEntityState = Readonly<EntityState>;
+export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & { playerID: number };
+export type EntityChangeable = keyof Omit<EntityBaseAttributes, 'qr' | 'playerID' | 'stats'>;

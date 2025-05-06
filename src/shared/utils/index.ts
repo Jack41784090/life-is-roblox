@@ -95,6 +95,18 @@ export function getModelTemplateByID(id: string) {
     return modelFolder.FindFirstChild(id) as Model | undefined;
 }
 
+export function getDummyClashResult(): ClashResult {
+    return {
+        damage: 0,
+        u_damage: 0,
+        fate: "Miss",
+        roll: 0,
+        defendAttemptName: "",
+        defendAttemptSuccessful: true,
+        defendReactionUpdate: {},
+    }
+}
+
 export function getDummyStats(): EntityStats {
     return {
         id: "entity_adalbrecht",
@@ -664,7 +676,7 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 import { SyncPayload } from "@rbxts/charm-sync";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
-import { AttackAction, Reality } from "shared/class/battle/types";
+import { AttackAction, ClashResult, Reality } from "shared/class/battle/types";
 import { GlobalAtoms } from "shared/datastore";
 
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {

@@ -4,7 +4,7 @@ import { calculateRealityValue, createDummyEntityStats, requestData } from "shar
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import Entity from "./Entity";
-import { EntityInit, EntityStats, ReadonlyEntityState } from "./Entity/types";
+import { EntityConfig, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
 import { ReadonlyGridState } from "./Hex/types";
 import { EntityManager } from "./Managers/EntityManager";
@@ -34,7 +34,7 @@ export class GameState {
     public constructor(config: StateConfig) {
         this.eventBus = new EventBus();
         this.gridManager = new GridManager(config, this.eventBus);
-        const entitiesInit: EntityInit[] = this.getEntitiesInitFromTeamMap(config.teamMap);
+        const entitiesInit: EntityConfig[] = this.getEntitiesInitFromTeamMap(config.teamMap);
         this.entityManager = new EntityManager(entitiesInit, this.gridManager, this.eventBus); // Pass eventBus to EntityManager
         this.teamManager = new TeamManager(this.entityManager.getTeamMap());
         this.initialiseTestingDummies();
@@ -64,8 +64,8 @@ export class GameState {
         this.setCell(dummy, vacant);
     }
 
-    private getEntitiesInitFromTeamMap(teamMap: TeamMap): EntityInit[] {
-        const entitiesInit: EntityInit[] = [];
+    private getEntitiesInitFromTeamMap(teamMap: TeamMap): EntityConfig[] {
+        const entitiesInit: EntityConfig[] = [];
         const vacantCells = this.gridManager.getAllCells().filter(cell => cell.isVacant());
         for (const [teamName, playerList] of pairs(teamMap)) {
             for (const player of playerList) {
@@ -120,7 +120,7 @@ export class GameState {
      * @param entityInit - Entity initialization data
      * @returns Newly created entity
      */
-    public createEntity(team: string, entityInit: EntityInit): Entity {
+    public createEntity(team: string, entityInit: EntityConfig): Entity {
         const entity = this.entityManager.createEntity(entityInit);
         const addSuccess = this.teamManager.addEntityToTeam(team, entity);
         if (!addSuccess) {

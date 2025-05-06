@@ -12,6 +12,10 @@ export default class Weapon {
     private penetrationBonus: number;
     private damageTranslation: [Reality, [Potency, number][]][] = [];
 
+    static Unarmed(): Weapon {
+        return new Weapon({ hitBonus: 0, penetrationBonus: 0, damageTranslation: {} });
+    }
+
     constructor(config: WeaponConfig) {
         this.hitBonus = config.hitBonus;
         this.penetrationBonus = config.penetrationBonus;
@@ -92,6 +96,17 @@ export default class Weapon {
         }, 0);
         this.logger.debug(`Total raw weapon damage: ${damage}`);
         return damage;
+    }
+
+    public getState(): WeaponConfig {
+        return {
+            hitBonus: this.hitBonus,
+            penetrationBonus: this.penetrationBonus,
+            damageTranslation: this.damageTranslation.reduce((acc, [reality, damagePotencies]) => {
+                acc[reality] = damagePotencies;
+                return acc;
+            }, {} as Record<Reality, [Potency, number][]>)
+        }
     }
 
     // private baseDamage = 10;

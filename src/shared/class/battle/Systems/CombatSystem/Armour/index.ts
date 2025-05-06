@@ -1,13 +1,17 @@
 import Logger from "shared/utils/Logger";
 import { ActiveAbility } from "../Ability";
 import { DamageType } from "../Ability/types";
-import { ArmourConfig } from "./types";
+import { ArmourConfig, ArmourState } from "./types";
 
 export default class Armour {
     private logger = Logger.createContextLogger("Armour");
     private DV: number;
     private PV: number;
     private resistance: Map<DamageType, number> = new Map();
+
+    public static Unprotected(): Armour {
+        return new Armour({ DV: 0, PV: 0, resistance: new Map() });
+    }
 
     constructor({ DV, PV, resistance }: ArmourConfig) {
         this.DV = DV;
@@ -47,5 +51,13 @@ export default class Armour {
 
         this.logger.debug(`Total raw damage taken: ${damage}`);
         return damage;
+    }
+
+    public getState(): ArmourState {
+        return {
+            DV: this.DV,
+            PV: this.PV,
+            resistance: this.resistance,
+        };
     }
 }

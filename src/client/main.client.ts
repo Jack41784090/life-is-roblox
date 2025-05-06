@@ -5,7 +5,7 @@ import CombatSystem from "shared/class/battle/Systems/CombatSystem";
 import { ActionType, AttackAction, DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/class/battle/types";
 import { UNIVERSAL_PHYS } from "shared/const/assets";
 import remotes from "shared/remote";
-import { getDummyStats } from "shared/utils";
+import { getDummyClashResult, getDummyStats } from "shared/utils";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);
 
 remotes.battle.createClient.connect(async (config) => {
@@ -58,15 +58,7 @@ const aa: AttackAction = {
     by: 1,
     against: 0,
     ability: UNIVERSAL_PHYS.get('High Slash')!,
-    clashResult: {
-        damage: 0,
-        u_damage: 0,
-        fate: 'Miss',
-        roll: 0,
-        defendAttemptSuccessful: false,
-        defendAttemptName: 'High Slash',
-        defendReactionUpdate: {},
-    },
+    clashResult: getDummyClashResult(),
 }
 const cs = new CombatSystem(gs)
 cs.resolveAttack(aa);

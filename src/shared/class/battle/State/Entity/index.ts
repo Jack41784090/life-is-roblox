@@ -7,7 +7,7 @@ import { EventBus, GameEvent } from "../../Events/EventBus";
 import { AbilityConfig, AbilitySet, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
 import Weapon from "../../Systems/CombatSystem/Weapon";
-import { EntityChangeable, EntityInit, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate } from "./types";
+import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate } from "./types";
 
 export default class Entity {
     // server-controlled properties
@@ -20,8 +20,8 @@ export default class Entity {
     private pos: Atom<number>;
     private mana: Atom<number>;
 
-    public armour?: Armour;
-    public weapon?: Weapon;
+    public armour: Armour;
+    public weapon: Weapon;
 
     private stance: EntityStance = EntityStance.High;
     private eventBus?: EventBus;
@@ -31,7 +31,7 @@ export default class Entity {
     armed?: keyof typeof Enum.KeyCode;
     team?: string;
 
-    constructor(options: EntityInit, eventBus?: EventBus) {
+    constructor(options: EntityConfig, eventBus?: EventBus) {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
@@ -43,11 +43,17 @@ export default class Entity {
         this.mana = atom(options.mana ?? 0);
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.eventBus = eventBus;
+        this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
+        this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
+
     }
 
     state(): EntityState {
         return {
-            ...this,
+            name: this.name,
+            stance: this.stance,
+            playerID: this.playerID,
+            qr: this.qr,
             stats: {
                 ...this.stats,
             },
@@ -56,6 +62,8 @@ export default class Entity {
             org: this.org(),
             pos: this.pos(),
             mana: this.mana(),
+            weapon: this.weapon.getState(),
+            armour: this.armour.getState(),
         }
     }
 

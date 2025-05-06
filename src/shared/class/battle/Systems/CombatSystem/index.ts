@@ -1,7 +1,7 @@
 import { GameState } from "shared/class/battle/State/GameState";
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
-import { AttackAction, ClashResultFate, PlayerID } from "shared/class/battle/types";
+import { AttackAction, NeoClashResult, PlayerID } from "shared/class/battle/types";
 import { uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Entity from "../../State/Entity";
@@ -95,25 +95,25 @@ export default class CombatSystem {
         this.logger.debug(`Available ability dice: [${abilityDices.join(", ")}]`);
 
         let dice = abilityDices.pop();
-        let result: ClashResultFate = 'Miss'; // Default to miss
+        const globalResult: NeoClashResult[] = [];
+
         while (dice) {
             this.logger.debug(`🎲 Attempting attack roll with d${dice}`);
-            result = this.resolveStrikeSequence([dice], attacker, target);
+            const result: NeoClashResult[] = this.resolveStrikeSequence([dice], attacker, target);
+            result.forEach(r => globalResult.push(r));
             this.logger.info(`⚔️ Attack outcome: ${result}`);
-            if (result === 'Hit') {
-                break;
-            }
             dice = abilityDices.pop();
         }
 
-        this.logger.debug(`🏁 Attack resolution complete: ${result} with remaining [${abilityDices.join(', ')}]`);
+        this.logger.debug(`🏁 Attack resolution complete:`, globalResult);
         // 3. Calculate the damage
         // 4. Apply the damage to the target
         // 5. Return the result
     }
 
-    private resolveStrikeSequence(abilityDices: number[], attacker: Entity, target: Entity): ClashResultFate {
+    private resolveStrikeSequence(abilityDices: number[], attacker: Entity, target: Entity): NeoClashResult[] {
         this.logger.debug(`🎯 Initiating attack sequence with dice: [d${abilityDices.join(", d")}]`);
+        const rollHistory: NeoClashResult[] = [];
 
         // 1. Calculate if the attack hits
         let die = abilityDices.pop();
@@ -124,27 +124,46 @@ export default class CombatSystem {
         this.logger.debug(`🛡️ Target defense value (DV): ${dv}, Attacker accuracy bonus: ${bonusHit}`);
 
         while (die && hits === false) {
-            if (!die) {
-                this.logger.debug(`❌ No more dice available for hit check`);
-                break;
-            }
-
             const roll = uniformRandom(1, die);
             const totalRoll = roll + bonusHit;
             this.logger.debug(`🎯 Hit check: Rolled d${die}=${roll} + bonus ${bonusHit} = ${totalRoll} vs DV ${dv}`);
 
             if (totalRoll >= dv) {
                 hits = true;
+                rollHistory.push({
+                    target: target.armour.getState(),
+                    weapon: attacker.weapon.getState(),
+                    result: {
+                        die: `d${die}`,
+                        against: "DV",
+                        toSurmount: dv,
+                        roll: roll,
+                        bonus: bonusHit,
+                        fate: "Hit",
+                    }
+                })
                 this.logger.debug(`✅ Hit successful! Roll ${totalRoll} ≥ DV ${dv}`);
             } else {
                 this.logger.debug(`❌🎯 Hit failed: Roll ${totalRoll} < DV ${dv}, trying next die`);
+                rollHistory.push({
+                    target: target.armour.getState(),
+                    weapon: attacker.weapon.getState(),
+                    result: {
+                        die: `d${die}`,
+                        against: "DV",
+                        toSurmount: dv,
+                        roll: roll,
+                        bonus: bonusHit,
+                        fate: "Miss",
+                    }
+                })
                 die = abilityDices.pop();
             }
         }
 
         if (!hits) {
             this.logger.info(`💨 MISS: No successful hit roll against DV ${dv}`);
-            return 'Miss';
+            return rollHistory;
         }
 
         // 2. Calculate if the attack penetrates
@@ -155,11 +174,6 @@ export default class CombatSystem {
         this.logger.debug(`🛡️ Checking armor penetration: Target PV: ${pv}, Attacker penetration bonus: ${bonusPen}`);
 
         while (die && hits === false) {
-            if (!die) {
-                this.logger.debug(`❌ No more dice available for penetration check`);
-                break;
-            }
-
             const roll = uniformRandom(1, die);
             const totalRoll = roll + bonusPen;
             this.logger.debug(`🗡️ Penetration check: Rolled d${die}=${roll} + bonus ${bonusPen} = ${totalRoll} vs PV ${pv}`);
@@ -167,19 +181,43 @@ export default class CombatSystem {
             if (totalRoll >= pv) {
                 hits = true;
                 this.logger.debug(`✅ Penetration successful! Roll ${totalRoll} ≥ PV ${pv}`);
+                rollHistory.push({
+                    target: target.armour.getState(),
+                    weapon: attacker.weapon.getState(),
+                    result: {
+                        die: `d${die}`,
+                        against: "PV",
+                        toSurmount: pv,
+                        roll: roll,
+                        bonus: bonusPen,
+                        fate: "Hit",
+                    }
+                })
             } else {
                 this.logger.debug(`❌🗡️ Penetration failed: Roll ${totalRoll} < PV ${pv}, trying next die`);
+                rollHistory.push({
+                    target: target.armour.getState(),
+                    weapon: attacker.weapon.getState(),
+                    result: {
+                        die: `d${die}`,
+                        against: "PV",
+                        toSurmount: pv,
+                        roll: roll,
+                        bonus: bonusPen,
+                        fate: "Miss",
+                    }
+                })
                 die = abilityDices.pop();
             }
         }
 
         if (!hits) {
             this.logger.info(`🛡️ CLING: Attack blocked by armor (PV ${pv})`);
-            return 'Cling';
+            return rollHistory;
         }
 
         this.logger.info(`💥 HIT: Attack penetrates armor and damages target`);
-        return 'Hit';
+        return rollHistory
     }
 }
 

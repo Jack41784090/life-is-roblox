@@ -6,3 +6,4 @@ export interface ArmourConfig {
     resistance: Map<DamageType, number>;
 }
 
+export type ArmourState = ArmourConfig;

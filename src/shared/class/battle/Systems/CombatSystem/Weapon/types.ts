@@ -4,5 +4,7 @@ import { Potency } from "../Ability/types";
 export interface WeaponConfig {
     hitBonus: number;
     penetrationBonus: number;
-    damageTranslation: Record<Reality, [Potency, number][]>;
+    damageTranslation: Partial<Record<Reality, [Potency, number][]>>;
 }
+
+export type WeaponState = WeaponConfig;

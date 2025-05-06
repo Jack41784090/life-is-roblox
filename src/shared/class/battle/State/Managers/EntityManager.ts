@@ -3,7 +3,7 @@ import { extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import Entity from "../Entity";
-import { EntityInit, EntityUpdate } from "../Entity/types";
+import { EntityConfig, EntityUpdate } from "../Entity/types";
 import { GridManager } from "./GridManager";
 
 /**
@@ -14,7 +14,7 @@ export class EntityManager {
     private entities: Map<number, Entity> = new Map();
     private eventBus?: EventBus;
 
-    constructor(entities: EntityInit[], gridManager: GridManager, eventBus?: EventBus) {
+    constructor(entities: EntityConfig[], gridManager: GridManager, eventBus?: EventBus) {
         this.logger.info("EntityManager initialized", entities);
         this.eventBus = eventBus;
         if (this.eventBus) {
@@ -34,7 +34,7 @@ export class EntityManager {
     /**
      * Creates a new entity with the specified configuration
      */
-    public createEntity(config: EntityInit): Entity {
+    public createEntity(config: EntityConfig): Entity {
         this.logger.info(`Creating entity with ID: ${config.playerID}, name: ${config.name}`);
 
         // Pass the EventBus to the Entity constructor
@@ -52,7 +52,7 @@ export class EntityManager {
     /**
      * Bulk create multiple entities at once
      */
-    public createEntities(configs: EntityInit[]): Entity[] {
+    public createEntities(configs: EntityConfig[]): Entity[] {
         this.logger.info(`Creating ${configs.size()} entities in bulk`);
         return configs.map(config => this.createEntity(config));
     }
