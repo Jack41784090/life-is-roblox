@@ -5,7 +5,7 @@ import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameEleme
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
 import CellSurface from "gui_sharedfirst/new_components/battle/cell/surface";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
-import HPBar from "gui_sharedfirst/new_components/battle/statusBar/hpBar";
+import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
@@ -52,8 +52,15 @@ export default class BattleGui {
         this.logger.debug(`Updating main UI with mode: ${mode}`, props);
         const localPlayerID = Players.LocalPlayer.UserId;
         const localEntity = props.state?.getEntity(localPlayerID);
-        const hpBar = localEntity ?
-            <HPBar hp={localEntity.getState('hip')} maxHP={calculateRealityValue(Reality.HP, localEntity.stats)} /> : undefined;
+
+        // Create player portrait with HP bar (replaces previous HP bar)
+        const playerPortrait = localEntity ?
+            <PlayerPortrait
+                entityId={localEntity.stats.id}
+                hp={localEntity.getState('hip')}
+                maxHP={calculateRealityValue(Reality.HP, localEntity.stats)}
+            /> : undefined;
+
         const { readinessIcons, state, EHCGMS, accessToken } = props;
         if (props.readinessIcons) {
             props.readinessIcons.forEach((icon) => {
@@ -68,7 +75,7 @@ export default class BattleGui {
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={readinessIcons} />
-                        {hpBar}
+                        {playerPortrait}
                     </MenuFrameElement>);
                 break;
             case 'withSensitiveCells':
@@ -80,7 +87,7 @@ export default class BattleGui {
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={readinessIcons} />
-                        {hpBar}
+                        {playerPortrait}
                         {this.createSensitiveCellElements({ state, EHCGMS, readinessIcons, accessToken })}
                     </MenuFrameElement>);
                 break;

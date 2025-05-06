@@ -282,7 +282,7 @@ export default class ClientSide {
         for (const [playerID, readiness] of pairs(crMap)) {
             readinessIcons.push({
                 playerID,
-                iconUrl: '',
+                iconUrl: this.state.getEntity(playerID)?.stats.id ?? '',
                 readiness
             })
         }

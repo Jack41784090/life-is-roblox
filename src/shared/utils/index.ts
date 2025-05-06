@@ -1,6 +1,6 @@
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
-import { modelFolder } from "shared/const/assets";
+import { modelFolder, portraitsFolder } from "shared/const/assets";
 import logger from "./Logger";
 
 //===========================================================================
@@ -535,6 +535,31 @@ export function calculateRealityValue(reality: Reality, stats: EntityStats): num
             logger.warn(`Reality value for ${reality} not found`, "RealityCalculations");
             return 0;
     }
+}
+
+//===========================================================================
+// ASSET UTILITIES
+//===========================================================================
+
+/**
+ * Find an entity portrait by its ID
+ * @param entityId The unique ID of the entity to find a portrait for
+ * @param portraitType The type of portrait to find (defaults to 'neutral')
+ * @returns The texture ID of the portrait, or a default image if not found
+ */
+export function findEntityPortrait(entityId: string, portraitType: string = 'neutral'): string {
+    let portraitImage = "rbxassetid://0"; // Default image if no portrait is found
+    try {
+        const entityPortraitFolder = portraitsFolder.FindFirstChild(tostring(entityId));
+        const portrait = entityPortraitFolder?.FindFirstChild(portraitType);
+        assert(portrait && portrait.IsA("Decal"), `Portrait not found for entity: ${entityId}`);
+        portraitImage = portrait.Texture;
+    } catch (e) {
+        // Use default if portrait not found
+        portraitImage = "rbxassetid://0"; // Fallback to default image
+        logger.error(`Error finding portrait for entity ${entityId}: ${e}`, "AssetUtils");
+    }
+    return portraitImage;
 }
 
 //===========================================================================

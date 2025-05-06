@@ -11,8 +11,8 @@ function ReadinessBar(props: Props) {
     return (
         <frame
             key={"ReadinessBar"}
-            Position={new UDim2(0.05, 0, 0.1, 0)}
-            Size={new UDim2(0.005, 0, 0.8, 0)}
+            Position={new UDim2(0.05, 0, 0.02, 0)} // Changed from 0.1 to 0.02 to move to top
+            Size={new UDim2(0.9, 0, 0.06, 0)} // Made wider and slightly taller
             BackgroundTransparency={0.25}
             BackgroundColor3={new Color3(1, 0.03, 0.03)}
             BorderColor3={new Color3(0, 0, 0)}
