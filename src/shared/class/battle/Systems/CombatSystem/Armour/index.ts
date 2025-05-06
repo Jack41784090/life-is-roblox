@@ -10,7 +10,12 @@ export default class Armour {
     private resistance: Map<DamageType, number> = new Map();
 
     public static Unprotected(): Armour {
-        return new Armour({ DV: 0, PV: 0, resistance: new Map() });
+        return new Armour({
+            DV: 10, PV: 5, resistance: new Map([
+                [DamageType.Cut, -0.2],
+                [DamageType.Impale, -0.2],
+            ])
+        });
     }
 
     constructor({ DV, PV, resistance }: ArmourConfig) {
@@ -42,12 +47,9 @@ export default class Armour {
         this.logger.debug("Damage types array:", damageTypesArray);
 
         let damage = 0;
-        this.resistance.forEach((resistance, dtype) => {
-            const damageValue = damageTypesArray[dtype] || 0;
-            const damageTaken = damageValue * (1 - resistance);
-            this.logger.debug(`Damage type ${dtype}: ${damageValue} * (1 - ${resistance}) = ${damageTaken}`);
-            damage += damageTaken;
-        });
+        for (const [damageType, value] of pairs(damageTypesArray)) {
+            damage += this.resistance.get(damageType) ? value * (1 - this.resistance.get(damageType)!) : value;
+        }
 
         this.logger.debug(`Total raw damage taken: ${damage}`);
         return damage;

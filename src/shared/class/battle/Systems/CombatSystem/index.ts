@@ -124,7 +124,7 @@ export default class CombatSystem {
         this.logger.debug(`🛡️ Target defense value (DV): ${dv}, Attacker accuracy bonus: ${bonusHit}`);
 
         while (die && hits === false) {
-            const roll = uniformRandom(1, die);
+            const roll = math.floor(uniformRandom(1, die + 1));
             const totalRoll = roll + bonusHit;
             this.logger.debug(`🎯 Hit check: Rolled d${die}=${roll} + bonus ${bonusHit} = ${totalRoll} vs DV ${dv}`);
 
@@ -174,7 +174,7 @@ export default class CombatSystem {
         this.logger.debug(`🛡️ Checking armor penetration: Target PV: ${pv}, Attacker penetration bonus: ${bonusPen}`);
 
         while (die && hits === false) {
-            const roll = uniformRandom(1, die);
+            const roll = math.floor(uniformRandom(1, die + 1));
             const totalRoll = roll + bonusPen;
             this.logger.debug(`🗡️ Penetration check: Rolled d${die}=${roll} + bonus ${bonusPen} = ${totalRoll} vs PV ${pv}`);
 

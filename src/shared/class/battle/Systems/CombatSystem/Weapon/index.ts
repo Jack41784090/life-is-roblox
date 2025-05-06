@@ -13,7 +13,11 @@ export default class Weapon {
     private damageTranslation: [Reality, [Potency, number][]][] = [];
 
     static Unarmed(): Weapon {
-        return new Weapon({ hitBonus: 0, penetrationBonus: 0, damageTranslation: {} });
+        return new Weapon({
+            hitBonus: 0, penetrationBonus: 0, damageTranslation: {
+                [Reality.Force]: [[Potency.Strike, 1]],
+            }
+        });
     }
 
     constructor(config: WeaponConfig) {

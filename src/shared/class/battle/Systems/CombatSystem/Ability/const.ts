@@ -1,5 +1,28 @@
-import { EntityStats } from "../../../State/Entity/types";
-import { Potency } from "./types";
+import { EntityStance, EntityStats } from "../../../State/Entity/types";
+import { AbilityType, ActiveAbilityConfig, DamageType, Potency } from "./types";
+
+export const UNIVERSAL_PHYS = new Map<string, ActiveAbilityConfig>([
+    ['4-Slash-Combo', {
+        type: AbilityType.Active,
+        icon: 'rbxassetid://115770864932653',
+        animation: 'swing',
+        name: 'Slash',
+        description: 'slashing',
+        direction: EntityStance.High,
+        dices: [4, 4, 4, 4],
+        potencies: new Map<Potency, number>([
+            [Potency.Slash, 1]
+        ]),
+        damageType: new Map<DamageType, number>([
+            [DamageType.Cut, 1]
+        ]),
+        cost: {
+            pos: 10,
+            mana: 0,
+        },
+        range: new NumberRange(1, 1),
+    }]
+])
 
 export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
     [Potency.Strike]: [

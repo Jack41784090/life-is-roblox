@@ -1,9 +1,9 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/types";
-import { UNIVERSAL_PHYS } from "shared/const/assets";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
+import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
 import Weapon from "../../Systems/CombatSystem/Weapon";

@@ -2,8 +2,8 @@ import { Players, StarterGui } from "@rbxts/services";
 import ClientSide from "shared/class/battle/ClientSide";
 import ClientGameState from "shared/class/battle/State/ClientGameState";
 import CombatSystem from "shared/class/battle/Systems/CombatSystem";
+import { UNIVERSAL_PHYS } from "shared/class/battle/Systems/CombatSystem/Ability/const";
 import { ActionType, AttackAction, DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/class/battle/types";
-import { UNIVERSAL_PHYS } from "shared/const/assets";
 import remotes from "shared/remote";
 import { getDummyClashResult, getDummyStats } from "shared/utils";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);
@@ -57,7 +57,7 @@ const aa: AttackAction = {
     executed: false,
     by: 1,
     against: 0,
-    ability: UNIVERSAL_PHYS.get('High Slash')!,
+    ability: UNIVERSAL_PHYS.get('4-Slash-Combo')!,
     clashResult: getDummyClashResult(),
 }
 const cs = new CombatSystem(gs)
