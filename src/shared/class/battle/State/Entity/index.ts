@@ -131,7 +131,7 @@ export default class Entity {
         this.logger.debug(`${this.name}: Changing HP by ${num}`);
 
         const oldHip = this.hip();
-        this.hip = atom(this.hip() + num);
+        this.hip(this.hip() + num);
         const maxHP = calculateRealityValue(Reality.HP, this.stats);
         const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9);
         this.logger.debug(`HP percentage: ${hpPercentage}`);
