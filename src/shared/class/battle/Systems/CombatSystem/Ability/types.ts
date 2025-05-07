@@ -1,6 +1,6 @@
 import { ClashResult } from "shared/class/battle/types";
 import Entity from "../../../State/Entity";
-import { EntityStance, EntityUpdate } from "../../../State/Entity/types";
+import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
 
 export interface AbilityConfig {
     animation: string,
@@ -42,8 +42,14 @@ export type ReactionUpdate = {
 
 
 export type AbilityState = ActiveAbilityState | ReactiveAbilityState;
-export type ActiveAbilityState = ActiveAbilityConfig
-export type ReactiveAbilityState = ReactiveAbilityConfig;
+export type ActiveAbilityState = Omit<ActiveAbilityConfig, 'using' | 'target'> & {
+    using?: EntityState,
+    target?: EntityState,
+}
+export type ReactiveAbilityState = Omit<ReactiveAbilityConfig, 'using' | 'target'> & {
+    using?: EntityState,
+    target?: EntityState,
+};
 export type AbilitySet = {
     [key in keyof typeof Enum.KeyCode]?: ActiveAbilityConfig;
 };

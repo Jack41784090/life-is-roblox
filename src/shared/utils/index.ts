@@ -576,11 +576,11 @@ export function isAttackKills(attackerAction: AttackAction) {
     const { damage } = attackerAction.clashResult;
 
     if (executed) {
-        return target.get('hip') <= 0;
+        return target.hip <= 0;
     }
 
-    logger.debug(`IsAttackKills: ${target.get('hip')} - ${damage} <= 0`, "AttackUtils");
-    return target.get('hip') - damage <= 0;
+    logger.debug(`IsAttackKills: ${target.hip} - ${damage} <= 0`, "AttackUtils");
+    return target.hip - damage <= 0;
 }
 
 //===========================================================================

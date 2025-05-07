@@ -2,7 +2,7 @@ import { t } from "@rbxts/t";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import Entity from "../State/Entity";
-import { EntityStance } from "../State/Entity/types";
+import { EntityStance, EntityState } from "../State/Entity/types";
 import { GameState } from "../State/GameState";
 import { AbilityType, DamageType, Potency } from "../Systems/CombatSystem/Ability/types";
 import { ActionType, AttackAction, NeoClashResult } from "../types";
@@ -160,8 +160,8 @@ export class SyncSystem {
                     icon: t.string,
                     type: abilityTypeUnion,
                     direction: entityStanceUnion,
-                    using: t.optional(t.interface({ playerID: t.number, name: t.string }) as t.check<Entity | undefined>),
-                    target: t.optional(t.interface({ playerID: t.number, name: t.string }) as t.check<Entity | undefined>),
+                    using: t.optional(t.interface({ playerID: t.number, name: t.string }) as t.check<EntityState | undefined>),
+                    target: t.optional(t.interface({ playerID: t.number, name: t.string }) as t.check<EntityState | undefined>),
                     dices: t.array(t.number),
                     cost: t.interface({
                         pos: t.number,
