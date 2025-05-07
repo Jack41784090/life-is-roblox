@@ -24,7 +24,7 @@ const story = CreateReactStory({
         ]} />
         <PlayerPortrait
             entityId='entity_adalbrecht'
-            hp={atom(2)}
+            hp={atom(75)}
             maxHP={100}
         />
     </>

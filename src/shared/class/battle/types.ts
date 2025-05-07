@@ -94,11 +94,13 @@ export interface NeoClashResultRoll {
     roll: number,
     bonus: number,
     fate: ClashResultFate
+    // damage: [DamageType, number]
 }
 
 export interface NeoClashResult {
     weapon: WeaponState
     target: ArmourState,
+    // ability: ActiveAbilityState,
     result: NeoClashResultRoll,
 }
 

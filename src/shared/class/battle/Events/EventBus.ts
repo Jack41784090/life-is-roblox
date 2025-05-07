@@ -4,6 +4,9 @@ type EventCallback = (...args: unknown[]) => void;
 
 // Add an enum for game event names to ensure consistency
 export enum GameEvent {
+    // Combat Events
+    COMBAT_STARTED = "combat:started",
+
     // Entity events
     ENTITY_CREATED = "entity:created",
     ENTITY_UPDATED = "entity:updated",

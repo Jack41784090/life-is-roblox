@@ -1,6 +1,6 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { RunService } from "@rbxts/services";
-import { AccessToken, BattleConfig, HexGridState, StateState, TeamState } from "shared/class/battle/types";
+import { AccessToken, AttackAction, BattleConfig, HexGridState, NeoClashResult, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import remotes from "shared/remote";
@@ -48,6 +48,10 @@ export class NetworkService {
 
                 remotes.battle.camera.hoi4.connect(() => {
                     this.cameraHoi4ModeCallbacks.forEach(callback => callback());
+                }),
+
+                remotes.battle.animateClashes.connect((clashes, attackActionRef) => {
+                    this.actionAnimateClashCallbacks.forEach(callback => callback(clashes, attackActionRef));
                 })
             );
         }
@@ -57,6 +61,7 @@ export class NetworkService {
     private readonly entityMovedCallbacks: ((data: { entityId: number, from: Vector2, to: Vector2 }) => void)[] = [];
     private readonly turnChangedCallbacks: ((data: { entityId: number }) => void)[] = [];
     private readonly actionAnimateCallbacks: ((action: AccessToken) => void)[] = [];
+    private readonly actionAnimateClashCallbacks: ((clashes: NeoClashResult[], attackActionRef: AttackAction) => void)[] = [];
     private readonly forceUpdateCallbacks: (() => void)[] = [];
     private readonly actionMenuCallbacks: (() => void)[] = [];
     private readonly otherPlayersTurnCallbacks: (() => void)[] = [];
@@ -64,6 +69,14 @@ export class NetworkService {
     private readonly entityChosenCallbacks: (() => void)[] = [];
 
     // Event subscriptions
+    public onAnimateClashes = (callback: (clashes: NeoClashResult[], attackActionRef: AttackAction) => void): (() => void) => {
+        this.actionAnimateClashCallbacks.push(callback);
+        return () => {
+            const index = this.actionAnimateClashCallbacks.indexOf(callback);
+            if (index !== -1) this.actionAnimateClashCallbacks.remove(index);
+        };
+    }
+
     public onEntityMoved = (callback: (data: { entityId: number, from: Vector2, to: Vector2 }) => void): (() => void) => {
         this.entityMovedCallbacks.push(callback);
         return () => {
@@ -257,6 +270,12 @@ export class NetworkService {
 
             // Notify subscribers on the receiving end
             this.entityMovedCallbacks.forEach(callback => callback(data));
+        }
+    }
+
+    public sendCombatResults(player: Player, clashes: NeoClashResult[], attackActionRef: AttackAction): void {
+        if (RunService.IsServer()) {
+            remotes.battle.animateClashes(player, clashes, attackActionRef);
         }
     }
 

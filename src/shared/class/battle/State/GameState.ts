@@ -1,8 +1,9 @@
-import { BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
+import { AttackAction, BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
-import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
+import { calculateRealityValue, createDummyEntityStats, getDummyClashResult, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
+import CombatSystem from "../Systems/CombatSystem";
 import Entity from "./Entity";
 import { EntityConfig, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
@@ -29,7 +30,7 @@ export class GameState {
     private gridManager: GridManager;
     private teamManager: TeamManager;
     private creID: number | undefined;
-    // private combatSystem: CombatSystem;
+    private combatSystem: CombatSystem;
 
     public constructor(config: StateConfig) {
         this.eventBus = new EventBus();
@@ -37,6 +38,7 @@ export class GameState {
         const entitiesInit: EntityConfig[] = this.getEntitiesInitFromTeamMap(config.teamMap);
         this.entityManager = new EntityManager(entitiesInit, this.gridManager, this.eventBus); // Pass eventBus to EntityManager
         this.teamManager = new TeamManager(this.entityManager.getTeamMap());
+        this.combatSystem = new CombatSystem(this);
         this.initialiseTestingDummies();
     }
 
@@ -301,6 +303,10 @@ export class GameState {
         switch (action.type) {
             case "attack":
                 // Will be handled by CombatSystem
+                this.attack({
+                    ...action,
+                    clashResult: getDummyClashResult(),
+                } as AttackAction);
                 return;
             case "move":
                 this.move(action as MoveAction);
@@ -308,6 +314,29 @@ export class GameState {
             default:
                 this.logger.warn(`Unknown action type: ${action.type}`);
                 return;
+        }
+    }
+
+    public attack(action: AttackAction): void {
+        const cs = this.combatSystem;
+        const clashes = cs.resolveAttack(action);
+
+        // Emit the combat started event with the clash results
+        if (clashes.size() > 0) {
+            this.logger.info(`Combat started with ${clashes.size()} clash results`);
+            this.eventBus.emit(GameEvent.COMBAT_STARTED, clashes, action);
+        }
+
+        // Apply the clash results if there's a target
+        if (action.against !== undefined) {
+            const attacker = this.getEntity(action.by);
+            const target = this.getEntity(action.against);
+
+            if (attacker && target) {
+                cs.applyAttack(clashes, attacker, target);
+            } else {
+                this.logger.warn("Cannot apply attack: attacker or target not found");
+            }
         }
     }
 

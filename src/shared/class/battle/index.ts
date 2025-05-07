@@ -233,15 +233,7 @@ export default class Battle {
             }
             else {
                 this.logger.info(`Committing action for ${actingPlayer.Name}`, access.action);
-
-                // Commit the action to the state
                 this.state.commit(access.action!);
-
-                // Use the SyncSystem to handle animation propagation instead of direct network calls
-                if (access.action) {
-                    // The animation still needs to be sent directly since it's a special case
-                    players.forEach(p => network.sendAnimationToPlayer(p, access));
-                }
             }
 
             // 3. Let the SyncSystem handle grid/entity updates to all clients

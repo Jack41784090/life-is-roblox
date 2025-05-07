@@ -203,7 +203,7 @@ remotes.battle.ui.startRoom.connect(s => {
 
 // mainMenuCameraSetup();
 // mainMenuSetup();
-// enterBattle();
+enterBattle();
 // enterStory();
 // enterPlayground();
 //#endregion

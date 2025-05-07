@@ -6,7 +6,9 @@ import { EventBus, GameEvent } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
+import { ArmourConfig } from "../../Systems/CombatSystem/Armour/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
+import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate } from "./types";
 
 export default class Entity {
@@ -180,6 +182,18 @@ export default class Entity {
                     this[k as EntityChangeable](v as number);
                     changed = true;
                     break;
+
+                case 'weapon':
+                    this.logger.debug(`Changing weapon to ${v}`);
+                    this.weapon = new Weapon(v as WeaponConfig);
+                    changed = true;
+                    break;
+                case 'armour':
+                    this.logger.debug(`Changing armour to ${v}`);
+                    this.armour = new Armour(v as ArmourConfig);
+                    changed = true;
+                    break;
+
                 default:
                     this.logger.debug(`Changing ${k} to ${v}`);
                     this[k as keyof this] = v as unknown as any;

@@ -100,10 +100,6 @@ export class ActiveAbility extends Ability {
             return 0;
         }
         const attacker = this.using!;
-        if (attacker.weapon === undefined) {
-            this.logger.warn(`Attacker ${attacker.name} has no weapon`);
-            return 0;
-        }
 
         let damage = 0;
         const damagePotencies = attacker.weapon.getPotencyArrayDamage(attacker);

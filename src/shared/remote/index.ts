@@ -1,7 +1,7 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
-import { AccessToken, ActionType, BattleConfig, HexGridState, StateState, TeamState } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, BattleConfig, HexGridState, NeoClashResult, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import Logger from "shared/utils/Logger";
@@ -45,6 +45,7 @@ const remotes = createRemotes({
         camera: namespace({
             hoi4: remote<Client>(),
         }),
+        animateClashes: remote<Client, [clashes: NeoClashResult[], attackActionRef: AttackAction]>(),
         ui: namespace({
             unmount: remote<Client, [tag: GuiTag]>(),
             startRoom: remote<Client, [arg: Player[]]>(),
