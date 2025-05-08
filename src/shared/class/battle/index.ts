@@ -7,7 +7,8 @@ import { IDGenerator } from "../IDGenerator";
 import { EventBus, GameEvent } from "./Events/EventBus";
 import { NetworkService } from "./Network/NetworkService";
 import { SyncSystem } from "./Network/SyncSystem";
-import { GameState } from "./State";
+import State from "./State";
+import Entity from "./State/Entity";
 import Team from "./State/Team";
 import { TurnSystem } from "./Systems/TurnSystem";
 
@@ -24,7 +25,7 @@ export default class Battle {
 
     private static readonly MIN_POSTURE_TO_CONTINUE_TURN = 75;
     private logger = Logger.createContextLogger("Battle");
-    private state: GameState;
+    private state: State;
     private networkService: NetworkService;
     private syncSystem: SyncSystem;
     private turnSystem: TurnSystem;
@@ -32,7 +33,7 @@ export default class Battle {
     private constructor(config: Partial<BattleConfig>) {
         this.logger.info(`Creation of Battle with config:`, config);
         assert(config.teamMap, "No team map provided");
-        this.state = new GameState({
+        this.state = new State({
             width: config.width ?? 10,
             worldCenter: config.worldCenter ?? new Vector3(),
             teamMap: config.teamMap!,
@@ -46,7 +47,7 @@ export default class Battle {
             this.state.getEventBus()
         );
 
-        this.state.getAllPlayers().forEach(p => {
+        this.state.getAllPlayers().forEach((p: Player) => {
             this.logger.info(`Initialising ClientSide for ${p.Name}`);
             this.networkService.createClientBattle(p, config);
         });
@@ -81,7 +82,7 @@ export default class Battle {
     private validateBaseActionInfo({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator): boolean {
         const { token, action, allowed } = declaredAccess;
 
-        if (!this.state.getAllPlayers().find(p => p.UserId === client.UserId)) {
+        if (!this.state.getAllPlayers().find((p: Player) => p.UserId === client.UserId)) {
             this.logger.error(`Validation failed: Player ${client.Name} (${client.UserId}) not found in battle.`);
             return false;
         }
@@ -334,8 +335,8 @@ export default class Battle {
         let activeTeamsCount = 0;
 
         for (const team of teams) {
-            const hasAliveMembers = team.members.some(member => {
-                return member.get('pos') > 0;
+            const hasAliveMembers = team.members.some((member: Entity) => {
+                return member.get('hip') > 0;
             });
 
             if (hasAliveMembers) {
@@ -365,7 +366,9 @@ export default class Battle {
         const activeTeams: Team[] = [];
 
         for (const team of teams) {
-            const hasAliveMembers = team.members.some(member => member.get('pos') > 0);
+            const hasAliveMembers = team.members.some((member: Entity) => {
+                return member.get('pos') > 0;
+            });
             if (hasAliveMembers) {
                 activeTeams.push(team);
             }

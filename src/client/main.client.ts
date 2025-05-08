@@ -1,5 +1,5 @@
 import { Players, StarterGui } from "@rbxts/services";
-import ClientSide from "shared/class/battle/ClientSide";
+import ClientSide from "shared/class/battle/Client";
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER } from "shared/class/battle/types";
 import remotes from "shared/remote";
 StarterGui.SetCoreGuiEnabled(Enum.CoreGuiType.All, false);

@@ -1,7 +1,7 @@
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
+import State from "../../State";
 import Entity from "../../State/Entity";
-import { GameState } from "../../State";
 import { AttackAction, NeoClashResult } from "../../types";
 import { NetworkService } from "../NetworkService";
 import { attackActionRefVerification, clashesVerification, entityMovedEventDataVerification, entityUpdateEventDataVerification, gridCellUpdatedEventDataVerification, turnStartedEventDataVerification } from "./veri";
@@ -37,7 +37,7 @@ export class SyncSystem {
     private unsubscribeFunctions: Array<() => void> = [];
 
     constructor(
-        private gameState: GameState,
+        private gameState: State,
         private networkService: NetworkService,
         private eventBus: EventBus
     ) {

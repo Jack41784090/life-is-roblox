@@ -1,5 +1,5 @@
 // import { EventBus } from "../Events/EventBus";
-// import { GameState } from "../State/GameState";
+// import State from "../State/State";
 // import { GridManager } from "../State/Managers/GridManager";
 
 // export interface Result<T, E> {
@@ -10,7 +10,7 @@
 
 // export class MovementSystem {
 //     constructor(
-//         private gameState: GameState,
+//         private gameState: State,
 //         private gridManager: GridManager,
 //         private eventBus: EventBus
 //     ) { }

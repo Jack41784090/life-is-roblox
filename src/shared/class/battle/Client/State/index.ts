@@ -1,10 +1,10 @@
+import State from "shared/class/battle/State";
 import { StateConfig, StateState } from "shared/class/battle/types";
-import { GameState } from "..";
 
 /**
- * Client-side wrapper for GameState that provides legacy compatibility
+ * Client-side wrapper for State that provides legacy compatibility
  */
-export default class ClientGameState extends GameState {
+export default class ClientGameState extends State {
     constructor(config: Omit<StateConfig, 'teamMap'>) {
         super({
             ...config,
@@ -13,7 +13,7 @@ export default class ClientGameState extends GameState {
     }
 
     /**
-     * Syncs both GameState and legacy State with received data
+     * Syncs both State and legacy State with received data
      */
     public syncWithServerState(stateData: StateState): void {
         this.logger.info("Syncing with server state", stateData);

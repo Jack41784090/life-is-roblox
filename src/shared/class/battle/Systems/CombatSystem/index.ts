@@ -1,15 +1,15 @@
-import { GameState } from "shared/class/battle/State/GameState";
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { AttackAction, NeoClashResult, PlayerID } from "shared/class/battle/types";
 import { uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
+import State from "../../State";
 import Entity from "../../State/Entity";
 
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
     constructor(
-        private gameState: GameState,
+        private gameState: State,
     ) { }
 
     private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
@@ -67,8 +67,8 @@ export default class CombatSystem {
         const allEntities = this.gameState.getEntityManager().getAllEntities();
         const ability = new ActiveAbility({
             ...abilityState,
-            using: allEntities.find(e => e.playerID === by),
-            target: allEntities.find(e => e.playerID === against),
+            using: allEntities.find((e: Entity) => e.playerID === by),
+            target: allEntities.find((e: Entity) => e.playerID === against),
         });
         return ability;
     }

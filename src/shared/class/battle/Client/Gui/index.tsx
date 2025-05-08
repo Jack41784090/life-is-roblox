@@ -16,13 +16,14 @@ import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import { NetworkService } from "../../Network/NetworkService";
 import Pathfinding from "../../Pathfinding";
+import State from "../../State";
 import Entity from "../../State/Entity";
 import { EntityState } from "../../State/Entity/types";
-import { GameState } from "../../State";
+import HexCell from "../../State/Hex/Cell";
 import HexCellGraphics from "../../State/Hex/Cell/Graphics";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
-import EntityHexCellGraphicsMothership from "../EHCG/Mothership";
-import EntityCellGraphicsTuple from "../EHCG/Tuple";
+import EntityHexCellGraphicsMothership from "../Graphics/Mothership";
+import EntityCellGraphicsTuple from "../Graphics/Tuple";
 import { GuiConfig } from "./types";
 
 export default class BattleGui {
@@ -73,7 +74,7 @@ export default class BattleGui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: GameState, EHCGMS: EntityHexCellGraphicsMothership }): void;
+    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
     updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
     updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
         this.logger.debug(`Updating main UI with mode: ${mode}`, props);
@@ -225,8 +226,8 @@ export default class BattleGui {
                 }
                 const inrange = currentCell.findCellsWithinRange(ability.range);
                 inrange
-                    .mapFiltered(cell => EHCGMS.positionTuple(cell.qr()))
-                    .forEach(t => glowHexCells.push(t.cellGraphics))
+                    .mapFiltered((cell: HexCell) => EHCGMS.positionTuple(cell.qr()))
+                    .forEach((t: EntityCellGraphicsTuple) => glowHexCells.push(t.cellGraphics))
             }
             else {
                 mouse.Icon = '';

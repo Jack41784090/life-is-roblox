@@ -1,8 +1,8 @@
 import { t } from "@rbxts/t";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
+import State from "../State";
 import Entity from "../State/Entity";
-import { GameState } from "../State";
 import { EntityManager } from "../State/Managers/EntityManager";
 import { ReadinessIcon } from "../types";
 
@@ -22,9 +22,9 @@ export class TurnSystem {
     private unsubscribeFunctions: Array<() => void> = [];
     private entityManager: EntityManager
     private eventBus: EventBus
-    private gameState: GameState
+    private gameState: State
 
-    constructor(gameState: GameState) {
+    constructor(gameState: State) {
 
         this.gameState = gameState;
         this.entityManager = gameState.getEntityManager();

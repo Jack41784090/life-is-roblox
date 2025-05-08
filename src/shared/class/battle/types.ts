@@ -1,13 +1,11 @@
 import { Atom } from "@rbxts/charm";
-import EntityHexCellGraphicsMothership from "shared/class/battle/ClientSide/EHCG/Mothership";
+import EntityHexCellGraphicsMothership from "shared/class/battle/Client/Graphics/Mothership";
 import { EntityState } from "shared/class/battle/State/Entity/types";
-import { GameState } from "shared/class/battle/State/GameState";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
 import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import State from "./State";
 import { ArmourState } from "./Systems/CombatSystem/Armour/types";
 import { WeaponState } from "./Systems/CombatSystem/Weapon/types";
-
-
 
 export type ClashResultFate = "Miss" | "Cling" | "Hit" | "CRIT"
 export enum Reality {
@@ -21,9 +19,6 @@ export enum Reality {
     Convince = 'convince',
     Bravery = 'bravery',
 }
-
-
-
 
 export type TeamState = { name: string; members: EntityState[] };
 
@@ -106,20 +101,18 @@ export interface NeoClashResult {
 
 export type PlayerID = number
 
-
 export type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 export type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
 
 export type TeamMap = Record<string, Player[]>;
 export type BattleConfig = {
     camera?: Camera,
-    gs: GameState;
+    gs: State;
     worldCenter: Vector3,
     width: number;
     height: number;
     teamMap: TeamMap
 };
-
 
 export const DEFAULT_WIDTH = 5;
 export const DEFAULT_HEIGHT = 5;
@@ -188,7 +181,7 @@ export interface StateConfig {
 export type UpdateMainUIConfig = {
     readinessIcons: ReadinessIcon[]
     EHCGMS: EntityHexCellGraphicsMothership,
-    state: GameState,
+    state: State,
     accessToken: AccessToken,
 }
 

@@ -8,13 +8,13 @@ import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network/NetworkService";
 import { EntityMovedEventData } from "../Network/SyncSystem";
-import ClientGameState from '../State/Client';
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import { TurnSystem } from "../Systems/TurnSystem";
 import BattleCam from "./BattleCamera";
-import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
-import BattleGui from "./Gui";
+import EntityHexCellGraphicsMothership from "./Graphics/Mothership";
+import BattleGui from './Gui';
+import ClientGameState from "./State";
 
 export default class ClientSide {
     private logger = Logger.createContextLogger("ClientSide");

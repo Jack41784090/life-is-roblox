@@ -23,8 +23,8 @@ export interface EntityMovedEventData {
     to: Vector2;
 }
 
-export class GameState {
-    protected logger = Logger.createContextLogger("GameState");
+export default class State {
+    protected logger = Logger.createContextLogger("State");
     private eventBus: EventBus;
     private entityManager: EntityManager;
     private gridManager: GridManager;
@@ -272,7 +272,7 @@ export class GameState {
     public getEntityState(id: number): ReadonlyEntityState {
         const entity = this.entityManager.getEntity(id);
         if (!entity) {
-            throw `[GameState] Entity with id ${id} not found`;
+            throw `[State] Entity with id ${id} not found`;
         }
         return entity.state();
     }
