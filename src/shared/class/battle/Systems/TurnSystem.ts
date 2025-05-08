@@ -1,3 +1,4 @@
+import { Atom } from "@rbxts/charm";
 import { t } from "@rbxts/t";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
@@ -6,32 +7,31 @@ import Entity from "../State/Entity";
 import { EntityManager } from "../State/Managers/EntityManager";
 import { ReadinessIcon } from "../types";
 
-// export class TurnSystemError {
-//     constructor(
-//         private name: string,
-//         private message: string,
-//     ) {
-//         super(message);
-//         this.name = name;
-//     }
-// }
-
 export class TurnSystem {
     private logger = Logger.createContextLogger("TurnSystem");
     private currentActorId: number = -1;
     private unsubscribeFunctions: Array<() => void> = [];
-    private entityManager: EntityManager
-    private eventBus: EventBus
-    private gameState: State
+    private entityManager: EntityManager;
+    private eventBus: EventBus;
+    private gameState: State;
+    private READINESS_TICK_INTERVAL = 0.2; // 200ms between ticks
+    private isGauntletRunning = false;
 
     constructor(gameState: State) {
-
         this.gameState = gameState;
         this.entityManager = gameState.getEntityManager();
         this.eventBus = gameState.getEventBus();
 
         // Subscribe to relevant events
         this.setupEventListeners();
+    }
+
+    public getReadinessMap(): Record<number, Atom<number>> {
+        const readinessMap: Record<number, Atom<number>> = {};
+        this.entityManager.getAllEntities().forEach((entity) => {
+            readinessMap[entity.playerID] = entity.getState("pos");
+        });
+        return readinessMap;
     }
 
     public getCurrentActorID(): number {
@@ -49,7 +49,7 @@ export class TurnSystem {
         // Listen for entity updates that might affect readiness
         this.unsubscribeFunctions.push(
             this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (_entity: unknown) => {
-                const entityVerification = true // Temp
+                const entityVerification = true; // Temp
                 if (!entityVerification) {
                     this.logger.warn(`Entity update event received with invalid data`);
                     return;
@@ -80,22 +80,59 @@ export class TurnSystem {
         this.logger.info("Readiness gauntlet in progress...");
         // Calculate readiness for entities
         for (const entity of entities) {
-            const readiness = entity.get('pos');
-            entity.set('pos', math.clamp(readiness + this.calculateReadinessIncrement(entity), 0, 100));
+            const readiness = entity.get("pos");
+            entity.set("pos", math.clamp(readiness + this.calculateReadinessIncrement(entity), 0, 100));
         }
 
         // Emit readiness updated event
-        this.eventBus.emit(GameEvent.READINESS_UPDATED, entities.map(e => {
-            return {
-                playerID: e.playerID,
-                iconUrl: e.stats.id,
-                readiness: e.getState('pos'),
-            } as ReadinessIcon;
-        }));
+        this.eventBus.emit(
+            GameEvent.READINESS_UPDATED,
+            entities.map((e) => {
+                return {
+                    playerID: e.playerID,
+                    iconUrl: e.stats.id,
+                    readiness: e.getState("pos"),
+                } as ReadinessIcon;
+            })
+        );
     }
 
     private calculateReadinessIncrement(entity: Entity) {
         return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
+    }
+
+    public async determineNextActorByGauntletGradual(): Promise<Entity | undefined> {
+        if (this.isGauntletRunning) {
+            this.logger.warn("Readiness gauntlet already running, not starting a new one");
+            return undefined;
+        }
+
+        this.isGauntletRunning = true;
+        const entities = this.entityManager.getAllEntities();
+
+        if (entities.size() === 0) {
+            this.logger.warn("Entity list is empty, cannot run readiness gauntlet");
+            this.isGauntletRunning = false;
+            return undefined;
+        }
+
+        try {
+            // Continue ticking until someone reaches 100%
+            while (!entities.some((e) => e.get("pos") >= 100)) {
+                this.gauntletTick(entities);
+                // Wait for the specified interval before next tick
+                await Promise.delay(this.READINESS_TICK_INTERVAL);
+            }
+
+            const nextActor = entities.sort((a, b) => a.get("pos") - b.get("pos") > 0)[0];
+            this.logger.info(`Readiness gauntlet winner: ${nextActor.name} (${nextActor.playerID})`);
+            return nextActor;
+        } catch (err) {
+            this.logger.error(`Error in gradual readiness gauntlet: ${err}`);
+            return undefined;
+        } finally {
+            this.isGauntletRunning = false;
+        }
     }
 
     public determineNextActorByGauntlet(): Entity | undefined {
@@ -105,11 +142,11 @@ export class TurnSystem {
             return;
         }
 
-        while (!entities.some((e) => e.get('pos') >= 100)) {
+        while (!entities.some((e) => e.get("pos") >= 100)) {
             this.gauntletTick(entities);
         }
 
-        const nextActor = entities.sort((a, b) => a.get('pos') - b.get('pos') > 0)[0];
+        const nextActor = entities.sort((a, b) => a.get("pos") - b.get("pos") > 0)[0];
         this.logger.info(`Readiness gauntlet winner: ${nextActor.name} (${nextActor.playerID})`);
         return nextActor;
     }
@@ -133,23 +170,22 @@ export class TurnSystem {
         // ...implementation...
     }
 
-    public progressToNextTurn(): [Player, Entity] | undefined {
-        const nextActor = this.determineNextActorByGauntlet();
+    public async progressToNextTurn(): Promise<[Player, Entity] | undefined> {
+        const nextActor = await this.determineNextActorByGauntletGradual();
         if (!nextActor) {
             return undefined;
         }
 
         const players = this.gameState.getAllPlayers();
-        const winningClient = players.find(p => p.UserId === nextActor.playerID);
+        const winningClient = players.find((p) => p.UserId === nextActor.playerID);
         const winnerEntity = winningClient ? this.entityManager.getEntity(winningClient.UserId) : undefined;
 
         this.currentActorId = nextActor.playerID;
         return [winningClient!, winnerEntity!];
     }
 
-    // Clean up event listeners when system is destroyed
     public destroy(): void {
-        this.unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+        this.unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
         this.unsubscribeFunctions = [];
     }
 }

@@ -344,10 +344,10 @@ export default class Battle {
             }
         }
 
-        if (activeTeamsCount <= 1) {
-            this.logger.info(`Game over condition met: ${activeTeamsCount} team(s) have active units.`);
-            return true;
-        }
+        // if (activeTeamsCount <= 1) {
+        //     this.logger.info(`Game over condition met: ${activeTeamsCount} team(s) have active units.`);
+        //     return true;
+        // }
         return false;
     }
 
@@ -385,7 +385,8 @@ export default class Battle {
         while (!this._isGameOver()) {
             task.wait(0.1);
 
-            const pnt = this.turnSystem.progressToNextTurn();
+            // Get the next turn actor (now awaiting the Promise)
+            const pnt = await this.turnSystem.progressToNextTurn();
             if (!pnt) {
                 this.logger.warn("No next actor could be determined by TurnSystem.");
                 if (!this._isGameOver()) {

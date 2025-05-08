@@ -31,7 +31,6 @@ export default class ClientSide {
 
     private controlLocks: ControlLocks = new Map();
 
-    private readinessIconMap: Record<PlayerID, Atom<number>> = {};
     private networking: NetworkService = new NetworkService();
     private turnSystem: TurnSystem;
     private _localTickEntitiesCache: Entity[] = [];
@@ -134,14 +133,6 @@ export default class ClientSide {
         this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
             const updatedEntity = entity as Entity;
             this.logger.debug(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`);
-
-            // Update the readiness icon if this entity has one
-            const readinessIcon = this.readinessIconMap[updatedEntity.playerID];
-            if (readinessIcon) {
-                readinessIcon(updatedEntity.get('pos'));
-                this.logger.debug(`Updated readiness icon for ${updatedEntity.name} to ${updatedEntity.get('pos')}`);
-            }
-
             // Update visual representation if needed
             const entityGraphics = this.EHCGMS.findEntityG(updatedEntity.playerID);
             if (entityGraphics) {
@@ -185,6 +176,7 @@ export default class ClientSide {
             network.onEntityChosen(this.handleEntityChosen),
             network.onAnimateClashes((clashes, attackAction) => this.handleAnimatingClashes(clashes, attackAction)),
             network.onLocalGauntletTick(() => {
+                this.logger.debug("Local gauntlet tick");
                 if (this._localTickEntitiesCache.size() === 0) {
                     this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
                 }
@@ -341,23 +333,7 @@ export default class ClientSide {
         this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
         await this.animating;
         await this.EHCGMS.sync(stateData)
-        await this.updateReadinessMap(stateData);
         return stateData;
-    }
-
-    private updateReadinessMap(state: StateState) {
-        state.teams.forEach(t => {
-            t.members.forEach(e => {
-                const currentAtom = this.readinessIconMap[e.playerID]
-                if (currentAtom) {
-                    this.logger.debug(`readinessicon: ${currentAtom()} => ${e.pos}`);
-                    currentAtom(e.pos);
-                }
-                else {
-                    this.readinessIconMap[e.playerID] = atom(e.pos);
-                }
-            })
-        })
     }
 
     private initialiseInputControl() {
@@ -384,7 +360,7 @@ export default class ClientSide {
 
     //#region Get
     private getReadinessIcons() {
-        const crMap: Record<PlayerID, Atom<number>> = this.readinessIconMap;
+        const crMap: Record<PlayerID, Atom<number>> = this.turnSystem.getReadinessMap();
         const state = this.state;
         const players = state.getAllPlayers();
         for (const p of players) {
