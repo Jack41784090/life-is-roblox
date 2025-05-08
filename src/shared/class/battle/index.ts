@@ -1,13 +1,14 @@
 import { RunService } from "@rbxts/services";
-import { ActionType, ActionValidator, BattleConfig, MoveAction } from "shared/class/battle/types";
+import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
 import { get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
 import { IDGenerator } from "../IDGenerator";
-import { GameEvent } from "./Events/EventBus";
+import { EventBus, GameEvent } from "./Events/EventBus";
 import { NetworkService } from "./Network/NetworkService";
 import { SyncSystem } from "./Network/SyncSystem";
 import { GameState } from "./State/GameState";
+import Team from "./State/Team";
 import { TurnSystem } from "./Systems/TurnSystem";
 
 export default class Battle {
@@ -21,6 +22,7 @@ export default class Battle {
         }
     }
 
+    private static readonly MIN_POSTURE_TO_CONTINUE_TURN = 75;
     private logger = Logger.createContextLogger("Battle");
     private state: GameState;
     private networkService: NetworkService;
@@ -33,13 +35,11 @@ export default class Battle {
         this.state = new GameState({
             width: config.width ?? 10,
             worldCenter: config.worldCenter ?? new Vector3(),
-            teamMap: config.teamMap,
+            teamMap: config.teamMap!,
         });
 
         this.networkService = new NetworkService();
         this.turnSystem = new TurnSystem(this.state);
-
-        // Create the SyncSystem to handle synchronization between state and network
         this.syncSystem = new SyncSystem(
             this.state,
             this.networkService,
@@ -52,7 +52,7 @@ export default class Battle {
         });
 
         this.setUpRemotes();
-        this.round();
+        this.gameLoop();
     }
 
     private setUpRemotes() {
@@ -68,8 +68,7 @@ export default class Battle {
 
         this.networkService.onCurrentActorRequest((player) => {
             this.logger.debug(`Current actor requested by ${player.Name}`);
-            const currentActor = this.turnSystem.getCurrentActorID();
-            return currentActor;
+            return this.turnSystem.getCurrentActorID();
         });
 
         this.networkService.onGameStateRequest(p => {
@@ -79,251 +78,335 @@ export default class Battle {
     }
 
     //#region Validations
-    private validate({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator) {
+    private validateBaseActionInfo({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator): boolean {
         const { token, action, allowed } = declaredAccess;
-        const players = this.state.getAllPlayers();
 
-        if (!players.find(p => p.UserId === client.UserId)) {
-            this.logger.error(`Validation failed: Player ${client.Name} (${client.UserId}) not found in battle`);
-            throw "Player not found";
+        if (!this.state.getAllPlayers().find(p => p.UserId === client.UserId)) {
+            this.logger.error(`Validation failed: Player ${client.Name} (${client.UserId}) not found in battle.`);
+            return false;
         }
-
         if (!allowed) {
-            this.logger.error(`Validation failed: Action not allowed for player ${client.Name}`);
-            throw "Disallowed";
+            this.logger.error(`Validation failed: Action explicitly not allowed for player ${client.Name}.`);
+            return false;
         }
-
         if (token !== trueAccessCode) {
-            this.logger.error(`Validation failed: Invalid access code provided by ${client.Name}`);
-            throw "Invalid access code";
+            this.logger.error(`Validation failed: Invalid access code provided by ${client.Name}. Expected: ${trueAccessCode}, Got: ${token}`);
+            return false;
         }
-
         if (!action) {
-            this.logger.error(`Validation failed: No action chosen by ${client.Name}`);
-            throw "No action chosen";
+            this.logger.error(`Validation failed: No action chosen/provided by ${client.Name}.`);
+            return false;
         }
-
         if (client.UserId !== winningClient.UserId) {
-            this.logger.error(`Validation failed: Player ${client.Name} attempted to act out of turn`);
-            throw "Not the winning player";
+            this.logger.error(`Validation failed: Player ${client.Name} attempted to act, but it is ${winningClient.Name}'s turn.`);
+            return false;
         }
+        return true;
     }
 
     private validateActionRequest({ winningClient, requestClient }: {
         winningClient: Player,
         requestClient: Player,
-    }) {
+    }): boolean {
         if (winningClient.UserId !== requestClient.UserId) {
-            this.logger.warn(`Action request validation failed: Player ${requestClient.Name} attempted to act out of turn`);
-            throw "Not the winning player";
+            this.logger.warn(`Action request validation failed: Player ${requestClient.Name} attempted to request action, but it is ${winningClient.Name}'s turn.`);
+            return false;
         }
         return true;
     }
 
-    private validateEnd({ client, declaredAccess, trueAccessCode, winningClient }: ActionValidator) {
-        this.validate({ declaredAccess, client, trueAccessCode, winningClient });
-        return true;
+    private validateEndTurnRequest(validatorProps: ActionValidator): boolean {
+        return this.validateBaseActionInfo(validatorProps);
     }
 
-    private checkMovementPossibility(action: MoveAction) {
+    private checkMovementPossibility(action: MoveAction, entityPerformingMovement: Player): boolean {
         const { from, to } = action;
         const fromCell = this.state.getCell(from);
         const toCell = this.state.getCell(to);
 
         if (!fromCell) {
-            this.logger.error(`Movement validation failed: No cell found at source position ${from}`);
-            throw "No from cell found";
+            this.logger.error(`Movement validation failed for ${entityPerformingMovement.Name}: No cell found at source position ${from}.`);
+            return false;
         }
-
         if (!toCell) {
-            this.logger.error(`Movement validation failed: No cell found at target position ${to}`);
-            throw "No to cell found";
+            this.logger.error(`Movement validation failed for ${entityPerformingMovement.Name}: No cell found at target position ${to}.`);
+            return false;
         }
-
         const fromEntityID = fromCell.entity;
         const toEntityID = toCell.entity;
-
         if (!fromEntityID) {
-            this.logger.error(`Movement validation failed: No entity found in source cell at ${from}`);
-            throw "No entity found in from cell";
+            this.logger.error(`Movement validation failed for ${entityPerformingMovement.Name}: No entity found in source cell at ${from}.`);
+            return false;
         }
-
         if (toEntityID) {
-            this.logger.error(`Movement validation failed: Cell at ${to} is already occupied`);
-            throw "Entity already present in to cell";
+            this.logger.error(`Movement validation failed for ${entityPerformingMovement.Name}: Target cell at ${to} is already occupied.`);
+            return false;
         }
-
-        const fromEntity = this.state.getEntity(fromEntityID);
-        if (!fromEntity) {
-            this.logger.error(`Movement validation failed: Invalid entity ID ${fromEntityID}`);
-            throw "Invalid entity ID";
+        const fromEntityState = this.state.getEntity(fromEntityID);
+        if (!fromEntityState) {
+            this.logger.error(`Movement validation failed for ${entityPerformingMovement.Name}: Invalid entity ID ${fromEntityID} in state.`);
+            return false;
+        }
+        if (fromEntityState.playerID !== entityPerformingMovement.UserId) {
+            this.logger.error(`Movement validation failed: Entity in cell ${from} (${fromEntityState.playerID}) does not match acting player ${entityPerformingMovement.Name} (${entityPerformingMovement.UserId}).`);
+            return false;
         }
 
         const costOfMovement = MOVEMENT_COST * get2DManhattanDistance(from, to);
-        const currentPosture = fromEntity.get('pos');
-
+        const currentPosture = fromEntityState.get('pos');
         if (currentPosture < costOfMovement) {
-            this.logger.warn(`Movement validation failed: Entity ${fromEntity.name} has insufficient posture (${currentPosture}) for movement (cost: ${costOfMovement})`);
-            throw "Not enough posture to move";
+            this.logger.warn(`Movement validation failed for ${entityPerformingMovement.Name}: Insufficient posture (${currentPosture}) for movement (cost: ${costOfMovement}).`);
+            return false;
         }
-
-        this.logger.debug(`Movement validation successful: ${fromEntity.name} can move from ${from} to ${to}`);
+        this.logger.debug(`Movement validation successful: ${entityPerformingMovement.Name} can move from ${from} to ${to}.`);
         return true;
     }
 
-    private validateAction({ client, declaredAccess, trueAccessCode, winningClient }: ActionValidator) {
-        this.validate({ declaredAccess, client, trueAccessCode, winningClient });
+    private validateFullAction(validatorProps: ActionValidator): boolean {
+        if (!this.validateBaseActionInfo(validatorProps)) {
+            return false;
+        }
+        const { action } = validatorProps.declaredAccess;
+        const actingPlayer = validatorProps.client;
 
-        const { action } = declaredAccess;
-        if (action?.type === ActionType.Move) this.checkMovementPossibility(action as MoveAction);
+        if (action?.type === ActionType.Move) {
+            if (!this.checkMovementPossibility(action as MoveAction, actingPlayer)) {
+                return false;
+            }
+        }
         if (action?.type === ActionType.Attack) {
-            // Attack validation logic would go here
-            this.logger.debug(`Attack validation for ${client.Name}`);
+            this.logger.debug(`Attack action validation for ${actingPlayer.Name}.`);
         }
 
         return true;
     }
     //#endregion
 
-    private syncPlayerUIUpdates() {
-        const currentActorID = this.turnSystem.getCurrentActorID(); if (!currentActorID) { this.logger.warn("No current actor ID found when syncing player UIs"); return; }
-        const currentEntity = this.state.getEntity(currentActorID); if (!currentEntity) { this.logger.warn(`Current entity not found for ID: ${currentActorID}`); return; }
+    private syncPlayerUIUpdatesOnTurnStart() {
+        const currentActorID = this.turnSystem.getCurrentActorID();
+        if (!currentActorID) {
+            this.logger.warn("No current actor ID found when syncing player UIs for turn start.");
+            return;
+        }
+        const currentEntity = this.state.getEntity(currentActorID);
+        if (!currentEntity) {
+            this.logger.warn(`Current entity not found for ID: ${currentActorID} when syncing player UIs for turn start.`);
+            return;
+        }
         this.state.getEventBus().emit(GameEvent.TURN_STARTED, currentEntity);
-        this.logger.debug(`SyncSystem will notify clients about turn started for entity ID: ${currentActorID}`);
+        this.logger.debug(`EventBus notified: TURN_STARTED for entity ID: ${currentActorID}.`);
     }
 
-    private async waitForResponse(winningClient: Player) {
+    private _handleActRequest(
+        requestingPlayer: Player,
+        winningClient: Player,
+        accessCode: string
+    ): { userId: number; allowed: boolean; token: string | undefined } {
+        if (!this.validateActionRequest({ winningClient, requestClient: requestingPlayer })) {
+            this.logger.warn(`Action request from ${requestingPlayer.Name} denied (not their turn).`);
+            return { userId: requestingPlayer.UserId, allowed: false, token: undefined };
+        }
+        this.logger.debug(`Action request from ${requestingPlayer.Name} validated, access token provided.`);
+        return { userId: requestingPlayer.UserId, allowed: true, token: accessCode };
+    }
+
+    private _handleActionExecution(
+        actingPlayer: Player,
+        access: AccessToken,
+        winningClient: Player,
+        accessCode: string,
+        eventBus: EventBus,
+        resolveTurnPromise: (playerWhoTookAction: Player | undefined) => void
+    ): { userId: number; allowed: boolean; token: string; action: BattleAction | undefined } {
+        this.logger.info(`Received action execution from ${actingPlayer.Name}. Action: ${access.action?.type}`);
+
+        const validationProps: ActionValidator = { client: actingPlayer, declaredAccess: access, trueAccessCode: accessCode, winningClient };
+        if (!this.validateFullAction(validationProps)) {
+            this.logger.warn(`Action execution validation failed for ${actingPlayer.Name}.`);
+            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
+        }
+
+        this.logger.info(`Committing action for ${actingPlayer.Name}: ${access.action!.type}`);
+        this.state.commit(access.action!);
+
+        this.syncSystem.syncClientState(actingPlayer);
+
+        const cre = this.state.getEntity(actingPlayer.UserId);
+        if (!cre) {
+            this.logger.error(`CRITICAL: CRE not found for ${actingPlayer.Name} (${actingPlayer.UserId}) immediately after action commit.`);
+            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
+        }
+
+        if (cre.playerID !== this.turnSystem.getCurrentActorID()) {
+            this.logger.error(`CRITICAL: Turn actor mismatch. Current actor: ${this.turnSystem.getCurrentActorID()}, Action by: ${cre.playerID} (${actingPlayer.Name}).`);
+            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
+        }
+
+        const posture = cre.get('pos');
+        this.logger.debug(`Posture for ${actingPlayer.Name} after action: ${posture}.`);
+
+        if (posture < Battle.MIN_POSTURE_TO_CONTINUE_TURN) {
+            this.logger.info(`Turn ended for ${actingPlayer.Name}: Posture (${posture}) fell below ${Battle.MIN_POSTURE_TO_CONTINUE_TURN}.`);
+            eventBus.emit(GameEvent.TURN_ENDED, cre);
+            resolveTurnPromise(actingPlayer);
+        }
+
+        return { userId: actingPlayer.UserId, allowed: true, token: accessCode, action: access.action };
+    }
+
+    private _handleTurnEndRequest(
+        requestingPlayer: Player,
+        declaredClientAccess: AccessToken,
+        winningClient: Player,
+        trueServerAccessCode: string,
+        eventBus: EventBus
+    ): boolean {
+        const validationProps: ActionValidator = { client: requestingPlayer, declaredAccess: declaredClientAccess, trueAccessCode: trueServerAccessCode, winningClient };
+        if (!this.validateEndTurnRequest(validationProps)) {
+            this.logger.warn(`Explicit turn end request validation failed for ${requestingPlayer.Name}.`);
+            return false;
+        }
+
+        this.logger.info(`Explicit turn end request validated and accepted for ${requestingPlayer.Name}.`);
+        const entity = this.state.getEntity(requestingPlayer.UserId);
+        if (entity) {
+            eventBus.emit(GameEvent.TURN_ENDED, entity);
+        } else {
+            this.logger.warn(`Could not find entity for player ${requestingPlayer.Name} during their explicit turn end request.`);
+        }
+        return true;
+    }
+
+    private async waitForResponse(winningClient: Player): Promise<Player | undefined> {
         const network = this.networkService;
-        const players = this.state.getAllPlayers();
         const accessCode = IDGenerator.generateID();
         const eventBus = this.state.getEventBus();
 
-        this.logger.info(`Waiting for action from player ${winningClient.Name}, access code: ${accessCode}`);
+        this.logger.info(`Waiting for response from current turn player: ${winningClient.Name} (Access Code: ${accessCode})`);
 
-        // Use NetworkService for handling remote requests
-        network.onActRequest(p => {
-            try {
-                this.validateActionRequest({ winningClient, requestClient: p });
-                this.logger.debug(`Action request from ${p.Name} validated successfully`);
-                return { userId: p.UserId, allowed: true, token: accessCode };
-            }
-            catch (e) {
-                this.logger.warn(`Action request validation failed for ${p.Name}: ${e}`);
-                return { userId: p.UserId, allowed: false };
-            }
-        });
 
-        let endPromiseResolve: (p: Player) => void;
+        // Create a new Promise that explicitly returns Player | undefined
+        return await new Promise<Player | undefined>((resolve) => {
+            network.onActRequest(requestingPlayer =>
+                this._handleActRequest(requestingPlayer, winningClient, accessCode)
+            );
+            network.onActionExecution((actingPlayer, access) =>
+                this._handleActionExecution(
+                    actingPlayer,
+                    access as AccessToken,
+                    winningClient,
+                    accessCode,
+                    eventBus,
+                    (player: Player | undefined) => resolve(player)
+                )
+            );
+            const turnEndPromise = network.onTurnEnd((player, state) =>
+                this._handleTurnEndRequest(
+                    player,
+                    state as AccessToken,
+                    winningClient,
+                    accessCode,
+                    eventBus
+                )
+            );
 
-        network.onActionExecution((actingPlayer, access) => {
-            this.logger.info(`Received action request from ${actingPlayer.Name}`, access);
-
-            // 1. Validate
-            let er: unknown | undefined;
-            try {
-                this.validateAction({
-                    client: actingPlayer,
-                    declaredAccess: access,
-                    trueAccessCode: accessCode,
-                    winningClient: winningClient,
-                });
-            }
-            catch (e) {
-                er = e;
-                this.logger.error(`Action validation failed for ${actingPlayer.Name}: ${e}`);
-            }
-
-            // 2. Commit if no error
-            if (er) {
-                this.logger.warn(`Action execution failed: ${er}`);
-            }
-            else {
-                this.logger.info(`Committing action for ${actingPlayer.Name}`, access.action);
-                this.state.commit(access.action!);
-            }
-
-            // 3. Let the SyncSystem handle grid/entity updates to all clients
-            // The SyncSystem will automatically broadcast these changes due to the events emitted during commit
-            this.syncSystem.syncClientState(actingPlayer);
-
-            // 4. Check if pos of actingPlayer (cre) is below 75% and end round
-            const cre = this.state.getEntity(actingPlayer.UserId);
-            if (!cre) {
-                this.logger.error(`Critical Error: CRE could not be found with actingPlayer.UserId ${actingPlayer.UserId}`);
-                throw "Critical Error: CRE could not be found";
-            }
-
-            if (cre.playerID !== this.turnSystem.getCurrentActorID()) {
-                this.logger.error(`Critical Error: CRE ID mismatch - expected ${this.turnSystem.getCurrentActorID()}, got ${cre.playerID}`);
-                throw "Critical Error: CRE ID mismatch";
-            }
-
-            const posture = cre.get('pos');
-            this.logger.debug(`Current posture for ${actingPlayer.Name}: ${posture}`);
-
-            if (posture < 75) {
-                this.logger.info(`Ending round: ${actingPlayer.Name}'s posture (${posture}) below 75`);
-                // Emit turn ended event - this will be handled by the SyncSystem
-                eventBus.emit(GameEvent.TURN_ENDED, cre);
-                endPromiseResolve(actingPlayer);
-            }
-
-            return {
-                userId: actingPlayer.UserId,
-                allowed: er === undefined,
-                token: accessCode,
-                action: access.action,
-            };
-        });
-
-        const endPromise = new Promise<Player>((resolve) => {
-            endPromiseResolve = resolve;
-
-            network.onTurnEnd((p, s) => {
-                try {
-                    this.validateEnd({
-                        client: p,
-                        declaredAccess: s,
-                        trueAccessCode: accessCode,
-                        winningClient: winningClient,
-                    });
-                    this.logger.info(`Turn end request validated for ${p.Name}`);
-
-                    // Emit turn ended event - will be handled by SyncSystem
-                    const entity = this.state.getEntity(p.UserId);
-                    if (entity) {
-                        eventBus.emit(GameEvent.TURN_ENDED, entity);
-                    }
-
-                    return true;
+            turnEndPromise.then((playerWhoEndedTurn) => {
+                if (playerWhoEndedTurn) {
+                    this.logger.info(`Explicit turn end by ${playerWhoEndedTurn.Name} processed successfully.`);
+                    resolve(playerWhoEndedTurn);
                 }
-                catch (e) {
-                    this.logger.warn(`Invalid turn end request from ${p.Name}: ${e}`);
-                    return false;
-                }
-            }).then((p) => {
-                this.logger.info(`Turn ended by ${p.Name}`);
-                resolve(p);
+            }).catch((err) => {
+                this.logger.warn(`Error or validation failure in explicit onTurnEnd processing: ${err}.`);
             });
-        });
-
-        return endPromise.then((p) => {
-            this.logger.info(`Round ended by ${p.Name}`);
-            // Clean up the event listeners for this round
+        }).then((p) => {
+            if (p) {
+                this.logger.info(`waitForResponse for ${winningClient.Name} concluded. Player ${p.Name} determined the turn's end.`);
+            } else {
+                this.logger.warn(`waitForResponse for ${winningClient.Name} concluded, but no specific player action directly led to it.`);
+            }
+            return p;
         });
     }
 
-    private async round() {
-        const _pnt = this.turnSystem.progressToNextTurn();
-        if (!_pnt) {
-            this.logger.warn("No next actor found, ending round");
-            return;
+    private _isGameOver(): boolean {
+        const teamManager = this.state.getTeamManager();
+        const teams = teamManager.getAllTeams();
+        let activeTeamsCount = 0;
+
+        for (const team of teams) {
+            const hasAliveMembers = team.members.some(member => {
+                return member.get('pos') > 0;
+            });
+
+            if (hasAliveMembers) {
+                activeTeamsCount++;
+            }
         }
-        const [winningClient, actingEntity] = _pnt; this.logger.info(`Round started, winning client: ${winningClient.Name}, acting entity: ${actingEntity.name}`);
-        this.syncPlayerUIUpdates();
-        this.syncSystem.syncClientState(winningClient);
-        await this.waitForResponse(winningClient);
-        this.round();
+
+        if (activeTeamsCount <= 1) {
+            this.logger.info(`Game over condition met: ${activeTeamsCount} team(s) have active units.`);
+            return true;
+        }
+        return false;
+    }
+
+    private _announceWinner(winningTeam?: Team) {
+        if (winningTeam) {
+            this.logger.info(`Team ${winningTeam.name} is victorious!`);
+        } else {
+            this.logger.info("The game is a draw or ended inconclusively.");
+        }
+    }
+
+    private _handleGameOver() {
+        this.logger.info("Game over sequence initiated.");
+        const teamManager = this.state.getTeamManager();
+        const teams = teamManager.getAllTeams();
+        const activeTeams: Team[] = [];
+
+        for (const team of teams) {
+            const hasAliveMembers = team.members.some(member => member.get('pos') > 0);
+            if (hasAliveMembers) {
+                activeTeams.push(team);
+            }
+        }
+
+        let winner: Team | undefined = undefined;
+        if (activeTeams.size() === 1) {
+            winner = activeTeams[0];
+        }
+        this._announceWinner(winner);
+    }
+
+    private async gameLoop() {
+        while (!this._isGameOver()) {
+            task.wait(0.1);
+
+            const pnt = this.turnSystem.progressToNextTurn();
+            if (!pnt) {
+                this.logger.warn("No next actor could be determined by TurnSystem.");
+                if (!this._isGameOver()) {
+                    this.logger.error("Battle loop cannot continue: No next actor, but game over conditions not met.");
+                }
+                break;
+            }
+
+            const [currentActor, actingEntity] = pnt;
+            this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.name})`);
+
+            this.syncPlayerUIUpdatesOnTurnStart();
+
+            const playerEndingTurn = await this.waitForResponse(currentActor);
+
+            if (playerEndingTurn) {
+                this.logger.info(`Turn action phase concluded by ${playerEndingTurn.Name}.`);
+            } else {
+                this.logger.warn(`Turn action phase for ${currentActor.Name} concluded without a specific player action.`);
+            }
+        }
+
+        this.logger.info("Game loop finished.");
+        this._handleGameOver();
     }
 }
 
