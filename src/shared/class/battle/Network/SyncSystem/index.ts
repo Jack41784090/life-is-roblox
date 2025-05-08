@@ -112,6 +112,17 @@ export class SyncSystem {
 
                 this.logger.debug(`Combat result received with ${(clashes as NeoClashResult[]).size()} clash results`);
                 this.broadcastCombatStart(clashes, attackActionRef);
+            }),
+            this.eventBus.subscribe(GameEvent.READINESS_UPDATED, (_) => {
+                this.logger.debug("Readiness updated event received");
+                const players = this.gameState.getAllPlayers();
+                this.logger.debug(`Broadcasting to ${players.size()} players`);
+
+                // Notify each player of the combat results
+                for (const player of players) {
+                    this.logger.debug(`Sending combat results to player ${player.Name}`);
+                    this.networkService.tickLocalGauntlet(player)
+                }
             })
         );
 

@@ -11,6 +11,7 @@ import { EntityMovedEventData } from "../Network/SyncSystem";
 import ClientGameState from '../State/ClientGameState';
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
+import { TurnSystem } from "../Systems/TurnSystem";
 import BattleCam from "./BattleCamera";
 import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
 import BattleGui from "./Gui";
@@ -32,6 +33,8 @@ export default class ClientSide {
 
     private readinessIconMap: Record<PlayerID, Atom<number>> = {};
     private networking: NetworkService = new NetworkService();
+    private turnSystem: TurnSystem;
+    private _localTickEntitiesCache: Entity[] = [];
 
     private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
         const halfWidth = (width * size) / 2;
@@ -40,15 +43,12 @@ export default class ClientSide {
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
 
         this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
-
-        // Create the EventBus for client-side event handling
         this.eventBus = new EventBus();
-
         this.state = new ClientGameState({
             width,
             worldCenter,
         });
-
+        this.turnSystem = new TurnSystem(this.state)
         this.EHCGMS = new EntityHexCellGraphicsMothership(
             math.floor(width / 2),
             height,
@@ -59,7 +59,10 @@ export default class ClientSide {
         this.setupRemoteListeners();
         this.setupEventListeners();
 
-        this.gui = BattleGui.Connect(this.getReadinessIcons());
+        this.gui = BattleGui.Connect({
+            eventBus: this.eventBus,
+            networkService: this.networking,
+        });
         this.graphicsInitialised = this.initialiseGraphics();
     }
 
@@ -98,15 +101,107 @@ export default class ClientSide {
     }
 
     //#region Remote Communications
+    /**
+     * Set up event listeners for game state changes from both network events and local state changes
+     */
+    private setupEventListeners(): void {
+        // Listen for entity movement events from the local event bus
+        this.eventBus.subscribe(GameEvent.ENTITY_MOVED, (data: unknown) => {
+            const movedData = data as EntityMovedEventData;
+            this.logger.debug(`Client received entity moved event: Entity ${movedData.entityId} moved from ${movedData.from} to ${movedData.to}`);
+
+            // Update the visual representation of the entity
+            const entity = this.state.getEntityManager().getEntity(movedData.entityId);
+            if (entity) {
+                const entityGraphics = this.EHCGMS.findEntityG(movedData.entityId);
+                if (entityGraphics) {
+                    const destCellG = this.EHCGMS.findCellG(movedData.to);
+                    if (destCellG) {
+                        // If we have a path, use it, otherwise move directly
+                        const path = this.state.getGridManager().findPath(movedData.from, movedData.to);
+                        if (path) {
+                            const cellGPath = path.map(qr => this.EHCGMS.findCellG(qr));
+                            this.animating = entityGraphics.moveToCell(destCellG, cellGPath);
+                        } else {
+                            this.animating = entityGraphics.moveToCell(destCellG, [destCellG]);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Listen for entity updated events
+        this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
+            const updatedEntity = entity as Entity;
+            this.logger.debug(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`);
+
+            // Update the readiness icon if this entity has one
+            const readinessIcon = this.readinessIconMap[updatedEntity.playerID];
+            if (readinessIcon) {
+                readinessIcon(updatedEntity.get('pos'));
+                this.logger.debug(`Updated readiness icon for ${updatedEntity.name} to ${updatedEntity.get('pos')}`);
+            }
+
+            // Update visual representation if needed
+            const entityGraphics = this.EHCGMS.findEntityG(updatedEntity.playerID);
+            if (entityGraphics) {
+                // Additional visual updates can be performed here 
+                // (e.g., health bar updates, status effects, etc.)
+            }
+        });
+
+        // Listen for grid update events
+        this.eventBus.subscribe(GameEvent.GRID_UPDATED, (gridState: unknown) => {
+            this.logger.debug("Client received grid updated event");
+
+            // Sync grid visuals with the updated state
+            this.EHCGMS.syncGrid(this.state.getGridState());
+        });
+
+        // Listen for turn started events
+        this.eventBus.subscribe(GameEvent.TURN_STARTED, (entity: unknown) => {
+            const turnEntity = entity as Entity;
+            this.logger.debug(`Client received turn started event for entity: ${turnEntity.name} (${turnEntity.playerID})`);
+
+            // Check if it's the local player's turn
+            if (turnEntity.playerID === Players.LocalPlayer.UserId) {
+                this.logger.debug("It's local player's turn!");
+                this.handleEntityChosen();
+            } else {
+                this.logger.debug("It's another player's turn");
+                this.handleOtherPlayersTurn();
+            }
+        });
+    }
+
+    private setupRemoteListeners() {
+        const network = this.networking;
+        this.remotees.push(
+            network.onForceUpdate(this.handleForceUpdate),
+            network.onActionAnimate((at) => this.handleAnimationRequest(at)),
+            network.onActionMenuMount(this.handleActionMenuMount),
+            network.onOtherPlayersTurn(this.handleOtherPlayersTurn),
+            network.onCameraHoi4Mode(this.handleCameraHoi4Mode),
+            network.onEntityChosen(this.handleEntityChosen),
+            network.onAnimateClashes((clashes, attackAction) => this.handleAnimatingClashes(clashes, attackAction)),
+            network.onLocalGauntletTick(() => {
+                if (this._localTickEntitiesCache.size() === 0) {
+                    this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
+                }
+                this.turnSystem.gauntletTick(this._localTickEntitiesCache);
+            })
+        );
+    }
+
     private handleActionMenuMount = async () => {
-        this.logger.debug("Mounting action menu", "BattleClient");
+        this.logger.debug("Mounting action menu");
         try {
             const entity = await this.localEntity(); print(`Entity: ${entity}`);
             if (entity) {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
             }
         } catch (err) {
-            this.logger.error(`Failed to handle action menu mount: ${err}`, "BattleClient");
+            this.logger.error(`Failed to handle action menu mount: ${err}`);
         }
     }
 
@@ -135,16 +230,8 @@ export default class ClientSide {
                     }
                 }
             }
-
-            // Emit turn started event if CRE is defined
-            if (stateData.cre) {
-                const cre = this.state.getEntity(stateData.cre);
-                if (cre) {
-                    this.eventBus.emit(GameEvent.TURN_STARTED, cre);
-                }
-            }
         }).catch(err => {
-            this.logger.error(`Failed to update state: ${err}`, "BattleClient");
+            this.logger.error(`Failed to update state: ${err}`);
         });
     }
 
@@ -154,10 +241,10 @@ export default class ClientSide {
 
     private handleEntityChosen = async () => {
         try {
-            this.logger.debug("Chosen: waiting for animating to end", "BattleClient");
+            this.logger.debug("Chosen: waiting for animating to end");
             await this.animating;
 
-            this.logger.debug("Getting local entity", "BattleClient");
+            this.logger.debug("Getting local entity");
             const entity = await this.localEntity();
             this.exitMovement();
 
@@ -170,16 +257,16 @@ export default class ClientSide {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
             }
         } catch (err) {
-            this.logger.error(`Failed to handle entity chosen: ${err}`, "BattleClient");
+            this.logger.error(`Failed to handle entity chosen: ${err}`);
         }
     }
 
     private handleAnimationRequest(ac: AccessToken) {
         if (!ac.action) {
-            this.logger.warn("No action found in animate call", "BattleClient");
+            this.logger.warn("No action found in animate call");
             return;
         }
-        this.logger.debug("Received action: " + ac.action.type, "BattleClient");
+        this.logger.debug("Received action: " + ac.action.type);
         switch (ac.action.type) {
             case ActionType.Attack:
                 const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
@@ -193,7 +280,7 @@ export default class ClientSide {
     }
 
     private async handleAnimatingClashes(clashes: NeoClashResult[], attackActionRef: AttackAction): Promise<void> {
-        this.logger.debug("Animating clashes", clashes, "BattleClient");
+        this.logger.debug("Animating clashes", clashes);
         await this.animating;
         const attacker = this.EHCGMS.findEntityG(attackActionRef.by);
         assert(attacker, "Attacker not found in EHCGMS");
@@ -251,8 +338,9 @@ export default class ClientSide {
     private async requestUpdateStateAndReadinessMap() {
         const stateData = await this.networking.requestGameState();
         await this.state.syncWithServerState(stateData);
+        this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
         await this.animating;
-        await this.EHCGMS.fullSync(stateData)
+        await this.EHCGMS.sync(stateData)
         await this.updateReadinessMap(stateData);
         return stateData;
     }
@@ -262,7 +350,7 @@ export default class ClientSide {
             t.members.forEach(e => {
                 const currentAtom = this.readinessIconMap[e.playerID]
                 if (currentAtom) {
-                    this.logger.debug(`readinessicon: ${currentAtom()} => ${e.pos}`, "BattleClient");
+                    this.logger.debug(`readinessicon: ${currentAtom()} => ${e.pos}`);
                     currentAtom(e.pos);
                 }
                 else {
@@ -305,7 +393,7 @@ export default class ClientSide {
                 crMap[e.playerID] = crMap[e.playerID] ?? atom(e.get('pos'))
             }
             else {
-                this.logger.warn(`Entity not found for player ${p.UserId}`, "BattleClient");
+                this.logger.warn(`Entity not found for player ${p.UserId}`);
             }
         }
         const readinessIcons: ReadinessIcon[] = [];
@@ -316,7 +404,7 @@ export default class ClientSide {
                 readiness
             })
         }
-        this.logger.debug("Readiness Icons", readinessIcons, "BattleClient");
+        this.logger.debug("Readiness Icons", readinessIcons);
         return readinessIcons;
     }
     //#endregion
@@ -340,7 +428,7 @@ export default class ClientSide {
                 run: () => {
                     this.networking.requestToAct().then(async accessToken => {
                         if (!accessToken.token) {
-                            this.logger.warn(`${Players.LocalPlayer.Name} has received no access token`, "BattleClient");
+                            this.logger.warn(`${Players.LocalPlayer.Name} has received no access token`);
                             return;
                         }
                         const newAccessToken = {
@@ -396,7 +484,7 @@ export default class ClientSide {
      *    - Mount the ability slots for the current entity.
      */
     private async enterMovement(accessToken: AccessToken) {
-        this.logger.debug("Entering movement mode", "BattleClient");
+        this.logger.debug("Entering movement mode");
         const localE = await this.localEntity()
 
         this.controlLocks.set(Enum.KeyCode.X, true);
@@ -450,7 +538,7 @@ export default class ClientSide {
 
     private async playAttackAnimation(aa: AttackAction) {
         await this.animating;
-        this.logger.debug("Playing attack animation", aa, "BattleClient");
+        this.logger.debug("Playing attack animation", aa);
         const { animation } = aa.ability;
         const attacker = this.EHCGMS.findEntityG(aa.by);
         const attackerAnimationHandler = attacker.animationHandler;
@@ -476,7 +564,7 @@ export default class ClientSide {
             });
 
         if (!attackAnimation) {
-            this.logger.warn("[playAttackAnimation] Attacker animation track not found.", "BattleClient");
+            this.logger.warn("[playAttackAnimation] Attacker animation track not found.");
             return;
         }
 
@@ -541,7 +629,7 @@ export default class ClientSide {
             }
         }
         catch (error) {
-            this.logger.error(`[playAttackAnimation] Error during attack animation: ${error}`, "BattleClient");
+            this.logger.error(`[playAttackAnimation] Error during attack animation: ${error}`);
         }
 
         attacker.playAudio(EntityStatus.Idle);
@@ -569,103 +657,15 @@ export default class ClientSide {
      * @param track The animation track to monitor.
      */
     private async waitForAnimationEnd(track?: AnimationTrack): Promise<void> {
-        this.logger.debug("TRACK", track?.Name, "Waiting end", track, "BattleClient");
+        this.logger.debug("TRACK", track?.Name, "Waiting end", track);
         if (!track) return;
         return new Promise((resolve) => {
             track.Ended.Once(() => {
-                this.logger.debug("TRACK", track?.Name, "Animation ended", track, "BattleClient");
+                this.logger.debug("TRACK", track?.Name, "Animation ended", track);
                 resolve();
             });
         });
     }
     //#endregion
 
-    //#region Event Listeners
-
-    /**
-     * Set up event listeners for game state changes from both network events and local state changes
-     */
-    private setupEventListeners(): void {
-        // Listen for entity movement events from the local event bus
-        this.eventBus.subscribe(GameEvent.ENTITY_MOVED, (data: unknown) => {
-            const movedData = data as EntityMovedEventData;
-            this.logger.debug(`Client received entity moved event: Entity ${movedData.entityId} moved from ${movedData.from} to ${movedData.to}`, "BattleClient");
-
-            // Update the visual representation of the entity
-            const entity = this.state.getEntityManager().getEntity(movedData.entityId);
-            if (entity) {
-                const entityGraphics = this.EHCGMS.findEntityG(movedData.entityId);
-                if (entityGraphics) {
-                    const destCellG = this.EHCGMS.findCellG(movedData.to);
-                    if (destCellG) {
-                        // If we have a path, use it, otherwise move directly
-                        const path = this.state.getGridManager().findPath(movedData.from, movedData.to);
-                        if (path) {
-                            const cellGPath = path.map(qr => this.EHCGMS.findCellG(qr));
-                            this.animating = entityGraphics.moveToCell(destCellG, cellGPath);
-                        } else {
-                            this.animating = entityGraphics.moveToCell(destCellG, [destCellG]);
-                        }
-                    }
-                }
-            }
-        });
-
-        // Listen for entity updated events
-        this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
-            const updatedEntity = entity as Entity;
-            this.logger.debug(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`, "BattleClient");
-
-            // Update the readiness icon if this entity has one
-            const readinessIcon = this.readinessIconMap[updatedEntity.playerID];
-            if (readinessIcon) {
-                readinessIcon(updatedEntity.get('pos'));
-                this.logger.debug(`Updated readiness icon for ${updatedEntity.name} to ${updatedEntity.get('pos')}`, "BattleClient");
-            }
-
-            // Update visual representation if needed
-            const entityGraphics = this.EHCGMS.findEntityG(updatedEntity.playerID);
-            if (entityGraphics) {
-                // Additional visual updates can be performed here 
-                // (e.g., health bar updates, status effects, etc.)
-            }
-        });
-
-        // Listen for grid update events
-        this.eventBus.subscribe(GameEvent.GRID_UPDATED, (gridState: unknown) => {
-            this.logger.debug("Client received grid updated event", "BattleClient");
-
-            // Sync grid visuals with the updated state
-            this.EHCGMS.syncGrid(this.state.getGridState());
-        });
-
-        // Listen for turn started events
-        this.eventBus.subscribe(GameEvent.TURN_STARTED, (entity: unknown) => {
-            const turnEntity = entity as Entity;
-            this.logger.debug(`Client received turn started event for entity: ${turnEntity.name} (${turnEntity.playerID})`, "BattleClient");
-
-            // Check if it's the local player's turn
-            if (turnEntity.playerID === Players.LocalPlayer.UserId) {
-                this.logger.debug("It's local player's turn!", "BattleClient");
-                this.handleEntityChosen();
-            } else {
-                this.logger.debug("It's another player's turn", "BattleClient");
-                this.handleOtherPlayersTurn();
-            }
-        });
-    }
-
-    private setupRemoteListeners() {
-        const network = this.networking;
-        this.remotees.push(
-            network.onForceUpdate(this.handleForceUpdate),
-            network.onActionAnimate((at) => this.handleAnimationRequest(at)),
-            network.onActionMenuMount(this.handleActionMenuMount),
-            network.onOtherPlayersTurn(this.handleOtherPlayersTurn),
-            network.onCameraHoi4Mode(this.handleCameraHoi4Mode),
-            network.onEntityChosen(this.handleEntityChosen),
-            network.onAnimateClashes((clashes, attackAction) => this.handleAnimatingClashes(clashes, attackAction)),
-        );
-    }
-    //#endregion
 }

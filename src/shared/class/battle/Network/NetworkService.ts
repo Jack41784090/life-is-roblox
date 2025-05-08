@@ -22,6 +22,10 @@ export class NetworkService {
         if (RunService.IsClient()) {
             // Set up client-side event handlers - connections are stored for cleanup
             this.connections.push(
+                remotes.battle.tickLocalGauntlet.connect(() => {
+                    this.localGauntletTickCallbacks.forEach(callback => callback());
+                }),
+
                 remotes.battle.animate.connect((action) => {
                     // Remote handlers will directly notify subscribers through callbacks
                     this.actionAnimateCallbacks.forEach(callback => callback(action));
@@ -67,8 +71,17 @@ export class NetworkService {
     private readonly otherPlayersTurnCallbacks: (() => void)[] = [];
     private readonly cameraHoi4ModeCallbacks: (() => void)[] = [];
     private readonly entityChosenCallbacks: (() => void)[] = [];
+    private readonly localGauntletTickCallbacks: (() => void)[] = [];
 
-    // Event subscriptions
+    // #region Event subscriptions
+    public onLocalGauntletTick(callback: () => void): () => void {
+        this.localGauntletTickCallbacks.push(callback);
+        return () => {
+            const index = this.localGauntletTickCallbacks.indexOf(callback);
+            if (index !== -1) this.localGauntletTickCallbacks.remove(index);
+        };
+    }
+
     public onAnimateClashes = (callback: (clashes: NeoClashResult[], attackActionRef: AttackAction) => void): (() => void) => {
         this.actionAnimateClashCallbacks.push(callback);
         return () => {
@@ -140,8 +153,16 @@ export class NetworkService {
             if (index !== -1) this.entityChosenCallbacks.remove(index);
         };
     };
+    //#endregion
 
-    // Remote calls (client to server)
+    // #region Remote calls (client to server)
+    public async requestCurrentActor() {
+        if (RunService.IsClient()) {
+            return remotes.battle.requestSync.cre();
+        }
+        throw "Cannot call requestCurrentActor on server";
+    }
+
     public async requestRoom() {
         if (RunService.IsClient()) {
             return remotes.battle.requestRoom();
@@ -189,8 +210,17 @@ export class NetworkService {
         }
         throw "Cannot call endTurn on server";
     }
+    //#endregion
 
-    // Methods required by Battle class
+    // #region Methods required by Battle class
+    public onCurrentActorRequest(handler: (player: Player) => number) {
+        if (RunService.IsServer()) {
+            remotes.battle.requestSync.cre.onRequest((player) => {
+                return handler(player);
+            });
+        }
+    }
+
     public onGridStateRequest(handler: (player: Player) => HexGridState) {
         if (RunService.IsServer()) {
             remotes.battle.requestSync.map.onRequest((player) => {
@@ -278,6 +308,13 @@ export class NetworkService {
             remotes.battle.animateClashes(player, clashes, attackActionRef);
         }
     }
+
+    public tickLocalGauntlet(player: Player) {
+        if (RunService.IsServer()) {
+            remotes.battle.tickLocalGauntlet(player);
+        }
+    }
+    //#endregion
 
     // UI-related remotes
     public unmountUI(tag: GuiTag) {

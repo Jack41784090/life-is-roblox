@@ -167,7 +167,6 @@ export type HexCellState = Omit<HexCellConfig, 'gridRef'> & {
 }
 
 export type StateState = {
-    cre?: number,
     grid: ReturnType<HexGrid["info"]>;
     teams: { name: string; members: EntityState[] }[]
 };

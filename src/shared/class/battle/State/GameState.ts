@@ -29,7 +29,6 @@ export class GameState {
     private entityManager: EntityManager;
     private gridManager: GridManager;
     private teamManager: TeamManager;
-    private creID: number | undefined;
     private combatSystem: CombatSystem;
 
     public constructor(config: StateConfig) {
@@ -243,7 +242,6 @@ export class GameState {
      */
     public getInfo(): StateState {
         return {
-            cre: this.creID,
             grid: this.gridManager.getGridState(),
             teams: this.teamManager.getTeamStates(),
         };
@@ -262,11 +260,6 @@ export class GameState {
         // Update teams
         if (other.teams) {
             this.teamManager.updateTeams(other.teams, this.entityManager);
-        }
-
-        // Update CRE
-        if (other.cre) {
-            this.creID = other.cre;
         }
     }
 
@@ -379,39 +372,6 @@ export class GameState {
         this.setCell(entity, toCell);
 
         // No need to emit here as setCell already does it
-    }
-    //#endregion
-
-    //#region Current Relevant Entity (CRE) Management
-    /**
-     * Returns the position of the current relevant entity
-     * @returns Position of the CRE or undefined if not set
-     */
-    public getCREPosition(): Vector2 | undefined {
-        if (!this.creID) {
-            return undefined;
-        }
-        const cre = this.getEntity(this.creID);
-        return cre?.qr;
-    }
-
-    /**
-     * Returns the current relevant entity
-     * @returns CRE entity or undefined if not set
-     */
-    public getCRE(): Entity | undefined {
-        if (!this.creID) {
-            return undefined;
-        }
-        return this.getEntity(this.creID);
-    }
-
-    /**
-     * Sets the current relevant entity
-     * @param id - ID of the entity to set as CRE
-     */
-    public setCRE(id: number): void {
-        this.creID = id;
     }
     //#endregion
 }

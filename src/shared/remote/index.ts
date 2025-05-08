@@ -22,6 +22,7 @@ const remotes = createRemotes({
             map: remote<Server>().returns<HexGridState>(),
             team: remote<Server>().returns<TeamState[]>(),
             state: remote<Server>().returns<StateState>(),
+            cre: remote<Server>().returns<number>(),
         }),
         requestToAct: remote<Server>().returns<AccessToken>(t.interface({
             userId: t.number,
@@ -39,6 +40,7 @@ const remotes = createRemotes({
         end: remote<Server, [access: AccessToken]>(), //#endregion
 
         //#region Server => Client
+        tickLocalGauntlet: remote<Client>(),
         chosen: remote<Client>(),
         forceUpdate: remote<Client>(),
         animate: remote<Client, [action: AccessToken]>(),

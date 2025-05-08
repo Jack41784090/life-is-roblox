@@ -4,6 +4,7 @@ import { EventBus, GameEvent } from "../Events/EventBus";
 import Entity from "../State/Entity";
 import { GameState } from "../State/GameState";
 import { EntityManager } from "../State/Managers/EntityManager";
+import { ReadinessIcon } from "../types";
 
 // export class TurnSystemError {
 //     constructor(
@@ -17,7 +18,7 @@ import { EntityManager } from "../State/Managers/EntityManager";
 
 export class TurnSystem {
     private logger = Logger.createContextLogger("TurnSystem");
-    private currentActorId: number | undefined;
+    private currentActorId: number = -1;
     private unsubscribeFunctions: Array<() => void> = [];
     private entityManager: EntityManager
     private eventBus: EventBus
@@ -33,9 +34,10 @@ export class TurnSystem {
         this.setupEventListeners();
     }
 
-    public getCurrentActorID(): number | undefined {
+    public getCurrentActorID(): number {
         return this.currentActorId;
     }
+
     public getCurrentActor(): Entity | undefined {
         if (this.currentActorId) {
             return this.entityManager.getEntity(this.currentActorId);
@@ -53,7 +55,7 @@ export class TurnSystem {
                     return;
                 }
                 // Recalculate readiness if necessary properties changed
-                this.calculateReadiness([_entity as Entity]);
+                this.gauntletTick([_entity as Entity]);
             })
         );
 
@@ -74,7 +76,8 @@ export class TurnSystem {
         );
     }
 
-    public calculateReadiness(entities: Entity[]): void {
+    public gauntletTick(entities: Entity[]): void {
+        this.logger.info("Readiness gauntlet in progress...");
         // Calculate readiness for entities
         for (const entity of entities) {
             const readiness = entity.get('pos');
@@ -82,16 +85,20 @@ export class TurnSystem {
         }
 
         // Emit readiness updated event
-        this.eventBus.emit(GameEvent.READINESS_UPDATED, entities);
+        this.eventBus.emit(GameEvent.READINESS_UPDATED, entities.map(e => {
+            return {
+                playerID: e.playerID,
+                iconUrl: e.stats.id,
+                readiness: e.getState('pos'),
+            } as ReadinessIcon;
+        }));
     }
 
     private calculateReadinessIncrement(entity: Entity) {
         return entity.stats.spd + math.random(-0.1, 0.1) * entity.stats.spd;
     }
 
-    public determineNextActor(): Entity | undefined {
-        // Determine which entity acts next based on readiness
-
+    public determineNextActorByGauntlet(): Entity | undefined {
         const entities = this.entityManager.getAllEntities();
         if (entities.size() === 0) {
             this.logger.warn("Entity list is empty, cannot run readiness gauntlet");
@@ -99,32 +106,12 @@ export class TurnSystem {
         }
 
         while (!entities.some((e) => e.get('pos') >= 100)) {
-            this.calculateReadiness(entities);
-            this.logger.info("Readiness gauntlet in progress...");
+            this.gauntletTick(entities);
         }
 
         const nextActor = entities.sort((a, b) => a.get('pos') - b.get('pos') > 0)[0];
         this.logger.info(`Readiness gauntlet winner: ${nextActor.name} (${nextActor.playerID})`);
-
-        if (nextActor) {
-            this.eventBus.emit(GameEvent.NEXT_ACTOR_DETERMINED, nextActor);
-        }
-
         return nextActor;
-    }
-
-    private startTurn(entityId: number): Entity | undefined {
-        const entity = this.entityManager.getEntity(entityId);
-        if (!entity) {
-            this.logger.warn(`Cannot start turn: Entity ${entityId} not found`);
-            return;
-        }
-
-        this.currentActorId = entityId;
-
-        // Emit turn started event
-        this.eventBus.emit(GameEvent.TURN_STARTED, entity);
-        return entity;
     }
 
     public endTurn(entityId: number): void {
@@ -136,7 +123,7 @@ export class TurnSystem {
 
         // Reset current actor if it's this entity
         if (this.currentActorId === entityId) {
-            this.currentActorId = undefined;
+            this.currentActorId = -1;
         }
 
         // Emit turn ended event
@@ -146,27 +133,18 @@ export class TurnSystem {
         // ...implementation...
     }
 
-    public progressToNextTurn(): Entity | undefined {
-        const nextActor = this.determineNextActor();
-        if (nextActor) {
-            const players = this.gameState.getAllPlayers();
-            const winningClient = players.find(p => p.UserId === nextActor.playerID);
-            const winnerEntity = winningClient ? this.entityManager.getEntity(winningClient.UserId) : undefined;
-
-            if (!winningClient) {
-                this.logger.warn("No winning player found");
-                return;
-            }
-            else if (!winnerEntity) {
-                this.logger.warn("No winning entity found");
-                return;
-            }
-
-            return this.startTurn(nextActor.playerID);
+    public progressToNextTurn(): [Player, Entity] | undefined {
+        const nextActor = this.determineNextActorByGauntlet();
+        if (!nextActor) {
+            return undefined;
         }
-        else {
-            this.logger.error("No next actor determined");
-        }
+
+        const players = this.gameState.getAllPlayers();
+        const winningClient = players.find(p => p.UserId === nextActor.playerID);
+        const winnerEntity = winningClient ? this.entityManager.getEntity(winningClient.UserId) : undefined;
+
+        this.currentActorId = nextActor.playerID;
+        return [winningClient!, winnerEntity!];
     }
 
     // Clean up event listeners when system is destroyed

@@ -17,7 +17,6 @@ export enum GameEvent {
     TURN_STARTED = "turn:started",
     TURN_ENDED = "turn:ended",
     READINESS_UPDATED = "readiness:updated",
-    NEXT_ACTOR_DETERMINED = "next:actor:determined",
 
     // Grid Events
     GRID_UPDATED = "grid:updated",

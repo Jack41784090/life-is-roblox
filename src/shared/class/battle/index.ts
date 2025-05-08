@@ -56,7 +56,6 @@ export default class Battle {
     }
 
     private setUpRemotes() {
-        // Use NetworkService instead of direct remote access
         this.networkService.onGridStateRequest(p => {
             this.logger.debug(`Grid state requested by ${p.Name}`);
             return this.state.getGridState();
@@ -67,12 +66,19 @@ export default class Battle {
             return this.state.getTeamManager().getTeamStates();
         });
 
+        this.networkService.onCurrentActorRequest((player) => {
+            this.logger.debug(`Current actor requested by ${player.Name}`);
+            const currentActor = this.turnSystem.getCurrentActorID();
+            return currentActor;
+        });
+
         this.networkService.onGameStateRequest(p => {
             this.logger.debug(`Game state requested by ${p.Name}`);
             return this.state.getInfo();
         });
     }
 
+    //#region Validations
     private validate({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator) {
         const { token, action, allowed } = declaredAccess;
         const players = this.state.getAllPlayers();
@@ -177,9 +183,9 @@ export default class Battle {
 
         return true;
     }
+    //#endregion
 
     private syncPlayerUIUpdates() {
-        // Update Player UI's using the SyncSystem instead of direct network calls
         const currentActorID = this.turnSystem.getCurrentActorID(); if (!currentActorID) { this.logger.warn("No current actor ID found when syncing player UIs"); return; }
         const currentEntity = this.state.getEntity(currentActorID); if (!currentEntity) { this.logger.warn(`Current entity not found for ID: ${currentActorID}`); return; }
         this.state.getEventBus().emit(GameEvent.TURN_STARTED, currentEntity);
@@ -308,31 +314,15 @@ export default class Battle {
     }
 
     private async round() {
-        const entity = this.turnSystem.progressToNextTurn();
-        this.logger.info(`Starting new round with entity: ${entity?.name || "None"}`);
-        if (!entity) {
-            this.logger.error("No entity found for the next round");
+        const _pnt = this.turnSystem.progressToNextTurn();
+        if (!_pnt) {
+            this.logger.warn("No next actor found, ending round");
             return;
         }
-        this.state.setCRE(entity.playerID);
-
-        const players = this.state.getAllPlayers();
-        const winningClient = players.find(p => p.UserId === entity.playerID);
-        if (!winningClient) {
-            this.logger.error(`No winning client found for entity ${entity.name}`);
-            return;
-        }
-
-        // Use syncPlayerUIUpdates which now relies on EventBus to notify clients
+        const [winningClient, actingEntity] = _pnt; this.logger.info(`Round started, winning client: ${winningClient.Name}, acting entity: ${actingEntity.name}`);
         this.syncPlayerUIUpdates();
-
-        // Sync the current state to the winning player through the SyncSystem
         this.syncSystem.syncClientState(winningClient);
-
         await this.waitForResponse(winningClient);
-
-        // After the round is complete, start a new round
-        // This creates a continuous game loop
         this.round();
     }
 }

@@ -1,43 +1,70 @@
 import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { Players } from "@rbxts/services";
+import { t } from "@rbxts/t";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
 import CellSurface from "gui_sharedfirst/new_components/battle/cell/surface";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, PlayerID, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
+import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
 import remotes from "shared/remote";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import Pathfinding from "../Pathfinding";
-import Entity from "../State/Entity";
-import { GameState } from "../State/GameState";
-import HexCellGraphics from "../State/Hex/Cell/Graphics";
-import EntityHexCellGraphicsMothership from "./EHCG/Mothership";
-import EntityCellGraphicsTuple from "./EHCG/Tuple";
+import { EventBus, GameEvent } from "../../Events/EventBus";
+import { NetworkService } from "../../Network/NetworkService";
+import Pathfinding from "../../Pathfinding";
+import Entity from "../../State/Entity";
+import { EntityState } from "../../State/Entity/types";
+import { GameState } from "../../State/GameState";
+import HexCellGraphics from "../../State/Hex/Cell/Graphics";
+import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
+import EntityHexCellGraphicsMothership from "../EHCG/Mothership";
+import EntityCellGraphicsTuple from "../EHCG/Tuple";
+import { GuiConfig } from "./types";
 
 export default class BattleGui {
     private logger = Logger.createContextLogger("BattleGUI");
+    private network: NetworkService;
+    private eventBus: EventBus;
+    private localReadinessMap = new Map<number, Atom<number>>();
 
-    // Singleton pattern to connect the BattleGUI with the Battle instance
-    static Connect(icons: ReadinessIcon[]) {
-        const ui = new BattleGui(icons);
+    static Connect(config: GuiConfig) {
+        const ui = new BattleGui(config);
         return ui
     }
 
-    private localReadinessMap: Record<PlayerID, Atom<number>> = {};
+    private constructor(config: GuiConfig) {
+        this.network = config.networkService;
+        this.eventBus = config.eventBus;
+        const vars = t.array(t.interface({
+            playerID: t.number,
+            iconUrl: t.string,
+            readiness: t.callback,
+        }));
+        this.eventBus.subscribe(GameEvent.READINESS_UPDATED, (readinessIconArray: unknown) => {
+            const verification = vars(readinessIconArray);
+            if (!verification) {
+                this.logger.warn("Invalid readiness icon array", readinessIconArray as defined);
+                return;
+            }
 
-    // Private constructor to prevent direct instantiation
-    private constructor(icons: ReadinessIcon[]) {
-        icons.forEach((icon) => {
-            this.localReadinessMap[icon.playerID] = icon.readiness;
-        });
-        this.mountInitialUI(icons);
+            const icons = readinessIconArray as ReadinessIcon[];
+            icons.forEach(i => {
+                const existingIcon: Atom<number> | undefined = this.localReadinessMap.get(i.playerID);
+                if (existingIcon) {
+                    existingIcon(i.readiness)
+                }
+                else {
+                    this.localReadinessMap.set(i.playerID, i.readiness);
+                }
+            })
+        })
     }
 
+    //#region UI Mounting Methods
     /**
      * Updating main UI with a specific mode
      *  * `onlyReadinessBar`: only the readiness bar is shown
@@ -64,7 +91,7 @@ export default class BattleGui {
         const { readinessIcons, state, EHCGMS, accessToken } = props;
         if (props.readinessIcons) {
             props.readinessIcons.forEach((icon) => {
-                this.localReadinessMap[icon.playerID] = icon.readiness;
+                this.localReadinessMap.set(icon.playerID, icon.readiness);
             });
         }
 
@@ -93,8 +120,6 @@ export default class BattleGui {
                 break;
         }
     }
-
-    //#region UI Mounting Methods
     /**
      * Mounts action menu
      * Action Menu: a menu that shows the available actions for the entity's turn (e.g. go into move mode, items, end turn)
@@ -175,26 +200,15 @@ export default class BattleGui {
                 })}
         </frame>;
     }
-    /**
-     * Handles the event when an entity enters a new cell.
-     *
-     * @param cre - The entity that is entering the cell.
-     * @param tuple - The cell that the entity is entering.
-     *
-     * This function performs the following actions:
-     * 1. Changes the mouse icon based on whether the cell is vacant and within range.
-     * 2. If the entity is armed and the cell is not vacant, it faces the entity in the cell and updates the mouse icon based on the ability range.
-     * 3. If the cell is within range, it mounts or updates the glow effect.
-     * 4. If the cell is out of range, it mounts or updates the glow effect with a different icon.
-     * 5. If the cell is vacant, it performs pathfinding to the cell and mounts or updates the glow effect along the path.
-     */
-    private handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
-        const currentQR = state.getCREPosition(); assert(currentQR, "[handleCellEnter] Current QR is not defined");
-        const currentCell = state.getCell(currentQR); assert(currentCell, "[handleCellEnter] Current cell is not defined");
+
+    private async handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
+        const creID = await this.network.requestCurrentActor(); assert(creID, "[handleCellEnter] Current CRE ID is not defined");
+        const creQR = state.getEntity(creID)?.qr; assert(creQR, "[handleCellEnter] Current QR is not defined");
+        const currentCell = state.getCell(creQR); assert(currentCell, "[handleCellEnter] Current cell is not defined");
         const oe = state.getEntity(tuple.cellGraphics.qr);
         const oeG = tuple.entityGraphics
-        const cre = state.getEntity(currentQR); assert(cre, `[handleCellEnter] Entity is not defined @${currentQR}`);
-        const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics; if (!creG) { this.logger.warn(`EntityGraphics not found for entity @${currentQR}`); return; }
+        const cre = state.getEntity(creID); assert(cre, `[handleCellEnter] Entity is not defined @${creID}`);
+        const creG = EHCGMS.findTupleByEntity(cre)?.entityGraphics; if (!creG) { this.logger.warn(`EntityGraphics not found for entity @${creID}`); return; }
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
@@ -273,26 +287,16 @@ export default class BattleGui {
      * - The target entity has no cell.
      * - The current entity has no cell.
      */
-    private clickedOnEntity(props: UpdateMainUIConfig, clickedOn: Entity, accessToken: AccessToken) {
+    private async clickedOnEntity(props: UpdateMainUIConfig, clickedOn: Entity, accessToken: AccessToken) {
         this.logger.debug("Clicked on entity", clickedOn);
-        const { state } = props;
-        const cre = state.getCRE();
-        assert(cre, "Current entity is not defined");
-
-        if (!cre.armed) return;
-
-        const keyed = cre.armed;
-        const iability = cre.getEquippedAbilitySet()[keyed];
-        if (!iability) {
-            this.logger.warn("No ability keyed");
-            return;
-        }
+        const cre = await this.getCurrentActor();
+        const iability = await this.getCurrentActorEquippedAbility();
 
         const commitedAction = {
             type: ActionType.Attack,
             ability: {
                 ...iability,
-                using: cre.state(),
+                using: cre,
                 target: clickedOn.state(),
             },
             by: cre.playerID,
@@ -305,19 +309,53 @@ export default class BattleGui {
 
     private async clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
         this.logger.debug("Clicked on empty cell", emptyTuple);
-        const { state } = props;
-        const start = state.getCREPosition();
-        assert(start, "Start position is not defined");
+        const start = await this.getCurrentActorQR();
         const dest = emptyTuple.cellGraphics.qr;
         await this.commiteMoveAction(props, accessToken, start, dest);
     }
     //#endregion
 
     //#region Communicate with the server
+    private async getCurrentActorID() {
+        const res = await this.network.requestCurrentActor();
+        assert(res, "Invalid response from server for current actor ID");
+        return res;
+    }
+
+    private async getCurrentGameState() {
+        const gs = await this.network.requestGameState()
+        assert(gs, "Invalid response from server for game state");
+        return gs;
+    }
+
+    private async getCurrentActor() {
+        const creID = await this.getCurrentActorID();
+        const gs = await this.getCurrentGameState();
+        let cre: EntityState | undefined = undefined;
+        gs.teams.find(t => {
+            return !!t.members.find(m => m.playerID === creID ? !!(cre = m) : false);
+        });
+        assert(cre, "Current actor is not found from id: " + creID);
+        return cre as EntityState;
+    }
+
+    private async getCurrentActorQR() {
+        const cre = await this.getCurrentActor();
+        const qr = cre.qr;
+        return qr;
+    }
+
+    private async getCurrentActorEquippedAbility() {
+        const cre = await this.getCurrentActor();
+        const iability = UNIVERSAL_PHYS.get('4-Slash-Combo')!; // temp: change this later to get actual equipped ability
+        assert(iability, "Invalid ability");
+        return iability;
+    }
+
 
     private async commiteMoveAction(mainUIConfig: UpdateMainUIConfig, ac: AccessToken, start: Vector2, dest: Vector2) {
         this.updateMainUI('onlyReadinessBar', mainUIConfig);
-        const readinessIcon = this.localReadinessMap[ac.userId];
+        const readinessIcon = this.localReadinessMap.get(ac.userId);
         const action = {
             type: ActionType.Move,
             executed: false,

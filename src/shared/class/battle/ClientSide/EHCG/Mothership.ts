@@ -112,7 +112,7 @@ export default class EntityHexCellGraphicsMothership {
             ))
     }
 
-    async fullSync(stateState: StateState) {
+    async sync(stateState: StateState) {
         const syncs: Promise<void>[] = [];
         syncs.push(this.syncGrid(stateState.grid), this.syncTeams(stateState.teams))
         return Promise.all(syncs)
