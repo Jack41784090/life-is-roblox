@@ -2,7 +2,7 @@ import { t } from "@rbxts/t";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import Entity from "../State/Entity";
-import { GameState } from "../State/GameState";
+import { GameState } from "../State";
 import { EntityManager } from "../State/Managers/EntityManager";
 import { ReadinessIcon } from "../types";
 

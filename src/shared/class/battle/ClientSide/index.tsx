@@ -8,7 +8,7 @@ import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network/NetworkService";
 import { EntityMovedEventData } from "../Network/SyncSystem";
-import ClientGameState from '../State/ClientGameState';
+import ClientGameState from '../State/Client';
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import { TurnSystem } from "../Systems/TurnSystem";

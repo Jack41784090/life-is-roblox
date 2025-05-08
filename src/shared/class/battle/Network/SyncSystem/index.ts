@@ -1,7 +1,7 @@
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import Entity from "../../State/Entity";
-import { GameState } from "../../State/GameState";
+import { GameState } from "../../State";
 import { AttackAction, NeoClashResult } from "../../types";
 import { NetworkService } from "../NetworkService";
 import { attackActionRefVerification, clashesVerification, entityMovedEventDataVerification, entityUpdateEventDataVerification, gridCellUpdatedEventDataVerification, turnStartedEventDataVerification } from "./veri";

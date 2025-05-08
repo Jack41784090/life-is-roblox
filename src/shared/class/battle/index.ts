@@ -7,7 +7,7 @@ import { IDGenerator } from "../IDGenerator";
 import { EventBus, GameEvent } from "./Events/EventBus";
 import { NetworkService } from "./Network/NetworkService";
 import { SyncSystem } from "./Network/SyncSystem";
-import { GameState } from "./State/GameState";
+import { GameState } from "./State";
 import Team from "./State/Team";
 import { TurnSystem } from "./Systems/TurnSystem";
 

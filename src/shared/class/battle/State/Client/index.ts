@@ -1,5 +1,5 @@
 import { StateConfig, StateState } from "shared/class/battle/types";
-import { GameState } from "./GameState";
+import { GameState } from "..";
 
 /**
  * Client-side wrapper for GameState that provides legacy compatibility

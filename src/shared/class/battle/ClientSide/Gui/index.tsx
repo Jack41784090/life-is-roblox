@@ -18,7 +18,7 @@ import { NetworkService } from "../../Network/NetworkService";
 import Pathfinding from "../../Pathfinding";
 import Entity from "../../State/Entity";
 import { EntityState } from "../../State/Entity/types";
-import { GameState } from "../../State/GameState";
+import { GameState } from "../../State";
 import HexCellGraphics from "../../State/Hex/Cell/Graphics";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import EntityHexCellGraphicsMothership from "../EHCG/Mothership";
