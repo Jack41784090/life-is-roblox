@@ -14,7 +14,6 @@ export default class TweenManager {
             if (t) {
                 this.playing = true;
                 t.Play();
-                print("Playing tween", t.TweenInfo);
                 t.Completed.Wait();
                 this.playing = false;
             }
