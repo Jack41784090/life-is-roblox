@@ -40,15 +40,16 @@ export default class BattleServer {
         _players.forEach(p => {
             p.forEach(_p => players.push(_p));
         })
-        this.syncSystem = new SyncSystem({
-            players
-        });
+        this.syncSystem = new SyncSystem({ players });
         this.setUpRemotes();
         // this.gameLoop();
     }
 
     private setUpRemotes() {
-
+        this.networkService.onServerRequestOf('state', (p) => {
+            this.logger.debug(`Received state request from ${p.Name}`);
+            return this.state.getState();
+        })
     }
 
     //#region Validations

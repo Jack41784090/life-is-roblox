@@ -1,4 +1,3 @@
-import { atom, Atom } from "@rbxts/charm";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
@@ -8,6 +7,7 @@ import { EventBus } from "../Events/EventBus";
 import { NetworkService } from "../Network/NetworkService";
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
+import { ReadinessFragment } from "../Systems/TurnSystem/types";
 import BattleCamera from "./BattleCamera";
 import Graphics from "./Graphics/Mothership";
 import Gui from './Gui';
@@ -30,6 +30,7 @@ export default class BattleClient {
     private controlLocks: ControlLocks = new Map();
 
     private constructor(config: ClientSideConfig) {
+        this.logger.debug("ClientSide constructor", config)
         const { worldCenter, size, width, height, camera } = config;
         const halfWidth = (width * size) / 2;
         const halfHeight = (height * size) / 2;
@@ -50,7 +51,6 @@ export default class BattleClient {
         // this.setupEventListeners();
 
         this.gui = Gui.Connect({
-            eventBus: this.eventBus,
             networkService: this.networking,
         });
         this.graphicsInitialised = this.initialiseGraphics();
@@ -69,7 +69,6 @@ export default class BattleClient {
      * @returns A new instance of the Battle class.
      */
     public static async Create(config: {
-        camera: BattleCamera,
         worldCenter: Vector3,
         width: number;
         height: number;
@@ -90,9 +89,9 @@ export default class BattleClient {
 
     private async requestUpdateStateAndReadinessMap() {
         this.logger.debug("Requesting update state and readiness map");
-        const stateData = await this.networking.requestGameState();
+        const stateData = await this.networking.request('state');
         await this.state.sync(stateData);
-        this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
+        // this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
         await this.graphics.sync(stateData)
         return stateData;
     }
@@ -117,24 +116,13 @@ export default class BattleClient {
 
     //#region Get
     private getReadinessIcons() {
-        const crMap: Record<PlayerID, Atom<number>> = this.turnSystem.getReadinessMap();
-        const state = this.state;
-        const players = state.getAllPlayers();
-        for (const p of players) {
-            const e = state.getEntityManager().getEntity(p.UserId);
-            if (e) {
-                crMap[e.playerID] = crMap[e.playerID] ?? atom(e.get('pos'))
-            }
-            else {
-                this.logger.warn(`Entity not found for player ${p.UserId}`);
-            }
-        }
+        const crMap: Map<PlayerID, ReadinessFragment> = this.state.getReadinessMapping();
         const readinessIcons: ReadinessIcon[] = [];
         for (const [playerID, readiness] of pairs(crMap)) {
             readinessIcons.push({
                 playerID,
                 iconUrl: this.state.getEntity(playerID)?.stats.id ?? '',
-                readiness
+                readiness: readiness.pos,
             })
         }
         this.logger.debug("Readiness Icons", readinessIcons);
@@ -159,7 +147,7 @@ export default class BattleClient {
             {
                 type: CharacterActionMenuAction.Move,
                 run: () => {
-                    this.networking.requestToAct().then(async accessToken => {
+                    this.networking.request('toAct').then(async accessToken => {
                         if (!accessToken.token) {
                             this.logger.warn(`${Players.LocalPlayer.Name} has received no access token`);
                             return;

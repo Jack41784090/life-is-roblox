@@ -19,7 +19,12 @@ export interface GridCellUpdatedEventData {
     newPosition: Vector2;
     previousPosition: Vector2;
 }
-
+// type Parameters<T> =
+//     T extends (...args: infer P) => any ? P : never;
+type OmitFirstParameter<T> =
+    T extends (first: any, ...rest: infer R) => any
+    ? R
+    : never;
 /**
  * SyncSystem - Handles synchronization between game state and network
  * 
@@ -37,6 +42,7 @@ export class SyncSystem {
     constructor(config: SyncSystemConfig) {
         this.logger.info("Initializing SyncSystem");
         this.players = config.players;
+        this.players.forEach(p => this.broadcast('createClient', {}));
     }
 
     public addPlayer(player: Player): void {
@@ -44,14 +50,17 @@ export class SyncSystem {
         this.players.push(player);
     }
 
-    public broadcast<T extends keyof typeof clientRemotes>(key: T, ...args: Parameters<typeof clientRemotes[T]>): void {
+    public broadcast<T extends keyof typeof clientRemotes>(key: T, ...args: OmitFirstParameter<typeof clientRemotes[T]>): void {
+        this.logger.debug(`Broadcasting ${key} to ${this.players.size()} players`);
         const remote = clientRemotes[key];
         if (RunService.IsServer()) {
             for (const player of this.players) {
-                remote.fire(player, ...args);
+                // Use type assertion to ensure type safety when spreading args
+                clientRemotes.createClient(player, {});
+                remote.fire(player, ...(args as unknown[]));
             }
         } else {
-            throw "Cannot call on() on client";
+            throw "Cannot call broadcast() on client";
         }
     }
 

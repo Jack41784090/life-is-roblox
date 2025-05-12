@@ -5,9 +5,10 @@ import { setInterval } from "@rbxts/set-timeout";
 import Explorer from "shared/class/explorer";
 import { Cutscene } from "shared/class/scene/Cutscene";
 import { GuiTag, PlaceName } from "shared/const";
-import { serverRemotes } from "shared/remote";
+import { clientRemotes, serverRemotes } from "shared/remote";
 import GuiMothership from "./new_components/main";
 import MainMenuElement from "./new_components/menu_ui";
+import WaitingRoomElement from "./new_components/waiting_room";
 
 //#region 1. LOADING
 ReplicatedFirst.RemoveDefaultLoadingScreen();
@@ -107,7 +108,12 @@ function enterPlayground() {
 function enterBattle() {
     GuiMothership.unmount("MainMenu");
     print("Entering battle");
-    // const res 
+    // TODO: we will enter battle immediately; in the future:
+    // 1. look for database first,
+    // 2. See if there is an existing battle in progress
+    // 3. If not, create a waiting room
+    // ... 
+    serverRemotes.request();
 }
 function enterStory() {
     GuiMothership.unmount("MainMenu");
@@ -188,16 +194,16 @@ function mainMenuSetup() {
     GuiMothership.mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
 }
 
-// remotes.battle.ui.unmount.connect(tag => GuiMothership.unmount(tag));
-// remotes.battle.ui.startRoom.connect(s => {
-//     // print("Start Room", s);
-//     GuiMothership.mount(GuiTag.WaitingRoom, <WaitingRoomElement
-//         players={s}
-//         readyButtonClicked={() => {
-//             enterBattle();
-//         }}
-//     />)
-// })
+clientRemotes.ui.unmount.connect(tag => GuiMothership.unmount(tag));
+clientRemotes.ui.startRoom.connect(s => {
+    // print("Start Room", s);
+    GuiMothership.mount(GuiTag.WaitingRoom, <WaitingRoomElement
+        players={s}
+        readyButtonClicked={() => {
+            enterBattle();
+        }}
+    />)
+})
 
 
 // mainMenuCameraSetup();

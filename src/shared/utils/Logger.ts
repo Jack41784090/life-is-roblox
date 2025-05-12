@@ -21,7 +21,7 @@ export interface LoggerConfig {
 export class Logger {
     private static instance: Logger;
     private config: LoggerConfig = {
-        minLevel: LogLevel.WARN,
+        minLevel: LogLevel.DEBUG,
         includeTimestamp: false,
         includeSource: true
     };

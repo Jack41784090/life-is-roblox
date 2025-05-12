@@ -2,7 +2,8 @@ import { Players } from "@rbxts/services";
 import BattleServer from "shared/class/battle";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_WORLD_CENTER, TeamMap } from "shared/class/battle/types";
-import remotes, { serverRemotes } from "shared/remote";
+import { GuiTag } from "shared/const";
+import remotes, { clientRemotes, serverRemotes } from "shared/remote";
 import { disableCharacter, enableCharacter, extractMapValues } from "shared/utils";
 
 Players.PlayerAdded.Connect((player) => {
@@ -29,7 +30,6 @@ const hexGrid = new HexGrid({
 });
 // hexGrid.materialise();
 
-print("Connecting battle_Start")
 serverRemotes.request.connect((p) => {
     print("Battle Start", p);
 
@@ -43,7 +43,7 @@ serverRemotes.request.connect((p) => {
 
     players.forEach(_p => {
         _p.forEach(p => {
-            // remotes.battle.ui.unmount(p, GuiTag.WaitingRoom);
+            clientRemotes.ui.unmount(p, GuiTag.WaitingRoom);
         });
     });
     BattleServer.Create({
@@ -65,7 +65,7 @@ serverRemotes.requestRoom.connect(p => {
     room.players[p.Name] = [p];
     for (const players of extractMapValues(room.players)) {
         print("Starting room for player", players);
-        // players.forEach(p => remotes.battle.ui.startRoom(p, players));
+        players.forEach(p => clientRemotes.ui.startRoom.fire(p, players));
     }
 })
 

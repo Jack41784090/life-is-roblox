@@ -158,7 +158,6 @@ export class GridManager {
     //#endregion
 
     public getGrid() {
-        this.logger.warn("getGrid() is deprecated, use getGridState() instead");
         return this.grid;
     }
 }

@@ -156,6 +156,11 @@ export default class State {
             return acc;
         }, [] as Player[]);
     }
+
+    public getReadinessMapping() {
+        const readinessAtoms = this.turnSystem.getReadinessMap();
+        return readinessAtoms;
+    }
     //#endregion
 
     //#region Positioning and Grid Management
@@ -255,7 +260,7 @@ export default class State {
      * Returns the complete current game state
      * @returns Current state object with grid, teams and CRE info
      */
-    public getInfo(): StateState {
+    public getState(): StateState {
         return {
             grid: this.gridManager.getGridState(),
             teams: this.teamManager.getTeamStates(),

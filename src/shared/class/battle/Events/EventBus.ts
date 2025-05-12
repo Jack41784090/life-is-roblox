@@ -22,6 +22,7 @@ export enum GameEvent {
     GRID_UPDATED = "grid:updated",
     GRID_CELL_UPDATED = "grid:cell:updated",
     GRID_CELL_REMOVED = "grid:cell:removed",
+    PLAYER_ACTION = "PLAYER_ACTION",
 }
 
 export class EventBus {

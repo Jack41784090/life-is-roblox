@@ -17,6 +17,7 @@ const remotes = createRemotes({
 
 export const serverRemotes = createRemotes({
     // #region Client => Server
+    startBattle: remote<Server, [arg: Player[]]>(),
     requestRoom: remote<Server>(),
     request: remote<Server>(),
     end: remote<Server, [access: AccessToken]>(), //#endregion

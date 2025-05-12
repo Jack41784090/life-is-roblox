@@ -67,6 +67,13 @@ export class TurnSystem {
         }
     }
 
+    public getReadinessMap(): Map<number, ReadinessFragment> {
+        return this.readinessAtoms.reduce((map, atom) => {
+            const frag = atom();
+            return map.set(frag.id, frag);;
+        }, new Map<number, ReadinessFragment>());
+    }
+
     // public endTurn(entityId: number): void {
     //     const entity = this.entityManager.getEntity(entityId);
     //     if (!entity) {

@@ -10,10 +10,8 @@ import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/play
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
-import remotes from "shared/remote";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus, GameEvent } from "../../Events/EventBus";
 import { NetworkService } from "../../Network/NetworkService";
 import Pathfinding from "../../Pathfinding";
 import State from "../../State";
@@ -29,7 +27,6 @@ import { GuiConfig } from "./types";
 export default class BattleGui {
     private logger = Logger.createContextLogger("BattleGUI");
     private network: NetworkService;
-    private eventBus: EventBus;
     private localReadinessMap = new Map<number, Atom<number>>();
 
     static Connect(config: GuiConfig) {
@@ -39,30 +36,11 @@ export default class BattleGui {
 
     private constructor(config: GuiConfig) {
         this.network = config.networkService;
-        this.eventBus = config.eventBus;
         const vars = t.array(t.interface({
             playerID: t.number,
             iconUrl: t.string,
             readiness: t.callback,
         }));
-        this.eventBus.subscribe(GameEvent.READINESS_UPDATED, (readinessIconArray: unknown) => {
-            const verification = vars(readinessIconArray);
-            if (!verification) {
-                this.logger.warn("Invalid readiness icon array", readinessIconArray as defined);
-                return;
-            }
-
-            const icons = readinessIconArray as ReadinessIcon[];
-            icons.forEach(i => {
-                const existingIcon: Atom<number> | undefined = this.localReadinessMap.get(i.playerID);
-                if (existingIcon) {
-                    existingIcon(i.readiness)
-                }
-                else {
-                    this.localReadinessMap.set(i.playerID, i.readiness);
-                }
-            })
-        })
     }
 
     //#region UI Mounting Methods
@@ -203,7 +181,7 @@ export default class BattleGui {
     }
 
     private async handleCellEnter({ state, EHCGMS }: UpdateMainUIConfig, tuple: EntityCellGraphicsTuple) {
-        const creID = await this.network.requestCurrentActor(); assert(creID, "[handleCellEnter] Current CRE ID is not defined");
+        const creID = await this.getCurrentActorID(); assert(creID, "[handleCellEnter] Current CRE ID is not defined");
         const creQR = state.getEntity(creID)?.qr; assert(creQR, "[handleCellEnter] Current QR is not defined");
         const currentCell = state.getCell(creQR); assert(currentCell, "[handleCellEnter] Current cell is not defined");
         const oe = state.getEntity(tuple.cellGraphics.qr);
@@ -305,7 +283,7 @@ export default class BattleGui {
             executed: false,
         };
         accessToken.action = commitedAction
-        remotes.battle.act(accessToken);
+        return this.commitAction(accessToken);
     }
 
     private async clickedOnEmptyCell(props: UpdateMainUIConfig, emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
@@ -318,13 +296,13 @@ export default class BattleGui {
 
     //#region Communicate with the server
     private async getCurrentActorID() {
-        const res = await this.network.requestCurrentActor();
+        const res = await this.network.request('cre');
         assert(res, "Invalid response from server for current actor ID");
         return res;
     }
 
     private async getCurrentGameState() {
-        const gs = await this.network.requestGameState()
+        const gs = await this.network.request('state');
         assert(gs, "Invalid response from server for game state");
         return gs;
     }
@@ -379,7 +357,7 @@ export default class BattleGui {
 
     private async commitAction(ac: AccessToken) {
         this.logger.debug("Committing action", ac);
-        const res = await remotes.battle.act(ac);
+        const res = await this.network.request('act', ac);
         return res;
     }
 
