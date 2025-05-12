@@ -1,9 +1,10 @@
+import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import { ReadinessIcon } from "shared/class/battle/types";
+import { ReadinessFragment } from "shared/class/battle/Systems/TurnSystem/types";
 import ReadinessIconElement from "./icon_element";
 
 interface Props {
-    icons: ReadinessIcon[]; // Array of image URLs or asset IDs for character icons
+    icons: Atom<ReadinessFragment>[]; // Array of image URLs or asset IDs for character icons
 }
 
 function ReadinessBar(props: Props) {

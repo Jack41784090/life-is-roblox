@@ -10,18 +10,7 @@ const story = CreateReactStory({
     reactRoblox: ReactRoblox,
 }, (props) => {
     return <>
-        <ReadinessBar icons={[
-            {
-                playerID: 1,
-                iconUrl: "rbxassetid://123456",
-                readiness: atom(25),
-            },
-            {
-                playerID: 2,
-                iconUrl: "rbxassetid://654321",
-                readiness: atom(75),
-            }
-        ]} />
+        <ReadinessBar icons={[]} />
         <PlayerPortrait
             entityId='entity_adalbrecht'
             hp={atom(75)}

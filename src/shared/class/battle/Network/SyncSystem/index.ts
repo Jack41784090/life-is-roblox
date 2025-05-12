@@ -55,8 +55,6 @@ export class SyncSystem {
         const remote = clientRemotes[key];
         if (RunService.IsServer()) {
             for (const player of this.players) {
-                // Use type assertion to ensure type safety when spreading args
-                clientRemotes.createClient(player, {});
                 remote.fire(player, ...(args as unknown[]));
             }
         } else {

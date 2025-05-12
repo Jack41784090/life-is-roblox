@@ -1,4 +1,4 @@
-import { Atom } from "@rbxts/charm";
+import { atom, Atom } from "@rbxts/charm";
 import Logger from "shared/utils/Logger";
 import { ReadinessFragment, TurnSystemConfig } from "./types";
 
@@ -72,6 +72,30 @@ export class TurnSystem {
             const frag = atom();
             return map.set(frag.id, frag);;
         }, new Map<number, ReadinessFragment>());
+    }
+
+    public getReadinessFragments() {
+        return this.readinessAtoms;
+    }
+
+    public updateFragments(fragments: ReadinessFragment[]): void {
+        this.logger.debug("Updating fragments", fragments);
+        fragments.forEach((fr) => {
+            const frag = this.readinessAtoms.find((f) => f().id === fr.id);
+            if (frag) {
+                frag(fr);
+            }
+            else {
+                this.logger.debug(`Fragment with ID ${fr.id} not found in provided fragments`);
+                this.readinessAtoms.push(atom(fr));
+            }
+        });
+        this.readinessAtoms.forEach((frag, i) => {
+            if (!fragments.some((f) => f.id === frag().id)) {
+                this.logger.debug(`Fragment with ID ${frag().id} not found in provided fragments`);
+                this.readinessAtoms.remove(i);
+            }
+        })
     }
 
     // public endTurn(entityId: number): void {

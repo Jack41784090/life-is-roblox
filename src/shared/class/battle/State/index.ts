@@ -8,7 +8,7 @@ import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
 import { TurnSystem } from "../Systems/TurnSystem";
 import Entity from "./Entity";
-import { EntityConfig, EntityStats, ReadonlyEntityState } from "./Entity/types";
+import { EntityConfig, EntityState, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
 import { ReadonlyGridState } from "./Hex/types";
 import { EntityManager } from "./Managers/EntityManager";
@@ -161,6 +161,11 @@ export default class State {
         const readinessAtoms = this.turnSystem.getReadinessMap();
         return readinessAtoms;
     }
+
+    public getReadinessFragments() {
+        const readinessAtoms = this.turnSystem.getReadinessFragments();
+        return readinessAtoms;
+    }
     //#endregion
 
     //#region Positioning and Grid Management
@@ -280,6 +285,22 @@ export default class State {
         // Update teams
         if (other.teams) {
             this.teamManager.updateTeams(other.teams, this.entityManager);
+            const members: EntityState[] = [];
+            for (const team of other.teams) {
+                team.members.forEach(_ => members.push(_));
+            }
+            this.turnSystem.updateFragments(members.mapFiltered(m => {
+                const entity = this.entityManager.getEntity(m.playerID);
+                if (!entity) {
+                    this.logger.warn(`Entity with ID ${m.playerID} not found`);
+                    return;
+                }
+                return {
+                    id: m.playerID,
+                    pos: entity.getState('pos'),
+                    spd: atom(entity.stats.spd),
+                }
+            }))
         }
     }
 

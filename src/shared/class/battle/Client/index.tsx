@@ -1,6 +1,7 @@
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
+import { serverRequestRemote } from "shared/remote";
 import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus } from "../Events/EventBus";
@@ -52,8 +53,11 @@ export default class BattleClient {
 
         this.gui = Gui.Connect({
             networkService: this.networking,
+            readinessFragments: this.state.getReadinessFragments(),
         });
         this.graphicsInitialised = this.initialiseGraphics();
+
+        // this.state.StartLoop();
     }
 
     /**
@@ -75,13 +79,19 @@ export default class BattleClient {
         client: Player;
     }) {
         if (RunService.IsServer()) throw "ClientSide cannot be created on the server!";
-        // Client-side Creation
         const cs = new BattleClient({
             ...config,
             camera: Workspace.CurrentCamera as Camera,
             size: TILE_SIZE,
         });
         cs.initialiseInputControl();
+
+        cs.logger.debug("1. Initialise first state update");
+        await cs.requestUpdateStateAndReadinessMap();
+
+        cs.logger.debug("2. Start Loop")
+        cs.state.StartLoop();
+
         return cs;
     }
 
@@ -89,7 +99,7 @@ export default class BattleClient {
 
     private async requestUpdateStateAndReadinessMap() {
         this.logger.debug("Requesting update state and readiness map");
-        const stateData = await this.networking.request('state');
+        const stateData = await serverRequestRemote.state();
         await this.state.sync(stateData);
         // this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
         await this.graphics.sync(stateData)
@@ -216,7 +226,6 @@ export default class BattleClient {
         this.gui.updateMainUI('withSensitiveCells', {
             EHCGMS: this.graphics,
             state: this.state,
-            readinessIcons: this.getReadinessIcons(),
             accessToken
         });
     }

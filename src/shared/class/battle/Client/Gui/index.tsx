@@ -8,8 +8,8 @@ import CellSurface from "gui_sharedfirst/new_components/battle/cell/surface";
 import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, ReadinessIcon, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag, MOVEMENT_COST } from "shared/const";
+import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { NetworkService } from "../../Network/NetworkService";
@@ -20,6 +20,7 @@ import { EntityState } from "../../State/Entity/types";
 import HexCell from "../../State/Hex/Cell";
 import HexCellGraphics from "../../State/Hex/Cell/Graphics";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
+import { ReadinessFragment } from "../../Systems/TurnSystem/types";
 import EntityHexCellGraphicsMothership from "../Graphics/Mothership";
 import EntityCellGraphicsTuple from "../Graphics/Tuple";
 import { GuiConfig } from "./types";
@@ -27,7 +28,7 @@ import { GuiConfig } from "./types";
 export default class BattleGui {
     private logger = Logger.createContextLogger("BattleGUI");
     private network: NetworkService;
-    private localReadinessMap = new Map<number, Atom<number>>();
+    private readinessFragments: Atom<ReadinessFragment>[];
 
     static Connect(config: GuiConfig) {
         const ui = new BattleGui(config);
@@ -41,6 +42,8 @@ export default class BattleGui {
             iconUrl: t.string,
             readiness: t.callback,
         }));
+        this.readinessFragments = config.readinessFragments;
+        this.mountInitialUI();
     }
 
     //#region UI Mounting Methods
@@ -52,9 +55,9 @@ export default class BattleGui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, readinessIcons: ReadinessIcon[], state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
-    updateMainUI(mode: 'onlyReadinessBar', props: { readinessIcons: ReadinessIcon[] }): void;
-    updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig>) {
+    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
+    updateMainUI(mode: 'onlyReadinessBar', props?: {}): void;
+    updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig> = {}) {
         this.logger.debug(`Updating main UI with mode: ${mode}`, props);
         const localPlayerID = Players.LocalPlayer.UserId;
         const localEntity = props.state?.getEntity(localPlayerID);
@@ -67,34 +70,27 @@ export default class BattleGui {
                 maxHP={calculateRealityValue(Reality.HP, localEntity.stats)}
             /> : undefined;
 
-        const { readinessIcons, state, EHCGMS, accessToken } = props;
-        if (props.readinessIcons) {
-            props.readinessIcons.forEach((icon) => {
-                this.localReadinessMap.set(icon.playerID, icon.readiness);
-            });
-        }
+        const { state, EHCGMS, accessToken } = props;
 
         switch (mode) {
             case 'onlyReadinessBar':
-                assert(readinessIcons, `No readiness icons provided for mode: ${mode}`);
                 GuiMothership.mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
-                        <ReadinessBar icons={readinessIcons} />
+                        <ReadinessBar icons={this.readinessFragments} />
                         {playerPortrait}
                     </MenuFrameElement>);
                 break;
             case 'withSensitiveCells':
                 assert(state, `State is not defined for mode: ${mode}`);
                 assert(EHCGMS, `EntityHexCellGraphicsMothership is not defined for mode: ${mode}`);
-                assert(readinessIcons, `Readiness icons are not defined for mode: ${mode}`);
                 assert(accessToken, `Access token is not defined for mode: ${mode}`);
                 GuiMothership.mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
-                        <ReadinessBar icons={readinessIcons} />
+                        <ReadinessBar icons={this.readinessFragments} />
                         {playerPortrait}
-                        {this.createSensitiveCellElements({ state, EHCGMS, readinessIcons, accessToken })}
+                        {this.createSensitiveCellElements({ state, EHCGMS, accessToken })}
                     </MenuFrameElement>);
                 break;
         }
@@ -130,8 +126,8 @@ export default class BattleGui {
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBar
      * @returns the mounted Tree
      */
-    mountInitialUI(readinessIcons: ReadinessIcon[]) {
-        this.updateMainUI('onlyReadinessBar', { readinessIcons });
+    mountInitialUI() {
+        this.updateMainUI('onlyReadinessBar');
     }
     // Highlight the cells along a path
     mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
@@ -334,7 +330,6 @@ export default class BattleGui {
 
     private async commiteMoveAction(mainUIConfig: UpdateMainUIConfig, ac: AccessToken, start: Vector2, dest: Vector2) {
         this.updateMainUI('onlyReadinessBar', mainUIConfig);
-        const readinessIcon = this.localReadinessMap.get(ac.userId);
         const action = {
             type: ActionType.Move,
             executed: false,
@@ -342,11 +337,6 @@ export default class BattleGui {
             to: dest,
             from: start,
         } as MoveAction;
-        if (readinessIcon) {
-            const distance = mainUIConfig.state.getDistance(start, dest);
-            this.logger.debug(`localreadinessIcon: ${readinessIcon()} => ${readinessIcon() - distance * MOVEMENT_COST}`);
-            readinessIcon(readinessIcon() - distance * MOVEMENT_COST)
-        }
         const res = await this.commitAction({
             ...ac,
             action

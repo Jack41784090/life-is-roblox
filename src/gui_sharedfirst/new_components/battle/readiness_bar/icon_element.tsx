@@ -1,21 +1,20 @@
+import { Atom } from "@rbxts/charm";
 import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect } from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
-import { ReadinessIcon } from "shared/class/battle/types";
+import { ReadinessFragment } from "shared/class/battle/Systems/TurnSystem/types";
 import { findEntityPortrait, springs } from "shared/utils";
 
 interface Props {
-    icon: ReadinessIcon;
+    icon: Atom<ReadinessFragment>;
     index: number;
 }
 
 function ReadinessIconElement(props: Props) {
-    const { readiness: entityReadiness, iconUrl } = props.icon
+    const { pos: entityReadiness, icon: iconUrl } = props.icon()
     const readinessPercent = useAtom(entityReadiness);
     const [rPos, motion] = useMotion(readinessPercent);
-
-    let portraitImage = findEntityPortrait(iconUrl, 'neutral');
-
+    const portraitImage = iconUrl ? findEntityPortrait(iconUrl, 'neutral') : undefined;
     useEffect(() => {
         motion.spring(readinessPercent / 100, springs.slow);
     }, [readinessPercent]);

@@ -42,7 +42,7 @@ export default class BattleServer {
         })
         this.syncSystem = new SyncSystem({ players });
         this.setUpRemotes();
-        // this.gameLoop();
+        this.state.StartLoop();
     }
 
     private setUpRemotes() {

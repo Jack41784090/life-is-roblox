@@ -179,7 +179,6 @@ export interface StateConfig {
 }
 
 export type UpdateMainUIConfig = {
-    readinessIcons: ReadinessIcon[]
     EHCGMS: EntityHexCellGraphicsMothership,
     state: State,
     accessToken: AccessToken,

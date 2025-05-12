@@ -8,8 +8,6 @@ clientRemotes.createClient.connect(async (config) => {
     const { width, height, worldCenter, teamMap } = config;
     // if (teamMap === undefined) return;
 
-    print("ClientBegin", config);
-
     const clientSide = await BattleClient.Create({
         width: width ?? DEFAULT_WIDTH,
         height: height ?? DEFAULT_HEIGHT,

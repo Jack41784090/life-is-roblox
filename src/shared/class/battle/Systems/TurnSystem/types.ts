@@ -6,6 +6,7 @@ export interface TurnSystemConfig {
 }
 
 export interface ReadinessFragment {
+    icon?: string;
     id: number,
     spd: Atom<number>,
     pos: Atom<number>,
