@@ -48,36 +48,44 @@ export class TeamManager {
         }));
     }
 
+    private updateExistingTeam(existingTeam: Team, teamState: TeamState, entityManager: EntityManager): void {
+        this.logger.debug(`Updating existing team: ${teamState.name}`);
+        // Update existing team members
+        // Implementation depends on how you want to handle updates
+        for (const memberState of teamState.members) {
+            const existingMember = existingTeam.members.find(member => member.playerID === memberState.playerID);
+            if (existingMember) {
+                this.logger.debug(`Updating member: ${memberState.name} (${memberState.playerID})`);
+                entityManager.updateEntity(memberState);
+            } else {
+                this.logger.debug(`Adding new member: ${memberState.name} (${memberState.playerID})`);
+                const newMember = entityManager.createEntity(memberState);
+                existingTeam.addMembers(newMember);
+                newMember.team = existingTeam.name;
+            }
+        }
+    }
+
+    private updateNewTeam(teamState: TeamState, entityManager: EntityManager): void {
+        this.logger.debug(`Creating new team: ${teamState.name}`);
+        const newTeam = this.createTeam(teamState.name);
+        for (const memberState of teamState.members) {
+            this.logger.debug(`Adding member: ${memberState.name} (${memberState.playerID})`);
+            const newMember = entityManager.createEntity(memberState);
+            newTeam.addMembers(newMember);
+            newMember.team = newTeam.name;
+        }
+    }
+
     public updateTeams(teamStates: TeamState[], entityManager: EntityManager): void {
         this.logger.debug("Updating teams with new states", teamStates);
 
         for (const teamState of teamStates) {
             const existingTeam = this.getTeam(teamState.name);
             if (existingTeam) {
-                this.logger.debug(`Updating existing team: ${teamState.name}`);
-                // Update existing team members
-                // Implementation depends on how you want to handle updates
-                for (const memberState of teamState.members) {
-                    const existingMember = existingTeam.members.find(member => member.playerID === memberState.playerID);
-                    if (existingMember) {
-                        this.logger.debug(`Updating member: ${memberState.name} (${memberState.playerID})`);
-                        existingMember.update(memberState);
-                    } else {
-                        this.logger.debug(`Adding new member: ${memberState.name} (${memberState.playerID})`);
-                        const newMember = entityManager.createEntity(memberState);
-                        existingTeam.addMembers(newMember);
-                        newMember.team = existingTeam.name;
-                    }
-                }
+                this.updateExistingTeam(existingTeam, teamState, entityManager);
             } else {
-                this.logger.debug(`Creating new team: ${teamState.name}`);
-                const newTeam = this.createTeam(teamState.name);
-                for (const memberState of teamState.members) {
-                    this.logger.debug(`Adding member: ${memberState.name} (${memberState.playerID})`);
-                    const newMember = entityManager.createEntity(memberState);
-                    newTeam.addMembers(newMember);
-                    newMember.team = newTeam.name;
-                }
+                this.updateNewTeam(teamState, entityManager);
             }
         }
 

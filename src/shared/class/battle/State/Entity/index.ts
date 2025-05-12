@@ -2,14 +2,12 @@ import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus, GameEvent } from "../../Events/EventBus";
+import { EventBus } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
-import { ArmourConfig } from "../../Systems/CombatSystem/Armour/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
-import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
-import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityStatsUpdate, EntityUpdate } from "./types";
+import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats } from "./types";
 
 export default class Entity {
     // server-controlled properties
@@ -26,7 +24,6 @@ export default class Entity {
     public weapon: Weapon;
 
     private stance: EntityStance = EntityStance.High;
-    private eventBus?: EventBus;
     private logger = Logger.createContextLogger("Entity");
 
     qr: Vector2;
@@ -44,7 +41,6 @@ export default class Entity {
         this.pos = atom(options.pos ?? 0);
         this.mana = atom(options.mana ?? 0);
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
-        this.eventBus = eventBus;
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
 
@@ -138,92 +134,24 @@ export default class Entity {
         const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9);
         this.logger.debug(`HP percentage: ${hpPercentage}`);
     }
+
     public heal(num: number) {
         if (num < 0) return;
         this.changeHP(num);
     }
+
     public damage(num: number) {
         if (num < 0) return;
         this.changeHP(-num);
-    }
-    public updateStats(u: EntityStatsUpdate) {
-        let changed = false;
-
-        for (const [stat, value] of pairs(u)) {
-            if (this.stats[stat] === undefined) {
-                this.logger.warn(`Stat ${stat} not found`);
-                continue;
-            }
-            if (typeOf(stat) === 'string' && typeOf(value) === 'number') {
-                this.stats[stat] = value;
-                changed = true;
-            }
-        }
-    }
-    public update(u: EntityUpdate) {
-        this.logger.debug(`Updating entity ${this.name} with`, u);
-        let changed = false;
-
-        if (u.stats) {
-            this.updateStats(u.stats);
-            changed = true;
-        }
-
-        for (const [k, v] of pairs(u)) {
-            if (this[k as keyof this] === undefined) continue;
-
-            switch (k) {
-                case 'hip':
-                case 'sta':
-                case 'org':
-                case 'pos':
-                case 'mana':
-                    this.logger.debug(`Changing ${k} by ${v}`);
-                    this[k as EntityChangeable](v as number);
-                    changed = true;
-                    break;
-
-                case 'weapon':
-                    this.logger.debug(`Changing weapon to ${v}`);
-                    this.weapon = new Weapon(v as WeaponConfig);
-                    changed = true;
-                    break;
-                case 'armour':
-                    this.logger.debug(`Changing armour to ${v}`);
-                    this.armour = new Armour(v as ArmourConfig);
-                    changed = true;
-                    break;
-
-                default:
-                    this.logger.debug(`Changing ${k} to ${v}`);
-                    this[k as keyof this] = v as unknown as any;
-                    changed = true;
-            }
-        }
-    }
-    public setStance(stance: EntityStance) {
-        if (this.stance === stance) return;
-        this.stance = stance;
     }
 
     public setCell(q: number, r: number): void;
     public setCell(qr: Vector2): void
     public setCell(q: number | Vector2, r?: number) {
-        const oldPosition = new Vector2(this.qr.X, this.qr.Y);
-
         if (typeOf(q) === 'number') {
             this.qr = new Vector2(q as number, r as number);
         } else {
             this.qr = q as Vector2;
-        }
-
-        // Emit entity moved event if EventBus is available and position changed
-        if (this.eventBus && oldPosition && oldPosition !== this.qr) {
-            this.eventBus.emit(GameEvent.ENTITY_MOVED, {
-                entityId: this.playerID,
-                from: oldPosition,
-                to: this.qr
-            });
         }
     }
     //#endregion

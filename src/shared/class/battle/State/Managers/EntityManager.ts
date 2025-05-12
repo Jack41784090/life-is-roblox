@@ -118,13 +118,12 @@ export class EntityManager {
     /**
      * Update an entity with new data
      */
-    public updateEntity(id: number, updates: EntityUpdate): void {
+    public updateEntity(updates: EntityUpdate): void {
+        const id = updates.playerID;
         const entity = this.getEntity(id);
         if (entity) {
             this.logger.info(`Updating entity ${entity.name} (${id})`, updates);
-            entity.update(updates);
-
-            // Emit update event
+            // const changed = entity.update(updates);
             if (this.eventBus) {
                 this.eventBus.emit(GameEvent.ENTITY_UPDATED, entity, updates);
             }

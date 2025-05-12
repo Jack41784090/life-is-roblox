@@ -1,64 +1,55 @@
 import { atom, Atom } from "@rbxts/charm";
-import { Players, RunService, UserInputService } from "@rbxts/services";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, NeoClashResult, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
-import remotes from "shared/remote";
 import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus, GameEvent } from "../Events/EventBus";
+import { EventBus } from "../Events/EventBus";
 import { NetworkService } from "../Network/NetworkService";
-import { EntityMovedEventData } from "../Network/SyncSystem";
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
-import { TurnSystem } from "../Systems/TurnSystem";
-import BattleCam from "./BattleCamera";
-import EntityHexCellGraphicsMothership from "./Graphics/Mothership";
-import BattleGui from './Gui';
-import ClientGameState from "./State";
+import BattleCamera from "./BattleCamera";
+import Graphics from "./Graphics/Mothership";
+import Gui from './Gui';
+import State from "./State";
 
-export default class ClientSide {
+export default class BattleClient {
     private logger = Logger.createContextLogger("ClientSide");
+
     private graphicsInitialised: Promise<[StateState]>;
-    private eventBus: EventBus;
-    private remotees: Array<() => void> = [];
     private animating: Promise<unknown> = Promise.resolve();
 
-    public gui: BattleGui;
-    public camera: BattleCam;
+    private eventBus: EventBus;
+    private gui: Gui;
+    private camera: BattleCamera;
+    private state: State;
+    private graphics: Graphics;
 
-    private state: ClientGameState;
-    private EHCGMS: EntityHexCellGraphicsMothership;
+    private networking: NetworkService;
 
     private controlLocks: ControlLocks = new Map();
 
-    private networking: NetworkService = new NetworkService();
-    private turnSystem: TurnSystem;
-    private _localTickEntitiesCache: Entity[] = [];
-
-    private constructor({ worldCenter, size, width, height, camera }: ClientSideConfig) {
+    private constructor(config: ClientSideConfig) {
+        const { worldCenter, size, width, height, camera } = config;
         const halfWidth = (width * size) / 2;
         const halfHeight = (height * size) / 2;
         const gridMin = new Vector2(worldCenter.X - halfWidth, worldCenter.Z - halfHeight);
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
 
-        this.camera = new BattleCam(camera, worldCenter, gridMin, gridMax);
+        this.camera = new BattleCamera(camera, worldCenter, gridMin, gridMax);
         this.eventBus = new EventBus();
-        this.state = new ClientGameState({
-            width,
-            worldCenter,
-        });
-        this.turnSystem = new TurnSystem(this.state)
-        this.EHCGMS = new EntityHexCellGraphicsMothership(
+        this.state = new State(config);
+        this.networking = new NetworkService();
+        this.graphics = new Graphics(
             math.floor(width / 2),
             height,
             size,
             this.state.getGridManager().getGrid()
         );
 
-        this.setupRemoteListeners();
-        this.setupEventListeners();
+        // this.setupEventListeners();
 
-        this.gui = BattleGui.Connect({
+        this.gui = Gui.Connect({
             eventBus: this.eventBus,
             networkService: this.networking,
         });
@@ -78,261 +69,31 @@ export default class ClientSide {
      * @returns A new instance of the Battle class.
      */
     public static async Create(config: {
-        camera: Camera,
+        camera: BattleCamera,
         worldCenter: Vector3,
         width: number;
         height: number;
         client: Player;
     }) {
-        if (RunService.IsServer()) {
-            // Server-side Creation
-            remotes.battle.createClient(config.client, config);
-        }
-        else {
-            // Client-side Creation
-            const cs = new ClientSide({
-                ...config,
-                size: TILE_SIZE,
-            });
-            cs.initialiseInputControl();
-            return cs;
-        }
-    }
-
-    //#region Remote Communications
-    /**
-     * Set up event listeners for game state changes from both network events and local state changes
-     */
-    private setupEventListeners(): void {
-        // Listen for entity movement events from the local event bus
-        this.eventBus.subscribe(GameEvent.ENTITY_MOVED, (data: unknown) => {
-            const movedData = data as EntityMovedEventData;
-            this.logger.debug(`Client received entity moved event: Entity ${movedData.entityId} moved from ${movedData.from} to ${movedData.to}`);
-
-            // Update the visual representation of the entity
-            const entity = this.state.getEntityManager().getEntity(movedData.entityId);
-            if (entity) {
-                const entityGraphics = this.EHCGMS.findEntityG(movedData.entityId);
-                if (entityGraphics) {
-                    const destCellG = this.EHCGMS.findCellG(movedData.to);
-                    if (destCellG) {
-                        // If we have a path, use it, otherwise move directly
-                        const path = this.state.getGridManager().findPath(movedData.from, movedData.to);
-                        if (path) {
-                            const cellGPath = path.map(qr => this.EHCGMS.findCellG(qr));
-                            this.animating = entityGraphics.moveToCell(destCellG, cellGPath);
-                        } else {
-                            this.animating = entityGraphics.moveToCell(destCellG, [destCellG]);
-                        }
-                    }
-                }
-            }
+        if (RunService.IsServer()) throw "ClientSide cannot be created on the server!";
+        // Client-side Creation
+        const cs = new BattleClient({
+            ...config,
+            camera: Workspace.CurrentCamera as Camera,
+            size: TILE_SIZE,
         });
-
-        // Listen for entity updated events
-        this.eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entity: unknown) => {
-            const updatedEntity = entity as Entity;
-            this.logger.debug(`Client received entity updated event: Entity ${updatedEntity.name} (${updatedEntity.playerID}) updated`);
-            // Update visual representation if needed
-            const entityGraphics = this.EHCGMS.findEntityG(updatedEntity.playerID);
-            if (entityGraphics) {
-                // Additional visual updates can be performed here 
-                // (e.g., health bar updates, status effects, etc.)
-            }
-        });
-
-        // Listen for grid update events
-        this.eventBus.subscribe(GameEvent.GRID_UPDATED, (gridState: unknown) => {
-            this.logger.debug("Client received grid updated event");
-
-            // Sync grid visuals with the updated state
-            this.EHCGMS.syncGrid(this.state.getGridState());
-        });
-
-        // Listen for turn started events
-        this.eventBus.subscribe(GameEvent.TURN_STARTED, (entity: unknown) => {
-            const turnEntity = entity as Entity;
-            this.logger.debug(`Client received turn started event for entity: ${turnEntity.name} (${turnEntity.playerID})`);
-
-            // Check if it's the local player's turn
-            if (turnEntity.playerID === Players.LocalPlayer.UserId) {
-                this.logger.debug("It's local player's turn!");
-                this.handleEntityChosen();
-            } else {
-                this.logger.debug("It's another player's turn");
-                this.handleOtherPlayersTurn();
-            }
-        });
+        cs.initialiseInputControl();
+        return cs;
     }
-
-    private setupRemoteListeners() {
-        const network = this.networking;
-        this.remotees.push(
-            network.onForceUpdate(this.handleForceUpdate),
-            network.onActionAnimate((at) => this.handleAnimationRequest(at)),
-            network.onActionMenuMount(this.handleActionMenuMount),
-            network.onOtherPlayersTurn(this.handleOtherPlayersTurn),
-            network.onCameraHoi4Mode(this.handleCameraHoi4Mode),
-            network.onEntityChosen(this.handleEntityChosen),
-            network.onAnimateClashes((clashes, attackAction) => this.handleAnimatingClashes(clashes, attackAction)),
-            network.onLocalGauntletTick(() => {
-                this.logger.debug("Local gauntlet tick");
-                if (this._localTickEntitiesCache.size() === 0) {
-                    this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
-                }
-                this.turnSystem.gauntletTick(this._localTickEntitiesCache);
-            })
-        );
-    }
-
-    private handleActionMenuMount = async () => {
-        this.logger.debug("Mounting action menu");
-        try {
-            const entity = await this.localEntity(); print(`Entity: ${entity}`);
-            if (entity) {
-                this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
-            }
-        } catch (err) {
-            this.logger.error(`Failed to handle action menu mount: ${err}`);
-        }
-    }
-
-    private handleOtherPlayersTurn = () => {
-        this.gui.mountOtherPlayersTurnGui();
-    }
-
-    private handleForceUpdate = () => {
-        this.requestUpdateStateAndReadinessMap().then(stateData => {
-            // Emit events based on the updated state
-            // This bridges the gap between network updates and the event system
-
-            // Emit grid updated event
-            if (stateData.grid) {
-                this.eventBus.emit(GameEvent.GRID_UPDATED, stateData.grid);
-            }
-
-            // Emit entity updated events for each entity
-            if (stateData.teams) {
-                for (const team of stateData.teams) {
-                    for (const member of team.members) {
-                        const entity = this.state.getEntityManager().getEntity(member.playerID);
-                        if (entity) {
-                            this.eventBus.emit(GameEvent.ENTITY_UPDATED, entity);
-                        }
-                    }
-                }
-            }
-        }).catch(err => {
-            this.logger.error(`Failed to update state: ${err}`);
-        });
-    }
-
-    private handleCameraHoi4Mode = () => {
-        return this.camera.enterHOI4Mode();
-    }
-
-    private handleEntityChosen = async () => {
-        try {
-            this.logger.debug("Chosen: waiting for animating to end");
-            await this.animating;
-
-            this.logger.debug("Getting local entity");
-            const entity = await this.localEntity();
-            this.exitMovement();
-
-            const entityGraphics = this.EHCGMS.findEntityG(entity.playerID) ??
-                this.EHCGMS.positionNewPlayer(entity.state(), entity.state().qr!);
-
-            await this.camera.enterCharacterCenterMode(entityGraphics);
-
-            if (entity) {
-                this.gui.mountActionMenu(this.getCharacterMenuActions(entity));
-            }
-        } catch (err) {
-            this.logger.error(`Failed to handle entity chosen: ${err}`);
-        }
-    }
-
-    private handleAnimationRequest(ac: AccessToken) {
-        if (!ac.action) {
-            this.logger.warn("No action found in animate call");
-            return;
-        }
-        this.logger.debug("Received action: " + ac.action.type);
-        switch (ac.action.type) {
-            case ActionType.Attack:
-                const aa = ac.action as AttackAction; assert(aa.clashResult, "Clash result not found in attack action");
-                this.handleAttackActionAnimationRequest(aa);
-                break;
-            case ActionType.Move:
-                const ma = ac.action as MoveAction;
-                this.handleMoveActionAnimationRequest(ma);
-                break;
-        }
-    }
-
-    private async handleAnimatingClashes(clashes: NeoClashResult[], attackActionRef: AttackAction): Promise<void> {
-        this.logger.debug("Animating clashes", clashes);
-        await this.animating;
-        const attacker = this.EHCGMS.findEntityG(attackActionRef.by);
-        assert(attacker, "Attacker not found in EHCGMS");
-        assert(attackActionRef.against !== undefined, "Attack action has invalid target id");
-        const defender = this.EHCGMS.findEntityG(attackActionRef.against);
-        for (const clash of clashes) {
-            const { weapon, target, result } = clash;
-            const defenceSuccessful = result.fate === 'Miss' || result.fate === 'Cling';
-            await this.playAttackAnimation({
-                ability: attackActionRef.ability,
-                type: ActionType.Attack,
-                by: attackActionRef.by,
-                against: attackActionRef.against,
-                clashResult: {
-                    damage: result.roll,
-                    u_damage: result.roll,
-                    fate: result.fate,
-                    roll: result.roll,
-                    defendAttemptSuccessful: defenceSuccessful,
-                    defendAttemptName: result.fate,
-                    defendReactionUpdate: {},
-                },
-                executed: false,
-            })
-        }
-    }
-
-    private handleMoveActionAnimationRequest(ma: MoveAction) {
-        const cre = this.state.getEntityManager().getEntity(ma.by);
-        assert(cre, "Current entity is not defined");
-
-        const path = this.state.getGridManager().findPath(ma.from, ma.to, cre.get('pos'));
-        if (!path) {
-            this.logger.warn("No path found for move action", ma);
-            return;
-        }
-
-        const destCellG = this.EHCGMS.findCellG(ma.to);
-        const cellGPath = path.map(qr => this.EHCGMS.findCellG(qr));
-        const creG = this.EHCGMS.findEntityG(ma.from);
-        this.animating = creG.moveToCell(destCellG, cellGPath);
-    }
-
-    private handleAttackActionAnimationRequest(aa: AttackAction) {
-        this.animating = this.playAttackAnimation(aa);
-    }
-
-    private cleanUpRemotes() {
-        this.remotees.forEach(r => r());
-    }
-    //#endregion
 
     //#region Updates
 
     private async requestUpdateStateAndReadinessMap() {
+        this.logger.debug("Requesting update state and readiness map");
         const stateData = await this.networking.requestGameState();
-        await this.state.syncWithServerState(stateData);
+        await this.state.sync(stateData);
         this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
-        await this.animating;
-        await this.EHCGMS.sync(stateData)
+        await this.graphics.sync(stateData)
         return stateData;
     }
 
@@ -341,11 +102,7 @@ export default class ClientSide {
             this.onInputBegan(io, gpe);
         })
     }
-    /**
-     * initialises the camera by setting it to HOI4 mode.
-     * This method configures the camera to enter a specific mode
-     * defined by the `enterHOI4Mode` method of the `camera` object.
-     */
+
     private initialiseCamera() {
         this.camera.enterHOI4Mode();
     }
@@ -469,7 +226,7 @@ export default class ClientSide {
         this.gui.mountAbilitySlots(localE);
 
         this.gui.updateMainUI('withSensitiveCells', {
-            EHCGMS: this.EHCGMS,
+            EHCGMS: this.graphics,
             state: this.state,
             readinessIcons: this.getReadinessIcons(),
             accessToken
@@ -516,11 +273,11 @@ export default class ClientSide {
         await this.animating;
         this.logger.debug("Playing attack animation", aa);
         const { animation } = aa.ability;
-        const attacker = this.EHCGMS.findEntityG(aa.by);
+        const attacker = this.graphics.findEntityG(aa.by);
         const attackerAnimationHandler = attacker.animationHandler;
         assert(aa.against !== undefined, "attack action has invalid target id");
 
-        const target = this.EHCGMS.findEntityG(aa.against);
+        const target = this.graphics.findEntityG(aa.against);
         const targetAnimationHandler = target.animationHandler;
 
         await target.faceEntity(attacker);
@@ -643,5 +400,7 @@ export default class ClientSide {
         });
     }
     //#endregion
+
+    //#region Gameplay Loop
 
 }

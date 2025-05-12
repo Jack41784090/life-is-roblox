@@ -1,9 +1,12 @@
+import { atom } from "@rbxts/charm";
+import { t } from "@rbxts/t";
 import { AttackAction, BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
 import { calculateRealityValue, createDummyEntityStats, getDummyClashResult, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
+import { TurnSystem } from "../Systems/TurnSystem";
 import Entity from "./Entity";
 import { EntityConfig, EntityStats, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
@@ -11,6 +14,7 @@ import { ReadonlyGridState } from "./Hex/types";
 import { EntityManager } from "./Managers/EntityManager";
 import { GridManager } from "./Managers/GridManager";
 import { TeamManager } from "./Managers/TeamManager";
+import Team from "./Team";
 
 /**
  * Main game state controller that manages entities, grid, and teams
@@ -30,6 +34,7 @@ export default class State {
     private gridManager: GridManager;
     private teamManager: TeamManager;
     private combatSystem: CombatSystem;
+    private turnSystem: TurnSystem;
 
     public constructor(config: StateConfig) {
         this.eventBus = new EventBus();
@@ -38,6 +43,16 @@ export default class State {
         this.entityManager = new EntityManager(entitiesInit, this.gridManager, this.eventBus); // Pass eventBus to EntityManager
         this.teamManager = new TeamManager(this.entityManager.getTeamMap());
         this.combatSystem = new CombatSystem(this);
+        this.turnSystem = new TurnSystem({
+            gauntletTickInterval: 0.2,
+            readinessAtoms: this.entityManager.getAllEntities().map((entity) => {
+                return atom({
+                    id: entity.playerID,
+                    pos: entity.getState('pos'),
+                    spd: atom(entity.stats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
+                })
+            })
+        });
         this.initialiseTestingDummies();
     }
 
@@ -373,5 +388,130 @@ export default class State {
 
         // No need to emit here as setCell already does it
     }
+    //#endregion
+
+    //#region Gameplay Loop
+
+    private async waitForResponse(winningClient: Player): Promise<Player | undefined> {
+        const eventBus = this.getEventBus();
+        // Create a new Promise that explicitly returns Player | undefined
+        return await new Promise<Player | undefined>((resolve) => {
+            const cleanup = eventBus.subscribe(GameEvent.PLAYER_ACTION, (id: unknown) => {
+                const verification = t.number(id);
+                if (!verification) {
+                    this.logger.warn(`Invalid ID type: ${id}`);
+                    return;
+                }
+                if (id === winningClient.UserId) {
+                    resolve(winningClient);
+                }
+            });
+
+            const timeout = task.delay(5, () => {
+                cleanup();
+                resolve(undefined); // Resolve with undefined after timeout
+            });
+        }).then((p) => {
+            return p;
+        });
+    }
+
+    private checkGameOver(): boolean {
+        const teamManager = this.getTeamManager();
+        const teams = teamManager.getAllTeams();
+        let activeTeamsCount = 0;
+
+        for (const team of teams) {
+            const hasAliveMembers = team.members.some((member: Entity) => {
+                return member.get('hip') > 0;
+            });
+
+            if (hasAliveMembers) {
+                activeTeamsCount++;
+            }
+        }
+
+        // if (activeTeamsCount <= 1) {
+        //     this.logger.info(`Game over condition met: ${activeTeamsCount} team(s) have active units.`);
+        //     return true;
+        // }
+        return false;
+    }
+
+    private handleGameOver() {
+        this.logger.info("Game over sequence initiated.");
+        const teamManager = this.getTeamManager();
+        const teams = teamManager.getAllTeams();
+        const activeTeams: Team[] = [];
+
+        for (const team of teams) {
+            const hasAliveMembers = team.members.some((member: Entity) => {
+                return member.get('pos') > 0;
+            });
+            if (hasAliveMembers) {
+                activeTeams.push(team);
+            }
+        }
+
+        let winner: Team | undefined = undefined;
+        if (activeTeams.size() === 1) {
+            winner = activeTeams[0];
+        }
+    }
+
+    private async round() {
+        // Get the next turn actor (now awaiting the Promise)
+        const pnt = await this.turnSystem.determineNextActorByGauntletGradual();
+        if (!pnt) {
+            this.logger.warn("No next actor could be determined by TurnSystem.");
+            if (!this.checkGameOver()) {
+                this.logger.error("Battle loop cannot continue: No next actor, but game over conditions not met.");
+                throw "Battle loop cannot continue: No next actor, but game over conditions not met.";
+            }
+            return;
+        }
+
+        const [currentActor, actingEntity] = (() => {
+            const entity = this.entityManager.getEntity(pnt.id);
+            const player = this.getAllPlayers().find((p) => p.UserId === entity?.playerID);
+            return [player, entity]
+        })();
+        if (!currentActor || !actingEntity) {
+            this.logger.error("No current actor or acting entity found.");
+            throw "No current actor or acting entity found.";
+        }
+        this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.name})`);
+
+        // this.syncPlayerUIUpdatesOnTurnStart();
+
+        const playerEndingTurn = await this.waitForResponse(currentActor);
+        if (playerEndingTurn) {
+            this.logger.info(`Turn action phase concluded by ${playerEndingTurn.Name}.`);
+        } else {
+            this.logger.warn(`Turn action phase for ${currentActor.Name} concluded without a specific player action.`);
+        }
+    }
+
+    public async StartLoop() {
+        this.logger.info("Starting new round...");
+        try {
+            await this.round();
+        } catch (err) {
+            this.logger.error(`Error during round: ${err}`);
+        }
+
+        if (this.checkGameOver()) {
+            this.logger.info("Game loop finished.");
+            this.handleGameOver();
+        }
+        else {
+            this.logger.info("Game loop continues.");
+            // Continue the game loop
+            task.delay(1, () => {
+                this.StartLoop();
+            });
+        }
+    }
+
     //#endregion
 }
