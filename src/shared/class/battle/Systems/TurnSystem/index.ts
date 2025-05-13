@@ -1,4 +1,4 @@
-import { atom, Atom } from "@rbxts/charm";
+import { atom, Atom, subscribe } from "@rbxts/charm";
 import Logger from "shared/utils/Logger";
 import { ReadinessFragment, TurnSystemConfig } from "./types";
 
@@ -7,11 +7,15 @@ export class TurnSystem {
     private currentActorId: number = -1;
     private readonly READINESS_TICK_INTERVAL: number;
     private isGauntletRunning = false;
-    private readinessAtoms: Atom<ReadinessFragment>[];
+    private listOfReadinessState: Atom<Array<Atom<ReadinessFragment>>>;
 
     constructor(config: TurnSystemConfig) {
-        this.readinessAtoms = config.readinessAtoms;
+        this.listOfReadinessState = config.readinessAtoms;
         this.READINESS_TICK_INTERVAL = config.gauntletTickInterval;
+        const _logger = this.logger;
+        subscribe(this.listOfReadinessState, (newList) => {
+            _logger.debug("Readiness list updated", newList);
+        })
     }
 
     public getCurrentActorID(): number {
@@ -21,7 +25,7 @@ export class TurnSystem {
     private gauntletTick(): void {
         this.logger.info("Readiness gauntlet in progress...");
         // Calculate readiness for entities
-        for (const atom of this.readinessAtoms) {
+        for (const atom of this.listOfReadinessState()) {
             atom(frag => {
                 const spd = frag.spd();
                 const positionNow = frag.pos();
@@ -42,8 +46,9 @@ export class TurnSystem {
         }
 
         this.isGauntletRunning = true;
+        const listOfReadinessState = this.listOfReadinessState();
 
-        if (this.readinessAtoms.size() === 0) {
+        if (listOfReadinessState.size() === 0) {
             this.logger.warn("Entity list is empty, cannot run readiness gauntlet");
             this.isGauntletRunning = false;
             return undefined;
@@ -51,12 +56,12 @@ export class TurnSystem {
 
         try {
             // Continue ticking until someone reaches 100%
-            while (!this.readinessAtoms.some((e) => e().pos() >= 100)) {
+            while (!listOfReadinessState.some((e) => e().pos() >= 100)) {
                 this.gauntletTick();
                 await Promise.delay(this.READINESS_TICK_INTERVAL);
             }
 
-            const nextActor = this.readinessAtoms.sort((a, b) => a().pos() - b().pos() > 0)[0]();
+            const nextActor = listOfReadinessState.sort((a, b) => a().pos() - b().pos() > 0)[0]();
             this.logger.info(`Readiness gauntlet winner: ${nextActor.id}`, nextActor);
             return nextActor;
         } catch (err) {
@@ -68,34 +73,43 @@ export class TurnSystem {
     }
 
     public getReadinessMap(): Map<number, ReadinessFragment> {
-        return this.readinessAtoms.reduce((map, atom) => {
+        return this.listOfReadinessState().reduce((map, atom) => {
             const frag = atom();
             return map.set(frag.id, frag);;
         }, new Map<number, ReadinessFragment>());
     }
 
     public getReadinessFragments() {
-        return this.readinessAtoms;
+        return this.listOfReadinessState;
     }
 
-    public updateFragments(fragments: ReadinessFragment[]): void {
-        this.logger.debug("Updating fragments", fragments);
-        fragments.forEach((fr) => {
-            const frag = this.readinessAtoms.find((f) => f().id === fr.id);
+    public updateFragments(givenFrags: ReadinessFragment[]): void {
+        this.logger.debug("Updating fragments", givenFrags);
+        const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
+        const missingFrags: ReadinessFragment[] = [];
+        const removingIndices: number[] = [];
+        givenFrags.forEach(gf => {
+            const frag = currentFragments.find(_f => gf.id === _f().id);
             if (frag) {
-                frag(fr);
+                frag(gf);
             }
             else {
-                this.logger.debug(`Fragment with ID ${fr.id} not found in provided fragments`);
-                this.readinessAtoms.push(atom(fr));
+                this.logger.debug(`Fragment with ID ${gf.id} not found in provided fragments`);
+                missingFrags.push(gf);
             }
         });
-        this.readinessAtoms.forEach((frag, i) => {
-            if (!fragments.some((f) => f.id === frag().id)) {
+        currentFragments.forEach((frag, i) => {
+            if (!givenFrags.some((gf) => gf.id === frag().id)) {
                 this.logger.debug(`Fragment with ID ${frag().id} not found in provided fragments`);
-                this.readinessAtoms.remove(i);
+                removingIndices.push(i);
             }
         })
+
+        removingIndices.forEach(i => currentFragments.remove(i));
+        this.listOfReadinessState([
+            ...currentFragments,
+            ...missingFrags.map((frag) => atom(frag)),
+        ])
     }
 
     // public endTurn(entityId: number): void {

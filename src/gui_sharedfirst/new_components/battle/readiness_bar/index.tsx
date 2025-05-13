@@ -1,14 +1,18 @@
 import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
+import { useAtom } from "@rbxts/react-charm";
 import { ReadinessFragment } from "shared/class/battle/Systems/TurnSystem/types";
 import ReadinessIconElement from "./icon_element";
 
 interface Props {
-    icons: Atom<ReadinessFragment>[]; // Array of image URLs or asset IDs for character icons
+    icons: Atom<Atom<ReadinessFragment>[]>; // Array of image URLs or asset IDs for character icons
 }
 
 function ReadinessBar(props: Props) {
-    // print(`Readiness Bar props`, props)
+    // Use useAtom to properly subscribe to changes in the icons atom
+    const icons = useAtom(props.icons);
+    print(`ReadinessBar updated:`, icons.map(icon => icon().icon));
+
     return (
         <frame
             key={"ReadinessBar"}
@@ -19,7 +23,9 @@ function ReadinessBar(props: Props) {
             BorderColor3={new Color3(0, 0, 0)}
             BorderSizePixel={2}
         >
-            {props.icons.map((icon, index) => <ReadinessIconElement {... { icon, index }} />)}
+            {icons.map((icon, index) => {
+                return <ReadinessIconElement {... { icon, index }} />
+            })}
         </frame>
     );
 }

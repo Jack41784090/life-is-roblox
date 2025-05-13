@@ -2,7 +2,7 @@ import { Atom } from "@rbxts/charm";
 
 export interface TurnSystemConfig {
     gauntletTickInterval: number;
-    readinessAtoms: Atom<ReadinessFragment>[];
+    readinessAtoms: Atom<Atom<ReadinessFragment>[]>;
 }
 
 export interface ReadinessFragment {

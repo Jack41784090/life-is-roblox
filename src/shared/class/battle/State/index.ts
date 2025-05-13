@@ -45,13 +45,13 @@ export default class State {
         this.combatSystem = new CombatSystem(this);
         this.turnSystem = new TurnSystem({
             gauntletTickInterval: 0.2,
-            readinessAtoms: this.entityManager.getAllEntities().map((entity) => {
+            readinessAtoms: atom(this.entityManager.getAllEntities().map((entity) => {
                 return atom({
                     id: entity.playerID,
                     pos: entity.getState('pos'),
                     spd: atom(entity.stats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
                 })
-            })
+            }))
         });
         this.initialiseTestingDummies();
     }

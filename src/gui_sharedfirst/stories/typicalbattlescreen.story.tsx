@@ -2,7 +2,6 @@ import { atom } from "@rbxts/charm"
 import React from "@rbxts/react"
 import ReactRoblox from "@rbxts/react-roblox"
 import { CreateReactStory } from "@rbxts/ui-labs"
-import ReadinessBar from "gui_sharedfirst/new_components/battle/readiness_bar"
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait"
 
 const story = CreateReactStory({
@@ -10,7 +9,7 @@ const story = CreateReactStory({
     reactRoblox: ReactRoblox,
 }, (props) => {
     return <>
-        <ReadinessBar icons={[]} />
+        {/* <ReadinessBar icons={[]} /> */}
         <PlayerPortrait
             entityId='entity_adalbrecht'
             hp={atom(75)}

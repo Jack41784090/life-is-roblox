@@ -3,7 +3,7 @@ import { NetworkService } from "../../Network/NetworkService";
 import { ReadinessFragment } from "../../Systems/TurnSystem/types";
 
 export interface GuiConfig {
-    readinessFragments: Atom<ReadinessFragment>[];
+    readinessFragments: Atom<Atom<ReadinessFragment>[]>;
     networkService: NetworkService;
 }
 

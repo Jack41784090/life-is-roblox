@@ -11,7 +11,7 @@ interface Props {
 }
 
 function ReadinessIconElement(props: Props) {
-    const { pos: entityReadiness, icon: iconUrl } = props.icon()
+    const { pos: entityReadiness, icon: iconUrl } = useAtom(props.icon)
     const readinessPercent = useAtom(entityReadiness);
     const [rPos, motion] = useMotion(readinessPercent);
     const portraitImage = iconUrl ? findEntityPortrait(iconUrl, 'neutral') : undefined;

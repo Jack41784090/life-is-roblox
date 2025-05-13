@@ -1,6 +1,5 @@
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
-import { GuiTag } from "shared/const";
 import { serverRequestRemote } from "shared/remote";
 import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
@@ -196,7 +195,7 @@ export default class BattleClient {
         // await this.camera.enterCharacterCenterMode()
         await this.localEntity().then(e => {
             this.camera.enterCharacterCenterMode().then(() => {
-                this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                // this.gui.mountActionMenu(this.getCharacterMenuActions(e));
             })
         })
     }
@@ -220,8 +219,8 @@ export default class BattleClient {
 
         this.controlLocks.set(Enum.KeyCode.X, true);
 
-        this.gui.unmountAndClear(GuiTag.ActionMenu);
-        this.gui.mountAbilitySlots(localE);
+        // this.gui.unmountAndClear(GuiTag.ActionMenu);
+        // this.gui.mountAbilitySlots(localE);
 
         this.gui.updateMainUI('withSensitiveCells', {
             EHCGMS: this.graphics,

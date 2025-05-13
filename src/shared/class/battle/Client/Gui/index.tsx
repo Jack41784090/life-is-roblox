@@ -1,7 +1,6 @@
 import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { Players } from "@rbxts/services";
-import { t } from "@rbxts/t";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
 import CellSurface from "gui_sharedfirst/new_components/battle/cell/surface";
@@ -28,7 +27,7 @@ import { GuiConfig } from "./types";
 export default class BattleGui {
     private logger = Logger.createContextLogger("BattleGUI");
     private network: NetworkService;
-    private readinessFragments: Atom<ReadinessFragment>[];
+    private readinessFragments: Atom<Atom<ReadinessFragment>[]>;
 
     static Connect(config: GuiConfig) {
         const ui = new BattleGui(config);
@@ -37,11 +36,6 @@ export default class BattleGui {
 
     private constructor(config: GuiConfig) {
         this.network = config.networkService;
-        const vars = t.array(t.interface({
-            playerID: t.number,
-            iconUrl: t.string,
-            readiness: t.callback,
-        }));
         this.readinessFragments = config.readinessFragments;
         this.mountInitialUI();
     }
@@ -55,9 +49,9 @@ export default class BattleGui {
      * @param mode 
      * @returns the updated React tree
      */
-    updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
-    updateMainUI(mode: 'onlyReadinessBar', props?: {}): void;
-    updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig> = {}) {
+    public updateMainUI(mode: 'withSensitiveCells', props: { accessToken: AccessToken, state: State, EHCGMS: EntityHexCellGraphicsMothership }): void;
+    public updateMainUI(mode: 'onlyReadinessBar', props?: {}): void;
+    public updateMainUI(mode: MainUIModes, props: Partial<UpdateMainUIConfig> = {}) {
         this.logger.debug(`Updating main UI with mode: ${mode}`, props);
         const localPlayerID = Players.LocalPlayer.UserId;
         const localEntity = props.state?.getEntity(localPlayerID);
@@ -102,7 +96,7 @@ export default class BattleGui {
      * @param actions 
      * @returns 
      */
-    mountActionMenu(actions: CharacterMenuAction[]) {
+    public mountActionMenu(actions: CharacterMenuAction[]) {
         GuiMothership.mount(
             GuiTag.ActionMenu,
             <MenuFrameElement key={"ActionMenu"} transparency={1} >
@@ -126,21 +120,21 @@ export default class BattleGui {
      * Mount the initial UI, which contains the MenuFrameElement and the ReadinessBar
      * @returns the mounted Tree
      */
-    mountInitialUI() {
+    public mountInitialUI() {
         this.updateMainUI('onlyReadinessBar');
     }
     // Highlight the cells along a path
-    mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
+    public mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
         const elements = cellsToGlow.mapFiltered((cell) => <CellGlowingSurface cell={cell} />);
         GuiMothership.mount(GuiTag.Glow, <frame key={'GlowingPath'}>{elements}</frame>)
         return cellsToGlow;
     }
 
-    mountOtherPlayersTurnGui() {
+    public mountOtherPlayersTurnGui() {
         GuiMothership.mount(GuiTag.OtherTurn, <OPTElement />);
     }
 
-    mountAbilitySlots(cre: Entity) {
+    public mountAbilitySlots(cre: Entity) {
         const mountingAbilitySet = cre.getAllAbilitySets().find(a => a !== undefined);
         if (!mountingAbilitySet) {
             this.logger.warn("No ability set found for entity");
@@ -152,7 +146,7 @@ export default class BattleGui {
             </AbilitySetElement>);
     }
 
-    unmountAndClear(tag: GuiTag) {
+    public unmountAndClear(tag: GuiTag) {
         GuiMothership.unmount(tag);
     }
     //#endregion
