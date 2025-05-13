@@ -1,9 +1,8 @@
 import { Atom } from "@rbxts/charm";
-import { useMotion } from "@rbxts/pretty-react-hooks";
-import React, { useEffect } from "@rbxts/react";
+import React from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
 import { ReadinessFragment } from "shared/class/battle/Systems/TurnSystem/types";
-import { findEntityPortrait, springs } from "shared/utils";
+import { findEntityPortrait } from "shared/utils";
 
 interface Props {
     icon: Atom<ReadinessFragment>;
@@ -13,16 +12,17 @@ interface Props {
 function ReadinessIconElement(props: Props) {
     const { pos: entityReadiness, icon: iconUrl } = useAtom(props.icon)
     const readinessPercent = useAtom(entityReadiness);
-    const [rPos, motion] = useMotion(readinessPercent);
+    // const [rPos, motion] = useMotion(readinessPercent);
     const portraitImage = iconUrl ? findEntityPortrait(iconUrl, 'neutral') : undefined;
-    useEffect(() => {
-        motion.spring(readinessPercent / 100, springs.slow);
-    }, [readinessPercent]);
+    // useEffect(() => {
+    //     motion.spring(readinessPercent / 100, springs.slow);
+    // }, [readinessPercent]);
 
     return (
         <frame
             Size={new UDim2(1, 50, 1, 50)}
-            Position={rPos.map(r => UDim2.fromScale(r, 0.5))}
+            // Position={rPos.map(r => UDim2.fromScale(r, 0.5))}
+            Position={UDim2.fromScale(entityReadiness() / 100, 0.5)}
             SizeConstraint={Enum.SizeConstraint.RelativeYY}
             BackgroundTransparency={1}
         >
