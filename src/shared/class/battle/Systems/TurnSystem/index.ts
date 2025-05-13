@@ -1,4 +1,4 @@
-import { atom, Atom, subscribe } from "@rbxts/charm";
+import { atom, Atom } from "@rbxts/charm";
 import Logger from "shared/utils/Logger";
 import { ReadinessFragment, TurnSystemConfig } from "./types";
 
@@ -13,9 +13,9 @@ export class TurnSystem {
         this.listOfReadinessState = config.readinessAtoms;
         this.READINESS_TICK_INTERVAL = config.gauntletTickInterval;
         const _logger = this.logger;
-        subscribe(this.listOfReadinessState, (newList) => {
-            _logger.debug("Readiness list updated", newList);
-        })
+        // subscribe(this.listOfReadinessState, (newList) => {
+        //     _logger.debug("Readiness list updated", newList);
+        // })
     }
 
     public getCurrentActorID(): number {
