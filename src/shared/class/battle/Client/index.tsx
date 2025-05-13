@@ -1,9 +1,11 @@
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
+import { t } from "@rbxts/t";
 import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { GuiTag } from "shared/const";
 import { serverRequestRemote } from "shared/remote";
 import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { EventBus } from "../Events/EventBus";
+import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
@@ -18,8 +20,6 @@ export default class BattleClient {
 
     private graphicsInitialised: Promise<[StateState]>;
     private animating: Promise<unknown> = Promise.resolve();
-
-    private eventBus: EventBus;
     private gui: Gui;
     private camera: BattleCamera;
     private state: State;
@@ -38,7 +38,6 @@ export default class BattleClient {
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
 
         this.camera = new BattleCamera(camera, worldCenter, gridMin, gridMax);
-        this.eventBus = new EventBus();
         this.state = new State(config);
         this.networking = new NetworkService();
         this.graphics = new Graphics(
@@ -55,8 +54,19 @@ export default class BattleClient {
             readinessFragments: this.state.getReadinessFragments(),
         });
         this.graphicsInitialised = this.initialiseGraphics();
+        this.setupEventListeners();
+    }
 
-        // this.state.StartLoop();
+    private setupEventListeners() {
+        const eventBus = this.state.getEventBus();
+        eventBus.subscribe(GameEvent.TURN_STARTED, (id: unknown) => {
+            const verification = t.number(id);
+            if (!verification) {
+                this.logger.error("Invalid ID type for TURN_STARTED event", id as defined);
+                return;
+            }
+            this.returnToSelections();
+        })
     }
 
     /**
@@ -195,7 +205,7 @@ export default class BattleClient {
         // await this.camera.enterCharacterCenterMode()
         await this.localEntity().then(e => {
             this.camera.enterCharacterCenterMode().then(() => {
-                // this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                this.gui.mountActionMenu(this.getCharacterMenuActions(e));
             })
         })
     }
@@ -219,8 +229,8 @@ export default class BattleClient {
 
         this.controlLocks.set(Enum.KeyCode.X, true);
 
-        // this.gui.unmountAndClear(GuiTag.ActionMenu);
-        // this.gui.mountAbilitySlots(localE);
+        this.gui.unmountAndClear(GuiTag.ActionMenu);
+        this.gui.mountAbilitySlots(localE);
 
         this.gui.updateMainUI('withSensitiveCells', {
             EHCGMS: this.graphics,

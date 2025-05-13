@@ -28,6 +28,25 @@ export interface EntityMovedEventData {
 }
 
 export default class State {
+    getCurrentActor(): Entity {
+        const currentActorID = this.turnSystem.getCurrentActorID();
+        const entity = this.entityManager.getEntity(currentActorID);
+        if (!entity) {
+            throw `Entity with ID ${currentActorID} not found`;
+        }
+        return entity;
+    }
+    getCurrentActorID(): number | Promise<number> {
+        return this.turnSystem.getCurrentActorID();
+    }
+    getCurrentActorPlayer(): Player | undefined {
+        const currentActorID = this.turnSystem.getCurrentActorID();
+        const entity = this.entityManager.getEntity(currentActorID);
+        if (!entity) {
+            throw `Entity with ID ${currentActorID} not found`;
+        }
+        return this.getAllPlayers().find((p) => p.UserId === entity.playerID);
+    }
     protected logger = Logger.createContextLogger("State");
     private eventBus: EventBus;
     private entityManager: EntityManager;
@@ -422,7 +441,7 @@ export default class State {
         const eventBus = this.getEventBus();
         // Create a new Promise that explicitly returns Player | undefined
         return await new Promise<Player | undefined>((resolve) => {
-            const cleanup = eventBus.subscribe(GameEvent.PLAYER_ACTION, (id: unknown) => {
+            const cleanup = eventBus.subscribe(GameEvent.TURN_ENDED, (id: unknown) => {
                 const verification = t.number(id);
                 if (!verification) {
                     this.logger.warn(`Invalid ID type: ${id}`);
@@ -486,7 +505,7 @@ export default class State {
     }
 
     private async round() {
-        // Get the next turn actor (now awaiting the Promise)
+        // 1. Getting the next actor
         const pnt = await this.turnSystem.determineNextActorByGauntletGradual();
         if (!pnt) {
             this.logger.warn("No next actor could be determined by TurnSystem.");
@@ -497,6 +516,7 @@ export default class State {
             return;
         }
 
+        // 1.5 - Validating the next actor
         const [currentActor, actingEntity] = (() => {
             const entity = this.entityManager.getEntity(pnt.id);
             const player = this.getAllPlayers().find((p) => p.UserId === entity?.playerID);
@@ -506,10 +526,10 @@ export default class State {
             this.logger.error("No current actor or acting entity found.");
             throw "No current actor or acting entity found.";
         }
+
+        // 2. Turn start; Waiting for response
+        this.eventBus.emit(GameEvent.TURN_STARTED, currentActor.UserId);
         this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.name})`);
-
-        // this.syncPlayerUIUpdatesOnTurnStart();
-
         const playerEndingTurn = await this.waitForResponse(currentActor);
         if (playerEndingTurn) {
             this.logger.info(`Turn action phase concluded by ${playerEndingTurn.Name}.`);
@@ -532,7 +552,6 @@ export default class State {
         }
         else {
             this.logger.info("Game loop continues.");
-            // Continue the game loop
             task.delay(1, () => {
                 this.StartLoop();
             });

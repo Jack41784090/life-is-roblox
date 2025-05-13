@@ -16,13 +16,10 @@ export enum GameEvent {
     // Turn events
     TURN_STARTED = "turn:started",
     TURN_ENDED = "turn:ended",
-    READINESS_UPDATED = "readiness:updated",
 
     // Grid Events
     GRID_UPDATED = "grid:updated",
     GRID_CELL_UPDATED = "grid:cell:updated",
-    GRID_CELL_REMOVED = "grid:cell:removed",
-    PLAYER_ACTION = "PLAYER_ACTION",
 }
 
 export class EventBus {

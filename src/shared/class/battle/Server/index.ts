@@ -1,8 +1,10 @@
 import { RunService } from "@rbxts/services";
-import { ActionType, ActionValidator, BattleConfig, MoveAction } from "shared/class/battle/types";
+import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction } from "shared/class/battle/types";
+import { IDGenerator } from "shared/class/IDGenerator";
 import { MOVEMENT_COST } from "shared/const";
 import { extractMapValues, get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
+import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
 import { SyncSystem } from "../Network/SyncSystem";
 import State from "../State";
@@ -50,8 +52,13 @@ export default class BattleServer {
             this.logger.debug(`Received state request from ${p.Name}`);
             return this.state.getState();
         })
+        this.networkService.onServerRequestOf('cre', (p) => {
+            this.logger.debug(`Received CRE request from ${p.Name}`);
+            return this.state.getCurrentActorID();
+        })
     }
 
+    //#region Server-Side Loop
     //#region Validations
     private validateBaseActionInfo({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator): boolean {
         const { token, action, allowed } = declaredAccess;
@@ -157,5 +164,140 @@ export default class BattleServer {
     }
     //#endregion
 
+    private async waitForResponse(): Promise<Player | undefined> {
+        const network = this.networkService;
+        const accessCode = IDGenerator.generateID();
+        const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
+
+        this.logger.info(`Waiting for response from current turn player: ${winningClient.Name} (Access Code: ${accessCode})`);
+
+        return await new Promise<Player | undefined>((resolve) => {
+            network.onServerRequestOf('toAct', requestingPlayer =>
+                this.handleActRequest(requestingPlayer, accessCode)
+            );
+            network.onServerRequestOf('act', (actingPlayer, access) =>
+                this.handleActionExecution(
+                    actingPlayer,
+                    access as AccessToken,
+                    accessCode,
+                    (playerWhoTookAction) => {
+                        this.logger.info(`Action execution for ${actingPlayer.Name} completed.`);
+                        turnEndPromiseResolve?.(playerWhoTookAction!);
+                    }
+                )
+            );
+
+            let turnEndPromiseResolve: ((p: Player) => void) | undefined = undefined;
+            let endConnection: (() => void) | undefined = undefined;
+            const turnEndPromise = new Promise<Player>((resolve) => {
+                turnEndPromiseResolve = resolve;
+                endConnection = network.onServerRemote('end', (player, state) => {
+                    const okay = this.handleTurnEndRequest(
+                        player,
+                        state as AccessToken,
+                        accessCode
+                    )
+                    if (okay) {
+                        this.logger.info(`Turn end request from ${player.Name} accepted.`);
+                        resolve(player);
+                    } else {
+                        this.logger.warn(`Turn end request from ${player.Name} denied.`);
+                    }
+                });
+            });
+
+            turnEndPromise.then((playerWhoEndedTurn) => {
+                endConnection?.(); // Disconnect the event listener
+                this.logger.info(`Explicit turn end by ${playerWhoEndedTurn.Name} processed successfully.`);
+                resolve(playerWhoEndedTurn);
+            }).catch((err) => {
+                this.logger.warn(`Error or validation failure in explicit onTurnEnd processing: ${err}.`);
+            });
+        }).then((p) => {
+            if (p) {
+                this.logger.info(`waitForResponse for ${winningClient.Name} concluded. Player ${p.Name} determined the turn's end.`);
+            } else {
+                this.logger.warn(`waitForResponse for ${winningClient.Name} concluded, but no specific player action directly led to it.`);
+            }
+            return p;
+        });
+    }
+
+    private handleTurnEndRequest(
+        requestingPlayer: Player,
+        declaredClientAccess: AccessToken,
+        trueServerAccessCode: string,
+    ): boolean {
+        const eventBus = this.state.getEventBus();
+        const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
+        const validationProps: ActionValidator = { client: requestingPlayer, declaredAccess: declaredClientAccess, trueAccessCode: trueServerAccessCode, winningClient };
+        if (!this.validateEndTurnRequest(validationProps)) {
+            this.logger.warn(`Explicit turn end request validation failed for ${requestingPlayer.Name}.`);
+            return false;
+        }
+
+        this.logger.info(`Explicit turn end request validated and accepted for ${requestingPlayer.Name}.`);
+        const entity = this.state.getEntity(requestingPlayer.UserId);
+        if (entity) {
+            eventBus.emit(GameEvent.TURN_ENDED, entity.playerID);
+        } else {
+            this.logger.warn(`Could not find entity for player ${requestingPlayer.Name} during their explicit turn end request.`);
+        }
+        return true;
+    }
+
+    private handleActRequest(
+        requestingPlayer: Player,
+        accessCode: string
+    ): { userId: number; allowed: boolean; token: string | undefined } {
+        const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
+        if (!this.validateActionRequest({ winningClient, requestClient: requestingPlayer })) {
+            this.logger.warn(`Action request from ${requestingPlayer.Name} denied (not their turn).`);
+            return { userId: requestingPlayer.UserId, allowed: false, token: undefined };
+        }
+        this.logger.debug(`Action request from ${requestingPlayer.Name} validated, access token provided.`);
+        return { userId: requestingPlayer.UserId, allowed: true, token: accessCode };
+    }
+
+    private handleActionExecution(
+        actingPlayer: Player,
+        access: AccessToken,
+        accessCode: string,
+        resolveTurnPromise: (playerWhoTookAction: Player | undefined) => void
+    ): { userId: number; allowed: boolean; token: string; action: BattleAction | undefined } {
+        this.logger.info(`Received action execution from ${actingPlayer.Name}. Action: ${access.action?.type}`);
+
+        const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
+        const eventBus = this.state.getEventBus();
+        const validationProps: ActionValidator = { client: actingPlayer, declaredAccess: access, trueAccessCode: accessCode, winningClient };
+        if (!this.validateFullAction(validationProps)) {
+            this.logger.warn(`Action execution validation failed for ${actingPlayer.Name}.`);
+            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
+        }
+
+        this.logger.info(`Committing action for ${actingPlayer.Name}: ${access.action!.type}`);
+        this.state.commit(access.action!);
+        const cre = this.state.getCurrentActor();
+        if (!cre) {
+            this.logger.error(`CRITICAL: CRE not found for ${actingPlayer.Name} (${actingPlayer.UserId}) immediately after action commit.`);
+            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
+        }
+        if (cre.playerID !== this.state.getCurrentActorID()) {
+            this.logger.error(`CRITICAL: Turn actor mismatch. Current actor: ${this.state.getCurrentActorID()}, Action by: ${cre.playerID} (${actingPlayer.Name}).`);
+            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
+        }
+
+        const posture = cre.get('pos');
+        this.logger.debug(`Posture for ${actingPlayer.Name} after action: ${posture}.`);
+
+        if (posture < BattleServer.MIN_POSTURE_TO_CONTINUE_TURN) {
+            this.logger.info(`Turn ended for ${actingPlayer.Name}: Posture (${posture}) fell below ${BattleServer.MIN_POSTURE_TO_CONTINUE_TURN}.`);
+            eventBus.emit(GameEvent.TURN_ENDED, cre.playerID);
+            resolveTurnPromise(actingPlayer);
+        }
+
+        return { userId: actingPlayer.UserId, allowed: true, token: accessCode, action: access.action };
+    }
+    //#endregion
 }
 
