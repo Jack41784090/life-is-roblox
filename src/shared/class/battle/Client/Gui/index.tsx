@@ -11,7 +11,7 @@ import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, 
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { NetworkService } from "../../Network/NetworkService";
+import { NetworkService } from "../../Network";
 import Pathfinding from "../../Pathfinding";
 import State from "../../State";
 import Entity from "../../State/Entity";

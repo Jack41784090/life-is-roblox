@@ -3,7 +3,7 @@ import { ActionType, ActionValidator, BattleConfig, MoveAction } from "shared/cl
 import { MOVEMENT_COST } from "shared/const";
 import { extractMapValues, get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
-import { NetworkService } from "./Network/NetworkService";
+import { NetworkService } from "./Network";
 import { SyncSystem } from "./Network/SyncSystem";
 import State from "./State";
 

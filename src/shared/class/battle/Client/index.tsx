@@ -4,7 +4,7 @@ import { serverRequestRemote } from "shared/remote";
 import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus } from "../Events/EventBus";
-import { NetworkService } from "../Network/NetworkService";
+import { NetworkService } from "../Network";
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import { ReadinessFragment } from "../Systems/TurnSystem/types";
