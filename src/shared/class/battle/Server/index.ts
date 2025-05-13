@@ -3,9 +3,9 @@ import { ActionType, ActionValidator, BattleConfig, MoveAction } from "shared/cl
 import { MOVEMENT_COST } from "shared/const";
 import { extractMapValues, get2DManhattanDistance } from "shared/utils";
 import Logger from 'shared/utils/Logger';
-import { NetworkService } from "./Network";
-import { SyncSystem } from "./Network/SyncSystem";
-import State from "./State";
+import { NetworkService } from "../Network";
+import { SyncSystem } from "../Network/SyncSystem";
+import State from "../State";
 
 export default class BattleServer {
     public static Create(config: Partial<BattleConfig>) {
