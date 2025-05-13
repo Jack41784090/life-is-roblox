@@ -166,20 +166,20 @@ export default class BattleServer {
 
     private async waitForResponse(): Promise<Player | undefined> {
         const network = this.networkService;
-        const accessCode = IDGenerator.generateID();
+        const serverSideAccessCode = IDGenerator.generateID();
         const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
 
-        this.logger.info(`Waiting for response from current turn player: ${winningClient.Name} (Access Code: ${accessCode})`);
+        this.logger.info(`Waiting for response from current turn player: ${winningClient.Name} (Access Code: ${serverSideAccessCode})`);
 
         return await new Promise<Player | undefined>((resolve) => {
             network.onServerRequestOf('toAct', requestingPlayer =>
-                this.handleActRequest(requestingPlayer, accessCode)
+                this.handleActRequest(requestingPlayer, serverSideAccessCode)
             );
             network.onServerRequestOf('act', (actingPlayer, access) =>
                 this.handleActionExecution(
                     actingPlayer,
                     access as AccessToken,
-                    accessCode,
+                    serverSideAccessCode,
                     (playerWhoTookAction) => {
                         this.logger.info(`Action execution for ${actingPlayer.Name} completed.`);
                         turnEndPromiseResolve?.(playerWhoTookAction!);
@@ -195,7 +195,7 @@ export default class BattleServer {
                     const okay = this.handleTurnEndRequest(
                         player,
                         state as AccessToken,
-                        accessCode
+                        serverSideAccessCode
                     )
                     if (okay) {
                         this.logger.info(`Turn end request from ${player.Name} accepted.`);
