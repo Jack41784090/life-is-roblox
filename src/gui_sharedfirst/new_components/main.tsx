@@ -19,14 +19,15 @@ class GuiMothership {
         this.root.render(e);
     }
 
-    public static create() {
+    public static Get() {
         if (!GuiMothership.instance) {
             GuiMothership.instance = new GuiMothership();
         }
         return GuiMothership.instance;
     }
 
-    public static mount(key: string, element: React.Element) {
+    public static Mount(key: string, element: React.Element) {
+        print("Mounting", key, element);
         if (!GuiMothership.instance) {
             GuiMothership.instance = new GuiMothership();
         }
@@ -36,9 +37,9 @@ class GuiMothership {
         // print("Mounting", key, instance.children);
     }
 
-    public static unmount(key: string[]): void;
-    public static unmount(key: string): void;
-    public static unmount(key: string | string[]) {
+    public static Unmount(key: string[]): void;
+    public static Unmount(key: string): void;
+    public static Unmount(key: string | string[]) {
         if (!GuiMothership.instance) {
             return;
         }

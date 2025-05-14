@@ -60,7 +60,7 @@ function mainMenuCameraSetup() {
 
 // Setup the main menu
 function enterPlayground() {
-    GuiMothership.unmount("MainMenu");
+    GuiMothership.Unmount("MainMenu");
     const cam = Workspace.CurrentCamera;
     assert(cam, "No current camera")
 
@@ -106,7 +106,7 @@ function enterPlayground() {
 
 }
 function enterBattle() {
-    GuiMothership.unmount("MainMenu");
+    GuiMothership.Unmount("MainMenu");
     print("Entering battle");
     // TODO: we will enter battle immediately; in the future:
     // 1. look for database first,
@@ -116,7 +116,7 @@ function enterBattle() {
     serverRemotes.request();
 }
 function enterStory() {
-    GuiMothership.unmount("MainMenu");
+    GuiMothership.Unmount("MainMenu");
     // const scene = new Scene({
     //     name: "Test Scene",
     //     hasCover: true
@@ -163,41 +163,41 @@ function mainMenuSetup() {
             {
                 text: "Play",
                 onClick: () => {
-                    GuiMothership.unmount("MainMenu");
-                    GuiMothership.unmount(GuiTag.WaitingRoom);;
+                    GuiMothership.Unmount("MainMenu");
+                    GuiMothership.Unmount(GuiTag.WaitingRoom);;
                     enterPlayground();
                 },
             },
             {
                 text: "Battle",
                 onClick: () => {
-                    GuiMothership.unmount("MainMenu");
+                    GuiMothership.Unmount("MainMenu");
                     enterBattle();
                 }
             },
             {
                 text: "Story",
                 onClick: () => {
-                    GuiMothership.unmount("MainMenu");
+                    GuiMothership.Unmount("MainMenu");
                     enterStory();
                 }
             },
             {
                 text: "Multiplayer",
                 onClick: () => {
-                    GuiMothership.unmount("MainMenu");
+                    GuiMothership.Unmount("MainMenu");
                     serverRemotes.requestRoom();
                 }
             }
         ];
 
-    GuiMothership.mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
+    GuiMothership.Mount("MainMenu", <MainMenuElement title="Condor" buttons={mainMenuButtons} />);
 }
 
-clientRemotes.ui.unmount.connect(tag => GuiMothership.unmount(tag));
+clientRemotes.ui.unmount.connect(tag => GuiMothership.Unmount(tag));
 clientRemotes.ui.startRoom.connect(s => {
     // print("Start Room", s);
-    GuiMothership.mount(GuiTag.WaitingRoom, <WaitingRoomElement
+    GuiMothership.Mount(GuiTag.WaitingRoom, <WaitingRoomElement
         players={s}
         readyButtonClicked={() => {
             enterBattle();
@@ -209,8 +209,8 @@ clientRemotes.ui.startRoom.connect(s => {
 
 // mainMenuCameraSetup();
 // mainMenuSetup();
-enterBattle();
-// enterStory();
+// enterBattle();
+enterStory();
 // enterPlayground();
 //#endregion
 

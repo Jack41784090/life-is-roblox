@@ -1,45 +1,27 @@
+import { Atom, atom } from "@rbxts/charm";
+import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useRef, useState } from "@rbxts/react";
-import ReactRoblox from "@rbxts/react-roblox";
+import { useAtom } from "@rbxts/react-charm";
 import { RunService, Workspace } from "@rbxts/services";
+import GuiMothership from "gui_sharedfirst/new_components/main";
+import { GuiTag } from "shared/const";
 import { portraitsFolder } from "shared/const/assets";
+import { springs } from "shared/utils";
 import Logger from "shared/utils/Logger";
-import { SpeechBubbleConfig, SpeechBubbleState } from "./types";
-
-/**
- * SpeechBubble component for displaying interactive text bubbles with animations.
- * Used for character dialogue with typewriter text effect and smooth animations.
- */
+import { SpeechBubbleConfig, SpeechBubbleHandle, SpeechBubbleProps, SpeechBubbleState } from "./types";
 
 const logger = Logger.createContextLogger("SpeechBubble");
 
-interface SpeechBubbleProps extends SpeechBubbleConfig {
-    onFinished?: (success: boolean) => void;
-}
-
-export interface SpeechBubbleHandle {
-    close: () => void;
-    cleanup: () => void;
-}
-
-const DEFAULT_CONFIG = {
+const SPEECH_BUBBLE_DEFAULT_CONFIG = {
     backgroundColor: Color3.fromRGB(255, 255, 255),
     textColor: Color3.fromRGB(0, 0, 0),
     typingSpeed: 0.03,
     baseDisplayTime: 1.5,
     extraTimePerChar: 0.08,
 };
-
-// Helper for animation state tracking
-interface FrameSizeState {
-    wasAppearing: boolean;
-    wasDisappearing: boolean;
-}
-
-// The main speech bubble component
 function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBubbleHandle>) {
-    // Merge default config with props
     const config = {
-        ...DEFAULT_CONFIG,
+        ...SPEECH_BUBBLE_DEFAULT_CONFIG,
         ...props,
     };
 
@@ -49,38 +31,80 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
     const [portraitImage, setPortraitImage] = useState("");
     const [hasFinished, setHasFinished] = useState(false);
 
+    // Motion state for animations using useMotion
+    const [frameSize, frameSizeMotion] = useMotion(new UDim2(0, 0, 0, 0));
+    const [frameTransparency, frameTransparencyMotion] = useMotion(1); // Start fully transparent
+    const [pointerTransparency, pointerTransparencyMotion] = useMotion(1); // For pointer animation
+    const [textTransparency, textTransparencyMotion] = useMotion(1); // For text fade in/out
+
     // Refs
     const containerRef = useRef<Part | undefined>(undefined);
+    const frameRef = useRef<Frame | undefined>(undefined);
     const portraitMapRef = useRef<Map<string, string> | undefined>(undefined);
     const connectionsRef = useRef<(() => void)[]>([]);
-    const frameSizeStateRef = useRef<FrameSizeState>({
-        wasAppearing: false,
-        wasDisappearing: false
-    });
-
-    // Initialize portrait map
-    useEffect(() => {
-        if (config.portrait) {
-            initializePortraitMap();
-        }
-
-        return () => {
-            cleanup();
-        };
-    }, []);
 
     // Handle state changes
     useEffect(() => {
-        if (state === SpeechBubbleState.APPEARING) {
-            frameSizeStateRef.current.wasAppearing = true;
-        } else if (state === SpeechBubbleState.TYPING) {
-            startTyping();
-        } else if (state === SpeechBubbleState.DISPLAYING) {
-            scheduleDisappearance();
-        } else if (state === SpeechBubbleState.DISAPPEARING) {
-            frameSizeStateRef.current.wasDisappearing = true;
-        } else if (state === SpeechBubbleState.DESTROYED) {
-            cleanup();
+        switch (state) {
+            case SpeechBubbleState.APPEARING:
+                // Animate bubble appearance with spring physics
+                frameSizeMotion.spring(new UDim2(1, 0, 1, 0), springs.bubbly);
+                frameTransparencyMotion.spring(0.5, springs.bubbly);
+
+                // Animate pointer and text with delayed triggers
+                const pointerAnimTimeout = task.delay(0.15, () => {
+                    pointerTransparencyMotion.spring(0.5, springs.bubbly);
+                });
+
+                const textAnimTimeout = task.delay(0.3, () => {
+                    textTransparencyMotion.spring(0, springs.bubbly);
+                });
+
+                connectionsRef.current.push(() => task.cancel(pointerAnimTimeout));
+                connectionsRef.current.push(() => task.cancel(textAnimTimeout));
+
+                // After animation completes, transition to typing state
+                const appearTimeout = task.delay(0.4, () => {
+                    setState(SpeechBubbleState.TYPING);
+                });
+                connectionsRef.current.push(() => task.cancel(appearTimeout));
+                break;
+
+            case SpeechBubbleState.TYPING:
+                startTyping();
+                break;
+
+            case SpeechBubbleState.DISPLAYING:
+                scheduleDisappearance();
+                break;
+
+            case SpeechBubbleState.DISAPPEARING:
+                // Animate text to disappear first
+                textTransparencyMotion.spring(1, springs.responsive);
+
+                // Animate frame and pointer with sequential delays
+                const frameAnimTimeout = task.delay(0.1, () => {
+                    frameTransparencyMotion.spring(1, springs.responsive);
+                    pointerTransparencyMotion.spring(1, springs.responsive);
+                });
+
+                const frameSizeAnimTimeout = task.delay(0.2, () => {
+                    frameSizeMotion.spring(new UDim2(0, 0, 0, 0), springs.responsive);
+                });
+
+                connectionsRef.current.push(() => task.cancel(frameAnimTimeout));
+                connectionsRef.current.push(() => task.cancel(frameSizeAnimTimeout));
+
+                // After animation completes, transition to destroyed state
+                const disappearTimeout = task.delay(0.6, () => {
+                    setState(SpeechBubbleState.DESTROYED);
+                });
+                connectionsRef.current.push(() => task.cancel(disappearTimeout));
+                break;
+
+            case SpeechBubbleState.DESTROYED:
+                cleanup();
+                break;
         }
     }, [state]);
 
@@ -209,6 +233,11 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
 
     // Create and manage container part
     useEffect(() => {
+        // Initialise portrait map
+        if (config.portrait) {
+            initializePortraitMap();
+        }
+
         // Create container part
         const container = new Instance("Part");
         container.Name = "SpeechBubbleContainer";
@@ -261,46 +290,6 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
         };
     }, []);
 
-    // Animation helpers
-    const getFrameSize = () => {
-        switch (state) {
-            case SpeechBubbleState.INITIALIZING:
-            case SpeechBubbleState.APPEARING:
-                return new UDim2(0, 0, 0, 0); // Starting size
-            case SpeechBubbleState.TYPING:
-            case SpeechBubbleState.DISPLAYING:
-                return new UDim2(1, 0, 1, 0); // Full size
-            case SpeechBubbleState.DISAPPEARING:
-            case SpeechBubbleState.DESTROYED:
-                return new UDim2(0, 0, 0, 0); // Ending size
-        }
-    };
-
-    const getFrameTransparency = () => {
-        return state === SpeechBubbleState.DISAPPEARING ||
-            state === SpeechBubbleState.DESTROYED ? 1 : 0.5;
-    };
-
-    // Handle size changes for animation state transitions
-    const handleSizeChange = (rbx: Frame) => {
-        const size = rbx.Size;
-
-        // Detect when appearing animation finishes
-        if (state === SpeechBubbleState.APPEARING &&
-            frameSizeStateRef.current.wasAppearing &&
-            size.X.Scale >= 0.99) {
-            frameSizeStateRef.current.wasAppearing = false;
-            setState(SpeechBubbleState.TYPING);
-        }
-        // Detect when disappearing animation finishes
-        else if (state === SpeechBubbleState.DISAPPEARING &&
-            frameSizeStateRef.current.wasDisappearing &&
-            size.X.Scale <= 0.01) {
-            frameSizeStateRef.current.wasDisappearing = false;
-            setState(SpeechBubbleState.DESTROYED);
-        }
-    };
-
     // Return an empty frame if the container isn't ready yet
     // This ensures we always return a JSX element and never undefined
     if (!containerRef.current) {
@@ -318,14 +307,12 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
         >
             <frame
                 key="BubbleFrame"
-                Size={getFrameSize()}
+                ref={frameRef}
+                Size={frameSize}
                 Position={new UDim2(0.5, 0, 0.5, 0)}
                 AnchorPoint={new Vector2(0.5, 0.5)}
                 BackgroundColor3={config.backgroundColor}
-                BackgroundTransparency={getFrameTransparency()}
-                Change={{
-                    Size: handleSizeChange
-                }}
+                BackgroundTransparency={frameTransparency}
             >
                 {config.portrait ? (
                     <imagelabel
@@ -334,6 +321,7 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
                         Position={new UDim2(0, 0, 0, 0)}
                         BackgroundTransparency={1}
                         Image={portraitImage}
+                        ImageTransparency={frameTransparency.map((t) => t * 0.5)}
                         ScaleType={Enum.ScaleType.Crop}
                     />
                 ) : undefined}
@@ -348,6 +336,7 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
                     AnchorPoint={new Vector2(0, 0.5)}
                     BackgroundTransparency={1}
                     TextColor3={config.textColor}
+                    TextTransparency={textTransparency}
                     TextSize={18}
                     Font={Enum.Font.GothamMedium}
                     TextWrapped={true}
@@ -364,6 +353,7 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
                     AnchorPoint={new Vector2(0.5, 0)}
                     Image="rbxassetid://172525946"
                     ImageColor3={config.backgroundColor}
+                    ImageTransparency={pointerTransparency}
                 />
 
                 <uicorner
@@ -375,89 +365,109 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
                     key="Stroke"
                     Color={new Color3(0.16, 0.16, 0.16)}
                     Thickness={2}
+                    Transparency={frameTransparency}
                 />
             </frame>
         </billboardgui>
     );
 }
-
-// Create the forwardRef version of the component
 const SpeechBubble = React.forwardRef(SpeechBubbleComponent);
-
-// Helper function to create a speech bubble
-function createSpeechBubble(
-    config: SpeechBubbleConfig
-): {
-    finished: Promise<boolean>;
+interface SpeechBubbleData {
     component: JSX.Element;
-    close: () => void;
-    cleanup: () => void;
-} {
-    let resolveFn: (value: boolean) => void = () => { throw "resolveFn not set"; };
-    const finishedPromise = new Promise<boolean>((resolve) => {
-        resolveFn = resolve;
-    });
+    id: string;
+    ref: React.RefObject<SpeechBubbleHandle>;
+}
 
-    const bubbleRef = React.createRef<SpeechBubbleHandle>();
+function SpeechBubbleContainerComponent(props: { bubbles: Atom<SpeechBubbleData[]> }, ref: React.Ref<SpeechBubbleHandle>) {
+    const bubbles = useAtom(props.bubbles);
 
-    const handleFinished = (success: boolean) => {
-        resolveFn(success);
-    };
-
-    const component = (
-        <SpeechBubble
-            {...config}
-            ref={bubbleRef}
-            onFinished={handleFinished}
-        />
+    return (
+        <>
+            {bubbles.map(bubble => bubble.component)}
+        </>
     );
-
-    return {
-        finished: finishedPromise,
-        component,
-        close: () => bubbleRef.current?.close(),
-        cleanup: () => bubbleRef.current?.cleanup(),
-    };
 }
+const SpeechBubbleContainer = React.forwardRef(SpeechBubbleContainerComponent);
 
-// Create a simple container to host a speech bubble directly in the workspace
-function createSpeechBubbleInstance(
-    config: SpeechBubbleConfig
-): {
-    finished: Promise<boolean>;
-    close: () => void;
-    cleanup: () => void;
-} {
-    const container = new Instance("Part");
-    container.Name = "SpeechBubbleHost";
-    container.Anchored = true;
-    container.CanCollide = false;
-    container.Transparency = 1;
-    container.Size = new Vector3(0, 0, 0);
-    container.Parent = Workspace;
 
-    // Create a React root
-    const root = ReactRoblox.createRoot(container);
+export default class SpeechBubbleController {
+    private static instance: SpeechBubbleController;
+    private bubblesAtom: Atom<SpeechBubbleData[]>;
 
-    // Create the bubble
-    const { component, finished, close, cleanup } = createSpeechBubble(config);
-
-    // Render the bubble
-    root.render(component);
-
-    // Return a combined API
-    return {
-        finished,
-        close,
-        cleanup: () => {
-            cleanup();
-            root.unmount();
-            container.Destroy();
+    private constructor() {
+        if (SpeechBubbleController.instance) {
+            throw ("Error: Singleton class already instantiated.");
         }
-    };
-}
+        this.bubblesAtom = atom<SpeechBubbleData[]>([]);
+        GuiMothership.Mount(GuiTag.SpeechBubblesContainer, <SpeechBubbleContainer bubbles={this.bubblesAtom} />);
+    }
 
-export {
-    createSpeechBubble,
-    createSpeechBubbleInstance, SpeechBubble as default
-};
+    public static NewBubble(config: SpeechBubbleConfig): {
+        finished: Promise<boolean>;
+        component: JSX.Element;
+        close: () => void;
+        cleanup: () => void;
+    } {
+        const instance = this.Get();
+        let resolveFn: (value: boolean) => void = () => { throw "resolveFn not set"; };
+        const finishedPromise = new Promise<boolean>((resolve) => {
+            resolveFn = resolve;
+        });
+
+        const bubbleRef = React.createRef<SpeechBubbleHandle>();
+        const bubbleId = `bubble-${tick()}-${math.random()}`;
+
+        const handleFinished = (success: boolean) => {
+            // Remove bubble from the atom when finished
+            instance.bubblesAtom((bubbles) =>
+                bubbles.filter(b => b.id !== bubbleId)
+            );
+            resolveFn(success);
+        };
+
+        const component = (
+            <SpeechBubble
+                key={bubbleId}
+                {...config}
+                ref={bubbleRef}
+                onFinished={handleFinished}
+            />
+        );
+
+        // Create the bubble data object
+        const bubbleData: SpeechBubbleData = {
+            component,
+            id: bubbleId,
+            ref: bubbleRef
+        };
+
+        // Add the bubble to our atom
+        instance.bubblesAtom((currentBubbles) => [...currentBubbles, bubbleData]);
+
+        const close = () => {
+            bubbleRef.current?.close();
+        };
+
+        const cleanup = () => {
+            // Remove from the atom and cleanup the component
+            instance.bubblesAtom((bubbles) =>
+                bubbles.filter(b => b.id !== bubbleId)
+            );
+            bubbleRef.current?.cleanup();
+        };
+
+        return {
+            finished: finishedPromise,
+            component,
+            close,
+            cleanup,
+        };
+    }
+
+    public static Get() {
+        if (this.instance) {
+            return this.instance;
+        }
+        return (this.instance = new SpeechBubbleController());
+    }
+}

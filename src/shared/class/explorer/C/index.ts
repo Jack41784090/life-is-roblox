@@ -5,7 +5,7 @@ import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entit
 import { copyVector3, disableCharacter, enableCharacter, formatVector3, mapRange } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
-import { createSpeechBubble } from "../SpeechBubble";
+import SpeechBubbleController from "../SpeechBubble";
 import { SpeechBubbleConfig } from "../SpeechBubble/types";
 import Going from "./Going";
 import { CConfig, CState, MovementConfig } from "./types";
@@ -499,7 +499,7 @@ export default class C {
         };
 
         // Create the speech bubble using the SpeechBubble class
-        const speechBubble = createSpeechBubble(config);
+        const speechBubble = SpeechBubbleController.NewBubble(config);
 
         // Store a reference to the active speech bubble for cleanup
         this.speechBubble = speechBubble;

@@ -68,7 +68,7 @@ export default class BattleGui {
 
         switch (mode) {
             case 'onlyReadinessBar':
-                GuiMothership.mount(
+                GuiMothership.Mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={this.readinessFragments} />
@@ -79,7 +79,7 @@ export default class BattleGui {
                 assert(state, `State is not defined for mode: ${mode}`);
                 assert(EHCGMS, `EntityHexCellGraphicsMothership is not defined for mode: ${mode}`);
                 assert(accessToken, `Access token is not defined for mode: ${mode}`);
-                GuiMothership.mount(
+                GuiMothership.Mount(
                     GuiTag.MainGui,
                     <MenuFrameElement transparency={1} key={`BattleUI`}>
                         <ReadinessBar icons={this.readinessFragments} />
@@ -97,7 +97,7 @@ export default class BattleGui {
      * @returns 
      */
     public mountActionMenu(actions: CharacterMenuAction[]) {
-        GuiMothership.mount(
+        GuiMothership.Mount(
             GuiTag.ActionMenu,
             <MenuFrameElement key={"ActionMenu"} transparency={1} >
                 <ButtonFrameElement position={new UDim2(0.7, 0, 0.35, 0)} size={new UDim2(0.2, 0, 0.6, 0)} >
@@ -126,12 +126,12 @@ export default class BattleGui {
     // Highlight the cells along a path
     public mountOrUpdateGlow(cellsToGlow: HexCellGraphics[]): HexCellGraphics[] | undefined {
         const elements = cellsToGlow.mapFiltered((cell) => <CellGlowingSurface cell={cell} />);
-        GuiMothership.mount(GuiTag.Glow, <frame key={'GlowingPath'}>{elements}</frame>)
+        GuiMothership.Mount(GuiTag.Glow, <frame key={'GlowingPath'}>{elements}</frame>)
         return cellsToGlow;
     }
 
     public mountOtherPlayersTurnGui() {
-        GuiMothership.mount(GuiTag.OtherTurn, <OPTElement />);
+        GuiMothership.Mount(GuiTag.OtherTurn, <OPTElement />);
     }
 
     public mountAbilitySlots(cre: Entity) {
@@ -140,14 +140,14 @@ export default class BattleGui {
             this.logger.warn("No ability set found for entity");
             return;
         }
-        GuiMothership.mount(GuiTag.AbilitySlot,
+        GuiMothership.Mount(GuiTag.AbilitySlot,
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>);
     }
 
     public unmountAndClear(tag: GuiTag) {
-        GuiMothership.unmount(tag);
+        GuiMothership.Unmount(tag);
     }
     //#endregion
 
@@ -356,7 +356,7 @@ export default class BattleGui {
 
     public clearAllLooseGui() {
         for (const [x, tag] of pairs(GuiTag)) {
-            GuiMothership.unmount(tag);
+            GuiMothership.Unmount(tag);
         }
     }
 
