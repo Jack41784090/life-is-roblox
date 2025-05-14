@@ -32,9 +32,10 @@ export class Trigger {
             cutscene.getCamera() :
             cutscene.getActor(this.modelID);
         if (!actor) {
-            this.logger.error("No actor found with id", this.modelID);
+            this.logger.error(`[ACTOR_NOT_FOUND] Failed to retrieve actor with ID "${this.modelID}" for trigger "${this.name}"`);
             return;
         }
+        this.logger.info(`[TRIGGER_ACTIVATED] "${this.name}" | Actor: "${this.modelID}" | Type: ${this.name}`);
 
         return this.triggersAfter ?
             new Promise(resolve => {
@@ -42,7 +43,7 @@ export class Trigger {
                     if (cutscene.isXTriggerActivated(this.triggersAfter!)) {
                         checkTriggered.Disconnect();
                         wait(this.delay)
-                        this.logger.debug("Trigger activated after", this.triggersAfter, "with delay", this.delay);
+                        this.logger.debug(`[SEQUENTIAL_TRIGGER] "${this.name}" activated after "${this.triggersAfter}" with delay of ${this.delay}s`);
                         resolve(actor);
                     }
                 })
@@ -62,11 +63,11 @@ export class MoveTrigger extends Trigger {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
-        this.logger.debug(`Moving to ${this.dest.Position}`);
+        this.logger.info(`Moving to ${this.dest.Position}`);
 
         if (actor instanceof CutsceneActor) {
             actor.setDestination(this.dest.Position).then(() => {
-                this.logger.debug("Move finished");
+                this.logger.info("Move finished");
                 this.finished = true;
             });
         }
@@ -90,7 +91,7 @@ export class LookAtTrigger extends Trigger {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
-        this.logger.debug(`Looking at ${this.lookAtActor}`);
+        this.logger.info(`Looking at ${this.lookAtActor}`);
         const lookAt = cutscene.getAny(this.lookAtActor);
         if (!lookAt) {
             this.logger.error("No actor found with id", this.lookAtActor);
@@ -123,11 +124,11 @@ export class SpeakTrigger extends Trigger {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
-        this.logger.debug(`Speaking ${this.text}`);
+        this.logger.info(`Speaking ${this.text}`);
 
         if (actor instanceof CutsceneActor) {
             actor.speak(this.text).then(() => {
-                this.logger.debug("Speak finished");
+                this.logger.info("Speak finished");
                 this.finished = true;
             });
         }

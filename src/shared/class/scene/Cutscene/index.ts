@@ -197,7 +197,9 @@ export class Cutscene {
     private handleImmediateMoveTrigger(trigger: MoveTrigger) {
         if (trigger.modelID === 'camera') {
             // Handle camera immediate positioning
-            Workspace.CurrentCamera!.CFrame = trigger.dest.CFrame;
+            const cc = Workspace.CurrentCamera; assert(cc, "No current camera found");
+            cc.CameraType = Enum.CameraType.Scriptable;
+            cc.CFrame = trigger.dest.CFrame;
         } else {
             // Handle actor immediate positioning
             const actor = this.cutsceneSet.getActor(trigger.modelID);
@@ -214,14 +216,15 @@ export class Cutscene {
     private runTrigger(triggerPair: TriggerPair) {
         const time = triggerPair[0];
         const trigger = triggerPair[1];
-        this.logger.info(`Running Trigger`, trigger);
 
         // For time=0 MoveTrigger, handle with immediate positioning instead of pathfinding
         if (time === 0 && trigger instanceof MoveTrigger) {
+            this.logger.info(`Immediate MoveTrigger ${trigger.name} activated`, trigger);
             this.handleImmediateMoveTrigger(trigger)
         }
         // For all other triggers or non-zero time triggers, use the OOP approach
         else {
+            this.logger.info(`Normal Trigger ${trigger.name} activated`, trigger);
             trigger.run(this);
         }
 
