@@ -204,7 +204,7 @@ export default class BattleClient {
         this.exitMovement()
         // await this.camera.enterCharacterCenterMode()
         await this.localEntity().then(e => {
-            this.camera.enterCharacterCenterMode().then(() => {
+            this.camera.enterCharacterCenterMode(this.graphics.findEntityGByEntity(e)).then(() => {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(e));
             })
         })

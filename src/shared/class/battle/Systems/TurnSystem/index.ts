@@ -63,6 +63,7 @@ export class TurnSystem {
 
             const nextActor = listOfReadinessState.sort((a, b) => a().pos() - b().pos() > 0)[0]();
             this.logger.info(`Readiness gauntlet winner: ${nextActor.id}`, nextActor);
+            this.currentActorId = nextActor.id;
             return nextActor;
         } catch (err) {
             this.logger.error(`Error in gradual readiness gauntlet: ${err}`);
