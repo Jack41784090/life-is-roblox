@@ -22,13 +22,10 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
     const [portraitImage, setPortraitImage] = useState("");
     const [hasFinished, setHasFinished] = useState(false);
     const [position, setPosition] = useState<UDim2>(new UDim2(0.5, 0, 0.5, 0));
-    const [isOnScreen, setIsOnScreen] = useState(true);
-    const [directionAngle, setDirectionAngle] = useState(0); // Angle to character when off-screen
 
     // Motion state for animations using useMotion
     const [frameSize, frameSizeMotion] = useMotion(new UDim2(0, 0, 0, 0));
     const [frameTransparency, frameTransparencyMotion] = useMotion(1); // Start fully transparent
-    const [pointerTransparency, pointerTransparencyMotion] = useMotion(1); // For pointer animation
     const [textTransparency, textTransparencyMotion] = useMotion(1); // For text fade in/out
 
     // Refs
@@ -44,16 +41,10 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
                 frameSizeMotion.spring(BUBBLESIZEPROPORTION, springs.bubbly);
                 frameTransparencyMotion.spring(0.5, springs.bubbly);
 
-                // Animate pointer and text with delayed triggers
-                const pointerAnimTimeout = task.delay(0.15, () => {
-                    pointerTransparencyMotion.spring(0.5, springs.bubbly);
-                });
-
                 const textAnimTimeout = task.delay(0.3, () => {
                     textTransparencyMotion.spring(0, springs.bubbly);
                 });
 
-                connectionsRef.current.push(() => task.cancel(pointerAnimTimeout));
                 connectionsRef.current.push(() => task.cancel(textAnimTimeout));
 
                 // After animation completes, transition to typing state
@@ -78,7 +69,6 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
                 // Animate frame and pointer with sequential delays
                 const frameAnimTimeout = task.delay(0.1, () => {
                     frameTransparencyMotion.spring(1, springs.responsive);
-                    pointerTransparencyMotion.spring(1, springs.responsive);
                 });
 
                 const frameSizeAnimTimeout = task.delay(0.2, () => {
@@ -193,7 +183,7 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
     };
 
     // Calculate position based on parent's position relative to camera
-    let lastPosition = new Vector3(0, 0, 0);
+    let lastPosition = new Vector2();
     const updatePosition = () => {
         const camera = Workspace.CurrentCamera;
         if (!camera || !config.parent || !config.parent.Parent) return;
@@ -210,16 +200,14 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
         const screenY = viewportPosition.Y;
 
         const viewportSize = camera.ViewportSize;
-        const SCREEN_PADDING = viewportSize.X / 10; // Padding from screen edges in pixels
+        const SCREEN_PADDING = 0;
         const BUBBLE_WIDTH = viewportSize.X * (BUBBLESIZEPROPORTION.Width.Scale);
         const BUBBLE_HEIGHT = viewportSize.Y * (BUBBLESIZEPROPORTION.Height.Scale);
-        const VERTICAL_OFFSET = 50; // Y offset when bubble is above the character
 
         // Calculate ideal bubble position (above character)
-        const idealX = screenX - (BUBBLE_WIDTH / 2);
-        const idealY = screenY - BUBBLE_HEIGHT - VERTICAL_OFFSET;
-        const shouldLog = idealX !== lastPosition.X || idealY !== lastPosition.Y;
-        lastPosition = new Vector3(idealX, idealY, 0);
+        const intendedX = screenX - (BUBBLE_WIDTH / 2);
+        const intendedY = screenY - BUBBLE_HEIGHT;
+        const shouldLog = intendedX !== lastPosition.X || intendedY !== lastPosition.Y;
 
         // Helper function to format numbers to 1 decimal place (since toFixed isn't available)
         const format1Dec = (num: number) => math.floor(num * 10) / 10;
@@ -227,69 +215,55 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
 
         // Character is visible, check if the bubble would be out of bounds
         const isOutOfBounds = (
-            idealX < SCREEN_PADDING ||
-            idealX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING ||
-            idealY < SCREEN_PADDING ||
-            idealY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING
+            intendedX < SCREEN_PADDING ||
+            intendedX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING ||
+            intendedY < SCREEN_PADDING ||
+            intendedY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING
         );
 
         if (shouldLog) {
             let boundaryInfo = "";
-            if (idealX < SCREEN_PADDING) boundaryInfo += " LeftEdge";
-            if (idealX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING) boundaryInfo += " RightEdge";
-            if (idealY < SCREEN_PADDING) boundaryInfo += " TopEdge";
-            if (idealY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) boundaryInfo += " BottomEdge";
+            if (intendedX < SCREEN_PADDING) boundaryInfo += " LeftEdge";
+            if (intendedX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING) boundaryInfo += " RightEdge";
+            if (intendedY < SCREEN_PADDING) boundaryInfo += " TopEdge";
+            if (intendedY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) boundaryInfo += " BottomEdge";
 
-            logger.debug(`[Bubble] Character screen=(${format1Dec(screenX)},${format1Dec(screenY)}), ideal=(${format1Dec(idealX)},${format1Dec(idealY)}), outOfBounds=${isOutOfBounds}${boundaryInfo}`);
+            logger.debug(`[Bubble] Character screen=(${format1Dec(screenX)},${format1Dec(screenY)}), ideal=(${format1Dec(intendedX)},${format1Dec(intendedY)}), visibleOnScreen=${isVisible}, outOfBounds=${isOutOfBounds}${boundaryInfo}`);
+        }
+
+        if (!isVisible) {
+            logger.debug(`[Bubble] Character not visible, using last position (${format1Dec(lastPosition.X)},${format1Dec(lastPosition.Y)})`);
+            setPosition(UDim2.fromOffset(lastPosition.X, lastPosition.Y));
+            return;
         }
 
         if (!isOutOfBounds) {
-            // Bubble fits within screen bounds
-            setPosition(new UDim2(0, idealX, 0, idealY));
-            setIsOnScreen(true);
-
+            lastPosition = new Vector2(intendedX, intendedY);
+            setPosition(UDim2.fromOffset(intendedX, intendedY));
             if (shouldLog) {
                 logger.debug(`[Bubble] Positioned at ideal location`);
             }
         } else {
-            // Character is on screen but bubble would be out of bounds
-            // Try to reposition the bubble to keep it on screen
-            let adjustedX = idealX;
-            let adjustedY = idealY;
+            let adjustedX = intendedX;
+            let adjustedY = intendedY;
 
             // Adjust X position if needed
-            if (idealX < SCREEN_PADDING) {
+            if (intendedX < SCREEN_PADDING) {
                 adjustedX = SCREEN_PADDING;
-            } else if (idealX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING) {
+            } else if (intendedX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING) {
                 adjustedX = viewportSize.X - BUBBLE_WIDTH - SCREEN_PADDING;
             }
 
-            // Adjust Y position if needed
-            if (idealY < SCREEN_PADDING) {
-                // If can't fit above character, try below
-                adjustedY = screenY + VERTICAL_OFFSET;
-
-                if (shouldLog) {
-                    logger.debug(`[Bubble] Can't fit above, trying below at y=${format1Dec(adjustedY)}`);
-                }
-
-                // If still out of bounds below, use screen edge
-                if (adjustedY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) {
-                    setIsOnScreen(false);
-                    positionBubbleAtScreenEdge(camera, characterPosition);
-
-                    if (shouldLog) {
-                        logger.debug(`[Bubble] Can't fit below either, switching to edge mode`);
-                    }
-                    return;
-                }
-            } else if (idealY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) {
+            if (intendedY < SCREEN_PADDING) {
+                adjustedY = screenY;
+            }
+            else if (intendedY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) {
                 adjustedY = viewportSize.Y - BUBBLE_HEIGHT - SCREEN_PADDING;
             }
 
             // Use adjusted position
-            setPosition(new UDim2(0, adjustedX, 0, adjustedY));
-            setIsOnScreen(true);
+            lastPosition = new Vector2(adjustedX, adjustedY);
+            setPosition(UDim2.fromOffset(adjustedX, adjustedY));
 
             if (shouldLog) {
                 logger.debug(`[Bubble] Adjusted position: (${format1Dec(adjustedX)},${format1Dec(adjustedY)})`);
@@ -297,72 +271,6 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
         }
     };
 
-    // Position bubble at screen edge with direction indicator
-    const positionBubbleAtScreenEdge = (camera: Camera, characterPosition: Vector3) => {
-        const viewportSize = camera.ViewportSize;
-        const SCREEN_PADDING = viewportSize.X / 10;
-        const BUBBLE_WIDTH = viewportSize.X * (BUBBLESIZEPROPORTION.Width.Scale);
-        const BUBBLE_HEIGHT = viewportSize.Y * (BUBBLESIZEPROPORTION.Height.Scale);
-
-        // Helper function to format numbers (since toFixed isn't available)
-        const format1Dec = (num: number) => math.floor(num * 10) / 10;
-        const format2Dec = (num: number) => math.floor(num * 100) / 100;
-
-        // Simplified XZ-based direction calculation
-        // Get camera and character positions in XZ plane only (ignore Y)
-        const cameraPos = camera.CFrame.Position;
-        const cameraXZ = new Vector2(cameraPos.X, cameraPos.Z);
-        const characterXZ = new Vector2(characterPosition.X, characterPosition.Z);
-
-        // Calculate direction from camera to character in XZ plane
-        const dirXZ = characterXZ.sub(cameraXZ);
-
-        // Normalize the direction vector
-        const dirLength = dirXZ.Magnitude;
-        const normDir = dirLength > 0 ? dirXZ.div(dirLength) : new Vector2(0, -1);
-
-        // Calculate angle in degrees for the direction indicator
-        const angleDegrees = math.deg(math.atan2(normDir.Y, normDir.X));
-        setDirectionAngle(angleDegrees);
-
-        // Determine which screen edge to place the bubble on
-        let edgeX = 0;
-        let edgeY = 0;
-
-        // Use the larger component to determine primary edge
-        if (math.abs(normDir.X) > math.abs(normDir.Y)) {
-            // Character is more to the left or right
-            edgeX = normDir.X > 0
-                ? viewportSize.X - BUBBLE_WIDTH - SCREEN_PADDING  // Right edge
-                : SCREEN_PADDING;                                 // Left edge
-
-            // Position vertically relative to the center
-            edgeY = viewportSize.Y / 2 - (BUBBLE_HEIGHT / 2);
-
-            // Log edge positioning decision
-            const shouldLog = math.floor(tick()) % 2 === 0;
-            if (shouldLog) {
-                logger.debug(`[Bubble] Edge positioning: Horizontal (${normDir.X > 0 ? "Right" : "Left"}), angle=${format1Dec(angleDegrees)}, dirXZ=(${format2Dec(normDir.X)},${format2Dec(normDir.Y)})`);
-            }
-        } else {
-            // Character is more above or below
-            edgeY = normDir.Y > 0
-                ? viewportSize.Y - BUBBLE_HEIGHT - SCREEN_PADDING  // Bottom edge
-                : SCREEN_PADDING;                                  // Top edge
-
-            // Position horizontally relative to the center
-            edgeX = viewportSize.X / 2 - (BUBBLE_WIDTH / 2);
-
-            // Log edge positioning decision
-            const shouldLog = math.floor(tick()) % 2 === 0;
-            if (shouldLog) {
-                logger.debug(`[Bubble] Edge positioning: Vertical (${normDir.Y > 0 ? "Bottom" : "Top"}), angle=${format1Dec(angleDegrees)}, dirXZ=(${format2Dec(normDir.X)},${format2Dec(normDir.Y)})`);
-            }
-        }
-
-        // Set the bubble position
-        setPosition(UDim2.fromOffset(edgeX, edgeY));
-    };
 
     // Cleanup function
     const cleanup = () => {
@@ -457,55 +365,6 @@ const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<
                 TextYAlignment={Enum.TextYAlignment.Center}
                 Text={text}
             />
-
-            {/* Show different pointer styles based on character visibility */}
-            {isOnScreen ? (
-                <imagelabel
-                    key="Pointer"
-                    BackgroundTransparency={1}
-                    Size={new UDim2(0.2, 0, 0.2, 0)}
-                    Position={new UDim2(0.5, 0, 1, 0)}
-                    AnchorPoint={new Vector2(0.5, 0)}
-                    Image="rbxassetid://172525946"
-                    ImageColor3={config.backgroundColor}
-                    ImageTransparency={pointerTransparency}
-                />
-            ) : (
-                <frame
-                    key="DirectionIndicator"
-                    Size={new UDim2(0, 24, 0, 12)}
-                    Position={new UDim2(0.5, 0, 0.95, 0)}
-                    AnchorPoint={new Vector2(0.5, 1)}
-                    BackgroundColor3={config.backgroundColor}
-                    BackgroundTransparency={pointerTransparency}
-                    Rotation={directionAngle} // Use calculated rotation based on character direction
-                >
-                    <frame
-                        Size={new UDim2(0.5, 0, 1, 0)}
-                        Position={new UDim2(0.75, 0, 0.5, 0)}
-                        AnchorPoint={new Vector2(0.5, 0.5)}
-                        BackgroundColor3={config.backgroundColor}
-                        BackgroundTransparency={0}
-                    >
-                        <uicorner CornerRadius={new UDim(0.5, 0)} />
-                    </frame>
-                    <frame
-                        Size={new UDim2(0.5, 0, 1, 0)}
-                        Position={new UDim2(0.25, 0, 0.5, 0)}
-                        AnchorPoint={new Vector2(0.5, 0.5)}
-                        BackgroundColor3={config.backgroundColor}
-                        BackgroundTransparency={0}
-                    >
-                        <uicorner CornerRadius={new UDim(0.5, 0)} />
-                    </frame>
-                    <uistroke
-                        Color={new Color3(0.16, 0.16, 0.16)}
-                        Thickness={1}
-                        Transparency={frameTransparency}
-                    />
-                </frame>
-            )}
-
             <uicorner
                 key="Corner"
                 CornerRadius={new UDim(0.05, 0)}
