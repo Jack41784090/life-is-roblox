@@ -7,23 +7,10 @@ import GuiMothership from "gui_sharedfirst/new_components/main";
 import { GuiTag } from "shared/const";
 import { portraitsFolder } from "shared/const/assets";
 import { springs } from "shared/utils";
-import Logger from "shared/utils/Logger";
-import { SpeechBubbleConfig, SpeechBubbleHandle, SpeechBubbleProps, SpeechBubbleState } from "./types";
+import { BUBBLESIZEPROPORTION, logger, SPEECH_BUBBLE_DEFAULT_CONFIG } from "./const";
+import { SpeechBubbleConfig, SpeechBubbleData, SpeechBubbleHandle, SpeechBubbleProps, SpeechBubbleState } from "./types";
 
-const logger = Logger.createContextLogger("SpeechBubble");
-
-const BUBBLESIZEPROPORTION = UDim2.fromScale(0.35, 0.25);
-
-// Configuration constants
-const SPEECH_BUBBLE_DEFAULT_CONFIG = {
-    backgroundColor: Color3.fromRGB(255, 255, 255),
-    textColor: Color3.fromRGB(0, 0, 0),
-    typingSpeed: 0.03,
-    baseDisplayTime: 1.5,
-    extraTimePerChar: 0.08,
-};
-
-function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBubbleHandle>) {
+const SpeechBubble = React.forwardRef((props: SpeechBubbleProps, ref: React.Ref<SpeechBubbleHandle>) => {
     const config = {
         ...SPEECH_BUBBLE_DEFAULT_CONFIG,
         ...props,
@@ -206,6 +193,7 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
     };
 
     // Calculate position based on parent's position relative to camera
+    let lastPosition = new Vector3(0, 0, 0);
     const updatePosition = () => {
         const camera = Workspace.CurrentCamera;
         if (!camera || !config.parent || !config.parent.Parent) return;
@@ -230,9 +218,8 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
         // Calculate ideal bubble position (above character)
         const idealX = screenX - (BUBBLE_WIDTH / 2);
         const idealY = screenY - BUBBLE_HEIGHT - VERTICAL_OFFSET;
-
-        // Every ~2 seconds, log key positioning data (to avoid excessive logging)
-        const shouldLog = math.floor(tick()) % 2 === 0;
+        const shouldLog = idealX !== lastPosition.X || idealY !== lastPosition.Y;
+        lastPosition = new Vector3(idealX, idealY, 0);
 
         // Helper function to format numbers to 1 decimal place (since toFixed isn't available)
         const format1Dec = (num: number) => math.floor(num * 10) / 10;
@@ -532,15 +519,9 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
             />
         </frame>
     );
-}
-const SpeechBubble = React.forwardRef(SpeechBubbleComponent);
-interface SpeechBubbleData {
-    component: JSX.Element;
-    id: string;
-    ref: React.RefObject<SpeechBubbleHandle>;
-}
+});
 
-function SpeechBubbleContainerComponent(props: { bubbles: Atom<SpeechBubbleData[]> }) {
+const SpeechBubbleContainer = React.forwardRef((props: { bubbles: Atom<SpeechBubbleData[]> }) => {
     const bubbles = useAtom(props.bubbles);
 
     return (
@@ -553,10 +534,7 @@ function SpeechBubbleContainerComponent(props: { bubbles: Atom<SpeechBubbleData[
             {bubbles.map(bubble => bubble.component)}
         </screengui>
     );
-}
-
-const SpeechBubbleContainer = React.memo(SpeechBubbleContainerComponent);
-
+});
 
 export default class SpeechBubbleController {
     private static instance: SpeechBubbleController;

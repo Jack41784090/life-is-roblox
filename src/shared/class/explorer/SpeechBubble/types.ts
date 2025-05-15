@@ -17,6 +17,12 @@ export interface SpeechBubbleConfig {
     portrait?: string;
 }
 
+export interface SpeechBubbleData {
+    component: JSX.Element;
+    id: string;
+    ref: React.RefObject<SpeechBubbleHandle>;
+}
+
 export enum SpeechBubbleState {
     INITIALIZING = "initializing",
     APPEARING = "appearing",
