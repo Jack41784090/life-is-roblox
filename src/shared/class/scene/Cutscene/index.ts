@@ -2,10 +2,11 @@ import { RunService } from "@rbxts/services";
 import { scenesFolder } from "shared/const/assets";
 import Logger from "shared/utils/Logger";
 import { ActorManager } from "./ActorManager";
+import { CameraManager } from "./CameraManager";
 import { CutsceneScript } from "./Script";
 import { CutsceneConfig } from "./Script/type";
 import { CutsceneSet } from "./Set";
-import { Trigger } from "./Trigger";
+import { LookAtTrigger, Trigger } from "./Trigger";
 import { TriggerPair } from "./Trigger/types";
 import { TriggerFactory } from "./TriggerFactory";
 import { TriggerManager } from "./TriggerManager";
@@ -15,24 +16,12 @@ import { TriggerManager } from "./TriggerManager";
  * Uses composition over inheritance by delegating responsibilities to specialized classes
  */
 export class Cutscene {
-    // Accessor methods for external components
-    public getAny(lookAtActor: string) {
-        return this.cutsceneSet.getAny(lookAtActor);
-    }
-
-    public getActor(modelID: string) {
-        return this.cutsceneSet.getActor(modelID);
-    }
-
-    public getCamera() {
-        return this.cutsceneSet.getCamera();
-    }
-
     // Component instances (using composition)
     private logger = Logger.createContextLogger("Cutscene");
     private triggerFactory = new TriggerFactory();
     private triggerManager = new TriggerManager();
     private actorManager = new ActorManager();
+    private cameraManager: CameraManager;
 
     // Core cutscene components
     private script: CutsceneScript;
@@ -40,12 +29,57 @@ export class Cutscene {
 
     // Runtime state
     private runtime?: RBXScriptConnection;
+    private cameraControl?: RBXScriptConnection;
     private elapsedTime: number = -1;
+
+    // Camera state
+    private cameraAngle: number = 0;
+    private cameraEnabled: boolean = true;
+    private cameraMode: "FREE" | "LOCKED" | "FOLLOWING" = "FREE";
 
     // Model references
     private modelName: string;
     private model: Model;
 
+    /**
+     * Main constructor for the Cutscene class
+     */
+    constructor(config: CutsceneConfig) {
+        this.logger.info("Creating cutscene", config);
+
+        // Initialize scene model
+        this.modelName = config.sceneModel;
+        const scene = scenesFolder.WaitForChild(this.modelName) as Model;
+        if (!scene) {
+            this.logger.error("Scene model not found in folder", this.modelName);
+            throw `Scene model not found in folder ${this.modelName}`;
+        }
+        this.model = scene.Clone();
+
+        // Initialize triggers and actors
+        const characterTriggers = this.initializeCharacterTriggers();
+        const cameraTriggers = this.initializeCameraTriggers();
+        const actorConfigs = this.actorManager.getActorConfigs();
+
+        // Combine all triggers
+        const allTriggers: TriggerPair[] = [...config.triggerMap, ...characterTriggers, ...cameraTriggers];
+
+        // Initialize script and set
+        this.script = new CutsceneScript({
+            triggerMap: allTriggers,
+        });
+
+        this.cutsceneSet = new CutsceneSet({
+            cutsceneModel: this.model,
+            centreOfScene: config.centreOfScene,
+            actors: actorConfigs,
+        });
+
+        // Initialize camera manager
+        this.cameraManager = new CameraManager(this);
+    }
+
+    //#region Initialisations
     /**
      * Initialize character movement triggers from the scene model
      * @returns Array of trigger pairs for character movements
@@ -123,7 +157,6 @@ export class Cutscene {
 
         return triggers;
     }
-
     /**
      * Initialize camera movement triggers from the scene model
      * @returns Array of trigger pairs for camera movements
@@ -156,48 +189,32 @@ export class Cutscene {
         return triggers;
     }
 
-    /**
-     * Main constructor for the Cutscene class
-     */
-    constructor(config: CutsceneConfig) {
-        this.logger.info("Creating cutscene", config);
+    private initializeCamera() {
+        this.logger.info("Initializing camera");
+        this.cameraManager.initialize();
 
-        // Initialize scene model
-        this.modelName = config.sceneModel;
-        const scene = scenesFolder.WaitForChild(this.modelName) as Model;
-        if (!scene) {
-            this.logger.error("Scene model not found in folder", this.modelName);
-            throw `Scene model not found in folder ${this.modelName}`;
-        }
-        this.model = scene.Clone();
-
-        // Initialize triggers and actors
-        const characterTriggers = this.initializeCharacterTriggers();
-        const cameraTriggers = this.initializeCameraTriggers();
-        const actorConfigs = this.actorManager.getActorConfigs();
-
-        // Combine all triggers
-        const allTriggers: TriggerPair[] = [...config.triggerMap, ...characterTriggers, ...cameraTriggers];
-
-        // Initialize script and set
-        this.script = new CutsceneScript({
-            triggerMap: allTriggers,
-        });
-
-        this.cutsceneSet = new CutsceneSet({
-            cutsceneModel: this.model,
-            centreOfScene: config.centreOfScene,
-            actors: actorConfigs,
-        });
+        // Initialize camera for cutscene playback
+        this.initializeCamera = () => {
+            this.logger.info("Camera already initialized");
+        };
     }
 
+    public getModel(): Model {
+        return this.model;
+    }
+
+    //#endregion
+
+    //#region Validations
     /**
      * Check if a specific trigger has been activated
      */
     public isXTriggerActivated(triggerName: string): boolean {
         return this.triggerManager.isTriggerActivated(triggerName);
     }
+    //#endregion
 
+    //#region Cutscene playback
     /**
      * Play the cutscene from the beginning
      */
@@ -206,6 +223,9 @@ export class Cutscene {
 
         // Clean up any existing runtime
         this.stopCutscene();
+
+        // Initialize camera
+        this.initializeCamera();
 
         // Initialize playback state
         this.elapsedTime = 0;
@@ -227,8 +247,22 @@ export class Cutscene {
 
             this.logger.debug(`[${math.floor(this.elapsedTime)}s ${this.elapsedTime % 1}ms]`, nextTriggerPair);
 
+            // Check if there are no more triggers to process
             if (!nextTriggerPair) {
-                this.stopCutscene();
+                // triggers done, schedule stopcutscene
+                this.logger.info("All triggers finished");
+                (Promise.all(this.triggerManager.getAllTriggers().map(trigger => trigger[1].finished ? Promise.resolve() :
+                    new Promise(resolve => {
+                        const checkTriggered = RunService.RenderStepped.Connect(() => {
+                            if (trigger[1].finished) {
+                                checkTriggered.Disconnect();
+                                resolve(void 0);
+                            }
+                        });
+                    })
+                ))).then(() => {
+                    this.stopCutscene();
+                })
                 return;
             }
 
@@ -248,13 +282,46 @@ export class Cutscene {
             this.triggerManager.executeTrigger(nextTriggerPair, this);
         });
     }
-
     /**
      * Stop the cutscene and clean up
      */
     public stopCutscene(): void {
         this.logger.info("Stopping cutscene");
         this.runtime?.Disconnect();
+        this.cameraManager.cleanup();
         this.elapsedTime = -1;
     }
+    //#endregion
+
+    //#region Getting cutscene components
+    // Accessor methods for external components
+    public getAny(lookAtActor: string) {
+        return this.cutsceneSet.getAny(lookAtActor);
+    }
+
+    public getActor(modelID: string) {
+        return this.cutsceneSet.getActor(modelID);
+    }
+
+    public getCamera() {
+        return this.cutsceneSet.getCamera();
+    }
+    //#endregion
+
+    //#region Trigger handling
+    public handleLookAtTrigger(trigger: LookAtTrigger): Promise<void> {
+        if (trigger.modelID === "camera") {
+            return this.cameraManager.handleLookAt(trigger);
+        }
+
+        return Promise.resolve();
+    }
+
+    // Method to reset camera control after a LookAt trigger
+    public releaseCameraAfterTrigger(): void {
+        if (this.cameraManager) {
+            this.cameraManager.releaseCameraControl();
+        }
+    }
+    //#endregion
 }

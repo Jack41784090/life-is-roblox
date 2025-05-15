@@ -137,7 +137,6 @@ export class SpeakTrigger extends Trigger {
             return;
         }
 
-        this.finished = true;
         return actor;
     }
 }

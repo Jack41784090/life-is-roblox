@@ -11,6 +11,7 @@ import { TriggerPair } from "./Trigger/types";
 export class TriggerManager {
     private logger = Logger.createContextLogger("TriggerManager");
     private triggeredMap: Map<string, boolean> = new Map<string, boolean>();
+    private allTriggers: Array<TriggerPair> = [];
 
     constructor() { }
 
@@ -71,6 +72,7 @@ export class TriggerManager {
      * Run a trigger and monitor its completion
      */
     public executeTrigger(triggerPair: TriggerPair, cutscene: Cutscene): void {
+        this.allTriggers.push(triggerPair);
         const time = triggerPair[0];
         const trigger = triggerPair[1];
 
@@ -93,5 +95,9 @@ export class TriggerManager {
                 checkFinish.Disconnect();
             }
         });
+    }
+
+    public getAllTriggers(): Array<TriggerPair> {
+        return this.allTriggers;
     }
 }
