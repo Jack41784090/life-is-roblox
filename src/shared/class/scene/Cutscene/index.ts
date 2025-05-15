@@ -1,109 +1,168 @@
-import { RunService, Workspace } from "@rbxts/services";
+import { RunService } from "@rbxts/services";
 import { scenesFolder } from "shared/const/assets";
 import Logger from "shared/utils/Logger";
+import { ActorManager } from "./ActorManager";
 import { CutsceneScript } from "./Script";
 import { CutsceneConfig } from "./Script/type";
 import { CutsceneSet } from "./Set";
-import { LookAtTrigger, MoveTrigger, SpeakTrigger, Trigger } from "./Trigger";
+import { Trigger } from "./Trigger";
 import { TriggerPair } from "./Trigger/types";
-import { ActorConfig, CutsceneAction } from "./types";
+import { TriggerFactory } from "./TriggerFactory";
+import { TriggerManager } from "./TriggerManager";
 
+/**
+ * Main Cutscene class responsible for coordinating the cutscene playback
+ * Uses composition over inheritance by delegating responsibilities to specialized classes
+ */
 export class Cutscene {
-    getAny(lookAtActor: string) {
+    // Accessor methods for external components
+    public getAny(lookAtActor: string) {
         return this.cutsceneSet.getAny(lookAtActor);
     }
-    getActor(modelID: string) {
+
+    public getActor(modelID: string) {
         return this.cutsceneSet.getActor(modelID);
     }
-    getCamera() {
+
+    public getCamera() {
         return this.cutsceneSet.getCamera();
     }
-    private logger = Logger.createContextLogger("Cutscene")
 
-    private triggeredMap: Map<string, boolean> = new Map<string, boolean>();
+    // Component instances (using composition)
+    private logger = Logger.createContextLogger("Cutscene");
+    private triggerFactory = new TriggerFactory();
+    private triggerManager = new TriggerManager();
+    private actorManager = new ActorManager();
+
+    // Core cutscene components
     private script: CutsceneScript;
     private cutsceneSet: CutsceneSet;
 
+    // Runtime state
     private runtime?: RBXScriptConnection;
     private elapsedTime: number = -1;
 
+    // Model references
     private modelName: string;
     private model: Model;
 
-    private initialiseCharMoveTriggers(starInitPosition: Map<string, Vector3>): [number, Trigger][] {
-        this.logger.info("Initialising camera and character move parts")
+    /**
+     * Initialize character movement triggers from the scene model
+     * @returns Array of trigger pairs for character movements
+     */
+    private initializeCharacterTriggers(): [number, Trigger][] {
+        this.logger.info("Initializing character move triggers");
         const scriptObj = this.model.WaitForChild("Script") as Model;
         const charMoves = scriptObj.WaitForChild("CharMoves") as Model;
-        const newMoveTriggers = charMoves.GetDescendants().mapFiltered(d => {
-            const actor = d.FindFirstChild('actor') as StringValue;
-            const time = d.FindFirstChild('time') as NumberValue;
-            const delay = d.FindFirstChild('delay') as NumberValue;
-            const triggersAfter = d.FindFirstChild('triggersAfter') as StringValue;
-            const lookAt = d.FindFirstChild('lookAt') as StringValue;
-            const text = d.FindFirstChild('text') as StringValue;
+
+        const triggers: [number, Trigger][] = [];
+
+        charMoves.GetDescendants().forEach(descendant => {
+            const actor = descendant.FindFirstChild('actor') as StringValue;
+            const time = descendant.FindFirstChild('time') as NumberValue;
+            const delay = descendant.FindFirstChild('delay') as NumberValue;
+            const triggersAfter = descendant.FindFirstChild('triggersAfter') as StringValue;
+            const lookAt = descendant.FindFirstChild('lookAt') as StringValue;
+            const text = descendant.FindFirstChild('text') as StringValue;
+
             if (!time || !actor) return;
-            this.triggeredMap.set(d.Name, false);
-            if (d.IsA('BasePart')) {
-                if (time.Value === 0) starInitPosition.set(actor.Value, d.Position);
-                return [time.Value, new MoveTrigger({
-                    modelID: actor.Value,
-                    cutsceneAction: CutsceneAction.Move,
-                    dest: d,
-                    name: d.Name,
-                    triggersAfter: triggersAfter?.Value,
-                    delay: delay?.Value,
-                })] as TriggerPair;
-            }
-            else if (d.IsA('StringValue')) {
-                switch (d.Value) {
+
+            // Register the trigger in the manager
+            this.triggerManager.registerTrigger(descendant.Name);
+
+            if (descendant.IsA('BasePart')) {
+                // Handle position triggers (BasePart)
+                if (time.Value === 0) {
+                    this.actorManager.setActorInitPosition(actor.Value, descendant.Position);
+                }
+
+                triggers.push(
+                    this.triggerFactory.createMoveTrigger(
+                        time.Value,
+                        descendant,
+                        actor.Value,
+                        descendant.Name,
+                        triggersAfter?.Value,
+                        delay?.Value
+                    )
+                );
+            } else if (descendant.IsA('StringValue')) {
+                // Handle other trigger types (LookAt, Speak)
+                switch (descendant.Value) {
                     case 'LookAt':
-                        return [time.Value, new LookAtTrigger({
-                            modelID: actor.Value,
-                            cutsceneAction: CutsceneAction.Move,
-                            name: d.Name,
-                            triggersAfter: triggersAfter?.Value,
-                            delay: delay?.Value,
-                            lookAtActor: lookAt.Value
-                        })] as TriggerPair
+                        if (lookAt) {
+                            triggers.push(
+                                this.triggerFactory.createLookAtTrigger(
+                                    time.Value,
+                                    descendant.Name,
+                                    actor.Value,
+                                    lookAt.Value,
+                                    triggersAfter?.Value,
+                                    delay?.Value
+                                )
+                            );
+                        }
+                        break;
                     case 'Speak':
-                        return [time.Value, new SpeakTrigger({
-                            modelID: actor.Value,
-                            cutsceneAction: CutsceneAction.Move,
-                            name: d.Name,
-                            triggersAfter: triggersAfter?.Value,
-                            delay: delay?.Value,
-                            text: text.Value,
-                        })] as TriggerPair
+                        if (text) {
+                            triggers.push(
+                                this.triggerFactory.createSpeakTrigger(
+                                    time.Value,
+                                    descendant.Name,
+                                    actor.Value,
+                                    text.Value,
+                                    triggersAfter?.Value,
+                                    delay?.Value
+                                )
+                            );
+                        }
+                        break;
                 }
             }
         });
 
-        return newMoveTriggers;
+        return triggers;
     }
 
-    private initialiseCamMoveTriggers(): [number, Trigger][] {
-        this.logger.info("Initialising camera move parts")
+    /**
+     * Initialize camera movement triggers from the scene model
+     * @returns Array of trigger pairs for camera movements
+     */
+    private initializeCameraTriggers(): [number, Trigger][] {
+        this.logger.info("Initializing camera move triggers");
         const scriptObj = this.model.WaitForChild("Script") as Model;
         const camMoves = scriptObj.WaitForChild("CamMoves") as Model;
-        const camMovesDescendants = camMoves.GetDescendants().mapFiltered(d => {
-            if (!d.IsA('BasePart')) return;
-            const t = d.FindFirstChildWhichIsA('NumberValue');
-            if (!t) return;
-            this.triggeredMap.set(d.Name, false);
-            return [t.Value, new MoveTrigger({
-                modelID: 'camera',
-                cutsceneAction: CutsceneAction.Move,
-                dest: d,
-                name: d.Name,
-            })] as TriggerPair;
-        })
 
-        return camMovesDescendants;
+        const triggers: [number, Trigger][] = [];
+
+        camMoves.GetDescendants().forEach(descendant => {
+            if (!descendant.IsA('BasePart')) return;
+
+            const timeValue = descendant.FindFirstChildWhichIsA('NumberValue');
+            if (!timeValue) return;
+
+            // Register the trigger in the manager
+            this.triggerManager.registerTrigger(descendant.Name);
+
+            triggers.push(
+                this.triggerFactory.createCameraMoveTrigger(
+                    timeValue.Value,
+                    descendant,
+                    descendant.Name
+                )
+            );
+        });
+
+        return triggers;
     }
 
+    /**
+     * Main constructor for the Cutscene class
+     */
     constructor(config: CutsceneConfig) {
-        this.logger.info("Cutscene created", config);
+        this.logger.info("Creating cutscene", config);
 
+        // Initialize scene model
         this.modelName = config.sceneModel;
         const scene = scenesFolder.WaitForChild(this.modelName) as Model;
         if (!scene) {
@@ -112,62 +171,62 @@ export class Cutscene {
         }
         this.model = scene.Clone();
 
-        const actorshells: ActorConfig[] = [];
-        const starInitPosition = new Map<string, Vector3>();
-        const moveTriggers = this.initialiseCharMoveTriggers(starInitPosition);
-        const camMoveTriggers = this.initialiseCamMoveTriggers();
-        starInitPosition.forEach((pos, actorName) => {
-            const actor = {
-                id: actorName,
-                displayName: actorName,
-                spawnLocation: pos,
-            }
-            actorshells.push(actor);
-        })
+        // Initialize triggers and actors
+        const characterTriggers = this.initializeCharacterTriggers();
+        const cameraTriggers = this.initializeCameraTriggers();
+        const actorConfigs = this.actorManager.getActorConfigs();
 
-        const allMoveTriggers: TriggerPair[] = config.triggerMap;
-        moveTriggers.forEach(mt => allMoveTriggers.push(mt));
-        camMoveTriggers.forEach(mt => allMoveTriggers.push(mt));
+        // Combine all triggers
+        const allTriggers: TriggerPair[] = [...config.triggerMap, ...characterTriggers, ...cameraTriggers];
 
+        // Initialize script and set
         this.script = new CutsceneScript({
-            triggerMap: allMoveTriggers,
-        })
+            triggerMap: allTriggers,
+        });
+
         this.cutsceneSet = new CutsceneSet({
             cutsceneModel: this.model,
             centreOfScene: config.centreOfScene,
-            actors: actorshells,
-        })
+            actors: actorConfigs,
+        });
     }
 
-    public isXTriggerActivated(triggerName: string) {
-        const trigger = this.triggeredMap.get(triggerName);
-        if (trigger === undefined) {
-            this.logger.error("Trigger not found", triggerName);
-            return false;
-        }
-        return trigger;
+    /**
+     * Check if a specific trigger has been activated
+     */
+    public isXTriggerActivated(triggerName: string): boolean {
+        return this.triggerManager.isTriggerActivated(triggerName);
     }
 
-    public playFromStart() {
-        this.logger.info(`Playing cutscene from start`)
-        this.runtime?.Disconnect();
+    /**
+     * Play the cutscene from the beginning
+     */
+    public playFromStart(): void {
+        this.logger.info("Playing cutscene from start");
+
+        // Clean up any existing runtime
+        this.stopCutscene();
+
+        // Initialize playback state
         this.elapsedTime = 0;
         const triggers = this.script.getSortedTriggerMap();
-        this.logger.debug("Sorted triggers", triggers)
+        this.logger.debug("Sorted triggers", triggers);
 
         let nextTriggerPair: TriggerPair | undefined = triggers.shift();
         this.cutsceneSet.show();
-        this.runtime = RunService.RenderStepped.Connect(dt => {
-            if (dt > .5) {
-                this.logger.warn("LAGSPIKE: ", dt);
-                // skip lag spike updates
-                return;
-            }
 
+        // Start the runtime loop
+        this.runtime = RunService.RenderStepped.Connect(dt => {
+            if (dt > 0.5) {
+                this.logger.warn("Performance issue detected (lag spike):", dt);
+                return; // Skip lag spike updates
+            }
 
             this.elapsedTime += dt;
             nextTriggerPair = nextTriggerPair || triggers.shift();
+
             this.logger.debug(`[${math.floor(this.elapsedTime)}s ${this.elapsedTime % 1}ms]`, nextTriggerPair);
+
             if (!nextTriggerPair) {
                 this.stopCutscene();
                 return;
@@ -175,65 +234,27 @@ export class Cutscene {
 
             const time = nextTriggerPair[0];
             const trigger = nextTriggerPair[1];
+
             if (time > this.elapsedTime) {
-                // wait for trigger to reach required time
+                // Wait for trigger to reach required time
                 return;
-            }
-            else if (time < this.elapsedTime && trigger.activated) {
+            } else if (time < this.elapsedTime && trigger.activated) {
+                // Move to next trigger if current one is already activated
                 nextTriggerPair = undefined;
                 return;
             }
 
-            this.runTrigger(nextTriggerPair);
-        })
+            // Execute the trigger
+            this.triggerManager.executeTrigger(nextTriggerPair, this);
+        });
     }
 
-    public stopCutscene() {
-        this.logger.info("Cutscene is stopped.")
+    /**
+     * Stop the cutscene and clean up
+     */
+    public stopCutscene(): void {
+        this.logger.info("Stopping cutscene");
         this.runtime?.Disconnect();
         this.elapsedTime = -1;
-    }
-
-    private handleImmediateMoveTrigger(trigger: MoveTrigger) {
-        if (trigger.modelID === 'camera') {
-            // Handle camera immediate positioning
-            const cc = Workspace.CurrentCamera; assert(cc, "No current camera found");
-            cc.CameraType = Enum.CameraType.Scriptable;
-            cc.CFrame = trigger.dest.CFrame;
-        } else {
-            // Handle actor immediate positioning
-            const actor = this.cutsceneSet.getActor(trigger.modelID);
-            if (actor) {
-                actor.getModel().PivotTo(trigger.dest.CFrame);
-            } else {
-                this.logger.error("No actor found with id", trigger.modelID);
-            }
-        }
-        trigger.activated = true;
-        trigger.finished = true;
-    }
-
-    private runTrigger(triggerPair: TriggerPair) {
-        const time = triggerPair[0];
-        const trigger = triggerPair[1];
-
-        // For time=0 MoveTrigger, handle with immediate positioning instead of pathfinding
-        if (time === 0 && trigger instanceof MoveTrigger) {
-            this.logger.info(`Immediate MoveTrigger ${trigger.name} activated`, trigger);
-            this.handleImmediateMoveTrigger(trigger)
-        }
-        // For all other triggers or non-zero time triggers, use the OOP approach
-        else {
-            this.logger.info(`Normal Trigger ${trigger.name} activated`, trigger);
-            trigger.run(this);
-        }
-
-        const checkFinish = RunService.RenderStepped.Connect(() => {
-            if (trigger.finished) {
-                this.triggeredMap.set(trigger.name, true);
-                this.logger.info(`Trigger ${trigger.name} finished`);
-                checkFinish.Disconnect();
-            }
-        })
     }
 }
