@@ -227,7 +227,6 @@ export default class AnimationHandler {
 
     private adjustWeight(track: AnimationTrack, weightAtom: Atom<number>, atomInterpreter: ((atom: Atom<number>) => number) = (atom) => atom()): void {
         const weight = atomInterpreter(weightAtom);
-        this.logger.debug(`Adjusting weight: ${track.Name} to ${weight}`);
         if (weight <= 1) {
             track.AdjustWeight(weight);
         } else if (weight > 1) {
@@ -237,7 +236,6 @@ export default class AnimationHandler {
 
         const cu = subscribe(weightAtom, (s) => {
             const updatedWeight = atomInterpreter(atom(s));
-            this.logger.debug(`Adjusting weight: ${track.Name} to ${updatedWeight}`);
             if (track.IsPlaying) {
                 if (updatedWeight <= 1) {
                     track.AdjustWeight(updatedWeight);

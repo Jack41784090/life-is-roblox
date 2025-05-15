@@ -220,64 +220,161 @@ function SpeechBubbleComponent(props: SpeechBubbleProps, ref: React.Ref<SpeechBu
 
         const screenX = viewportPosition.X;
         const screenY = viewportPosition.Y;
-        setIsOnScreen(isVisible);
 
         const viewportSize = camera.ViewportSize;
         const SCREEN_PADDING = viewportSize.X / 10; // Padding from screen edges in pixels
         const BUBBLE_WIDTH = viewportSize.X * (BUBBLESIZEPROPORTION.Width.Scale);
-        const BUBBLE_HEIGHT = viewportSize.Y * BUBBLESIZEPROPORTION.Height.Scale;
+        const BUBBLE_HEIGHT = viewportSize.Y * (BUBBLESIZEPROPORTION.Height.Scale);
         const VERTICAL_OFFSET = 50; // Y offset when bubble is above the character
 
-        if (isVisible) {
-            // Character is on screen, position bubble above them
-            setPosition(new UDim2(
-                0, screenX - (BUBBLE_WIDTH / 2),
-                0, screenY - BUBBLE_HEIGHT - VERTICAL_OFFSET
-            ));
+        // Calculate ideal bubble position (above character)
+        const idealX = screenX - (BUBBLE_WIDTH / 2);
+        const idealY = screenY - BUBBLE_HEIGHT - VERTICAL_OFFSET;
+
+        // Every ~2 seconds, log key positioning data (to avoid excessive logging)
+        const shouldLog = math.floor(tick()) % 2 === 0;
+
+        // Helper function to format numbers to 1 decimal place (since toFixed isn't available)
+        const format1Dec = (num: number) => math.floor(num * 10) / 10;
+        const format2Dec = (num: number) => math.floor(num * 100) / 100;
+
+        // Character is visible, check if the bubble would be out of bounds
+        const isOutOfBounds = (
+            idealX < SCREEN_PADDING ||
+            idealX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING ||
+            idealY < SCREEN_PADDING ||
+            idealY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING
+        );
+
+        if (shouldLog) {
+            let boundaryInfo = "";
+            if (idealX < SCREEN_PADDING) boundaryInfo += " LeftEdge";
+            if (idealX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING) boundaryInfo += " RightEdge";
+            if (idealY < SCREEN_PADDING) boundaryInfo += " TopEdge";
+            if (idealY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) boundaryInfo += " BottomEdge";
+
+            logger.debug(`[Bubble] Character screen=(${format1Dec(screenX)},${format1Dec(screenY)}), ideal=(${format1Dec(idealX)},${format1Dec(idealY)}), outOfBounds=${isOutOfBounds}${boundaryInfo}`);
+        }
+
+        if (!isOutOfBounds) {
+            // Bubble fits within screen bounds
+            setPosition(new UDim2(0, idealX, 0, idealY));
+            setIsOnScreen(true);
+
+            if (shouldLog) {
+                logger.debug(`[Bubble] Positioned at ideal location`);
+            }
         } else {
-            // Character is off screen, position bubble at screen edge
-            // Calculate direction from screen center to character
-            const screenCenterX = viewportSize.X / 2;
-            const screenCenterY = viewportSize.Y / 2;
+            // Character is on screen but bubble would be out of bounds
+            // Try to reposition the bubble to keep it on screen
+            let adjustedX = idealX;
+            let adjustedY = idealY;
 
-            const dirX = screenX - screenCenterX;
-            const dirY = screenY - screenCenterY;
-
-            // Normalize the direction vector
-            const dirLength = math.sqrt(dirX * dirX + dirY * dirY);
-            const normDirX = dirX / dirLength;
-            const normDirY = dirY / dirLength;
-
-            // Calculate angle in degrees for the direction indicator
-            const angleDegrees = math.deg(math.atan2(normDirY, normDirX));
-            setDirectionAngle(angleDegrees);
-
-            // Place bubble at screen edge based on character direction
-            let edgeX = 0;
-            let edgeY = 0;
-
-            // Calculate intersection with screen edge
-            const aspectRatio = viewportSize.X / viewportSize.Y;
-            const slope = math.abs(dirY / dirX);
-
-            if (slope > aspectRatio) {
-                // Intersect with top/bottom edge
-                const edgeYOffset = (normDirY > 0 ? viewportSize.Y - BUBBLE_HEIGHT - SCREEN_PADDING : SCREEN_PADDING);
-                edgeY = edgeYOffset;
-                edgeX = screenCenterX + ((normDirX * (viewportSize.Y / 2)) / normDirY);
-            } else {
-                // Intersect with left/right edge
-                const edgeXOffset = (normDirX > 0 ? viewportSize.X - BUBBLE_WIDTH - SCREEN_PADDING : SCREEN_PADDING);
-                edgeX = edgeXOffset;
-                edgeY = screenCenterY + ((normDirY * (viewportSize.X / 2)) / normDirX);
+            // Adjust X position if needed
+            if (idealX < SCREEN_PADDING) {
+                adjustedX = SCREEN_PADDING;
+            } else if (idealX + BUBBLE_WIDTH > viewportSize.X - SCREEN_PADDING) {
+                adjustedX = viewportSize.X - BUBBLE_WIDTH - SCREEN_PADDING;
             }
 
-            // Clamp to screen bounds
-            edgeX = math.clamp(edgeX, SCREEN_PADDING, viewportSize.X - BUBBLE_WIDTH - SCREEN_PADDING);
-            edgeY = math.clamp(edgeY, SCREEN_PADDING, viewportSize.Y - BUBBLE_HEIGHT - SCREEN_PADDING);
+            // Adjust Y position if needed
+            if (idealY < SCREEN_PADDING) {
+                // If can't fit above character, try below
+                adjustedY = screenY + VERTICAL_OFFSET;
 
-            setPosition(UDim2.fromOffset(edgeX, edgeY));
+                if (shouldLog) {
+                    logger.debug(`[Bubble] Can't fit above, trying below at y=${format1Dec(adjustedY)}`);
+                }
+
+                // If still out of bounds below, use screen edge
+                if (adjustedY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) {
+                    setIsOnScreen(false);
+                    positionBubbleAtScreenEdge(camera, characterPosition);
+
+                    if (shouldLog) {
+                        logger.debug(`[Bubble] Can't fit below either, switching to edge mode`);
+                    }
+                    return;
+                }
+            } else if (idealY + BUBBLE_HEIGHT > viewportSize.Y - SCREEN_PADDING) {
+                adjustedY = viewportSize.Y - BUBBLE_HEIGHT - SCREEN_PADDING;
+            }
+
+            // Use adjusted position
+            setPosition(new UDim2(0, adjustedX, 0, adjustedY));
+            setIsOnScreen(true);
+
+            if (shouldLog) {
+                logger.debug(`[Bubble] Adjusted position: (${format1Dec(adjustedX)},${format1Dec(adjustedY)})`);
+            }
         }
+    };
+
+    // Position bubble at screen edge with direction indicator
+    const positionBubbleAtScreenEdge = (camera: Camera, characterPosition: Vector3) => {
+        const viewportSize = camera.ViewportSize;
+        const SCREEN_PADDING = viewportSize.X / 10;
+        const BUBBLE_WIDTH = viewportSize.X * (BUBBLESIZEPROPORTION.Width.Scale);
+        const BUBBLE_HEIGHT = viewportSize.Y * (BUBBLESIZEPROPORTION.Height.Scale);
+
+        // Helper function to format numbers (since toFixed isn't available)
+        const format1Dec = (num: number) => math.floor(num * 10) / 10;
+        const format2Dec = (num: number) => math.floor(num * 100) / 100;
+
+        // Simplified XZ-based direction calculation
+        // Get camera and character positions in XZ plane only (ignore Y)
+        const cameraPos = camera.CFrame.Position;
+        const cameraXZ = new Vector2(cameraPos.X, cameraPos.Z);
+        const characterXZ = new Vector2(characterPosition.X, characterPosition.Z);
+
+        // Calculate direction from camera to character in XZ plane
+        const dirXZ = characterXZ.sub(cameraXZ);
+
+        // Normalize the direction vector
+        const dirLength = dirXZ.Magnitude;
+        const normDir = dirLength > 0 ? dirXZ.div(dirLength) : new Vector2(0, -1);
+
+        // Calculate angle in degrees for the direction indicator
+        const angleDegrees = math.deg(math.atan2(normDir.Y, normDir.X));
+        setDirectionAngle(angleDegrees);
+
+        // Determine which screen edge to place the bubble on
+        let edgeX = 0;
+        let edgeY = 0;
+
+        // Use the larger component to determine primary edge
+        if (math.abs(normDir.X) > math.abs(normDir.Y)) {
+            // Character is more to the left or right
+            edgeX = normDir.X > 0
+                ? viewportSize.X - BUBBLE_WIDTH - SCREEN_PADDING  // Right edge
+                : SCREEN_PADDING;                                 // Left edge
+
+            // Position vertically relative to the center
+            edgeY = viewportSize.Y / 2 - (BUBBLE_HEIGHT / 2);
+
+            // Log edge positioning decision
+            const shouldLog = math.floor(tick()) % 2 === 0;
+            if (shouldLog) {
+                logger.debug(`[Bubble] Edge positioning: Horizontal (${normDir.X > 0 ? "Right" : "Left"}), angle=${format1Dec(angleDegrees)}, dirXZ=(${format2Dec(normDir.X)},${format2Dec(normDir.Y)})`);
+            }
+        } else {
+            // Character is more above or below
+            edgeY = normDir.Y > 0
+                ? viewportSize.Y - BUBBLE_HEIGHT - SCREEN_PADDING  // Bottom edge
+                : SCREEN_PADDING;                                  // Top edge
+
+            // Position horizontally relative to the center
+            edgeX = viewportSize.X / 2 - (BUBBLE_WIDTH / 2);
+
+            // Log edge positioning decision
+            const shouldLog = math.floor(tick()) % 2 === 0;
+            if (shouldLog) {
+                logger.debug(`[Bubble] Edge positioning: Vertical (${normDir.Y > 0 ? "Bottom" : "Top"}), angle=${format1Dec(angleDegrees)}, dirXZ=(${format2Dec(normDir.X)},${format2Dec(normDir.Y)})`);
+            }
+        }
+
+        // Set the bubble position
+        setPosition(UDim2.fromOffset(edgeX, edgeY));
     };
 
     // Cleanup function
