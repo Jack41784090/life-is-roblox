@@ -11,7 +11,8 @@ export enum GameEvent {
     ENTITY_CREATED = "entity:created",
     ENTITY_UPDATED = "entity:updated",
     ENTITY_REMOVED = "entity:removed",
-    ENTITY_MOVED = "entity:moved",
+    ENTITY_INTEND_MOVE = "entity:moved",
+    ENTITY_MOVED = "entity:moved:confirmed",
 
     // Turn events
     TURN_STARTED = "turn:started",

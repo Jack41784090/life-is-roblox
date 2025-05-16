@@ -1,5 +1,4 @@
 import { Atom } from "@rbxts/charm";
-import EntityHexCellGraphicsMothership from "shared/class/battle/Client/Graphics/Mothership";
 import { EntityState } from "shared/class/battle/State/Entity/types";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
 import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/Systems/CombatSystem/Ability/types";
@@ -176,12 +175,6 @@ export interface StateConfig {
     teamMap: Record<string, Player[]>;
     width: number;
     worldCenter: Vector3;
-}
-
-export type UpdateMainUIConfig = {
-    EHCGMS: EntityHexCellGraphicsMothership,
-    state: State,
-    accessToken: AccessToken,
 }
 
 export interface AccessToken {

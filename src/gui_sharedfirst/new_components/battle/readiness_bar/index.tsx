@@ -11,7 +11,7 @@ interface Props {
 function ReadinessBar(props: Props) {
     // Use useAtom to properly subscribe to changes in the icons atom
     const icons = useAtom(props.icons);
-    print(`ReadinessBar updated:`, icons.map(icon => icon().icon));
+    print(`ReadinessBar updated:`, icons.map(icon => icon().pos()));
 
     return (
         <frame
