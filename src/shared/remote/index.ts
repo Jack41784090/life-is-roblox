@@ -48,9 +48,9 @@ export const clientRemotes = createRemotes({        //#region Server => Client
     chosen: remote<Client>(),
     forceUpdate: remote<Client>(),
     animate: remote<Client, [action: AccessToken]>(),
-    camera: namespace({
-        hoi4: remote<Client>(),
-    }),
+    // camera: namespace({
+    //     hoi4: remote<Client>(),
+    // }),
     animateClashes: remote<Client, [clashes: NeoClashResult[], attackActionRef: AttackAction]>(),
     ui: namespace({
         unmount: remote<Client, [tag: GuiTag]>(),
@@ -60,7 +60,9 @@ export const clientRemotes = createRemotes({        //#region Server => Client
             otherPlayersTurn: remote<Client>(),
         })
     }),
-    createClient: remote<Client, [config: Partial<BattleConfig>]>(), //#endregion
+    createClient: remote<Client, [config: Partial<BattleConfig>]>(),
+    turnStart: remote<Client>(),
+    turnEnd: remote<Client>(),
 });
 
 export default remotes;

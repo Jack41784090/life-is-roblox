@@ -209,8 +209,8 @@ clientRemotes.ui.startRoom.connect(s => {
 
 // mainMenuCameraSetup();
 // mainMenuSetup();
-// enterBattle();
-enterStory();
+enterBattle();
+// enterStory();
 // enterPlayground();
 //#endregion
 

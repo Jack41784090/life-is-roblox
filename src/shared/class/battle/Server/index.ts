@@ -1,4 +1,5 @@
 import { RunService } from "@rbxts/services";
+import { t } from "@rbxts/t";
 import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction } from "shared/class/battle/types";
 import { IDGenerator } from "shared/class/IDGenerator";
 import { MOVEMENT_COST } from "shared/const";
@@ -44,7 +45,31 @@ export default class BattleServer {
         })
         this.syncSystem = new SyncSystem({ players });
         this.setUpRemotes();
+        this.setUpEventListeners();
         this.state.StartLoop();
+    }
+
+    private setUpEventListeners() {
+        const eventBus = this.state.getEventBus();
+        eventBus.subscribe(GameEvent.TURN_STARTED, (playerID: unknown) => {
+            const ver = t.number(playerID);
+            if (!ver) {
+                this.logger.error(`[${GameEvent.TURN_STARTED}] Invalid playerID: ${playerID}`);
+                return;
+            }
+            this.syncSystem.broadcast('turnStart');
+            this.logger.info(`[${GameEvent.TURN_STARTED}] Player ${playerID} turn started.`);
+            this.waitForResponse().then(p => {
+                if (p) {
+                    this.logger.info(`[${GameEvent.TURN_STARTED}] Player ${p.Name} ended the turn.`);
+                }
+                else {
+                    this.logger.warn(`[${GameEvent.TURN_STARTED}] No player ended the turn.`);
+                }
+                eventBus.emit(GameEvent.TURN_ENDED, playerID);
+                this.syncSystem.broadcast('turnEnd');
+            })
+        })
     }
 
     private setUpRemotes() {
@@ -172,9 +197,12 @@ export default class BattleServer {
         this.logger.info(`Waiting for response from current turn player: ${winningClient.Name} (Access Code: ${serverSideAccessCode})`);
 
         return await new Promise<Player | undefined>((resolve) => {
+            // Player requests to act, server responds with token if valid
             network.onServerRequestOf('toAct', requestingPlayer =>
                 this.handleActRequest(requestingPlayer, serverSideAccessCode)
             );
+
+            // Player acts, server validates and executes
             network.onServerRequestOf('act', (actingPlayer, access) =>
                 this.handleActionExecution(
                     actingPlayer,
@@ -187,6 +215,7 @@ export default class BattleServer {
                 )
             );
 
+            // Player requests to end turn, server validates and executes
             let turnEndPromiseResolve: ((p: Player) => void) | undefined = undefined;
             let endConnection: (() => void) | undefined = undefined;
             const turnEndPromise = new Promise<Player>((resolve) => {
@@ -265,7 +294,7 @@ export default class BattleServer {
         accessCode: string,
         resolveTurnPromise: (playerWhoTookAction: Player | undefined) => void
     ): { userId: number; allowed: boolean; token: string; action: BattleAction | undefined } {
-        this.logger.info(`Received action execution from ${actingPlayer.Name}. Action: ${access.action?.type}`);
+        this.logger.info(`Received action execution from ${actingPlayer.Name}.`, access);
 
         const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
         const eventBus = this.state.getEventBus();

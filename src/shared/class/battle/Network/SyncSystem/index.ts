@@ -1,3 +1,4 @@
+import { ClientRemote } from "@rbxts/remo";
 import { RunService } from "@rbxts/services";
 import { clientRemotes } from "shared/remote";
 import Logger from "shared/utils/Logger";
@@ -52,10 +53,10 @@ export class SyncSystem {
 
     public broadcast<T extends keyof typeof clientRemotes>(key: T, ...args: OmitFirstParameter<typeof clientRemotes[T]>): void {
         this.logger.debug(`Broadcasting ${key} to ${this.players.size()} players`);
-        const remote = clientRemotes[key];
+        const remote: ClientRemote<unknown[]> = clientRemotes[key] as ClientRemote<unknown[]>;
         if (RunService.IsServer()) {
             for (const player of this.players) {
-                remote.fire(player, ...(args as unknown[]));
+                remote(player, ...args as OmitFirstParameter<typeof remote.fire>);
             }
         } else {
             throw "Cannot call broadcast() on client";

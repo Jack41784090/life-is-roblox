@@ -1,13 +1,17 @@
 import { RunService } from "@rbxts/services";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
 import Logger from "shared/utils/Logger";
+import { clientRemotes } from '../../../remote/index';
 
 type ServerRemotesKey = keyof typeof serverRemotes;
 type ServerRequestRemoteKey = keyof typeof serverRequestRemote;
+type ClientRemotesKey = keyof typeof clientRemotes;
 // type RemoteParam<K extends ServerRequestRemoteKey> =
 //     K extends 'act' ? Parameters<typeof serverRequestRemote['act']['request']>[0] : undefined;
 type RemoteParam<K extends ServerRequestRemoteKey> =
     Parameters<typeof serverRequestRemote[K]['request']>
+type RemoteNoParam<K extends ServerRequestRemoteKey> =
+    Parameters<typeof serverRequestRemote[K]['request']>[0] extends undefined ? [] : Parameters<typeof serverRequestRemote[K]['request']>;
 
 export class NetworkService {
     private logger = Logger.createContextLogger("NetworkService");
@@ -50,14 +54,32 @@ export class NetworkService {
     //#endregion
 
     //#region Client-side
-    public request<K extends ServerRequestRemoteKey>(key: K, ...param: RemoteParam<K>): ReturnType<typeof serverRequestRemote[K]['request']> {
-        this.logger.debug(`Requesting ${key} with param:`, param);
-        const remote = serverRequestRemote[key];
-        if (RunService.IsClient()) {
-            const requestMethod = (param: never) => { return remote.request(param) };
-            return requestMethod(param as never) as ReturnType<typeof serverRequestRemote[K]['request']>;
+    // public request<K extends ServerRequestRemoteKey>(key: K, ...param: (RemoteParam<K> | RemoteNoParam<K>)): ReturnType<typeof serverRequestRemote[K]['request']> {
+    //     this.logger.debug(`Requesting ${key} with param:`, param);
+    //     const remote = serverRequestRemote[key];
+    //     if (RunService.IsClient()) {
+    //         // const requestMethod = (...param: unknown[]) => { return remote.request(...param) };
+    //         // // remote.request()
+    //         // return requestMethod(param as never) as ReturnType<typeof serverRequestRemote[K]['request']>;
+    //         if (param.size() === 0) {
+    //             return remote.request() as ReturnType<typeof serverRequestRemote[K]['request']>;
+    //         }
+    //         return remote.request(...param as unknown[]) as ReturnType<typeof serverRequestRemote[K]['request']>;
+    //     } else {
+    //         throw "Cannot call request() on server";
+    //     }
+    // }
+
+    public onClientRequestOf<T extends ClientRemotesKey>(key: T, callback: Parameters<typeof clientRemotes[T]['connect']>[0]): void {
+        this.logger.debug(`Listening to ${key} with callback:`, callback);
+        const remote = clientRemotes[key];
+        if (RunService.IsServer()) {
+            const requestCallbackWrapper = (player: Player, ...rest: unknown[]) => {
+                return (callback as (...args: unknown[]) => unknown)(player, ...rest);
+            }
+            remote.connect(requestCallbackWrapper as never);
         } else {
-            throw "Cannot call request() on server";
+            throw "Cannot call on() on client";
         }
     }
     //#endregion

@@ -9,6 +9,7 @@ import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/play
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import { AccessToken, ActionType, CharacterMenuAction, MainUIModes, MoveAction, Reality, UpdateMainUIConfig } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
+import { serverRequestRemote } from "shared/remote";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { NetworkService } from "../../Network";
@@ -286,13 +287,13 @@ export default class BattleGui {
 
     //#region Communicate with the server
     private async getCurrentActorID() {
-        const res = await this.network.request('cre');
+        const res = await serverRequestRemote.cre();
         assert(res, "Invalid response from server for current actor ID");
         return res;
     }
 
     private async getCurrentGameState() {
-        const gs = await this.network.request('state');
+        const gs = await serverRequestRemote.state();
         assert(gs, "Invalid response from server for game state");
         return gs;
     }
@@ -341,7 +342,7 @@ export default class BattleGui {
 
     private async commitAction(ac: AccessToken) {
         this.logger.debug("Committing action", ac);
-        const res = await this.network.request('act', ac);
+        const res = await serverRequestRemote.act(ac);
         return res;
     }
 

@@ -439,22 +439,15 @@ export default class State {
 
     private async waitForResponse(winningClient: Player): Promise<Player | undefined> {
         const eventBus = this.getEventBus();
-        // Create a new Promise that explicitly returns Player | undefined
         return await new Promise<Player | undefined>((resolve) => {
             const cleanup = eventBus.subscribe(GameEvent.TURN_ENDED, (id: unknown) => {
                 const verification = t.number(id);
-                if (!verification) {
-                    this.logger.warn(`Invalid ID type: ${id}`);
+                if (!verification || (id !== winningClient.UserId && id !== -1)) {
+                    this.logger.warn(`Invalid ID`, id as defined);
                     return;
                 }
-                if (id === winningClient.UserId) {
-                    resolve(winningClient);
-                }
-            });
-
-            const timeout = task.delay(5, () => {
                 cleanup();
-                resolve(undefined); // Resolve with undefined after timeout
+                resolve(id === -1 ? undefined : winningClient);
             });
         }).then((p) => {
             return p;

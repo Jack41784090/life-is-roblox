@@ -69,6 +69,13 @@ export default class BattleClient {
         })
     }
 
+    private setupRemoteListeners() {
+        const eventBus = this.state.getEventBus();
+        this.networking.onClientRequestOf('turnEnd', () => {
+            eventBus.emit(GameEvent.TURN_ENDED);
+        })
+    }
+
     /**
      * Creates a new Battle instance with the provided configuration.
      * 
@@ -166,7 +173,8 @@ export default class BattleClient {
             {
                 type: CharacterActionMenuAction.Move,
                 run: () => {
-                    this.networking.request('toAct').then(async accessToken => {
+                    serverRequestRemote.toAct().then(async accessToken => {
+                        this.logger.debug("Access token received", accessToken);
                         if (!accessToken.token) {
                             this.logger.warn(`${Players.LocalPlayer.Name} has received no access token`);
                             return;
