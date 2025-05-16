@@ -57,9 +57,7 @@ export default class BattleClient {
         // this.setupEventListeners();
 
         this.gui = Gui.Connect({
-            networkService: this.networking,
             readinessFragments: this.state.getReadinessFragments(),
-            eventBus: this.state.getEventBus(),
         });
         this.graphicsInitialised = this.initialiseGraphics();
         this.setupEventListeners();
