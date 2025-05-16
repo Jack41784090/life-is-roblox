@@ -9,7 +9,6 @@ import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
-import { entityMovedEventDataVerification } from "../Network/SyncSystem/veri";
 import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
@@ -73,24 +72,6 @@ export default class BattleClient {
                 return;
             }
             this.returnToSelections();
-        })
-        eventBus.subscribe(GameEvent.ENTITY_INTEND_MOVE, (entity: unknown) => {
-            const ver = entityMovedEventDataVerification(entity);
-            if (!ver) {
-                this.logger.error("Invalid entity moved event data", entity as defined);
-                return;
-            }
-            const { entityId, from, to } = entity;
-            const entityGraphicsExists = this.graphics.findEntityG(entityId);
-            if (entityGraphicsExists) {
-                this.graphics.moveEntity(from, to)
-            }
-            else {
-                this.logger.warn("Entity moved event received but entity graphics not found", entityId);
-                this.completeUpdate().then(() => {
-                    eventBus.emit(GameEvent.ENTITY_INTEND_MOVE, entity);
-                })
-            }
         })
     }
 

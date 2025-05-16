@@ -24,11 +24,11 @@ export default class EntityHexCellGraphicsMothership {
         this.grid = grid;
     }
 
-    tuples(): EntityCellGraphicsTuple[] {
+    public tuples(): EntityCellGraphicsTuple[] {
         return this.tupleQR.values();
     }
 
-    addTuple(playerID: number, tuple: EntityCellGraphicsTuple) {
+    public addTuple(playerID: number, tuple: EntityCellGraphicsTuple) {
         this.idTupleMap.set(playerID, tuple);
         if (this.tupleQR.get(tuple.cellGraphics.qrs)) {
             this.logger.warn(`Tuple already exists at ${tuple.cellGraphics.qrs}`);
@@ -38,10 +38,10 @@ export default class EntityHexCellGraphicsMothership {
         }
     }
 
-    removeTuple(x: number, y: number): void;
-    removeTuple(qrs: Vector2): void;
-    removeTuple(qr: Vector3): void;
-    removeTuple(qr: Vector2 | Vector3 | number, y?: number) {
+    public removeTuple(x: number, y: number): void;
+    public removeTuple(qrs: Vector2): void;
+    public removeTuple(qr: Vector3): void;
+    public removeTuple(qr: Vector2 | Vector3 | number, y?: number) {
         let tuple: EntityCellGraphicsTuple | undefined;
 
         if (typeOf(qr) === "number" && typeOf(y) === "number") {
@@ -63,16 +63,16 @@ export default class EntityHexCellGraphicsMothership {
         this.tupleQR.delete(tuple.cellGraphics.qrs);
     }
 
-    findTupleByEntity(entity: Entity) {
+    public findTupleByEntity(entity: Entity) {
         this.logger.debug(this.tupleQR, 'by', entity.qr);
         return this.tupleQR.get(entity.qr);
     }
 
-    findEntityG(playerID: PlayerID): EntityGraphics;
-    findEntityG(entity: Entity): EntityGraphics;
-    findEntityG(qr: Vector2): EntityGraphics;
-    findEntityG(qrs: Vector3): EntityGraphics;
-    findEntityG(qr: Vector2 | Vector3 | Entity | PlayerID) {
+    public findEntityG(playerID: PlayerID): EntityGraphics;
+    public findEntityG(entity: Entity): EntityGraphics;
+    public findEntityG(qr: Vector2): EntityGraphics;
+    public findEntityG(qrs: Vector3): EntityGraphics;
+    public findEntityG(qr: Vector2 | Vector3 | Entity | PlayerID) {
         let tuple: EntityCellGraphicsTuple | undefined;
         if (typeIs(qr, 'Vector2') || typeIs(qr, 'Vector3')) {
             tuple = this.tupleQR.get(qr as Vector2);
@@ -87,18 +87,18 @@ export default class EntityHexCellGraphicsMothership {
         return tuple?.entityGraphics;
     }
 
-    findCellG(qr: Vector2): HexCellGraphics;
-    findCellG(qrs: Vector3): HexCellGraphics;
-    findCellG(dest: Vector2 | Vector3) {
+    public findCellG(qr: Vector2): HexCellGraphics;
+    public findCellG(qrs: Vector3): HexCellGraphics;
+    public findCellG(dest: Vector2 | Vector3) {
         return this.tupleQR.get(dest as Vector2)?.cellGraphics;
     }
 
-    findEntityGByEntity(entity: Entity) {
+    public findEntityGByEntity(entity: Entity) {
         const tuple = this.findTupleByEntity(entity);
         return tuple?.entityGraphics;
     }
 
-    positionTuple(qr: Vector2) {
+    public positionTuple(qr: Vector2) {
         assert(this.grid.model, "Grid model not set");
         return this.tupleQR.get(qr) ??
             this.tupleQR.set(qr, new EntityCellGraphicsTuple(
@@ -112,13 +112,13 @@ export default class EntityHexCellGraphicsMothership {
             ))
     }
 
-    async sync(stateState: StateState) {
+    public async sync(stateState: StateState) {
         const syncs: Promise<void>[] = [];
         syncs.push(this.syncGrid(stateState.grid), this.syncTeams(stateState.teams))
         return Promise.all(syncs)
     }
 
-    async syncGrid(hgs: HexGridState) {
+    public async syncGrid(hgs: HexGridState) {
         this.logger.info(`Graphically syncing grid`, hgs);
         const cells = hgs.cells;
         for (const c of cells) {
@@ -126,7 +126,7 @@ export default class EntityHexCellGraphicsMothership {
         }
     }
 
-    async syncTeams(teamStates: TeamState[]) {
+    public async syncTeams(teamStates: TeamState[]) {
         this.logger.info(`Graphically syncing teams`, teamStates, this.idTupleMap);
         for (const teamState of teamStates) {
             for (const entityState of teamState.members) {
@@ -152,7 +152,7 @@ export default class EntityHexCellGraphicsMothership {
         }
     }
 
-    positionNewPlayer(entityState: EntityState, qr: Vector2) {
+    public positionNewPlayer(entityState: EntityState, qr: Vector2) {
         const modelID = entityState.stats.id;
         const model = getModelTemplateByID(modelID)
         assert(model, `Model name: "${modelID}" not found.`)
@@ -163,7 +163,7 @@ export default class EntityHexCellGraphicsMothership {
         this.idTupleMap.set(entityState.playerID, newTuple);
     }
 
-    repositionPlayer(playerID: PlayerID, newQR: Vector2) {
+    public repositionPlayer(playerID: PlayerID, newQR: Vector2) {
         this.logger.info(`Repositioning player ${playerID} to ${newQR}`);
         const playerTuple = this.idTupleMap.get(playerID);
         if (!playerTuple) {
@@ -176,7 +176,7 @@ export default class EntityHexCellGraphicsMothership {
         this.addTuple(playerID, newTuple);
     }
 
-    async moveEntity(start: Vector2, dest: Vector2) {
+    public async moveEntity(start: Vector2, dest: Vector2) {
         this.logger.info(`Moving entity from ${start} to ${dest}`);
         const tuple = this.tupleQR.get(start);
         const entity = tuple?.decouple();

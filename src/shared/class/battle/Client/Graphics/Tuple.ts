@@ -30,6 +30,7 @@ export default class EntityCellGraphicsTuple {
         this.entityGraphics.model.Parent = undefined;
         const e = this.entityGraphics
         this.entityGraphics = undefined;
+        print(`this.entity: ${this.entityGraphics}, e: ${e}`);
         return e;
     }
 }
