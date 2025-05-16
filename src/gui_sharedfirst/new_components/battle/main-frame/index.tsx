@@ -13,8 +13,6 @@ interface Props {
 }
 
 function MainFrame(props: Props) {
-    // Use useAtom to properly subscribe to changes in the icons atom
-    print("Mounting MainFrame", props);
     const mode = useAtom(props.mode);
 
     return (
@@ -32,7 +30,7 @@ function MainFrame(props: Props) {
             >
                 <ReadinessBar icons={props.icons} />
                 {props.portrait}
-                {mode === 'withSensitiveCells' ? props.cells : undefined}
+                {mode === 'withSensitiveCells' && props.cells}
             </frame>
         </screengui>
     );

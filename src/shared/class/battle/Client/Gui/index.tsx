@@ -41,6 +41,7 @@ export default class BattleGui {
     //#region UI Mounting Methods
     public forceUpdateMainFrame(mode: MainUIModes, localEntity?: Entity, sensitiveCells?: React.Element) {
         this.logger.debug(`Force updating main UI with mode: ${mode}`);
+        this.mode(mode);
 
         const playerPortrait = localEntity ?
             <PlayerPortrait
