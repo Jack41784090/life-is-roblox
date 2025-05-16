@@ -44,7 +44,7 @@ export class EventBus {
         };
     }
 
-    public emit(eventName: string, ...args: defined[]): void {
+    public emit(eventName: string, ...args: (undefined | defined)[]): void {
         const callbacks = this.events.get(eventName);
         if (callbacks) {
             this.logger.info(`${eventName}`, ...args);

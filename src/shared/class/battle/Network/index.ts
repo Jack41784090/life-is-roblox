@@ -73,13 +73,13 @@ export class NetworkService {
     public onClientRequestOf<T extends ClientRemotesKey>(key: T, callback: Parameters<typeof clientRemotes[T]['connect']>[0]): void {
         this.logger.debug(`Listening to ${key} with callback:`, callback);
         const remote = clientRemotes[key];
-        if (RunService.IsServer()) {
+        if (RunService.IsClient()) {
             const requestCallbackWrapper = (player: Player, ...rest: unknown[]) => {
                 return (callback as (...args: unknown[]) => unknown)(player, ...rest);
             }
             remote.connect(requestCallbackWrapper as never);
         } else {
-            throw "Cannot call on() on client";
+            throw "Cannot call on() on server";
         }
     }
     //#endregion

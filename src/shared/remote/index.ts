@@ -62,7 +62,7 @@ export const clientRemotes = createRemotes({        //#region Server => Client
     }),
     createClient: remote<Client, [config: Partial<BattleConfig>]>(),
     turnStart: remote<Client>(),
-    turnEnd: remote<Client>(),
+    turnEnd: remote<Client, [id?: number]>(),
 });
 
 export default remotes;

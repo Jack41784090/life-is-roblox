@@ -55,6 +55,7 @@ export default class BattleClient {
         });
         this.graphicsInitialised = this.initialiseGraphics();
         this.setupEventListeners();
+        this.setupRemoteListeners();
     }
 
     private setupEventListeners() {
@@ -71,8 +72,8 @@ export default class BattleClient {
 
     private setupRemoteListeners() {
         const eventBus = this.state.getEventBus();
-        this.networking.onClientRequestOf('turnEnd', () => {
-            eventBus.emit(GameEvent.TURN_ENDED);
+        this.networking.onClientRequestOf('turnEnd', (id?: number) => {
+            eventBus.emit(GameEvent.TURN_ENDED, id);
         })
     }
 
