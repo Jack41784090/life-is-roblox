@@ -13,7 +13,7 @@ import {
     EffectType,
     HitImpactEventData,
     StyleSwitchEventData
-} from "./types";
+} from "../../../shared/class/battle/Client/Effects/types";
 
 interface EffectsManagerProps {
     maxEffects?: number;

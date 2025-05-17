@@ -1,5 +1,5 @@
 import EffectsEventBus from "shared/class/battle/Client/Effects";
-import { EffectType } from "../../../../../gui_sharedfirst/new_components/effects/types";
+import { EffectType } from "./types";
 
 export default class CombatEffectsService {
     private static instance: CombatEffectsService;
