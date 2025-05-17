@@ -9,6 +9,7 @@ import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
+import { entityMovedEventDataVerification } from "../Network/SyncSystem/veri";
 import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
@@ -72,6 +73,25 @@ export default class BattleClient {
                 return;
             }
             this.returnToSelections();
+        })
+        eventBus.subscribe(GameEvent.ENTITY_INTEND_MOVE, (data: unknown) => {
+            const veri = entityMovedEventDataVerification(data);
+            if (!veri) {
+                this.logger.error("Invalid data type for ENTITY_INTEND_MOVE event", data as defined);
+                return;
+            }
+            const { entityId, from, to } = data;
+            this.animating = this.graphics.moveEntity(from, to);
+            this.animating.then(() => {
+                this.state.getEventBus().emit(GameEvent.ENTITY_MOVED, {
+                    entityId,
+                    from,
+                    to,
+                });
+            })
+        })
+
+        eventBus.subscribe(GameEvent.ENTITY_MOVED, (data) => {
         })
     }
 
@@ -365,14 +385,30 @@ export default class BattleClient {
 
         const start = this.state.getCurrentActor().qr;
         const dest = emptyTuple.cellGraphics.qr;
-        const ac = await this.commitMoveAction(accessToken, start, dest);
 
-        const waitForMoveAnimation = await new Promise(resolve => {
-            this.graphics.moveEntity(start, dest).then(() => {
-                this.logger.debug("Entity moved", start, dest);
-                resolve(void 0);
-            })
+        // set action
+        accessToken.action = {
+            type: ActionType.Move,
+            executed: false,
+            by: accessToken.userId,
+            to: dest,
+            from: start,
+        } as MoveAction;
+
+        // commit action to server
+        const ac = await this.commitToServer(accessToken);
+
+        // emit event to this client
+        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
+            entityId: accessToken.userId,
+            from: start,
+            to: dest,
         })
+
+        // commit action to local state
+        this.state.commit(accessToken.action);
+
+        const waitForMoveAnimation = await this.animating;
 
         const localE = await this.localEntity();
         if (localE.get('pos') >= 75) {
@@ -381,22 +417,9 @@ export default class BattleClient {
         }
     }
 
-    private async commitMoveAction(ac: AccessToken, start: Vector2, dest: Vector2) {
-        this.logger.debug("Committing move action", start, dest);
-        ac.action = {
-            type: ActionType.Move,
-            executed: false,
-            by: ac.userId,
-            to: dest,
-            from: start,
-        } as MoveAction;
+    private async commitToServer(ac: AccessToken) {
         const res = await serverRequestRemote.act(ac);
-        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
-            entityId: ac.userId,
-            from: start,
-            to: dest,
-        })
-        this.logger.debug("Move action committed, resolution:", res);
+        this.logger.debug("action committed, resolution:", res);
         return res
     }
     //#endregion

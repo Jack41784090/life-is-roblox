@@ -4,6 +4,7 @@ import { HexGridState, PlayerID, StateState, TeamState } from "shared/class/batt
 import { QR } from "shared/class/XY";
 import { getModelTemplateByID } from "shared/utils";
 import Logger from "shared/utils/Logger";
+import Pathfinding from "../../Pathfinding";
 import Entity from "../../State/Entity";
 import EntityGraphics from "../../State/Entity/Graphics";
 import { EntityState } from "../../State/Entity/types";
@@ -184,9 +185,10 @@ export default class EntityHexCellGraphicsMothership {
             this.logger.warn(`Entity not found at ${start}`);
             return;
         }
+        const destinationCell = this.tupleQR.get(dest)?.cellGraphics ?? this.positionTuple(dest).cellGraphics;
+        this.tupleQR.set(dest, new EntityCellGraphicsTuple(destinationCell, entity));
 
-        const cell = this.tupleQR.get(dest)?.cellGraphics ?? this.positionTuple(dest).cellGraphics;
-        await entity.moveToCell(cell);
-        this.tupleQR.set(dest, new EntityCellGraphicsTuple(cell, entity));
+        const path = (new Pathfinding({ grid: this.grid.info(), dest, start, })).begin()
+        await entity.moveToCell(destinationCell, path.mapFiltered(p => this.tupleQR.get(p)?.cellGraphics));
     }
 }

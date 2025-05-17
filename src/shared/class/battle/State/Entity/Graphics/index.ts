@@ -27,19 +27,15 @@ export default class EntityGraphics {
         this.model = template.Clone();
         this.model.Parent = game.Workspace;
         this.name = this.model.Name;
-        this.nameTag = this.model.WaitForChild('nametag').FindFirstChildOfClass('BillboardGui')?.WaitForChild('TextBox') as TextBox;
-        assert(this.nameTag, "[EntityGraphics] Name tag not found in model.");
+        this.nameTag = this.model.WaitForChild('nametag').FindFirstChildOfClass('BillboardGui')?.WaitForChild('TextBox') as TextBox; assert(this.nameTag, "[EntityGraphics] Name tag not found in model.");
         this.nameTag.Text = this.name;
 
-        const humanoid = this.model.FindFirstChildWhichIsA("Humanoid") as Humanoid;
-        assert(humanoid, "[EntityGraphics] Humanoid not found in model.");
-        const animator = humanoid.FindFirstChildOfClass("Animator");
-        assert(animator?.IsA('Animator'), "[EntityGraphics] Animator not found in model.");
+        const humanoid = this.model.FindFirstChildWhichIsA("Humanoid") as Humanoid; assert(humanoid, "[EntityGraphics] Humanoid not found in model.");
+        const animator = humanoid.FindFirstChildOfClass("Animator"); assert(animator?.IsA('Animator'), "[EntityGraphics] Animator not found in model.");
         this.animator = animator;
 
         this.expression = new Expression(this);
-        const ah = AnimationHandler.Create(this)
-        assert(ah, "[EntityGraphics] Animation handler not created");
+        const ah = AnimationHandler.Create(this); assert(ah, "[EntityGraphics] Animation handler not created");
         this.animationHandler = ah;
         this.audioHandler = new AudioHandler(this, template.Name);
         this.tweenManager = new TweenManager();
@@ -176,10 +172,8 @@ export default class EntityGraphics {
     }
 
     public async moveToCell(cell: HexCellGraphics, path?: HexCellGraphics[]): Promise<void> {
-        const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
-        assert(humanoid, "Humanoid not found");
-        const humanoidRoot = humanoid.RootPart;
-        assert(humanoidRoot, "Humanoid root part not found");
+        const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid; assert(humanoid, "Humanoid not found");
+        const humanoidRoot = humanoid.RootPart; assert(humanoidRoot, "Humanoid root part not found");
 
         this.logger.info(`${this.name}: Moving to cell ${cell.qrs}`);
 

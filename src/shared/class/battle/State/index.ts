@@ -230,7 +230,7 @@ export default class State {
         // Emit event for entity movement and grid cell update
         if (entity.qr && previousPosition === entity.qr) {
             // Emit entity moved event
-            this.eventBus.emit(GameEvent.ENTITY_MOVED, {
+            this.eventBus.emit(GameEvent.ENTITY_UPDATED, {
                 entityId: entity.playerID,
                 from: previousPosition,
                 to: entity.qr
