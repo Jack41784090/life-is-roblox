@@ -2,6 +2,7 @@ import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
+import CombatEffectsService from "../../Client/Effects/CombatEffectsServices";
 import { EventBus } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilitySetDefinition, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
@@ -10,8 +11,6 @@ import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
 import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems/CombatSystem/FightingStyle/const";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats } from "./types";
-// Import global type augmentation
-import { CombatEffectsService } from "gui_sharedfirst/new_components/effects";
 
 export default class Entity {
     // server-controlled properties

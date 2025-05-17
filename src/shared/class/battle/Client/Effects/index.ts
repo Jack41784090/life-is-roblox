@@ -1,5 +1,5 @@
-import { EffectType } from "gui_sharedfirst/new_components/effects";
 import Logger from "shared/utils/Logger";
+import { EffectType } from "./types";
 
 type EventCallback = (...args: unknown[]) => void;
 
