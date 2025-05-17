@@ -1,7 +1,7 @@
 import { Atom } from "@rbxts/charm";
 import { ReadinessFragment } from "../../Systems/TurnSystem/types";
 import { AccessToken } from "../../types";
-import EntityHexCellGraphicsMothership from "../Graphics/Mothership";
+import Graphics from "../Graphics";
 import State from "../State";
 
 export interface GuiConfig {
@@ -11,7 +11,7 @@ export interface GuiConfig {
 export type GuiModes = 'withSensitiveCells' | 'onlyReadinessBar';
 
 export type GuiMainUIConfig = {
-    EHCGMS: EntityHexCellGraphicsMothership,
+    EHCGMS: Graphics,
     state: State,
     accessToken: AccessToken,
 }

@@ -18,7 +18,7 @@ import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
 import { ReadinessFragment } from "../Systems/TurnSystem/types";
 import BattleCamera from "./BattleCamera";
-import Graphics from "./Graphics/Mothership";
+import Graphics from "./Graphics";
 import EntityCellGraphicsTuple from "./Graphics/Tuple";
 import Gui from './Gui';
 import State from "./State";

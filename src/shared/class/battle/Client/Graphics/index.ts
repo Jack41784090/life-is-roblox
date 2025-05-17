@@ -11,7 +11,7 @@ import EntityGraphics from "../../State/Entity/Graphics";
 import { EntityState } from "../../State/Entity/types";
 import HexGrid from "../../State/Hex/Grid";
 
-export default class EntityHexCellGraphicsMothership {
+export default class Graphics {
     private logger = Logger.createContextLogger("EHCG-Mothership");
     private idTupleMap: Map<PlayerID, EntityCellGraphicsTuple> = new Map();
     private tupleQR: QR<EntityCellGraphicsTuple>;
