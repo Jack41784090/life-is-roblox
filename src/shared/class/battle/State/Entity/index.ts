@@ -10,6 +10,8 @@ import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
 import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems/CombatSystem/FightingStyle/const";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats } from "./types";
+// Import global type augmentation
+import { CombatEffectsService } from "gui_sharedfirst/new_components/effects";
 
 export default class Entity {
     // server-controlled properties
@@ -107,6 +109,7 @@ export default class Entity {
         return this[property];
     }
     //#endregion
+
     //#region get abilities
     getAllAbilitySets(): Array<AbilitySet> {
         const availableAbilities = this.getAvailableAbilities();
@@ -131,14 +134,14 @@ export default class Entity {
             if (defaultAbility) {
                 abilitySetDef.Q = defaultAbility;
             }
-        }        // Convert to AbilitySet
-        const abilitySet = {} as AbilitySet;
+        }        // Convert to AbilitySet - create a fresh object to avoid readonly property issues
+        const abilitySet = {} as Record<string, ActiveAbilityConfig>;
         for (const [key, value] of pairs(abilitySetDef)) {
-            // In Roblox's Luau, we can assign directly without defineProperty
-            (abilitySet as any)[key] = value;
-        }
+            abilitySet[key] = value;
+        }        // Cast the result to AbilitySet since we've populated it correctly
+        const typedAbilitySet = abilitySet as unknown as AbilitySet;
 
-        return [abilitySet];
+        return [typedAbilitySet];
     }
 
     getAllAbilities(): Array<AbilityConfig> {
@@ -179,7 +182,39 @@ export default class Entity {
 
         // Get a reaction ability from the current fighting style
         const activeStyle = this.getActiveStyle();
-        return activeStyle.getRandomReactionAbility();
+        const reactionAbility = activeStyle.getRandomReactionAbility();
+
+        // If we found a reaction ability and we're on the client, show a reaction effect
+        if (reactionAbility && game.GetService("RunService").IsClient()) {
+            const combatEffects = CombatEffectsService.getInstance();
+            // Position the effect near the bottom of the screen
+            const reactionPosition = new UDim2(0.5, 0, 0.8, 0);
+
+            // Use a color based on the active style
+            let effectColor: Color3;
+            const styleName = activeStyle.getName();
+
+            if (string.find(styleName, "Defensive")[0]) {
+                effectColor = new Color3(0.2, 0.6, 1);  // Blue for defensive
+            } else if (string.find(styleName, "Aggressive")[0]) {
+                effectColor = new Color3(1, 0.4, 0.3);  // Red for aggressive
+            } else {
+                effectColor = new Color3(0.4, 0.8, 0.4);  // Green for balanced/basic
+            }
+
+            // Access the ability state to get the name safely
+            const abilityState = reactionAbility.getState();
+            const abilityName = (abilityState as { name?: string })?.name || "Reaction";
+
+            // Show the reaction ability effect
+            combatEffects.showAbilityReaction(
+                reactionPosition,
+                effectColor,
+                abilityName
+            );
+        }
+
+        return reactionAbility;
     }
     //#endregion
 
@@ -202,6 +237,42 @@ export default class Entity {
     public damage(num: number) {
         if (num < 0) return;
         this.changeHP(-num);
+
+        // Emit damage effect event
+        if (game.GetService("RunService").IsClient()) {
+            // Get screen position from the character's position in world space
+            const combatEffects = CombatEffectsService.getInstance();
+            const character = game.GetService("Players").LocalPlayer?.Character;
+            const camera = game.GetService("Workspace").CurrentCamera;
+
+            if (character && camera) {
+                // Use character root position as a fallback
+                let worldPos = character.GetPrimaryPartCFrame().Position;
+
+                // Try to get the entity's model position if we have one
+                const entityModel = game.GetService("Workspace").FindFirstChild(this.name);
+                if (entityModel && entityModel.IsA("Model") && entityModel.PrimaryPart) {
+                    worldPos = entityModel.GetPrimaryPartCFrame().Position;
+                }
+
+                // Convert world position to screen position
+                const screenPosResult = camera.WorldToScreenPoint(worldPos);
+                // Handle the LuaTuple result correctly
+                const screenPos = {
+                    X: screenPosResult[0].X,
+                    Y: screenPosResult[0].Y
+                };
+                const viewportSize = camera.ViewportSize;
+
+                // Calculate position as UDim2 (percentage of screen)
+                const posX = screenPos.X / viewportSize.X;
+                const posY = screenPos.Y / viewportSize.Y;
+
+                // Create the damage effect
+                combatEffects.showDamage(new UDim2(posX, 0, posY, 0), num);
+                combatEffects.showHitImpact(new UDim2(posX, 0, posY, 0), new Color3(1, 0.4, 0.2), 120);
+            }
+        }
     }
 
     public setCell(q: number, r: number): void;
@@ -245,6 +316,29 @@ export default class Entity {
         // Switch to new style
         this.activeStyleIndex = styleIndex;
         this.logger.info(`${this.name} switched to fighting style: ${newStyle.getName()}`);
+
+        // Create visual effect for style switching
+        if (game.GetService("RunService").IsClient()) {
+            // Determine the color based on the style (can be customized based on style properties)
+            let effectColor: Color3;
+            const styleName = newStyle.getName();
+
+            if (string.find(styleName, "Defensive")[0]) {
+                effectColor = new Color3(0.2, 0.6, 1);  // Blue for defensive
+            } else if (string.find(styleName, "Aggressive")[0]) {
+                effectColor = new Color3(1, 0.4, 0.3);  // Red for aggressive
+            } else {
+                effectColor = new Color3(0.4, 0.8, 0.4);  // Green for balanced/basic
+            }
+
+            // Position the effect in the center of the screen for maximum visibility
+            const centerPosition = new UDim2(0.5, 0, 0.5, 0);
+
+            // Show style switch effect
+            const i = CombatEffectsService.getInstance();
+            i.showStyleSwitch(centerPosition, effectColor);
+        }
+
         return true;
     }
 
@@ -263,6 +357,42 @@ export default class Entity {
             if (this[stat]) {
                 this.set(stat as EntityChangeable, this.get(stat as EntityChangeable) - cost);
             }
+        }
+
+        // Create visual effect for ability usage
+        if (game.GetService("RunService").IsClient()) {
+            // Get ability color based on the ability's properties
+            const abilityState = ability.getState();
+            let effectColor: Color3;
+
+            // Determine color based on ability name since the category field doesn't exist
+            const abilityNameLower = string.lower(abilityName);
+
+            // Customize color based on naming conventions or other properties
+            if (string.find(abilityNameLower, "attack")[0] ||
+                string.find(abilityNameLower, "strike")[0] ||
+                string.find(abilityNameLower, "slash")[0]) {
+                effectColor = new Color3(0.9, 0.3, 0.2);  // Red for offensive abilities
+            } else if (string.find(abilityNameLower, "block")[0] ||
+                string.find(abilityNameLower, "defend")[0] ||
+                string.find(abilityNameLower, "guard")[0]) {
+                effectColor = new Color3(0.2, 0.6, 0.9);  // Blue for defensive abilities
+            } else if (string.find(abilityNameLower, "dash")[0] ||
+                string.find(abilityNameLower, "move")[0] ||
+                string.find(abilityNameLower, "jump")[0]) {
+                effectColor = new Color3(0.7, 0.5, 0.9);  // Purple for movement abilities
+            } else {
+                effectColor = new Color3(0.9, 0.7, 0.2);  // Gold for other abilities
+            }
+
+            // Show ability effect at the top portion of the screen
+            const abilityPosition = new UDim2(0.5, 0, 0.2, 0);
+
+            // Just use the ability name directly since displayName doesn't exist
+            const displayName = abilityState.name || abilityName;
+
+            // Show ability use effect
+            CombatEffectsService.getInstance().showAbilityUse(abilityPosition, effectColor, displayName);
         }
 
         this.logger.info(`${this.name} used ability ${abilityName}`);

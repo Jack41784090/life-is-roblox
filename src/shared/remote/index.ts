@@ -66,4 +66,12 @@ export const clientRemotes = createRemotes({        //#region Server => Client
     turnEnd: remote<Client, [id?: number]>(),
 });
 
+// export const effectsRemotes = namespace({
+//     showDamage: remote<Client, [position: UDim2, damage: number]>(),
+//     showStyleSwitch: remote<Client, [position: UDim2, color: Color3]>(),
+//     showAbilityReaction: remote<Client, [position: UDim2, color: Color3, abilityName: string]>(),
+//     showHitImpact: remote<Client, [position: UDim2, color: Color3, impactSize: number]>(),
+//     showAbilityUse: remote<Client, [position: UDim2, color: Color3, abilityName: string]>()
+// });
+
 export default remotes;

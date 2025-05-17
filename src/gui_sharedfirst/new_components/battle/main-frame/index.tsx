@@ -1,6 +1,7 @@
 import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
+import { EffectsManager } from "gui_sharedfirst/new_components/effects";
 import { GuiModes } from "shared/class/battle/Client/Gui/types";
 import { ReadinessFragment } from "shared/class/battle/Systems/TurnSystem/types";
 import ReadinessBar from "../readiness_bar";
@@ -31,6 +32,7 @@ function MainFrame(props: Props) {
                 <ReadinessBar icons={props.icons} />
                 {props.portrait}
                 {mode === 'withSensitiveCells' && props.cells}
+                <EffectsManager maxEffects={15} />
             </frame>
         </screengui>
     );
