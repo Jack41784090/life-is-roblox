@@ -90,7 +90,8 @@ export interface NeoClashResultRoll {
     toSurmount: number,
     roll: number,
     bonus: number,
-    fate: ClashResultFate
+    fate: ClashResultFate,
+    damage?: number // Adding damage field to store the final calculated damage
     // damage: [DamageType, number]
 }
 

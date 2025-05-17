@@ -86,6 +86,7 @@ export enum GuiTag {
     AbilitySlot = 'BattleAbilitySlot',
     WaitingRoom = 'BattleWaitingRoom',
     SpeechBubblesContainer = 'SpeechBubble',
+    FightingStyleSelector = 'BattleFightingStyleSelector',
 }
 
 

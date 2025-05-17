@@ -1,6 +1,7 @@
 import { atom, Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
+import FightingStyleSelector from "gui_sharedfirst/components/fighting-style-selector";
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
 import MainFrame from "gui_sharedfirst/new_components/battle/main-frame";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
@@ -112,6 +113,20 @@ export default class BattleGui {
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>);
+    } public mountFightingStyleSelector(entity: Entity) {
+        this.logger.debug(`Mounting fighting style selector for ${entity.name}`);
+        GuiMothership.Mount(
+            GuiTag.FightingStyleSelector,
+            <FightingStyleSelector
+                entity={entity}
+                onStyleSelect={(styleIndex) => {
+                    // When style changes, update ability slots if they're currently showing
+                    if (this.mode() === 'withSensitiveCells') {
+                        this.mountAbilitySlots(entity);
+                    }
+                }}
+            />
+        );
     }
 
     public unmountAndClear(tag: GuiTag) {

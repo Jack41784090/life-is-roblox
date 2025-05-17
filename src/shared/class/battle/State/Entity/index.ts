@@ -4,8 +4,10 @@ import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
-import { AbilityConfig, AbilitySet, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
+import { AbilityConfig, AbilitySet, AbilitySetDefinition, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
+import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
+import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems/CombatSystem/FightingStyle/const";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats } from "./types";
 
@@ -30,6 +32,10 @@ export default class Entity {
     armed?: keyof typeof Enum.KeyCode;
     team?: string;
 
+    // Fighting style properties
+    private fightingStyles: FightingStyle[] = [];
+    private activeStyleIndex: number = 0;
+
     constructor(options: EntityConfig, eventBus?: EventBus) {
         this.qr = options.qr;
         this.playerID = options.playerID;
@@ -44,6 +50,22 @@ export default class Entity {
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
 
+        // Initialize with default fighting styles
+        this.initializeFightingStyles(options.fightingStyles);
+    }
+    private initializeFightingStyles(configStyles?: FightingStyle[]) {
+        // Add default fighting styles if none provided
+        if (!configStyles || configStyles.size() === 0) {
+            this.fightingStyles = [
+                BASIC_STANCE(),
+                AGGRESSIVE_STANCE(),
+                DEFENSIVE_STANCE()
+            ];
+        } else {
+            this.fightingStyles = configStyles;
+        }
+
+        this.logger.info(`${this.name} initialized with ${this.fightingStyles.size()} fighting styles`);
     }
 
     state(): EntityState {
@@ -62,6 +84,8 @@ export default class Entity {
             mana: this.mana(),
             weapon: this.weapon.getState(),
             armour: this.armour.getState(),
+            activeStyleIndex: this.activeStyleIndex,
+            fightingStyles: this.fightingStyles.map(style => style.getState())
         }
     }
 
@@ -83,23 +107,57 @@ export default class Entity {
         return this[property];
     }
     //#endregion
-
     //#region get abilities
     getAllAbilitySets(): Array<AbilitySet> {
-        const allAbilities = this.getAllAbilities();
-        const tempFirst = allAbilities.find(a => a.type === AbilityType.Active);
-        const setOne: AbilitySet = {
-            'Q': tempFirst as ActiveAbilityConfig,
-            'W': tempFirst as ActiveAbilityConfig,
-            'E': tempFirst as ActiveAbilityConfig,
-            'R': tempFirst as ActiveAbilityConfig,
-        };
-        return [setOne];
+        const availableAbilities = this.getAvailableAbilities();
+
+        // Create a definition first
+        const abilitySetDef: AbilitySetDefinition = {};
+
+        // Populate the definition based on available abilities
+        if (availableAbilities.size() >= 1) abilitySetDef.Q = availableAbilities[0];
+        if (availableAbilities.size() >= 2) abilitySetDef.W = availableAbilities[1];
+        if (availableAbilities.size() >= 3) abilitySetDef.E = availableAbilities[2];
+        if (availableAbilities.size() >= 4) abilitySetDef.R = availableAbilities[3];        // Check if there are no keys in the ability set definition
+        let isEmpty = true;
+        for (const [_, __] of pairs(abilitySetDef)) {
+            isEmpty = false;
+            break;
+        }
+
+        if (isEmpty) {
+            // Fallback to a default ability if none are available
+            const defaultAbility = this.getAllAbilities().find(a => a.type === AbilityType.Active) as ActiveAbilityConfig;
+            if (defaultAbility) {
+                abilitySetDef.Q = defaultAbility;
+            }
+        }        // Convert to AbilitySet
+        const abilitySet = {} as AbilitySet;
+        for (const [key, value] of pairs(abilitySetDef)) {
+            // In Roblox's Luau, we can assign directly without defineProperty
+            (abilitySet as any)[key] = value;
+        }
+
+        return [abilitySet];
     }
 
     getAllAbilities(): Array<AbilityConfig> {
-        const uniPhysAbilities = extractMapValues(UNIVERSAL_PHYS);
-        return uniPhysAbilities;
+        // Get abilities from all fighting styles
+        const allAbilities: AbilityConfig[] = [];
+
+        this.fightingStyles.forEach(style => {
+            style.getActiveAbilities().forEach(ability => {
+                allAbilities.push(ability.getState() as ActiveAbilityConfig);
+            });
+        });
+
+        // If no fighting style abilities are available, use default universal abilities
+        if (allAbilities.size() === 0) {
+            const uniPhysAbilities = extractMapValues(UNIVERSAL_PHYS);
+            return uniPhysAbilities;
+        }
+
+        return allAbilities;
     }
 
     getEquippedAbilitySet() {
@@ -119,8 +177,9 @@ export default class Entity {
             return;
         }
 
-        // const matchingDirection = target.stance === hittingDirection;
-        // return this.fightingStyle.getRandomReactionAbility();
+        // Get a reaction ability from the current fighting style
+        const activeStyle = this.getActiveStyle();
+        return activeStyle.getRandomReactionAbility();
     }
     //#endregion
 
@@ -153,6 +212,72 @@ export default class Entity {
         } else {
             this.qr = q as Vector2;
         }
+    }
+    //#endregion
+
+    //#region Fighting Style Methods
+    public getActiveStyle(): FightingStyle {
+        return this.fightingStyles[this.activeStyleIndex];
+    }
+
+    public getFightingStyles(): FightingStyle[] {
+        return [...this.fightingStyles];
+    }
+
+    public switchFightingStyle(styleIndex: number): boolean {
+        if (styleIndex < 0 || styleIndex >= this.fightingStyles.size() || styleIndex === this.activeStyleIndex) {
+            this.logger.warn(`${this.name} cannot switch to fighting style ${styleIndex}: invalid index`);
+            return false;
+        }
+
+        const newStyle = this.fightingStyles[styleIndex];
+        const switchCost = newStyle.getSwitchCost();
+
+        // Check if entity has enough posture to switch
+        if (this.pos() < switchCost) {
+            this.logger.warn(`${this.name} cannot switch to ${newStyle.getName()}: not enough posture (${this.pos()} < ${switchCost})`);
+            return false;
+        }
+
+        // Pay the posture cost
+        this.set('pos', this.pos() - switchCost);
+
+        // Switch to new style
+        this.activeStyleIndex = styleIndex;
+        this.logger.info(`${this.name} switched to fighting style: ${newStyle.getName()}`);
+        return true;
+    }
+
+    public useAbility(abilityName: string) {
+        const activeStyle = this.getActiveStyle();
+        const ability = activeStyle.useAbility(abilityName);
+
+        if (!ability) {
+            this.logger.warn(`${this.name} failed to use ability ${abilityName}`);
+            return undefined;
+        }
+
+        // Apply ability costs
+        const abilityCost = ability.getState().cost;
+        for (const [stat, cost] of pairs(abilityCost)) {
+            if (this[stat]) {
+                this.set(stat as EntityChangeable, this.get(stat as EntityChangeable) - cost);
+            }
+        }
+
+        this.logger.info(`${this.name} used ability ${abilityName}`);
+        return ability;
+    }
+
+    public getAvailableAbilities(): ActiveAbilityConfig[] {
+        const activeStyle = this.getActiveStyle();
+        return activeStyle.getAvailableAbilities().map(ability => ability.getState() as ActiveAbilityConfig);
+    }
+
+    public recycleAbilities(): void {
+        const activeStyle = this.getActiveStyle();
+        activeStyle.recycleAbilities();
+        this.logger.info(`${this.name} recycled all abilities for style: ${activeStyle.getName()}`);
     }
     //#endregion
 }

@@ -54,6 +54,13 @@ export type AbilitySet = {
     [key in keyof typeof Enum.KeyCode]?: ActiveAbilityConfig;
 };
 
+export type AbilitySetDefinition = {
+    Q?: ActiveAbilityConfig;
+    W?: ActiveAbilityConfig;
+    E?: ActiveAbilityConfig;
+    R?: ActiveAbilityConfig;
+};
+
 type RequiredAbility = Required<AbilityConfig>;
 export enum Potency {
     Strike = 'strike',

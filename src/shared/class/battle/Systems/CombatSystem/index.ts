@@ -1,5 +1,6 @@
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { PassiveEffectType } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
 import { AttackAction, NeoClashResult, PlayerID } from "shared/class/battle/types";
 import { uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
@@ -22,46 +23,37 @@ export default class CombatSystem {
         defender.set('pos', defender.get('pos') - ability.cost.pos);
     }
 
-    // public applyClash(attackAction: AttackAction) {
-    //     const clashResult = attackAction.clashResult;
-    //     if (!clashResult) {
-    //         this.logger.error("applyClash: Clash result not found");
-    //         return;
-    //     }
-    //     this.logger.debug(`Applying clash result:`, clashResult);
-    //     attackAction.executed = true;
+    private getPassiveEffectValue(entity: Entity, effectType: PassiveEffectType): number {
+        // Safely checks if an entity has a fighting style and returns the passive effect value
+        if (entity.getActiveStyle !== undefined) {
+            try {
+                const style = entity.getActiveStyle();
+                return style.getPassiveEffectValue(effectType);
+            } catch (err) {
+                this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.name}:`, err as defined);
+            }
+        }
+        return 0;
+    }
 
-    //     const attacker = this.gameState.getEntity(attackAction.by);
-    //     assert(attacker, "Attacker not found");
+    // Calculate damage modification based on fighting style passive effects
+    private calculateModifiedDamage(damage: number, attacker: Entity, target: Entity): number {
+        // Apply attacker's damage increase effects
+        const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
 
-    //     const target = attackAction.against ? this.gameState.getEntity(attackAction.against) : undefined;
+        // Apply defender's damage reduction effects
+        const damageReduction = this.getPassiveEffectValue(target, PassiveEffectType.ReduceDamageReceived);
 
-    //     // 1. Attacker takes a swing, reducing his ability costs
-    //     this.tireAttacker(attacker, attackAction.ability);
+        // Calculate final damage with both effects
+        let modifiedDamage = damage + damageIncrease - damageReduction;
 
-    //     // 2. Defender uses up energy to react
-    //     if (target) this.tireDefender(target, attackAction.ability);
+        // Ensure damage doesn't go below 1 if hit is successful
+        modifiedDamage = math.max(1, modifiedDamage);
 
-    //     // 3. Defender reacts to the attack, possibly modifying the forecasted clash result
-    //     const { defendAttemptSuccessful, defendReactionUpdate } = clashResult
-    //     if (target && defendAttemptSuccessful) {
-    //         const { using: attackerUpdate, target: targetUpdate, clashResult: clashResultUpdate } = defendReactionUpdate;
-    //         // if (attackerUpdate) this.syncOneEntity(attacker, attackerUpdate);
-    //         // if (targetUpdate) this.syncOneEntity(target, targetUpdate);
-    //         if (clashResultUpdate) {
-    //             for (const [stat, value] of pairs(clashResultUpdate)) {
-    //                 (clashResult as unknown as Record<string, unknown>)[stat] = value;
-    //             }
-    //         }
-    //     }
+        this.logger.debug(`Damage modification: base ${damage} + increase ${damageIncrease} - reduction ${damageReduction} = ${modifiedDamage}`);
 
-    //     // 4. Apply the damage to the target
-    //     if (target) {
-    //         target.damage(clashResult.damage);
-    //     }
-
-    //     return clashResult;
-    // }
+        return modifiedDamage;
+    }
 
     private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
         const allEntities = this.gameState.getEntityManager().getAllEntities();
@@ -107,9 +99,17 @@ export default class CombatSystem {
         this.logger.debug(`Applying attack results to entities`);
         for (const clash of clashes) {
             if (clash.result.fate === "Hit") {
-                // const takingDamage = target.armour.getRawDamageTaken(attacker, damageTypes);
-                // this.logger.debug(`Applying damage ${takingDamage} to target ${target.name}`);
-                // target.damage(takingDamage);
+                // Calculate base damage from weapon and ability
+                const baseDamage = 5; // Placeholder - replace with actual damage calculation
+
+                // Apply fighting style modifiers
+                const finalDamage = this.calculateModifiedDamage(baseDamage, attacker, target);
+
+                this.logger.debug(`Applying damage ${finalDamage} to target ${target.name}`);
+                target.damage(finalDamage);
+
+                // Add damage info to the clash result
+                clash.result.damage = finalDamage;
             }
         }
     }
@@ -125,10 +125,21 @@ export default class CombatSystem {
         let die = dicePool.pop();
         while (die !== undefined) {
             const roll = math.floor(uniformRandom(1, die + 1));
-            const totalRoll = roll + bonus;
-            const success = totalRoll >= targetValue;
 
-            this.logger.debug(`🎲 ${checkType} check: Rolled d${die}=${roll} + bonus ${bonus} = ${totalRoll} vs ${checkType} ${targetValue}`);
+            // Apply fighting style passive effects
+            let adjustedBonus = bonus;
+            let adjustedTarget = targetValue;
+
+            // Apply attacker's style effects - available if Entity has implemented fighting styles
+            adjustedBonus += this.getPassiveEffectValue(attacker, checkType === "DV" ? PassiveEffectType.BoostOwnHit : PassiveEffectType.BoostOwnPenetration);
+
+            // Apply defender's style effects - available if Entity has implemented fighting styles
+            adjustedTarget += this.getPassiveEffectValue(target, checkType === "DV" ? PassiveEffectType.ReduceEnemyDV : PassiveEffectType.ReduceEnemyPV);
+
+            const totalRoll = roll + adjustedBonus;
+            const success = totalRoll >= adjustedTarget;
+
+            this.logger.debug(`🎲 ${checkType} check: Rolled d${die}=${roll} + bonus ${adjustedBonus} = ${totalRoll} vs ${checkType} ${adjustedTarget} (base target: ${targetValue})`);
 
             const rollResult: NeoClashResult = {
                 target: target.armour.getState(),
@@ -141,7 +152,8 @@ export default class CombatSystem {
                     roll: roll,
                     bonus: bonus,
                     fate: success ? "Hit" : "Miss",
-                    // damage: []
+                    // Only add preliminary damage if we're generating a successful PV roll
+                    damage: success && checkType === "PV" ? 5 : undefined // Placeholder, actual damage calculated in applyAttack
                 }
             };
 

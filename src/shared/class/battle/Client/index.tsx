@@ -279,8 +279,7 @@ export default class BattleClient {
      * 2. Rendering:
      *    - Re-render the UI to include sensitive cells.
      *    - Mount the ability slots for the current entity.
-     */
-    private async enterMovement(withToken: AccessToken) {
+     */    private async enterMovement(withToken: AccessToken) {
         this.logger.debug("Entering movement mode");
         const localE = await this.localEntity()
 
@@ -288,15 +287,16 @@ export default class BattleClient {
 
         this.gui.unmountAndClear(GuiTag.ActionMenu);
         this.gui.mountAbilitySlots(localE);
+        this.gui.mountFightingStyleSelector(localE);
         this.gui.forceUpdateMainFrame('withSensitiveCells',
             this.state.getEntity(Players.LocalPlayer.UserId)!,
             this.getSensitiveCellElements(withToken)
         );
-    }
-
-    private exitMovement() {
+    } private exitMovement() {
         this.controlLocks.delete(Enum.KeyCode.X);
 
+        // Clear all UI elements
+        this.gui.unmountAndClear(GuiTag.FightingStyleSelector);
         this.gui.clearAll();
         this.gui.setMode('onlyReadinessBar')
     }

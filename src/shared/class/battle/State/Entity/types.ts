@@ -1,5 +1,7 @@
 import Armour from "../../Systems/CombatSystem/Armour";
 import { ArmourState } from "../../Systems/CombatSystem/Armour/types";
+import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
+import { FightingStyleState } from "../../Systems/CombatSystem/FightingStyle/type";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { WeaponState } from "../../Systems/CombatSystem/Weapon/types";
 import { ReadinessIcon } from "../../types";
@@ -48,6 +50,7 @@ export type EntityConfig = EntityBaseAttributes & Partial<EntityEquipmentState> 
     team?: string;
     iconURL?: ReadinessIcon;
     model?: Model;
+    fightingStyles?: FightingStyle[];
 };
 
 export enum EntityStance {
@@ -62,6 +65,8 @@ export type EntityState = EntityBaseAttributes & EntityEquipmentState & {
     team?: string;
     armed?: keyof typeof Enum.KeyCode;
     stance: EntityStance;
+    activeStyleIndex: number;
+    fightingStyles: FightingStyleState[];
 };
 
 // Utility types
