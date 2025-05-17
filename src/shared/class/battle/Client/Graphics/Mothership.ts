@@ -1,3 +1,4 @@
+import { Workspace } from "@rbxts/services";
 import EntityCellGraphicsTuple from "shared/class/battle/Client/Graphics/Tuple";
 import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { HexGridState, PlayerID, StateState, TeamState } from "shared/class/battle/types";
@@ -185,10 +186,13 @@ export default class EntityHexCellGraphicsMothership {
             this.logger.warn(`Entity not found at ${start}`);
             return;
         }
+        entity.model.Parent = Workspace;
         const destinationCell = this.tupleQR.get(dest)?.cellGraphics ?? this.positionTuple(dest).cellGraphics;
-        this.tupleQR.set(dest, new EntityCellGraphicsTuple(destinationCell, entity));
 
         const path = (new Pathfinding({ grid: this.grid.info(), dest, start, })).begin()
         await entity.moveToCell(destinationCell, path.mapFiltered(p => this.tupleQR.get(p)?.cellGraphics));
+
+        this.tupleQR.set(dest, new EntityCellGraphicsTuple(destinationCell, entity));
+
     }
 }
