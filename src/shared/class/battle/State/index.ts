@@ -1,8 +1,8 @@
 import { atom } from "@rbxts/charm";
 import { t } from "@rbxts/t";
-import { AttackAction, BattleAction, ClashResult, MoveAction, Reality, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
+import { ActionType, AttackAction, BattleAction, ClashResult, MoveAction, Reality, ResolveAttacksAction, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
-import { calculateRealityValue, createDummyEntityStats, getDummyClashResult, requestData } from "shared/utils";
+import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
@@ -28,25 +28,6 @@ export interface EntityMovedEventData {
 }
 
 export default class State {
-    getCurrentActor(): Entity {
-        const currentActorID = this.turnSystem.getCurrentActorID();
-        const entity = this.entityManager.getEntity(currentActorID);
-        if (!entity) {
-            throw `Entity with ID ${currentActorID} not found`;
-        }
-        return entity;
-    }
-    getCurrentActorID(): number | Promise<number> {
-        return this.turnSystem.getCurrentActorID();
-    }
-    getCurrentActorPlayer(): Player | undefined {
-        const currentActorID = this.turnSystem.getCurrentActorID();
-        const entity = this.entityManager.getEntity(currentActorID);
-        if (!entity) {
-            throw `Entity with ID ${currentActorID} not found`;
-        }
-        return this.getAllPlayers().find((p) => p.UserId === entity.playerID);
-    }
     protected logger = Logger.createContextLogger("State");
     private eventBus: EventBus;
     private entityManager: EntityManager;
@@ -121,6 +102,13 @@ export default class State {
     }
     //#endregion
 
+    //#region Combat System
+    public getCombatSystem(): CombatSystem {
+        return this.combatSystem;
+    }
+
+    //#endregion
+
     //#region Manager Access
     /**
      * Returns the entity manager instance
@@ -149,6 +137,29 @@ export default class State {
     //#endregion
 
     //#region Entity Management
+    public getAttackerAndDefender(action: AttackAction): [Entity?, Entity?] {
+        return [this.entityManager.getEntity(action.by), action.against ? this.entityManager.getEntity(action.against) : undefined];
+    }
+
+    getCurrentActor(): Entity {
+        const currentActorID = this.turnSystem.getCurrentActorID();
+        const entity = this.entityManager.getEntity(currentActorID);
+        if (!entity) {
+            throw `Entity with ID ${currentActorID} not found`;
+        }
+        return entity;
+    }
+    getCurrentActorID(): number | Promise<number> {
+        return this.turnSystem.getCurrentActorID();
+    }
+    getCurrentActorPlayer(): Player | undefined {
+        const currentActorID = this.turnSystem.getCurrentActorID();
+        const entity = this.entityManager.getEntity(currentActorID);
+        if (!entity) {
+            throw `Entity with ID ${currentActorID} not found`;
+        }
+        return this.getAllPlayers().find((p) => p.UserId === entity.playerID);
+    }
     /**
      * Creates a new entity and adds it to the specified team
      * @param team - Team identifier
@@ -354,14 +365,25 @@ export default class State {
      */
     public commit(action: BattleAction): ClashResult | void {
         switch (action.type) {
-            case "attack":
-                // Will be handled by CombatSystem
-                this.attack({
+            case ActionType.ResolveAttacks:
+                const clashes = (action as ResolveAttacksAction).results;
+                if (!clashes) {
+                    this.logger.warn("No clashes found in committed action");
+                    return;
+                }
+                const [attacker, target] = this.getAttackerAndDefender(action as AttackAction);
+                if (!attacker || !target) {
+                    this.logger.warn("Attacker or target not found in committed action");
+                    return;
+                }
+                this.combatSystem.applyAttack(clashes, attacker, target);
+                return;
+            case ActionType.Attack:
+                this.rollAndApply({
                     ...action,
-                    clashResult: getDummyClashResult(),
                 } as AttackAction);
                 return;
-            case "move":
+            case ActionType.Move:
                 this.move(action as MoveAction);
                 return;
             default:
@@ -370,17 +392,17 @@ export default class State {
         }
     }
 
-    public attack(action: AttackAction): void {
+    public rollAndApply(action: AttackAction): void {
         const cs = this.combatSystem;
         const clashes = cs.resolveAttack(action);
 
         // Emit the combat started event with the clash results
-        if (clashes.size() > 0) {
-            this.logger.info(`Combat started with ${clashes.size()} clash results`);
-            this.eventBus.emit(GameEvent.COMBAT_STARTED, clashes, action);
+        if (clashes.size() < 1) {
+            this.logger.warn("No clashes found for the attack action");
+            return;
         }
 
-        // Apply the clash results if there's a target
+        this.logger.info(`Combat started with ${clashes.size()} clash results`);
         if (action.against !== undefined) {
             const attacker = this.getEntity(action.by);
             const target = this.getEntity(action.against);

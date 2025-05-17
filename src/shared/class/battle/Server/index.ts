@@ -1,6 +1,6 @@
 import { RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction } from "shared/class/battle/types";
+import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction, NeoClashResult, ResolveAttacksAction } from "shared/class/battle/types";
 import { IDGenerator } from "shared/class/IDGenerator";
 import { MOVEMENT_COST } from "shared/const";
 import { extractMapValues, get2DManhattanDistance } from "shared/utils";
@@ -8,6 +8,7 @@ import Logger from 'shared/utils/Logger';
 import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
 import { SyncSystem } from "../Network/SyncSystem";
+import { attackActionRefVerification } from "../Network/SyncSystem/veri";
 import State from "../State";
 
 export default class BattleServer {
@@ -81,11 +82,30 @@ export default class BattleServer {
             this.logger.debug(`Received CRE request from ${p.Name}`);
             return this.state.getCurrentActorID();
         })
+        this.networkService.onServerRequestOf('clashes', (p, accessToken) => {
+            const attackAction = accessToken.action;
+            const veri = attackActionRefVerification(attackAction);
+            if (!veri) {
+                this.logger.error(`Invalid attack action reference:`, attackAction); //checkthis
+                return [];
+            }
+            const veriToken = accessToken.token && this.givenTokens.some(t => t === accessToken.token);
+            if (!veriToken) {
+                this.logger.error(`Invalid token for attack action: ${accessToken.token}`);
+                return [];
+            }
+            const clashes = this.state.getCombatSystem().resolveAttack(attackAction);
+            this.validedClashes.set(accessToken.token, clashes)
+            return clashes;
+        });
     }
 
     //#region Server-Side Loop
     //#region Validations
-    private validateBaseActionInfo({ declaredAccess, client, trueAccessCode, winningClient }: ActionValidator): boolean {
+    private givenTokens: string[] = [];
+    private validedClashes: Map<string, NeoClashResult[]> = new Map();
+
+    private validateBaseActionInfo({ declaredAccess, client, winningClient }: ActionValidator): boolean {
         const { token, action, allowed } = declaredAccess;
 
         if (!this.state.getAllPlayers().find((p: Player) => p.UserId === client.UserId)) {
@@ -96,8 +116,8 @@ export default class BattleServer {
             this.logger.error(`Validation failed: Action explicitly not allowed for player ${client.Name}.`);
             return false;
         }
-        if (token !== trueAccessCode) {
-            this.logger.error(`Validation failed: Invalid access code provided by ${client.Name}. Expected: ${trueAccessCode}, Got: ${token}`);
+        if (!this.givenTokens.some(t => t === token)) {
+            this.logger.error(`Validation failed: Invalid access code provided by ${client.Name}. Got: ${token}`);
             return false;
         }
         if (!action) {
@@ -224,7 +244,6 @@ export default class BattleServer {
                     const okay = this.handleTurnEndRequest(
                         player,
                         state as AccessToken,
-                        serverSideAccessCode
                     )
                     if (okay) {
                         this.logger.info(`Turn end request from ${player.Name} accepted.`);
@@ -255,11 +274,10 @@ export default class BattleServer {
     private handleTurnEndRequest(
         requestingPlayer: Player,
         declaredClientAccess: AccessToken,
-        trueServerAccessCode: string,
     ): boolean {
         const eventBus = this.state.getEventBus();
         const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
-        const validationProps: ActionValidator = { client: requestingPlayer, declaredAccess: declaredClientAccess, trueAccessCode: trueServerAccessCode, winningClient };
+        const validationProps: ActionValidator = { client: requestingPlayer, declaredAccess: declaredClientAccess, winningClient };
         if (!this.validateEndTurnRequest(validationProps)) {
             this.logger.warn(`Explicit turn end request validation failed for ${requestingPlayer.Name}.`);
             return false;
@@ -284,6 +302,7 @@ export default class BattleServer {
             this.logger.warn(`Action request from ${requestingPlayer.Name} denied (not their turn).`);
             return { userId: requestingPlayer.UserId, allowed: false, token: undefined };
         }
+        this.givenTokens.push(accessCode);
         this.logger.debug(`Action request from ${requestingPlayer.Name} validated, access token provided.`);
         return { userId: requestingPlayer.UserId, allowed: true, token: accessCode };
     }
@@ -296,32 +315,37 @@ export default class BattleServer {
     ): { userId: number; allowed: boolean; token: string; action: BattleAction | undefined } {
         this.logger.info(`Received action execution from ${actingPlayer.Name}.`, access);
 
+        // validate action
         const winningClient = this.state.getCurrentActorPlayer(); assert(winningClient, "No winning client found");
         const eventBus = this.state.getEventBus();
-        const validationProps: ActionValidator = { client: actingPlayer, declaredAccess: access, trueAccessCode: accessCode, winningClient };
+        const validationProps: ActionValidator = { client: actingPlayer, declaredAccess: access, winningClient };
         if (!this.validateFullAction(validationProps)) {
             this.logger.warn(`Action execution validation failed for ${actingPlayer.Name}.`);
             return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
         }
 
+        // commit
         this.logger.info(`Committing action for ${actingPlayer.Name}: ${access.action!.type}`);
+        // special check for resolveAttacks action
+        if (access.action?.type === ActionType.ResolveAttacks) {
+            const resolveAttacksAction = access.action as ResolveAttacksAction;
+            const clashes = this.validedClashes.get(access.token!);
+            if (clashes) {
+                this.logger.debug(`Clashes for ${actingPlayer.Name}:`, clashes);
+                resolveAttacksAction.results = clashes;
+            } else {
+                this.logger.error(`No clashes found for ${actingPlayer.Name} with token ${access.token}.`);
+            }
+        }
         this.state.commit(access.action!);
-        const cre = this.state.getCurrentActor();
-        if (!cre) {
-            this.logger.error(`CRITICAL: CRE not found for ${actingPlayer.Name} (${actingPlayer.UserId}) immediately after action commit.`);
-            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
-        }
-        if (cre.playerID !== this.state.getCurrentActorID()) {
-            this.logger.error(`CRITICAL: Turn actor mismatch. Current actor: ${this.state.getCurrentActorID()}, Action by: ${cre.playerID} (${actingPlayer.Name}).`);
-            return { userId: actingPlayer.UserId, allowed: false, token: accessCode, action: access.action };
-        }
 
-        const posture = cre.get('pos');
+        // posture check to see if turn will end
+        const currentActor = this.state.getCurrentActor();
+        const posture = currentActor.get('pos');
         this.logger.debug(`Posture for ${actingPlayer.Name} after action: ${posture}.`);
-
         if (posture < BattleServer.MIN_POSTURE_TO_CONTINUE_TURN) {
             this.logger.info(`Turn ended for ${actingPlayer.Name}: Posture (${posture}) fell below ${BattleServer.MIN_POSTURE_TO_CONTINUE_TURN}.`);
-            eventBus.emit(GameEvent.TURN_ENDED, cre.playerID);
+            eventBus.emit(GameEvent.TURN_ENDED, currentActor.playerID);
             resolveTurnPromise(actingPlayer);
         }
 

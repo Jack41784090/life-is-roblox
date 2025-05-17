@@ -22,46 +22,46 @@ export default class CombatSystem {
         defender.set('pos', defender.get('pos') - ability.cost.pos);
     }
 
-    public applyClash(attackAction: AttackAction) {
-        const clashResult = attackAction.clashResult;
-        if (!clashResult) {
-            this.logger.error("applyClash: Clash result not found");
-            return;
-        }
-        this.logger.debug(`Applying clash result:`, clashResult);
-        attackAction.executed = true;
+    // public applyClash(attackAction: AttackAction) {
+    //     const clashResult = attackAction.clashResult;
+    //     if (!clashResult) {
+    //         this.logger.error("applyClash: Clash result not found");
+    //         return;
+    //     }
+    //     this.logger.debug(`Applying clash result:`, clashResult);
+    //     attackAction.executed = true;
 
-        const attacker = this.gameState.getEntity(attackAction.by);
-        assert(attacker, "Attacker not found");
+    //     const attacker = this.gameState.getEntity(attackAction.by);
+    //     assert(attacker, "Attacker not found");
 
-        const target = attackAction.against ? this.gameState.getEntity(attackAction.against) : undefined;
+    //     const target = attackAction.against ? this.gameState.getEntity(attackAction.against) : undefined;
 
-        // 1. Attacker takes a swing, reducing his ability costs
-        this.tireAttacker(attacker, attackAction.ability);
+    //     // 1. Attacker takes a swing, reducing his ability costs
+    //     this.tireAttacker(attacker, attackAction.ability);
 
-        // 2. Defender uses up energy to react
-        if (target) this.tireDefender(target, attackAction.ability);
+    //     // 2. Defender uses up energy to react
+    //     if (target) this.tireDefender(target, attackAction.ability);
 
-        // 3. Defender reacts to the attack, possibly modifying the forecasted clash result
-        const { defendAttemptSuccessful, defendReactionUpdate } = clashResult
-        if (target && defendAttemptSuccessful) {
-            const { using: attackerUpdate, target: targetUpdate, clashResult: clashResultUpdate } = defendReactionUpdate;
-            // if (attackerUpdate) this.syncOneEntity(attacker, attackerUpdate);
-            // if (targetUpdate) this.syncOneEntity(target, targetUpdate);
-            if (clashResultUpdate) {
-                for (const [stat, value] of pairs(clashResultUpdate)) {
-                    (clashResult as unknown as Record<string, unknown>)[stat] = value;
-                }
-            }
-        }
+    //     // 3. Defender reacts to the attack, possibly modifying the forecasted clash result
+    //     const { defendAttemptSuccessful, defendReactionUpdate } = clashResult
+    //     if (target && defendAttemptSuccessful) {
+    //         const { using: attackerUpdate, target: targetUpdate, clashResult: clashResultUpdate } = defendReactionUpdate;
+    //         // if (attackerUpdate) this.syncOneEntity(attacker, attackerUpdate);
+    //         // if (targetUpdate) this.syncOneEntity(target, targetUpdate);
+    //         if (clashResultUpdate) {
+    //             for (const [stat, value] of pairs(clashResultUpdate)) {
+    //                 (clashResult as unknown as Record<string, unknown>)[stat] = value;
+    //             }
+    //         }
+    //     }
 
-        // 4. Apply the damage to the target
-        if (target) {
-            target.damage(clashResult.damage);
-        }
+    //     // 4. Apply the damage to the target
+    //     if (target) {
+    //         target.damage(clashResult.damage);
+    //     }
 
-        return clashResult;
-    }
+    //     return clashResult;
+    // }
 
     private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
         const allEntities = this.gameState.getEntityManager().getAllEntities();
@@ -100,9 +100,6 @@ export default class CombatSystem {
         }
 
         this.logger.debug(`🏁 Attack resolution complete:`, globalResult);
-        // 3. Calculate the damage
-        // 4. Apply the damage to the target
-        // 5. Return the result
         return globalResult;
     }
 

@@ -566,22 +566,7 @@ export function findEntityPortrait(entityId: string, portraitType: string = 'neu
 // ATTACK UTILITIES
 //===========================================================================
 
-export function isAttackKills(attackerAction: AttackAction) {
-    const { ability, executed } = attackerAction
-    const { using, target } = ability
-    if (!target) return false;
 
-    if (!attackerAction.clashResult) return false;
-
-    const { damage } = attackerAction.clashResult;
-
-    if (executed) {
-        return target.hip <= 0;
-    }
-
-    logger.debug(`IsAttackKills: ${target.hip} - ${damage} <= 0`, "AttackUtils");
-    return target.hip - damage <= 0;
-}
 
 //===========================================================================
 // MISCELLANEOUS UTILITIES
@@ -701,7 +686,7 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 import { SyncPayload } from "@rbxts/charm-sync";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
-import { AttackAction, ClashResult, Reality } from "shared/class/battle/types";
+import { ClashResult, Reality } from "shared/class/battle/types";
 import { GlobalAtoms } from "shared/datastore";
 
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {

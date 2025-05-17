@@ -2,19 +2,20 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, PlayerID, ReadinessIcon, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, NeoClashResult, PlayerID, ReadinessIcon, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
-import { isAttackKills } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
-import { entityMovedEventDataVerification } from "../Network/SyncSystem/veri";
+import { attackActionRefVerification, clashesVerification, entityMovedEventDataVerification } from "../Network/SyncSystem/veri";
 import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
+import EntityGraphics from "../State/Entity/Graphics";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import HexCell from "../State/Hex/Cell";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
+import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
 import { ReadinessFragment } from "../Systems/TurnSystem/types";
 import BattleCamera from "./BattleCamera";
 import Graphics from "./Graphics/Mothership";
@@ -91,7 +92,26 @@ export default class BattleClient {
             })
         })
 
-        eventBus.subscribe(GameEvent.ENTITY_MOVED, (data) => {
+        // eventBus.subscribe(GameEvent.ENTITY_MOVED, (data) => {
+        // })
+
+        eventBus.subscribe(GameEvent.ENTITY_INTEND_ATTACK, (neoClashResults: unknown, attackActionRef: unknown) => {
+            const veriNeoClashResult = clashesVerification(neoClashResults);
+            if (!veriNeoClashResult) {
+                this.logger.error("Invalid data `neoClashResults` type for ENTITY_INTEND_ATTACK event", neoClashResults as defined);
+                return;
+            }
+
+            const veriAttackActionRef = attackActionRefVerification(attackActionRef);
+            if (!veriAttackActionRef) {
+                this.logger.error("Invalid data `attackActionRef` type for ENTITY_INTEND_ATTACK event", attackActionRef as defined);
+                return;
+            }
+
+            this.handleAnimatingClashes(neoClashResults, attackActionRef).then(() => {
+                this.state.getEventBus().emit(GameEvent.COMBAT_STARTED, neoClashResults, attackActionRef);
+            });
+
         })
     }
 
@@ -167,6 +187,12 @@ export default class BattleClient {
     //#endregion
 
     //#region Get
+    private getAttackerAndDefenderGraphics(attackActionRef: AttackAction): [EntityGraphics?, EntityGraphics?] {
+        return [
+            this.graphics.findEntityG(attackActionRef.by),
+            attackActionRef.against ? this.graphics.findEntityG(attackActionRef.against) : undefined,
+        ]
+    }
     private getReadinessIcons() {
         const crMap: Map<PlayerID, ReadinessFragment> = this.state.getReadinessMapping();
         const readinessIcons: ReadinessIcon[] = [];
@@ -239,6 +265,7 @@ export default class BattleClient {
             })
         })
     }
+    //#region Movement
     /**
      * Enter movement mode
      * 
@@ -342,36 +369,12 @@ export default class BattleClient {
         this.logger.debug("Cell clicked", clickedtuple);
         if (clickedtuple.entityGraphics) {
             this.logger.debug("State", this.state);
-            const clickedOnEntity = this.state.getEntity(clickedtuple.cellGraphics.qr);
-            assert(clickedOnEntity, "Clicked on entity is not defined");
+            const clickedOnEntity = this.state.getEntity(clickedtuple.cellGraphics.qr); assert(clickedOnEntity, "Clicked on entity is not defined");
             this.clickedOnEntity(clickedOnEntity, accessToken);
         }
         else {
             this.clickedOnEmptyCell(clickedtuple, accessToken);
         }
-    }
-
-    private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
-        this.logger.debug("Clicked on entity", clickedOn);
-        const cre = this.state.getCurrentActor();
-        if (!cre.armed) {
-            this.logger.warn("[clickedOnEntity] Current entity is not armed");
-            return;
-        }
-        const iability = cre.getEquippedAbilitySet()[cre.armed];
-        const commitedAction = {
-            type: ActionType.Attack,
-            ability: {
-                ...iability,
-                using: cre,
-                target: clickedOn.state(),
-            },
-            by: cre.playerID,
-            against: clickedOn.playerID,
-            executed: false,
-        };
-        accessToken.action = commitedAction
-        return serverRequestRemote.act(accessToken)
     }
 
     private async clickedOnEmptyCell(emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
@@ -416,7 +419,101 @@ export default class BattleClient {
             this.gui.setMode('withSensitiveCells');
         }
     }
+    //#endregion
 
+    //#region Combat
+
+    private isAttackKills(attackerAction: AttackAction, clash: NeoClashResult) {
+        const { against } = attackerAction;
+        if (!against) {
+            this.logger.warn("Attack action has no target");
+            return false;
+        }
+        const target = this.state.getEntity(against);
+        const { result } = clash
+        if (!target) return false;
+
+        if (result.fate === "Miss" || result.fate === "Cling") {
+            return false;
+        }
+
+        const targetHp = target.get('hip') || 0;
+        const damage = this.calculateDamageFromResult(clash);
+        return targetHp <= damage;
+    }
+
+    private calculateDamageFromResult(clash: NeoClashResult): number {
+        const { weapon, target, result } = clash
+
+        if (result.fate === "Miss" || result.fate === "Cling") {
+            return 0;
+        }
+
+        let damageMultiplier = 1;
+        if (result.fate === "CRIT") {
+            damageMultiplier = 1.5;
+        }
+
+        const baseDamage = result.roll + result.bonus;
+        return math.floor(baseDamage * damageMultiplier);
+    }
+
+    private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
+        this.logger.debug("Clicked on entity", clickedOn);
+        const cre = this.state.getCurrentActor();
+        if (!cre.armed) {
+            this.logger.warn("[clickedOnEntity] Current entity is not armed");
+            return;
+        }
+
+        // set temp attack action
+        const iability = cre.getEquippedAbilitySet()[cre.armed];
+        const attackAction = {
+            type: ActionType.Attack,
+            ability: {
+                ...iability,
+                using: cre,
+                target: clickedOn.state(),
+            } as unknown as ActiveAbilityState,
+            by: cre.playerID,
+            against: clickedOn.playerID,
+            executed: false,
+        } as AttackAction;
+        accessToken.action = attackAction;
+
+        // resolve attack using temp attack action
+        const clashes = await serverRequestRemote.clashes(accessToken); //checkthis
+
+        // set action back to resolveAttacks
+        const resolveAction: ResolveAttacksAction = {
+            ...attackAction,
+            type: ActionType.ResolveAttacks,
+            results: clashes,
+        }
+        accessToken.action = resolveAction;
+
+        // commit action to server
+        this.commitToServer(accessToken)
+
+        // emit event to this client
+        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);
+
+        // commit action to local state
+        this.state.commit(resolveAction);
+
+        const waitForMoveAnimation = await this.animating;
+
+        const localE = await this.localEntity();
+        if (localE.get('pos') >= 75) {
+            this.logger.debug("Local entity is still ready");
+            this.gui.setMode('withSensitiveCells');
+        }
+    }
+
+    //#endregion
+    //#endregion
+
+    //#region Server Requests
     private async commitToServer(ac: AccessToken) {
         const res = await serverRequestRemote.act(ac);
         this.logger.debug("action committed, resolution:", res);
@@ -449,18 +546,33 @@ export default class BattleClient {
     //#endregion
 
     //#region Animations
+    private async handleAnimatingClashes(clashes: NeoClashResult[], attackActionRef: AttackAction): Promise<void> {
+        this.logger.debug("Animating clashes", clashes, "BattleClient");
+        // await this.animating;
+        // const [attacker, defender] = this.state.getAttackerAndDefender(attackActionRef);
+        for (const clash of clashes) {
+            const { weapon, target, result } = clash;
+            const defenceSuccessful = result.fate === 'Miss' || result.fate === 'Cling';
+            await this.playAttackAnimation({
+                ability: attackActionRef.ability,
+                type: ActionType.Attack,
+                by: attackActionRef.by,
+                against: attackActionRef.against,
+                executed: false,
+            }, clash)
+        }
+    }
 
-    private async playAttackAnimation(aa: AttackAction) {
+    private async playAttackAnimation(aa: AttackAction, result: NeoClashResult) {
         await this.animating;
         this.logger.debug("Playing attack animation", aa);
         const { animation } = aa.ability;
-        const attacker = this.graphics.findEntityG(aa.by);
-        const attackerAnimationHandler = attacker.animationHandler;
-        assert(aa.against !== undefined, "attack action has invalid target id");
-
-        const target = this.graphics.findEntityG(aa.against);
+        const [attacker, target] = this.getAttackerAndDefenderGraphics(aa);
+        if (!attacker || !target) {
+            this.logger.warn(`[playAttackAnimation] ${!attacker ? "Attacker" : ""} ${!target ? "Target" : ""} not found`);
+            return;
+        }
         const targetAnimationHandler = target.animationHandler;
-
         await target.faceEntity(attacker);
         const attackAnimation = attacker.playAnimation(
             AnimationType.Attack,
@@ -483,18 +595,17 @@ export default class BattleClient {
         }
 
         try {
-
             // 1. Wait for the attack animation to reach the "Hit" marker.
             await this.waitForAnimationMarker(attackAnimation, "Hit");
 
             // 2. Indicate the damage dealt to the target.
-            target.createClashresultIndicators(aa.clashResult);
+            // target.createClashresultIndicators(aa.clashResult);
 
             // 3. Play the appropriate animation based on the outcome of the attack.
             targetAnimationHandler.killAnimation(AnimationType.Idle);
             targetAnimationHandler.killAnimation(AnimationType.Defend);
 
-            if (isAttackKills(aa)) {
+            if (this.isAttackKills(aa, result)) {
                 const deathPoseIdleAnimation = target.playAnimation(
                     AnimationType.Idle,
                     {

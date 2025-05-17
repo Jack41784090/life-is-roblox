@@ -24,6 +24,7 @@ export const serverRemotes = createRemotes({
 });
 
 export const serverRequestRemote = createRemotes({
+    clashes: remote<Server, [attackAction: AccessToken]>().returns<NeoClashResult[]>(),
     map: remote<Server>().returns<HexGridState>(),
     team: remote<Server>().returns<TeamState[]>(),
     state: remote<Server>().returns<StateState>(),

@@ -64,6 +64,43 @@ export const activeAbilityStateType = t.interface({
     range: t.NumberRange,
 });
 
+export const weaponStateType = t.interface({
+    hitBonus: t.number,
+    penetrationBonus: t.number,
+    damageTranslation: t.interface({
+        'hp': realityDamageTranslationEntry,
+        'force': realityDamageTranslationEntry,
+        'mana': realityDamageTranslationEntry,
+        'spirituality': realityDamageTranslationEntry,
+        'divinity': realityDamageTranslationEntry,
+        'precision': realityDamageTranslationEntry,
+        'maneuver': realityDamageTranslationEntry,
+        'convince': realityDamageTranslationEntry,
+        'bravery': realityDamageTranslationEntry,
+    })
+})
+
+export const armourStateType = t.interface({
+    DV: t.number,
+    PV: t.number,
+    resistance: t.map(damageTypeUnion, t.number)
+})
+
+export const neoClashResultRollType = t.interface({
+    die: t.match("^d%d+$") as t.check<`d${number}`>, // Changed from number to string for template literal
+    against: t.union(t.literal('DV'), t.literal('PV')),
+    toSurmount: t.number,
+    roll: t.number,
+    bonus: t.number,
+    fate: t.union(t.literal('Miss'), t.literal('Cling'), t.literal('Hit'), t.literal('CRIT'))
+})
+
+export const neoClashResultType = t.interface({
+    weapon: weaponStateType,
+    target: armourStateType,
+    result: neoClashResultRollType,
+})
+
 export const clashResultType = t.interface({
     damage: t.number,
     u_damage: t.number,
@@ -80,39 +117,9 @@ export const attackActionRefVerification = t.interface({
     by: t.number,
     against: t.optional(t.number),
     ability: activeAbilityStateType, // Added ability
-    clashResult: clashResultType,   // Added clashResult
 });
 
-export const clashesVerification = t.array(t.interface({
-    weapon: t.interface({
-        hitBonus: t.number,
-        penetrationBonus: t.number,
-        damageTranslation: t.interface({
-            'hp': realityDamageTranslationEntry,
-            'force': realityDamageTranslationEntry,
-            'mana': realityDamageTranslationEntry,
-            'spirituality': realityDamageTranslationEntry,
-            'divinity': realityDamageTranslationEntry,
-            'precision': realityDamageTranslationEntry,
-            'maneuver': realityDamageTranslationEntry,
-            'convince': realityDamageTranslationEntry,
-            'bravery': realityDamageTranslationEntry,
-        })
-    }),
-    target: t.interface({
-        DV: t.number,
-        PV: t.number,
-        resistance: t.map(damageTypeUnion, t.number)
-    }),
-    result: t.interface({
-        die: t.match("^d%d+$") as t.check<`d${number}`>, // Changed from number to string for template literal
-        against: t.union(t.literal('DV'), t.literal('PV')),
-        toSurmount: t.number,
-        roll: t.number,
-        bonus: t.number,
-        fate: t.union(t.literal('Miss'), t.literal('Cling'), t.literal('Hit'), t.literal('CRIT'))
-    })
-}));
+export const clashesVerification = t.array(neoClashResultType);
 
 export const entityMovedEventDataVerification = t.interface({
     entityId: t.number,

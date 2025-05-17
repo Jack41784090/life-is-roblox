@@ -59,12 +59,15 @@ export interface BattleAction {
 }
 
 export enum ActionType {
+    ResolveAttacks = 'clash-results',
     Move = 'move',
     Attack = 'attack',
 }
+export interface ResolveAttacksAction extends BattleAction {
+    results: NeoClashResult[],
+}
 export interface AttackAction extends BattleAction {
     ability: ActiveAbilityState,
-    clashResult: ClashResult,
 }
 export interface MoveAction extends BattleAction {
     from: Vector2,
@@ -189,5 +192,4 @@ export type ActionValidator = {
     winningClient: Player,
     client: Player,
     declaredAccess: AccessToken,
-    trueAccessCode: string
 }
