@@ -97,8 +97,7 @@ export interface NeoClashResultRoll {
 
 export interface NeoClashResult {
     weapon: WeaponState
-    target: ArmourState,
-    // ability: ActiveAbilityState,
+    armour: ArmourState,
     result: NeoClashResultRoll,
 }
 

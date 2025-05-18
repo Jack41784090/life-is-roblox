@@ -97,7 +97,7 @@ export const neoClashResultRollType = t.interface({
 
 export const neoClashResultType = t.interface({
     weapon: weaponStateType,
-    target: armourStateType,
+    armour: armourStateType,
     result: neoClashResultRollType,
 })
 

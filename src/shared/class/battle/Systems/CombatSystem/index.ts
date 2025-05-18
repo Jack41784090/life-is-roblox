@@ -142,7 +142,7 @@ export default class CombatSystem {
             this.logger.debug(`🎲 ${checkType} check: Rolled d${die}=${roll} + bonus ${adjustedBonus} = ${totalRoll} vs ${checkType} ${adjustedTarget} (base target: ${targetValue})`);
 
             const rollResult: NeoClashResult = {
-                target: target.armour.getState(),
+                armour: target.armour.getState(),
                 weapon: attacker.weapon.getState(),
                 // ability: attacker.weapon.getAbility(), // Assuming you might want to add ability context here
                 result: {
@@ -192,7 +192,7 @@ export default class CombatSystem {
                 // Or, we can construct a miss result based on the first die if available.
                 if (initialAbilityDices[0]) {
                     rollHistory.push({
-                        target: target.armour.getState(),
+                        armour: target.armour.getState(),
                         weapon: attacker.weapon.getState(),
                         result: {
                             die: `d${initialAbilityDices[0]}`, // Example: log based on first die
@@ -230,7 +230,7 @@ export default class CombatSystem {
             // Similar to DV miss, log a generic penetration miss or based on available dice
             if (availableDice[0]) {
                 rollHistory.push({
-                    target: target.armour.getState(),
+                    armour: target.armour.getState(),
                     weapon: attacker.weapon.getState(),
                     result: {
                         die: `d${availableDice[0]}`,

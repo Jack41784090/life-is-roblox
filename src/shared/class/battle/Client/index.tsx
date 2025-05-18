@@ -447,7 +447,7 @@ export default class BattleClient {
     }
 
     private calculateDamageFromResult(clash: NeoClashResult): number {
-        const { weapon, target, result } = clash
+        const { weapon, armour: target, result } = clash
 
         if (result.fate === "Miss" || result.fate === "Cling") {
             return 0;
@@ -555,7 +555,7 @@ export default class BattleClient {
         // await this.animating;
         // const [attacker, defender] = this.state.getAttackerAndDefender(attackActionRef);
         for (const clash of clashes) {
-            const { weapon, target, result } = clash;
+            const { weapon, armour: target, result } = clash;
             const defenceSuccessful = result.fate === 'Miss' || result.fate === 'Cling';
             await this.playAttackAnimation({
                 ability: attackActionRef.ability,
