@@ -1,6 +1,5 @@
 import { TweenService } from "@rbxts/services";
-import { ClashResult, EntityStatus } from "shared/class/battle/types";
-import { CONDOR_BLOOD_RED } from "shared/const";
+import { EntityStatus } from "shared/class/battle/types";
 import Logger from "shared/utils/Logger";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
 import AnimationHandler, { AnimationOptions, AnimationType } from "./AnimationHandler";
@@ -39,91 +38,7 @@ export default class EntityGraphics {
         this.animationHandler = ah;
         this.audioHandler = new AudioHandler(this, template.Name);
         this.tweenManager = new TweenManager();
-    }
-
-    //#region damage indicators
-    private createDamageIndicatorPart() {
-        const part = new Instance('Part');
-        part.Name = 'DamageIndicator';
-        part.Size = new Vector3(1, 1, 1);
-        part.CollisionGroup = 'DamageIndicators';
-        part.CanCollide = false;
-        part.CFrame = this.model.PrimaryPart!.CFrame;
-        part.Transparency = 1;
-        part.Parent = this.model;
-        return part;
-    }
-
-    private createDamageIndicatorBillboard(adornee: Part) {
-        const damageBillboard = new Instance('BillboardGui');
-        damageBillboard.AlwaysOnTop = true
-        damageBillboard.Size = UDim2.fromScale(5, 5);
-        damageBillboard.Adornee = adornee;
-        damageBillboard.Parent = adornee;
-        return damageBillboard;
-    }
-
-    private translateNumberToDamageText(damage: number) {
-        if (damage > 0) {
-            return `${damage}`;
-        }
-        else if (damage === 0) {
-            return 'Blocked';
-        }
-        else {
-            return `+${math.abs(damage)}`;
-        }
-    }
-
-    private createDamageIndicatorText(damageBillboard: BillboardGui, text: string | number) {
-        const textLabel = new Instance('TextLabel');
-        textLabel.Parent = damageBillboard;
-        textLabel.AnchorPoint = new Vector2(0.5, 0.5);
-        textLabel.Size = UDim2.fromScale(1, 1);
-        textLabel.TextColor3 = CONDOR_BLOOD_RED;
-        textLabel.BackgroundTransparency = 1;
-        textLabel.Text = typeIs(text, 'number') ?
-            this.translateNumberToDamageText(text) :
-            text;
-        textLabel.Font = Enum.Font.Antique
-        textLabel.TextScaled = true
-        return textLabel;
-    }
-
-    private shootDamageIndicatorPart(part: Part, damageBillboard: BillboardGui, force = 20) {
-        part.ApplyImpulse(new Vector3(math.random(10), force, math.random(10)));
-        spawn(() => {
-            wait(1);
-            const tween = TweenService.Create(damageBillboard,
-                new TweenInfo(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
-                { Size: UDim2.fromScale(0, 0) }
-            )
-            tween.Play()
-            tween.Completed.Once(() => part.Destroy());
-        })
-    }
-
-    public createClashresultIndicators(cr: ClashResult) {
-        const damage = cr.damage;
-
-        // Block attempt indicators
-        const { defendAttemptName, defendAttemptSuccessful, defendReactionUpdate } = cr;
-        if (defendAttemptName && defendAttemptSuccessful) {
-            const part = this.createDamageIndicatorPart();
-            const damageBillboard = this.createDamageIndicatorBillboard(part);
-            const textLabel = this.createDamageIndicatorText(damageBillboard, defendAttemptName);
-            this.shootDamageIndicatorPart(part, damageBillboard);
-            wait(0.1)
-        }
-
-        // Damage indicator part
-        const part = this.createDamageIndicatorPart()
-        const damageBillboard = this.createDamageIndicatorBillboard(part)
-        const textLabel = this.createDamageIndicatorText(damageBillboard, `${damage}`);
-        this.shootDamageIndicatorPart(part, damageBillboard);
-    }
-
-    //#endregion
+    }    // Damage indicators are now handled by CombatEffectsService
 
     //#region play animation/audio
     public playAnimation(id: AnimationType, opt: AnimationOptions): AnimationTrack | undefined {
@@ -199,7 +114,7 @@ export default class EntityGraphics {
 
     //#region look at ...
     async faceEntity(entity: EntityGraphics) {
-        const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid") as Humanoid;
+        const humanoid = this.model?.FindFirstChildWhichIsA("Humanoid");
         const modelPrimaryPart = humanoid?.RootPart;
         const targetPosition = entity.model?.PrimaryPart?.Position;
 

@@ -18,6 +18,7 @@ import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
 import { ReadinessFragment } from "../Systems/TurnSystem/types";
 import BattleCamera from "./BattleCamera";
+import CombatEffectsService from "./Effects/CombatEffectsServices";
 import Graphics from "./Graphics";
 import EntityCellGraphicsTuple from "./Graphics/Tuple";
 import Gui from './Gui';
@@ -112,6 +113,9 @@ export default class BattleClient {
                 this.state.getEventBus().emit(GameEvent.COMBAT_STARTED, neoClashResults, attackActionRef);
             });
 
+        })
+
+        eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entityUpdate: unknown) => {
         })
     }
 
@@ -561,6 +565,15 @@ export default class BattleClient {
                 executed: false,
             }, clash)
         }
+    }    /**
+     * Convert a world position to screen position for UI effects
+     */
+    private worldToScreenPosition(worldPos: Vector3): UDim2 {
+        const camera = game.Workspace.CurrentCamera;
+        if (!camera) return new UDim2(0.5, 0, 0.5, 0);
+
+        const [screenPos, isVisible] = camera.WorldToScreenPoint(worldPos);
+        return new UDim2(0, screenPos.X, 0, screenPos.Y);
     }
 
     private async playAttackAnimation(aa: AttackAction, result: NeoClashResult) {
@@ -591,15 +604,49 @@ export default class BattleClient {
 
         if (!attackAnimation) {
             this.logger.warn("[playAttackAnimation] Attacker animation track not found.");
-            return;
+            // return;
         }
 
         try {
             // 1. Wait for the attack animation to reach the "Hit" marker.
-            await this.waitForAnimationMarker(attackAnimation, "Hit");
+            if (attackAnimation) await this.waitForAnimationMarker(attackAnimation, "Hit");            // 2. Show combat effects for the attack outcome
+            const combatEffects = CombatEffectsService.getInstance();
+            const targetHead = target.model.FindFirstChild("Head");
+            const targetHeadPos =
+                targetHead && targetHead.IsA("BasePart") ? targetHead.Position :
+                    target.model.PrimaryPart ? target.model.PrimaryPart.Position : undefined;
 
-            // 2. Indicate the damage dealt to the target.
-            // target.createClashresultIndicators(aa.clashResult);
+            // this.logger.debug("Target head position", targetHeadPos);
+
+            if (targetHeadPos) {
+                const screenPos = this.worldToScreenPosition(targetHeadPos);
+                // this.logger.debug("Screen position", screenPos);
+
+                // Show impact effect
+                const impactSize = result.result.fate === "CRIT" ? 50 : 30;
+                combatEffects.showHitImpact(screenPos, new Color3(1, 0, 0), impactSize);
+
+                // Show damage indicator if the attack hit
+                if (result.result.fate !== "Miss" && result.result.fate !== "Cling") {
+                    let damageMultiplier = result.result.fate === "CRIT" ? 1.5 : 1;
+                    const damage = math.floor((result.result.roll + result.result.bonus) * damageMultiplier);
+
+                    // Show critical hit effect if applicable
+                    if (result.result.fate === "CRIT") {
+                        combatEffects.showAbilityReaction(
+                            new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                            new Color3(1, 0.8, 0),
+                            "CRITICAL!"
+                        );
+                    }
+
+                    wait(0.1); // Small delay for visual clarity
+                    combatEffects.showDamage(screenPos, damage);
+                } else {
+                    // Show miss text
+                    combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), result.result.fate);
+                }
+            }
 
             // 3. Play the appropriate animation based on the outcome of the attack.
             targetAnimationHandler.killAnimation(AnimationType.Idle);

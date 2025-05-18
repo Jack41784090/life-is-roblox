@@ -62,7 +62,7 @@ export default function HitImpactEffect({
         >
             <imagelabel
                 Size={new UDim2(1, 0, 1, 0)}
-                Image="rbxassetid://6607841813"  // Impact effect image
+                Image="rbxassetid://130414078920889"  // Impact effect image
                 ImageColor3={color}
                 ImageTransparency={transparency}
                 BackgroundTransparency={1}
@@ -71,7 +71,7 @@ export default function HitImpactEffect({
             />
             <imagelabel
                 Size={new UDim2(0.7, 0, 0.7, 0)}
-                Image="rbxassetid://6607841813"  // Inner impact effect
+                Image="rbxassetid://130414078920889"  // Inner impact effect
                 ImageColor3={new Color3(1, 1, 1)}
                 ImageTransparency={transparency.map(t => math.min(t + 0.2, 1))}
                 BackgroundTransparency={1}

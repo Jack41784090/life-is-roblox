@@ -1,10 +1,5 @@
 import React from "@rbxts/react";
 import EffectsEventBus from "shared/class/battle/Client/Effects";
-import AbilityReactionEffect from "./AbilityReactionEffect";
-import AbilityUseEffect from "./AbilityUseEffect";
-import DamageIndicator from "./DamageIndicator";
-import HitImpactEffect from "./HitImpactEffect";
-import StyleSwitchEffect from "./StyleSwitchEffect";
 import {
     AbilityReactionEventData,
     AbilityUseEventData,
@@ -14,6 +9,11 @@ import {
     HitImpactEventData,
     StyleSwitchEventData
 } from "../../../shared/class/battle/Client/Effects/types";
+import AbilityReactionEffect from "./AbilityReactionEffect";
+import AbilityUseEffect from "./AbilityUseEffect";
+import DamageIndicator from "./DamageIndicator";
+import HitImpactEffect from "./HitImpactEffect";
+import StyleSwitchEffect from "./StyleSwitchEffect";
 
 interface EffectsManagerProps {
     maxEffects?: number;
@@ -57,7 +57,7 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
         // Use the singleton instance of EffectsEventBus
         const eventBus = EffectsEventBus.getInstance();
         const connections = new Array<() => void>();
-        
+
         print("EffectsManager: Setting up event subscriptions");
 
         connections.push(
@@ -176,7 +176,8 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
 
     return (
         <frame
-            Size={new UDim2(1, 0, 1, 0)}
+            Size={UDim2.fromScale(1, 1)}
+            key="EffectsManager"
             BackgroundTransparency={1}
             ZIndex={10}
         >
