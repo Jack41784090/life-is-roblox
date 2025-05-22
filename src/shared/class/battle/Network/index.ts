@@ -70,7 +70,7 @@ export class NetworkService {
     //     }
     // }
 
-    public onClientRequestOf<T extends ClientRemotesKey>(key: T, callback: Parameters<typeof clientRemotes[T]['connect']>[0]): void {
+    public onClientRemote<T extends ClientRemotesKey>(key: T, callback: Parameters<typeof clientRemotes[T]['connect']>[0]): void {
         this.logger.debug(`Listening to ${key} with callback:`, callback);
         const remote = clientRemotes[key];
         if (RunService.IsClient()) {

@@ -45,7 +45,7 @@ class Ability {
     }
 
     getState() {
-        this.logger.debug(`Getting state for ability ${this.name}`);
+        // this.logger.debug(`Getting state for ability ${this.name}`);
         return {
             ... this,
             using: this.using?.state(),

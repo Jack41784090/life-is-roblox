@@ -121,8 +121,29 @@ export default class BattleClient {
 
     private setupRemoteListeners() {
         const eventBus = this.state.getEventBus();
-        this.networking.onClientRequestOf('turnEnd', (id?: number) => {
+        this.networking.onClientRemote('turnEnd', (id?: number) => {
             eventBus.emit(GameEvent.TURN_ENDED, id);
+        })
+        this.networking.onClientRemote('animate', (accessToken: AccessToken) => {
+            switch (accessToken.action?.type) {
+                case ActionType.Move:
+                    const moveAction = accessToken.action as MoveAction;
+                    const { from, to } = moveAction;
+                    this.logger.debug("Animating move action", moveAction);
+                    this.animating = this.graphics.moveEntity(from, to);
+                    this.animating.catch(err => {
+                        this.logger.error("Error animating move action", err);
+                        this.completeUpdate();
+                    })
+                    break;
+
+                case ActionType.Attack:
+
+                    break;
+
+                default:
+                    break;
+            }
         })
     }
 

@@ -68,7 +68,7 @@ export default class BattleServer {
                     this.logger.warn(`[${GameEvent.TURN_STARTED}] No player ended the turn.`);
                 }
                 eventBus.emit(GameEvent.TURN_ENDED, playerID);
-                this.syncSystem.broadcast('turnEnd', p?.UserId);
+                this.syncSystem.broadcast('turnEnd', p?.UserId ?? -4178);
             })
         })
     }
@@ -94,8 +94,10 @@ export default class BattleServer {
                 this.logger.error(`Invalid token for attack action: ${accessToken.token}`);
                 return [];
             }
-            const clashes = this.state.getCombatSystem().resolveAttack(attackAction);
-            this.validedClashes.set(accessToken.token, clashes)
+            const clashes =
+                this.validedClashes.get(accessToken.token) ??
+                this.validedClashes.set(accessToken.token, this.state.getCombatSystem().resolveAttack(attackAction)).get(accessToken.token)!;
+
             return clashes;
         });
     }
@@ -338,6 +340,9 @@ export default class BattleServer {
             }
         }
         this.state.commit(access.action!);
+
+        // animate for clients
+        this.syncSystem.broadcast('animate', access);
 
         // posture check to see if turn will end
         const currentActor = this.state.getCurrentActor();

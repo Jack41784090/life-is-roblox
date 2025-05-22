@@ -252,7 +252,7 @@ export default class Graphics {
         const entity = tuple?.decouple();
         if (!entity) {
             this.logger.warn(`Entity not found at ${start}`);
-            return;
+            return Promise.reject(`Entity not found at ${start}`);
         }
 
         // Use the dedicated method to get player ID
@@ -274,6 +274,8 @@ export default class Graphics {
         } else {
             this.logger.warn(`Could not find player ID for entity at ${start}, maps may be inconsistent`);
         }
+
+        return Promise.resolve();
     }
 
     public createEntityGraphics(modelId: string, playerId: PlayerID): EntityGraphics {

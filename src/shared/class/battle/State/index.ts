@@ -464,12 +464,12 @@ export default class State {
         return await new Promise<Player | undefined>((resolve) => {
             const cleanup = eventBus.subscribe(GameEvent.TURN_ENDED, (id: unknown) => {
                 const verification = t.number(id);
-                if (!verification || (id !== winningClient.UserId && id !== -1)) {
+                if (!verification || (id !== winningClient.UserId && id !== -4178)) {
                     this.logger.warn(`Invalid ID`, id as defined);
                     return;
                 }
                 cleanup();
-                resolve(id === -1 ? undefined : winningClient);
+                resolve(id === -4178 ? undefined : winningClient);
             });
         }).then((p) => {
             return p;
@@ -539,7 +539,7 @@ export default class State {
         })();
         if (!currentActor || !actingEntity) {
             this.logger.error("No current actor or acting entity found.");
-            throw "No current actor or acting entity found.";
+            throw "No current actor or acting entity found." + `currentActor: ${!!currentActor}; actingEntity: ${!!actingEntity}`;
         }
 
         // 2. Turn start; Waiting for response

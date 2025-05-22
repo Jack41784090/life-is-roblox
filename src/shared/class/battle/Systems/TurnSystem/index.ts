@@ -4,7 +4,7 @@ import { ReadinessFragment, TurnSystemConfig } from "./types";
 
 export class TurnSystem {
     private logger = Logger.createContextLogger("TurnSystem");
-    private currentActorId: number = -1;
+    private currentActorId: number = -4178;
     private readonly READINESS_TICK_INTERVAL: number;
     private isGauntletRunning = false;
     private listOfReadinessState: Atom<Array<Atom<ReadinessFragment>>>;
