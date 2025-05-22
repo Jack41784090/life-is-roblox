@@ -1,7 +1,10 @@
 import { ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
+import Logger from "shared/utils/Logger";
 import EntityGraphics from "../State/Entity/Graphics";
 
 export default class BattleCam {
+    private logger = Logger.createContextLogger("BattleCam");
+
     // Camera-Related Information
     public static HOI4_PAN_SPEED = 0.6;
     public static CHAR_ANGLE = 0;
@@ -26,7 +29,6 @@ export default class BattleCam {
 
         this.camAnimFolder = ReplicatedStorage.WaitForChild("CamAnim") as Folder;
 
-
         this.setupRenderStepped();
     }
 
@@ -41,6 +43,101 @@ export default class BattleCam {
             }
         });
     }
+
+    //#region Camera Movement
+    private updateCameraPosition(gridDelta: Vector2, deltaTime: number) {
+        // Determine which camera mode is active and update accordingly
+        switch (this.mode) {
+            case "HOI4":
+                this.updateHOI4CameraPosition(gridDelta, this.gridMin, this.gridMax);
+                break;
+            case "CHAR_CENTER":
+                this.updateCharCenterCameraPosition(gridDelta, deltaTime);
+                break;
+        }
+    }
+
+    private updateHOI4CameraPosition(gridDelta: Vector2, gridMin: Vector2, gridMax: Vector2) {
+        this.logger.debug("HOI4")
+        const camera = this.camera ?? Workspace.CurrentCamera;
+        if (!camera) {
+            warn("Camera not found!");
+            return;
+        }
+
+        const cameraCFrame = camera.CFrame;
+        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * BattleCam.HOI4_PAN_SPEED, 0, gridDelta.X * BattleCam.HOI4_PAN_SPEED));
+
+        // Ensure the camera stays within the grid bounds
+        const clampedX = math.clamp(cameraPosition.X, gridMin.Y, gridMax.Y);
+        const clampedZ = math.clamp(cameraPosition.Z, gridMin.X, gridMax.X);
+
+        camera.CFrame = new CFrame(
+            new Vector3(clampedX, cameraPosition.Y, clampedZ),
+            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ))
+        ).ToWorldSpace(CFrame.Angles(math.rad(30), 0, 0));
+    }
+
+    private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
+        this.logger.debug("CHAR_CENTER")
+
+        const model = this.focusedChar?.model;
+        if (model?.PrimaryPart === undefined) {
+            warn("Model not found!");
+            return;
+        }
+
+        const camOriPart = model.FindFirstChild("cam-ori") as BasePart || model.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
+        const primaryPart = model.PrimaryPart;
+
+        const mX = primaryPart.Position.X;
+        const mZ = primaryPart.Position.Z;
+        const mY = primaryPart.Position.Y;
+        const cX = camOriPart.Position.X;
+        const cZ = camOriPart.Position.Z;
+        const cY = camOriPart.Position.Y;
+
+        const xDiff = cX - mX;
+        const yDiff = math.abs(mY - cY);
+        const zDiff = cZ - mZ;
+        const camera = this.camera ?? Workspace.CurrentCamera;
+        if (!camera) {
+            warn("Camera not found!");
+            return;
+        }
+
+        const radius = math.sqrt((xDiff * xDiff) + (zDiff * zDiff));
+        const rotationSpeed = math.rad(60 * math.sign(gridDelta.X) * (gridDelta.X ** 2) * deltaTime); // 30 degrees per second
+        BattleCam.CHAR_ANGLE += rotationSpeed;
+
+        const offsetX = math.cos(BattleCam.CHAR_ANGLE) * radius;
+        const offsetZ = math.sin(BattleCam.CHAR_ANGLE) * radius;
+
+        const cameraPosition = model.PrimaryPart.Position.add(new Vector3(offsetX, yDiff, offsetZ));
+
+        camera.CFrame = CFrame.lookAt(cameraPosition, model.PrimaryPart.Position);
+    }
+
+    private setCameraCFrame(cFrame: CFrame, tweenInfo?: TweenInfo) {
+        const cam = this.camera;
+        cam.CameraType = Enum.CameraType.Scriptable;
+        const tween = TweenService.Create(
+            cam,
+            tweenInfo ?? new TweenInfo(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
+            { CFrame: cFrame }
+        )
+        return new Promise<void>((resolve) => {
+            tween.Play();
+            tween.Completed.Wait();
+            resolve();
+        });
+    }
+
+    private goToModelCam(model: Model) {
+        const cam_ori = model.FindFirstChild("cam-ori") as BasePart || model.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
+        return this.setCameraCFrame(cam_ori.CFrame);
+    }
+    //#endregion
 
     detectEdgeMovement(): Vector2 {
         const mousePosition = UserInputService.GetMouseLocation();
@@ -112,98 +209,6 @@ export default class BattleCam {
                 this.panningEnabled = true;
             }) :
             Promise.resolve();
-    }
-
-    private updateCameraPosition(gridDelta: Vector2, deltaTime: number) {
-        // Determine which camera mode is active and update accordingly
-        switch (this.mode) {
-            case "HOI4":
-                this.updateHOI4CameraPosition(gridDelta, this.gridMin, this.gridMax);
-                break;
-            case "CHAR_CENTER":
-                this.updateCharCenterCameraPosition(gridDelta, deltaTime);
-                break;
-        }
-    }
-
-    private updateHOI4CameraPosition(gridDelta: Vector2, gridMin: Vector2, gridMax: Vector2) {
-        const camera = this.camera ?? Workspace.CurrentCamera;
-        if (!camera) {
-            warn("Camera not found!");
-            return;
-        }
-
-        const cameraCFrame = camera.CFrame;
-        const cameraPosition = cameraCFrame.Position.add(new Vector3(gridDelta.Y * BattleCam.HOI4_PAN_SPEED, 0, gridDelta.X * BattleCam.HOI4_PAN_SPEED));
-
-        // Ensure the camera stays within the grid bounds
-        const clampedX = math.clamp(cameraPosition.X, gridMin.Y, gridMax.Y);
-        const clampedZ = math.clamp(cameraPosition.Z, gridMin.X, gridMax.X);
-
-        camera.CFrame = new CFrame(
-            new Vector3(clampedX, cameraPosition.Y, clampedZ),
-            cameraCFrame.LookVector.add(new Vector3(clampedX, 0, clampedZ))
-        ).ToWorldSpace(CFrame.Angles(math.rad(30), 0, 0));
-    }
-
-    private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
-        // Assume model is available and valid (add proper checks in production code)
-
-        const model = this.focusedChar?.model;
-        if (model?.PrimaryPart === undefined) {
-            warn("Model not found!");
-            return;
-        }
-
-        const camOriPart = model.FindFirstChild("cam-ori") as BasePart || model.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
-        const primaryPart = model.PrimaryPart;
-
-        const mX = primaryPart.Position.X;
-        const mZ = primaryPart.Position.Z;
-        const mY = primaryPart.Position.Y;
-        const cX = camOriPart.Position.X;
-        const cZ = camOriPart.Position.Z;
-        const cY = camOriPart.Position.Y;
-
-        const xDiff = cX - mX;
-        const yDiff = math.abs(mY - cY);
-        const zDiff = cZ - mZ;
-        const camera = this.camera ?? Workspace.CurrentCamera;
-        if (!camera) {
-            warn("Camera not found!");
-            return;
-        }
-
-        const radius = math.sqrt((xDiff * xDiff) + (zDiff * zDiff));
-        const rotationSpeed = math.rad(60 * math.sign(gridDelta.X) * (gridDelta.X ** 2) * deltaTime); // 30 degrees per second
-        BattleCam.CHAR_ANGLE += rotationSpeed;
-
-        const offsetX = math.cos(BattleCam.CHAR_ANGLE) * radius;
-        const offsetZ = math.sin(BattleCam.CHAR_ANGLE) * radius;
-
-        const cameraPosition = model.PrimaryPart.Position.add(new Vector3(offsetX, yDiff, offsetZ));
-
-        camera.CFrame = CFrame.lookAt(cameraPosition, model.PrimaryPart.Position);
-    }
-
-    private setCameraCFrame(cFrame: CFrame, tweenInfo?: TweenInfo) {
-        const cam = this.camera;
-        cam.CameraType = Enum.CameraType.Scriptable;
-        const tween = TweenService.Create(
-            cam,
-            tweenInfo ?? new TweenInfo(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
-            { CFrame: cFrame }
-        )
-        return new Promise<void>((resolve) => {
-            tween.Play();
-            tween.Completed.Wait();
-            resolve();
-        });
-    }
-
-    private goToModelCam(model: Model) {
-        const cam_ori = model.FindFirstChild("cam-ori") as BasePart || model.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
-        return this.setCameraCFrame(cam_ori.CFrame);
     }
 
     async playAnimation({ animation, center, }: { animation: string; center?: CFrame }) {
