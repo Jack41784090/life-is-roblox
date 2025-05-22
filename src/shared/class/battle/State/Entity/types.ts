@@ -47,7 +47,7 @@ export type EntityEquipmentState = {
 
 export type EntityConfig = EntityBaseAttributes & Partial<EntityEquipmentState> & {
     name?: string;
-    team?: string;
+    team: string;
     iconURL?: ReadinessIcon;
     model?: Model;
     fightingStyles?: FightingStyle[];
@@ -62,7 +62,7 @@ export enum EntityStance {
 
 export type EntityState = EntityBaseAttributes & EntityEquipmentState & {
     name: string;
-    team?: string;
+    team: string;
     armed?: keyof typeof Enum.KeyCode;
     stance: EntityStance;
     activeStyleIndex: number;
@@ -73,5 +73,5 @@ export type EntityState = EntityBaseAttributes & EntityEquipmentState & {
 export type EntityStatsNoID = Omit<EntityStats, 'id'>;
 export type EntityStatsUpdate = Partial<EntityStatsNoID>;
 export type ReadonlyEntityState = Readonly<EntityState>;
-export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & { playerID: number };
+export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & { playerID: Readonly<number> };
 export type EntityChangeable = keyof Omit<EntityBaseAttributes, 'qr' | 'playerID' | 'stats'>;

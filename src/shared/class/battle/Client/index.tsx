@@ -13,6 +13,7 @@ import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
 import EntityGraphics from "../State/Entity/Graphics";
 import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
+import { EntityState } from "../State/Entity/types";
 import HexCell from "../State/Hex/Cell";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
@@ -74,8 +75,69 @@ export default class BattleClient {
                 this.logger.error("Invalid ID type for TURN_STARTED event", id as defined);
                 return;
             }
-            this.returnToSelections();
+            const validateTurnStartIDWithServer = serverRequestRemote.cre()
+            validateTurnStartIDWithServer.then(server_id => {
+                if (id !== server_id) {
+                    this.logger.error("Turn ID mismatch", id, server_id);
+                    this.completeUpdate().then(() => {
+                        this.state.getEventBus().emit(GameEvent.TURN_STARTED, server_id);
+                    })
+                    return;
+                }
+
+                if (id === Players.LocalPlayer.UserId) {
+                    this.localEntity().then(e => {
+                        this.camera.enterCharacterCenterMode(this.graphics.findEntityGByEntity(e)).then(() => {
+                            this.gui.mountActionMenu(this.getCharacterMenuActions(e));
+                        })
+                    })
+                }
+                else {
+                    this.camera.enterHOI4Mode();
+                }
+            })
         })
+        eventBus.subscribe(GameEvent.TURN_ENDED, (id: unknown) => {
+            const verification = t.number(id);
+            if (!verification) {
+                this.logger.error("Invalid ID type for TURN_ENDED event", id as defined);
+                return;
+            }
+            this.animating
+                .andThen(() => serverRequestRemote.actor(id))
+                .andThen((serverEntityState: EntityState | undefined) => {
+                    const context = 'in TURN_ENDED after requesting actor'
+                    if (serverEntityState) {
+                        const entity = this.state.getEntity(id);
+                        if (entity) {
+                            let localEntityGraphic = this.graphics.findEntityGByEntity(entity);
+                            let localEntity = this.state.getEntity(id);
+                            if (!localEntity) {
+                                this.logger.warn("Entity not found in state", context, id);
+                                localEntity = this.state.getEntity(id)!; // TODO
+                            }
+                            if (!localEntityGraphic) {
+                                this.logger.warn("Graphic not found for entity", context, id);
+                                localEntityGraphic = this.graphics.positionNewPlayer(serverEntityState, localEntity.qr)
+                            }
+
+                            this.state.sync({
+                                entities: [serverEntityState],
+                            })
+                            this.graphics.moveEntity(localEntity.qr, serverEntityState.qr);
+                        }
+                        else {
+                            this.logger.error("Entity not found locally", context, id);
+                            return;
+                        }
+                    }
+                    else {
+                        this.logger.fatal("Actor not found for TURN_ENDED event", id);
+                        return;
+                    }
+                })
+        })
+
         eventBus.subscribe(GameEvent.ENTITY_INTEND_MOVE, (data: unknown) => {
             const veri = entityMovedEventDataVerification(data);
             if (!veri) {
@@ -92,7 +154,6 @@ export default class BattleClient {
                 });
             })
         })
-
         // eventBus.subscribe(GameEvent.ENTITY_MOVED, (data) => {
         // })
 
@@ -115,8 +176,8 @@ export default class BattleClient {
 
         })
 
-        eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entityUpdate: unknown) => {
-        })
+        // eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entityUpdate: unknown) => {
+        // })
     }
 
     private setupRemoteListeners() {
@@ -127,14 +188,29 @@ export default class BattleClient {
         this.networking.onClientRemote('animate', (accessToken: AccessToken) => {
             switch (accessToken.action?.type) {
                 case ActionType.Move:
+                    const context = 'on client remote animate'
                     const moveAction = accessToken.action as MoveAction;
                     const { from, to } = moveAction;
-                    this.logger.debug("Animating move action", moveAction);
+                    this.logger.debug("Animating move action", context, moveAction);
+
+                    // animation
                     this.animating = this.graphics.moveEntity(from, to);
                     this.animating.catch(err => {
-                        this.logger.error("Error animating move action", err);
+                        this.logger.error("Error animating move action", context, err);
                         this.completeUpdate();
                     })
+
+                    // local costs sync
+                    serverRequestRemote.actor(accessToken.userId).then((serverEntityState: EntityState | undefined) => {
+                        if (!serverEntityState) {
+                            this.logger.error("Server entity state not found", context, accessToken.userId);
+                            return;
+                        }
+                        this.state.sync({
+                            entities: [serverEntityState]
+                        })
+                    });
+
                     break;
 
                 case ActionType.Attack:
@@ -252,17 +328,20 @@ export default class BattleClient {
                 run: () => {
                     serverRequestRemote.toAct().then(async accessToken => {
                         this.logger.debug("Access token received", accessToken);
-                        const newAccessToken = {
-                            ...accessToken,
-                            action: {
-                                type: ActionType.Move,
-                                to: entity.playerID,
-                                by: entity.playerID,
-                                executed: false
-                            }
-                        };
-                        this.camera.enterHOI4Mode();
-                        this.enterMovement(newAccessToken);
+                        if (accessToken.allowed) {
+                            const newAccessToken = {
+                                ...accessToken,
+                                action: {
+                                    type: ActionType.Move,
+                                    to: entity.playerID,
+                                    by: entity.playerID,
+                                    executed: false
+                                }
+                            };
+                            this.camera.enterHOI4Mode().then(() => {
+                                this.enterMovement(newAccessToken);
+                            })
+                        }
                     })
                 },
             },
@@ -304,7 +383,8 @@ export default class BattleClient {
      * 2. Rendering:
      *    - Re-render the UI to include sensitive cells.
      *    - Mount the ability slots for the current entity.
-     */    private async enterMovement(withToken: AccessToken) {
+     */
+    private async enterMovement(withToken: AccessToken) {
         this.logger.debug("Entering movement mode");
         const localE = await this.localEntity()
 
@@ -317,7 +397,8 @@ export default class BattleClient {
             this.state.getEntity(Players.LocalPlayer.UserId)!,
             this.getSensitiveCellElements(withToken)
         );
-    } private exitMovement() {
+    }
+    private exitMovement() {
         this.controlLocks.delete(Enum.KeyCode.X);
 
         // Clear all UI elements

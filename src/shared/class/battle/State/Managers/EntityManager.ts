@@ -123,7 +123,7 @@ export class EntityManager {
         const entity = this.getEntity(id);
         if (entity) {
             this.logger.info(`Updating entity ${entity.name} (${id})`, updates);
-            // const changed = entity.update(updates);
+            const changed = entity.update(updates);
             if (this.eventBus) {
                 this.eventBus.emit(GameEvent.ENTITY_UPDATED, entity, updates);
             }

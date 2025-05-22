@@ -8,7 +8,7 @@ import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
 import { TurnSystem } from "../Systems/TurnSystem";
 import Entity from "./Entity";
-import { EntityConfig, EntityState, EntityStats, ReadonlyEntityState } from "./Entity/types";
+import { EntityConfig, EntityState, EntityStats, EntityUpdate, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
 import { ReadonlyGridState } from "./Hex/types";
 import { EntityManager } from "./Managers/EntityManager";
@@ -306,7 +306,7 @@ export default class State {
      * Synchronizes this state with another partial state
      * @param other - Partial state to merge into current state
      */
-    public sync(other: Partial<StateState>): void {
+    public sync(other: Partial<StateState> & { entities?: EntityUpdate[] }): void {
         // Update grid
         if (other.grid) {
             this.gridManager.updateGrid(other.grid);
@@ -331,6 +331,20 @@ export default class State {
                     spd: atom(entity.stats.spd),
                 }
             }))
+        }
+
+        if (other.entities) {
+            for (const entityUpdate of other.entities) {
+                const currentEntity = this.entityManager.getEntity(entityUpdate.playerID);
+                if (currentEntity) {
+                    this.entityManager.updateEntity(entityUpdate);
+                    if (entityUpdate.team && currentEntity.team !== entityUpdate.team) {
+                        this.teamManager.addEntityToTeam(entityUpdate.team, currentEntity, true);
+                    }
+                } else {
+                    this.logger.warn(`Entity with ID ${entityUpdate.playerID} not found`);
+                }
+            }
         }
     }
 

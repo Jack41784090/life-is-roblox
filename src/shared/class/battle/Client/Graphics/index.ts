@@ -217,6 +217,7 @@ export default class Graphics {
         this.idTupleMap.set(entityState.playerID, newTuple);
         this.tupleQR.set(qr, newTuple);
         this.logger.info(`Player ${entityState.playerID} positioned at ${qr}`);
+        return newEntityG;
     }
 
     public repositionPlayer(playerID: PlayerID, newQR: Vector2) {
@@ -229,8 +230,13 @@ export default class Graphics {
 
         // Get the entity graphics and remove old tuple
         const oldQR = playerTuple.cellGraphics.qr;
-        const entity = playerTuple.decouple()!;
+        const entity = playerTuple.decouple();
         this.tupleQR.delete(oldQR);
+
+        if (!entity) {
+            this.logger.warn(`Entity graphics not found for player ${playerID}`);
+            return;
+        }
 
         // Create new tuple and update maps
         const newTuple = this.positionTuple(newQR);

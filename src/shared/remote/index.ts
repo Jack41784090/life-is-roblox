@@ -1,6 +1,7 @@
 import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
+import { EntityState } from "shared/class/battle/State/Entity/types";
 import { AccessToken, ActionType, AttackAction, BattleConfig, HexGridState, NeoClashResult, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
@@ -28,6 +29,7 @@ export const serverRequestRemote = createRemotes({
     map: remote<Server>().returns<HexGridState>(),
     team: remote<Server>().returns<TeamState[]>(),
     state: remote<Server>().returns<StateState>(),
+    actor: remote<Server, [actorID: number]>().returns<EntityState | undefined>(),
     cre: remote<Server>().returns<number>(),
     toAct: remote<Server>().returns<AccessToken>(t.interface({
         userId: t.number,

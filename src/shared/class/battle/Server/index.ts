@@ -100,6 +100,10 @@ export default class BattleServer {
 
             return clashes;
         });
+        this.networkService.onServerRequestOf('actor', (p, id) => {
+            this.logger.debug(`Received actor request from ${p.Name}`);
+            return this.state.getEntity(id)?.state();
+        })
     }
 
     //#region Server-Side Loop
@@ -342,6 +346,7 @@ export default class BattleServer {
         this.state.commit(access.action!);
 
         // animate for clients
+        // this.syncSystem.broadcast('')
         this.syncSystem.broadcast('animate', access);
 
         // posture check to see if turn will end

@@ -142,6 +142,7 @@ export function createDummyEntityStats(qr: Vector2) {
         mana: 999,
         sta: 999,
         qr,
+        team: "Dummy",
     }
 }
 

@@ -18,6 +18,10 @@ export default class Team {
         }
     }
 
+    removeMembers(...toRemoveID: number[]) {
+        this.members = this.members.filter(member => !toRemoveID.some(id => id === member.playerID));
+    }
+
     players() {
         const playerSet = new Set<Player>();
         for (const entity of this.members) {

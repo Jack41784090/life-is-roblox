@@ -80,19 +80,33 @@ export class TeamManager {
         return this.teams.find(team => team.name === name);
     }
 
-    public addEntityToTeam(teamName: string, entity: Entity, createNew = true): boolean {
+    public addEntityToTeam(teamName: string, entity: Entity, createNew = true, switchTeam = false): boolean {
+        const currentTeam = this.getTeam(entity.team);
+        if (switchTeam && entity.team && entity.team !== teamName) {
+            if (currentTeam) {
+                currentTeam.removeMembers(entity.playerID);
+            }
+        }
+
         const team = this.getTeam(teamName);
         if (team) {
             team.addMembers(entity);
+            entity.team = teamName;
             return true;
-        }
-        else if (createNew) {
+        } else if (createNew) {
             const newTeam = this.createTeam(teamName);
             newTeam.addMembers(entity);
+            entity.team = teamName;
             return true;
         }
-        return false;
-    } public getTeamStates(): TeamState[] {
+        else {
+            this.logger.warn(`Failed to add entity to team: ${teamName} does not exist and createNew is false`);
+            currentTeam?.addMembers(entity);
+            return false;
+        }
+    }
+
+    public getTeamStates(): TeamState[] {
         return this.teams.map(team => ({
             name: team.name,
             members: team.members.map(entity => entity.state()),

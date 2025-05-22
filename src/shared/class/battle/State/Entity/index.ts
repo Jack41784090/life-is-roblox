@@ -7,10 +7,12 @@ import { EventBus } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilitySetDefinition, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
+import { ArmourConfig } from "../../Systems/CombatSystem/Armour/types";
 import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
 import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems/CombatSystem/FightingStyle/const";
 import Weapon from "../../Systems/CombatSystem/Weapon";
-import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats } from "./types";
+import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
+import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityUpdate } from "./types";
 
 export default class Entity {
     // server-controlled properties
@@ -31,7 +33,7 @@ export default class Entity {
 
     qr: Vector2;
     armed?: keyof typeof Enum.KeyCode;
-    team?: string;
+    team: string;
 
     // Fighting style properties
     private fightingStyles: FightingStyle[] = [];
@@ -75,6 +77,7 @@ export default class Entity {
             stance: this.stance,
             playerID: this.playerID,
             qr: this.qr,
+            team: this.team,
             stats: {
                 ...this.stats,
             },
@@ -218,6 +221,25 @@ export default class Entity {
     //#endregion
 
     //#region Modifying
+    public update(updates: EntityUpdate) {
+        this.logger.debug(`${this.name}: Updating entity with ${updates}`);
+        for (const [key, value] of pairs(updates)) {
+            if (key === 'qr') {
+                this.setCell(value as Vector2);
+            } else if (key === 'stats') {
+                this.stats = { ...this.stats, ...value as EntityStats };
+            }
+            else if (key === 'weapon') {
+                this.weapon = new Weapon(value as WeaponConfig);
+            } else if (key === 'armour') {
+                this.armour = new Armour(value as ArmourConfig);
+            } else {
+                this.logger.warn(`Unimplemented property ${key} in entity update`);
+                // TODO: implement other properties
+            }
+        }
+    }
+
     public changeHP(num: number) {
         this.logger.debug(`${this.name}: Changing HP by ${num}`);
 
