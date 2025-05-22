@@ -11,7 +11,7 @@ export default class EffectsEventBus {
     public static getInstance(): EffectsEventBus {
         if (!this.instance) {
             this.instance = new EffectsEventBus();
-            this.instance.logger.info("EffectsEventBus: Created instance");
+            // this.instance.logger.info("EffectsEventBus: Created instance");
         }
         return this.instance;
     }

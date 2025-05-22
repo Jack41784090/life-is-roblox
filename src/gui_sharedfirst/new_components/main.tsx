@@ -27,7 +27,7 @@ class GuiMothership {
     }
 
     public static Mount(key: string, element: React.Element) {
-        print("Mounting", key, element);
+        // print("Mounting", key, element);
         if (!GuiMothership.instance) {
             GuiMothership.instance = new GuiMothership();
         }

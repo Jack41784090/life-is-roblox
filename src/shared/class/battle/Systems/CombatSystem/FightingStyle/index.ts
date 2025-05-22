@@ -25,7 +25,7 @@ export default class FightingStyle {
         // Initialize all abilities as available
         this.resetAbilities();
 
-        this.logger.info(`Created fighting style: ${this.name} with ${this.activeAbilities.size()} active abilities, ${this.reactionAbilities.size()} reactive abilities, and ${this.passiveEffects.size()} passive effects`);
+        // this.logger.info(`Created fighting style: ${this.name} with ${this.activeAbilities.size()} active abilities, ${this.reactionAbilities.size()} reactive abilities, and ${this.passiveEffects.size()} passive effects`);
     }
 
     public getName(): string {

@@ -35,13 +35,13 @@ class Ability {
         if (opt.using) this.using = opt.using;
         if (opt.target) this.target = opt.target;
 
-        this.logger.debug(`Created ability ${this.name} of type ${this.type}`, {
-            direction: this.direction,
-            cost: this.cost,
-            dices: this.dices,
-            usingEntity: this.using?.name,
-            targetEntity: this.target?.name
-        });
+        // this.logger.debug(`Created ability ${this.name} of type ${this.type}`, {
+        //     direction: this.direction,
+        //     cost: this.cost,
+        //     dices: this.dices,
+        //     usingEntity: this.using?.name,
+        //     targetEntity: this.target?.name
+        // });
     }
 
     getState() {
@@ -73,11 +73,11 @@ export class ActiveAbility extends Ability {
         const damageTypesArray: [DamageType, number][] = [];
         this.damageType.forEach((value, key) => damageTypesArray.push([key, value]));
 
-        this.logger.debug(`Created ActiveAbility ${this.name}`, {
-            range: [this.range.Min, this.range.Max],
-            potencies: potenciesArray,
-            damageTypes: damageTypesArray
-        });
+        // this.logger.debug(`Created ActiveAbility ${this.name}`, {
+        //     range: [this.range.Min, this.range.Max],
+        //     potencies: potenciesArray,
+        //     damageTypes: damageTypesArray
+        // });
     }
 
     public getTotalDamageArray(): Record<DamageType, number> {
@@ -139,7 +139,7 @@ export class ReactiveAbility extends Ability {
         this.successReaction = opt.successReaction;
         this.failureReaction = opt.failureReaction;
         this.getSuccessChance = opt.getSuccessChance;
-        this.logger.debug(`Created ReactiveAbility ${this.name}`);
+        // this.logger.debug(`Created ReactiveAbility ${this.name}`);
     }
 
     react(againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) {
