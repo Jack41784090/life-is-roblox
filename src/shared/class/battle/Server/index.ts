@@ -86,7 +86,7 @@ export default class BattleServer {
             const attackAction = accessToken.action;
             const veri = attackActionRefVerification(attackAction);
             if (!veri) {
-                this.logger.error(`Invalid attack action reference:`, attackAction); //checkthis
+                this.logger.error(`Invalid attack action reference:`, attackAction);
                 return [];
             }
             const veriToken = accessToken.token && this.givenTokens.some(t => t === accessToken.token);

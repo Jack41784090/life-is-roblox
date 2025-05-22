@@ -486,7 +486,7 @@ export default class BattleClient {
         accessToken.action = attackAction;
 
         // resolve attack using temp attack action
-        const clashes = await serverRequestRemote.clashes(accessToken); //checkthis
+        const clashes = await serverRequestRemote.clashes(accessToken);
 
         // set action back to resolveAttacks
         const resolveAction: ResolveAttacksAction = {
@@ -565,7 +565,8 @@ export default class BattleClient {
                 executed: false,
             }, clash)
         }
-    }    /**
+    }
+    /**
      * Convert a world position to screen position for UI effects
      */
     private worldToScreenPosition(worldPos: Vector3): UDim2 {
@@ -576,7 +577,7 @@ export default class BattleClient {
         return new UDim2(0, screenPos.X, 0, screenPos.Y);
     }
 
-    private async playAttackAnimation(aa: AttackAction, result: NeoClashResult) {
+    private async playAttackAnimation(aa: AttackAction, clash: NeoClashResult) {
         await this.animating;
         this.logger.debug("Playing attack animation", aa);
         const { animation } = aa.ability;
@@ -623,16 +624,15 @@ export default class BattleClient {
                 // this.logger.debug("Screen position", screenPos);
 
                 // Show impact effect
-                const impactSize = result.result.fate === "CRIT" ? 50 : 30;
+                const impactSize = clash.result.fate === "CRIT" ? 50 : 30;
                 combatEffects.showHitImpact(screenPos, new Color3(1, 0, 0), impactSize);
 
                 // Show damage indicator if the attack hit
-                if (result.result.fate !== "Miss" && result.result.fate !== "Cling") {
-                    let damageMultiplier = result.result.fate === "CRIT" ? 1.5 : 1;
-                    const damage = math.floor((result.result.roll + result.result.bonus) * damageMultiplier);
+                if (clash.result.damage && clash.result.fate !== "Miss" && clash.result.fate !== "Cling") {
+                    const damage = clash.result.damage;
 
                     // Show critical hit effect if applicable
-                    if (result.result.fate === "CRIT") {
+                    if (clash.result.fate === "CRIT") {
                         combatEffects.showAbilityReaction(
                             new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
                             new Color3(1, 0.8, 0),
@@ -640,11 +640,12 @@ export default class BattleClient {
                         );
                     }
 
-                    wait(0.1); // Small delay for visual clarity
-                    combatEffects.showDamage(screenPos, damage);
+                    task.delay(.5, () => {
+                        combatEffects.showDamage(screenPos, damage);
+                    })
                 } else {
                     // Show miss text
-                    combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), result.result.fate);
+                    combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), clash.result.fate);
                 }
             }
 
@@ -652,7 +653,7 @@ export default class BattleClient {
             targetAnimationHandler.killAnimation(AnimationType.Idle);
             targetAnimationHandler.killAnimation(AnimationType.Defend);
 
-            if (this.isAttackKills(aa, result)) {
+            if (this.isAttackKills(aa, clash)) {
                 const deathPoseIdleAnimation = target.playAnimation(
                     AnimationType.Idle,
                     {
