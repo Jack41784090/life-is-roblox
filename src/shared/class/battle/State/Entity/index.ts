@@ -233,9 +233,28 @@ export default class Entity {
                 this.weapon = new Weapon(value as WeaponConfig);
             } else if (key === 'armour') {
                 this.armour = new Armour(value as ArmourConfig);
-            } else {
+            }
+            else if (key === 'hip' || key === 'sta' || key === 'org' || key === 'pos' || key === 'mana') {
+                this[key] = atom(value as number);
+            }
+            else if (key === 'activeStyleIndex') {
+                const newIndex = value as number;
+                if (newIndex >= 0 && newIndex < this.fightingStyles.size()) {
+                    this.activeStyleIndex = newIndex;
+                } else {
+                    this.logger.warn(`${this.name} tried to set active style index to ${newIndex}, but it's out of bounds`);
+                }
+            }
+            else {
                 this.logger.warn(`Unimplemented property ${key} in entity update`);
                 // TODO: implement other properties
+                /**
+                 *   15:00:24.807  [WARN] [Entity] Unimplemented property stance in entity update  -  Client - Logger:156
+                  15:00:24.807  [WARN] [Entity] Unimplemented property playerID in entity update  -  Client - Logger
+                  15:00:24.807  [WARN] [Entity] Unimplemented property name in entity update  -  Client - Logger:156
+                  15:00:24.807  [WARN] [Entity] Unimplemented property fightingStyles in entity update  -  Client - Logger:156
+                  15:00:24.807  [WARN] [Entity] Unimplemented property team in entity update  -  Client - Logger:156
+                 */
             }
         }
     }

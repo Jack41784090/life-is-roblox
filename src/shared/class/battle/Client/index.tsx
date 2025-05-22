@@ -2,7 +2,7 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, NeoClashResult, PlayerID, ReadinessIcon, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, BattleAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, NeoClashResult, PlayerID, ReadinessIcon, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
 import Logger from "shared/utils/Logger";
@@ -182,45 +182,22 @@ export default class BattleClient {
 
     private setupRemoteListeners() {
         const eventBus = this.state.getEventBus();
-        this.networking.onClientRemote('turnEnd', (id?: number) => {
-            eventBus.emit(GameEvent.TURN_ENDED, id);
-        })
         this.networking.onClientRemote('animate', (accessToken: AccessToken) => {
-            switch (accessToken.action?.type) {
-                case ActionType.Move:
-                    const context = 'on client remote animate'
-                    const moveAction = accessToken.action as MoveAction;
-                    const { from, to } = moveAction;
-                    this.logger.debug("Animating move action", context, moveAction);
-
-                    // animation
-                    this.animating = this.graphics.moveEntity(from, to);
-                    this.animating.catch(err => {
-                        this.logger.error("Error animating move action", context, err);
-                        this.completeUpdate();
-                    })
-
-                    // local costs sync
-                    serverRequestRemote.actor(accessToken.userId).then((serverEntityState: EntityState | undefined) => {
-                        if (!serverEntityState) {
-                            this.logger.error("Server entity state not found", context, accessToken.userId);
-                            return;
-                        }
-                        this.state.sync({
-                            entities: [serverEntityState]
-                        })
-                    });
-
-                    break;
-
-                case ActionType.Attack:
-
-                    break;
-
-                default:
-                    break;
+            const context = 'client remote called to animate'
+            if (!accessToken.action) {
+                this.logger.error("Access token has no action", context, accessToken);
+                return;
             }
+            this.state.commit(accessToken.action);
+            this.animating.then(() => {
+                this.animating = this.handleGeneralAnimation(accessToken.action!);
+            })
         })
+        this.networking.onClientRemote('turnEnd', (id?: number) => {
+            this.logger.debug("Client received: Turn ended", id);
+            eventBus.emit(GameEvent.TURN_ENDED, id);
+            this.camera.enterHOI4Mode();
+        });
     }
 
     /**
@@ -398,6 +375,7 @@ export default class BattleClient {
             this.getSensitiveCellElements(withToken)
         );
     }
+
     private exitMovement() {
         this.controlLocks.delete(Enum.KeyCode.X);
 
@@ -507,22 +485,29 @@ export default class BattleClient {
         // commit action to server
         const ac = await this.commitToServer(accessToken);
 
-        // emit event to this client
-        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
-            entityId: accessToken.userId,
-            from: start,
-            to: dest,
-        })
+        if (ac.allowed) {
+            // emit event to this client
+            this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
+                entityId: accessToken.userId,
+                from: start,
+                to: dest,
+            })
 
-        // commit action to local state
-        this.state.commit(accessToken.action);
+            // commit action to local state
+            this.state.commit(accessToken.action);
 
-        const waitForMoveAnimation = await this.animating;
+            const waitForMoveAnimation = await this.animating;
 
-        const localE = await this.localEntity();
-        if (localE.get('pos') >= 75) {
-            this.logger.debug("Local entity is still ready");
-            this.gui.setMode('withSensitiveCells');
+            const localE = await this.localEntity();
+            if (localE.get('pos') >= 75) {
+                this.logger.debug("Local entity is still ready");
+                this.gui.setMode('withSensitiveCells');
+            }
+        }
+        else {
+            this.logger.warn("Action not allowed", ac);
+            this.gui.setMode('onlyReadinessBar');
+            // this.state.getEventBus().emit(GameEvent.ACTION_NOT_ALLOWED, accessToken.action);
         }
     }
     //#endregion
@@ -652,6 +637,26 @@ export default class BattleClient {
     //#endregion
 
     //#region Animations
+    private async handleGeneralAnimation(action: BattleAction) {
+        switch (action.type) {
+            case ActionType.Move:
+                this.logger.debug("Handling move animation", action);
+                const { by, to } = action as MoveAction;
+                const entity = this.state.getEntity(by);
+                if (entity) {
+                    const graphic = this.graphics.findEntityG(entity);
+                    if (graphic) {
+                        return this.graphics.moveEntity(entity.qr, to);
+                    }
+                }
+                break;
+            case ActionType.Attack:
+                break;
+            case ActionType.ResolveAttacks:
+                break;
+        }
+    }
+
     private async handleAnimatingClashes(clashes: NeoClashResult[], attackActionRef: AttackAction): Promise<void> {
         this.logger.debug("Animating clashes", clashes, "BattleClient");
         // await this.animating;

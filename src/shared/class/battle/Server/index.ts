@@ -67,7 +67,7 @@ export default class BattleServer {
                 else {
                     this.logger.warn(`[${GameEvent.TURN_STARTED}] No player ended the turn.`);
                 }
-                eventBus.emit(GameEvent.TURN_ENDED, playerID);
+                // eventBus.emit(GameEvent.TURN_ENDED, playerID);
                 this.syncSystem.broadcast('turnEnd', p?.UserId ?? -4178);
             })
         })
