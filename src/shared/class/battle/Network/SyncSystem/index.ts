@@ -43,7 +43,7 @@ export class SyncSystem {
     constructor(config: SyncSystemConfig) {
         this.logger.info("Initializing SyncSystem");
         this.players = config.players;
-        this.players.forEach(p => this.broadcast('createClient', {}));
+        this.broadcast('createClient', {})
     }
 
     public addPlayer(player: Player): void {
