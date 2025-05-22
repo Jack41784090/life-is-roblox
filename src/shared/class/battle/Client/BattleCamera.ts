@@ -100,7 +100,7 @@ export default class BattleCam {
         const eG = _eG ?? this.focusedChar;
         const model = eG?.model; this.focusedChar = eG;
         const primPart = model?.PrimaryPart;
-        const camOriPart = model?.FindFirstChild("cam-ori") as BasePart;
+        const camOriPart = model?.FindFirstChild("cam-ori") as BasePart || model?.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
         if (!primPart || !camOriPart) {
             warn("Primary Part or Camera Orientation Part not found!", model, primPart, camOriPart);
             return;
@@ -155,7 +155,7 @@ export default class BattleCam {
             return;
         }
 
-        const camOriPart = model.WaitForChild("cam-ori") as BasePart;
+        const camOriPart = model.FindFirstChild("cam-ori") as BasePart || model.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
         const primaryPart = model.PrimaryPart;
 
         const mX = primaryPart.Position.X;
@@ -202,7 +202,7 @@ export default class BattleCam {
     }
 
     private goToModelCam(model: Model) {
-        const cam_ori = model.WaitForChild("cam-ori") as BasePart;
+        const cam_ori = model.FindFirstChild("cam-ori") as BasePart || model.FindFirstChild("Essentials")?.FindFirstChild("cam-ori") as BasePart;
         return this.setCameraCFrame(cam_ori.CFrame);
     }
 

@@ -72,7 +72,7 @@ function enterPlayground() {
     const character = explorer.beginExplore(PlaceName.Konigsberg);
     // remotes.loadCharacter(); explorer.beginExplore(PlaceName.City);
     // const character = player.Character || player.CharacterAdded.Wait()[0];
-    const humanoidRootPart = character.WaitForChild("HumanoidRootPart") as Part;
+    const humanoidRootPart = character.PrimaryPart as Part;
 
     // Set the camera position and make it look at the player along the Z axis
     RunService.RenderStepped.Connect(() => {
@@ -209,8 +209,8 @@ clientRemotes.ui.startRoom.connect(s => {
 
 // mainMenuCameraSetup();
 // mainMenuSetup();
-enterBattle();
+// enterBattle();
 // enterStory();
-// enterPlayground();
+enterPlayground();
 //#endregion
 

@@ -26,7 +26,8 @@ export default class EntityGraphics {
         this.model = template.Clone();
         this.model.Parent = game.Workspace;
         this.name = this.model.Name;
-        this.nameTag = this.model.WaitForChild('nametag').FindFirstChildOfClass('BillboardGui')?.WaitForChild('TextBox') as TextBox; assert(this.nameTag, "[EntityGraphics] Name tag not found in model.");
+        const ntOBJ = this.model.FindFirstChild('nametag') || this.model.FindFirstChild("Essentials")?.FindFirstChild('nametag');
+        this.nameTag = ntOBJ?.FindFirstChildOfClass('BillboardGui')?.FindFirstChild('TextBox') as TextBox; assert(this.nameTag, "[EntityGraphics] Name tag not found in model.");
         this.nameTag.Text = this.name;
 
         const humanoid = this.model.FindFirstChildWhichIsA("Humanoid") as Humanoid; assert(humanoid, "[EntityGraphics] Humanoid not found in model.");

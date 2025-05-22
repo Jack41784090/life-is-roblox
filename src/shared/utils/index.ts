@@ -44,7 +44,7 @@ export function enableCharacter(character: Model) {
         if (descendant.IsA("BasePart")) {
             descendant.CanCollide = true;  // Enable collisions
             descendant.Anchored = false;   // Unanchor parts to re-enable physics
-            if (descendant.Name !== "HumanoidRootPart")
+            if (descendant.Name !== character.PrimaryPart?.Name)
                 descendant.Transparency = 0;   // Make the part visible
         } else if (descendant.IsA("Humanoid")) {
             descendant.PlatformStand = false; // Re-enable humanoid physics interactions
@@ -76,7 +76,7 @@ export function getCharacterModel(name: string, position: Vector3 = new Vector3(
     const humanoidTemplate = ReplicatedStorage.WaitForChild('Models').FindFirstChild(name) as Model;
     if (humanoidTemplate) {
         const humanoidClone = humanoidTemplate.Clone();
-        const humanoidRootPart = humanoidClone.WaitForChild("HumanoidRootPart") as BasePart;
+        const humanoidRootPart = humanoidClone.PrimaryPart as BasePart;
         humanoidRootPart.CFrame = new CFrame(position);
         humanoidClone.Parent = Workspace;
         return humanoidClone;

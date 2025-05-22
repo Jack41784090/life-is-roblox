@@ -18,20 +18,23 @@ export default class Expression {
     constructor(entity: EntityGraphics) {
         this.model = entity.model;
 
-        const head = this.model.FindFirstChild("Head");
-        assert(head?.IsA("Part"), "[Expression] Head not found in model.");
-        const eyes = head.FindFirstChild("eyes");
-        assert(eyes?.IsA("Part"), "[Expression] Eyes not found in model.");
-
+        const head = this.model.FindFirstChild("Head"); assert(head, "[Expression] Head not found in model.");
+        const eyes = head.FindFirstChild("eyes") as Part | undefined;
         this.eyes = eyes;
-        this.leftEyeDecal = this.getDecal(eyes, "left eye");
-        this.rightEyeDecal = this.getDecal(eyes, "right eye");
+        if (eyes) {
+            this.leftEyeDecal = this.getDecal(eyes, "eye_left");
+            this.rightEyeDecal = this.getDecal(eyes, "eye_right");
+        } else {
+            this.leftEyeDecal = this.getDecal(head, "eye_left");
+            this.rightEyeDecal = this.getDecal(head, "eye_right");
+        }
     }
 
-    private getDecal(parent: Instance, name: string): Decal {
+    private getDecal(parent: Instance, name: string): Decal | undefined {
         const decal = parent.FindFirstChild(name);
-        assert(decal?.IsA("Decal"), `[Expression] ${name} decal not found in model.`);
-        return decal as Decal;
+        if (decal && decal.IsA("Decal")) {
+            return decal as Decal;
+        }
     }
 
     private setEyeTexture(decal: Decal | undefined, textureID: string | undefined) {

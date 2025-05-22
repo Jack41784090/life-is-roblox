@@ -210,14 +210,6 @@ export default class CombatSystem {
         }
 
         rollHistory.push(hitAttempt.rollResult);
-        if (hitAttempt.diceUsed !== undefined) {
-            // Remove the used die and any dice "smaller" (rolled before it) from the available pool
-            const usedDieIndex = availableDice.indexOf(hitAttempt.diceUsed);
-            if (usedDieIndex > -1) {
-                availableDice.remove(usedDieIndex); // .pop() works from the end, so this effectively removes it and prior
-            }
-        }
-
 
         const pv = target.armour?.getPV() || 0;
         const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;

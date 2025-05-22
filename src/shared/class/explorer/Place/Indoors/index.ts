@@ -383,7 +383,7 @@ export default class IndoorLocation {
         const DEFAULT_HEIGHT = 3;
 
         // Try to find humanoid root part or primary part
-        const rootPart = model.FindFirstChild("HumanoidRootPart") as BasePart ||
+        const rootPart = model.PrimaryPart as BasePart ||
             model.PrimaryPart;
 
         if (rootPart) {
