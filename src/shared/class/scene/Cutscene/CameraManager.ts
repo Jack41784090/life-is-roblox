@@ -26,15 +26,12 @@ export class CameraManager {
         if (!camera) return;
 
         // Clean up any existing camera control connection
-        this.cameraControl?.Disconnect();
-
-        // Setup edge-based camera rotation for character-centered view
+        this.cameraControl?.Disconnect();        // Setup edge-based camera rotation for character-centered view
         this.cameraControl = RunService.RenderStepped.Connect((deltaTime) => {
             if (!this.cameraEnabled || this.cameraMode !== "FREE") {
-                this.logger.debug("Camera control is disabled or not in FREE mode");
                 return;
             }
-            this.logger.debug("Camera control is enabled");
+
             // Get mouse position for edge detection
             const mousePosition = UserInputService.GetMouseLocation();
             const screenSize = camera.ViewportSize;
@@ -54,17 +51,11 @@ export class CameraManager {
                 this.rotateCamera(-percentage * 60 * deltaTime, camera);
             }
         });
-    }
-
-    private rotateCamera(angleChange: number, camera: Camera): void {
-        this.logger.debug(`Rotating camera by ${angleChange} degrees`);
+    } private rotateCamera(angleChange: number, camera: Camera): void {
         const currentCFrame = camera.CFrame;
         const rotation = CFrame.Angles(0, math.rad(angleChange), 0);
         camera.CFrame = currentCFrame.mul(rotation);
-    }
-
-    public handleLookAt(lookAtTrigger: LookAtTrigger): Promise<void> {
-        this.logger.debug(`Handling LookAt trigger: ${lookAtTrigger.name}`);
+    } public handleLookAt(lookAtTrigger: LookAtTrigger): Promise<void> {
         this.cameraEnabled = false;
         this.cameraMode = "LOCKED";
 

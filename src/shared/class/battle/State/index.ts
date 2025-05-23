@@ -506,7 +506,7 @@ export default class State {
         }
 
         // if (activeTeamsCount <= 1) {
-        //     this.logger.info(`Game over condition met: ${activeTeamsCount} team(s) have active units.`);
+
         //     return true;
         // }
         return false;

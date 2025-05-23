@@ -50,8 +50,6 @@ export default class CombatSystem {
         // Ensure damage doesn't go below 1 if hit is successful
         modifiedDamage = math.max(1, modifiedDamage);
 
-        this.logger.debug(`Damage modification: base ${damage} + increase ${damageIncrease} - reduction ${damageReduction} = ${modifiedDamage}`);
-
         return modifiedDamage;
     }
 
@@ -68,35 +66,28 @@ export default class CombatSystem {
     // ## 
 
     public resolveAttack(action: AttackAction): NeoClashResult[] {
-        this.logger.debug(`Calculating clash for attack: ${action.by} -> ${action.against}`);
         const attacker = this.gameState.getEntity(action.by);
         const target = action.against !== undefined ? this.gameState.getEntity(action.against) : undefined;
         if (!attacker || !target) {
             this.logger.error("Attacker or target not found", attacker, target);
             return [];
         }
-        this.logger.debug(`Resolving attack from ${attacker.name || attacker.playerID} to ${target.name || target.playerID} using ability: ${action.ability.name || "unnamed"}`);
 
         const abilityDices = action.ability.dices.map(d => d);
-        this.logger.debug(`Available ability dice: [${abilityDices.join(", ")}]`);
 
         let dice = abilityDices.pop();
         const globalResult: NeoClashResult[] = [];
 
         while (dice) {
-            this.logger.debug(`🎲 Attempting attack roll with d${dice}`);
             const result: NeoClashResult[] = this.resolveStrikeSequence([dice], attacker, target);
             result.forEach(r => globalResult.push(r));
-            this.logger.info(`⚔️ Attack outcome: ${result}`);
             dice = abilityDices.pop();
         }
 
-        this.logger.debug(`🏁 Attack resolution complete:`, globalResult);
         return globalResult;
     }
 
     public applyAttack(clashes: NeoClashResult[], attacker: Entity, target: Entity) {
-        this.logger.debug(`Applying attack results to entities`);
         for (const clash of clashes) {
             if (clash.result.fate === "Hit") {
                 // Calculate base damage from weapon and ability
@@ -105,7 +96,6 @@ export default class CombatSystem {
                 // Apply fighting style modifiers
                 const finalDamage = this.calculateModifiedDamage(baseDamage, attacker, target);
 
-                this.logger.debug(`Applying damage ${finalDamage} to target ${target.name}`);
                 target.damage(finalDamage);
 
                 // Add damage info to the clash result
@@ -139,8 +129,6 @@ export default class CombatSystem {
             const totalRoll = roll + adjustedBonus;
             const success = totalRoll >= adjustedTarget;
 
-            this.logger.debug(`🎲 ${checkType} check: Rolled d${die}=${roll} + bonus ${adjustedBonus} = ${totalRoll} vs ${checkType} ${adjustedTarget} (base target: ${targetValue})`);
-
             const rollResult: NeoClashResult = {
                 armour: target.armour.getState(),
                 weapon: attacker.weapon.getState(),
@@ -158,10 +146,8 @@ export default class CombatSystem {
             };
 
             if (success) {
-                this.logger.debug(`✅ ${checkType} ${success ? "successful" : "failed"}! Roll ${totalRoll} ${success ? "≥" : "<"} ${checkType} ${targetValue}`);
                 return { rollResult, success: true, diceUsed: die };
             } else {
-                this.logger.debug(`❌ ${checkType} failed: Roll ${totalRoll} < ${checkType} ${targetValue}, trying next die`);
                 // Log the miss and continue to the next die
                 // The actual NeoClashResult for the miss will be added to history by the caller if no success occurs
             }
@@ -171,14 +157,12 @@ export default class CombatSystem {
     }
 
     private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): NeoClashResult[] {
-        this.logger.debug(`🎯 Initiating strike sequence with dice: [d${initialAbilityDices.join(", d")}]`);
         const rollHistory: NeoClashResult[] = [];
         // Create a copy to avoid mutating the original array if it's used elsewhere, and to allow .pop()
         const availableDice = [...initialAbilityDices];
 
         const dv = target.armour?.getDV() || 0;
         const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
-        this.logger.debug(`🛡️ Target defense value (DV): ${dv}, Attacker accuracy bonus: ${bonusHit}`);
 
         const hitAttempt = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
 
@@ -205,7 +189,6 @@ export default class CombatSystem {
                     });
                 }
             });
-            this.logger.info(`💨 MISS: No successful hit roll against DV ${dv}`);
             return rollHistory;
         }
 
@@ -213,7 +196,6 @@ export default class CombatSystem {
 
         const pv = target.armour?.getPV() || 0;
         const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
-        this.logger.debug(`🛡️ Checking armor penetration: Target PV: ${pv}, Attacker penetration bonus: ${bonusPen}`);
 
         // Use remaining dice for penetration check
         const penetrationAttempt = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
@@ -234,12 +216,10 @@ export default class CombatSystem {
                     }
                 });
             }
-            this.logger.info(`🛡️ CLING: Attack blocked by armor (PV ${pv})`);
             return rollHistory;
         }
 
         rollHistory.push(penetrationAttempt.rollResult);
-        this.logger.info(`💥 HIT: Attack penetrates armor and damages target`);
         return rollHistory;
     }
 }

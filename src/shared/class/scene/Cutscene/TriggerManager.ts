@@ -78,12 +78,10 @@ export class TriggerManager {
 
         // For time=0 MoveTrigger, handle with immediate positioning instead of pathfinding
         if (time === 0 && trigger instanceof MoveTrigger) {
-            this.logger.info(`Immediate MoveTrigger ${trigger.name} activated`, trigger);
             this.handleImmediateMoveTrigger(trigger, cutscene);
         }
         // For all other triggers or non-zero time triggers, use the OOP approach
         else {
-            this.logger.info(`Normal Trigger ${trigger.name} activated`, trigger);
             trigger.run(cutscene);
         }
 
@@ -91,7 +89,6 @@ export class TriggerManager {
         const checkFinish = RunService.RenderStepped.Connect(() => {
             if (trigger.finished) {
                 this.setTriggerStatus(trigger.name, true);
-                this.logger.info(`Trigger ${trigger.name} finished`);
                 checkFinish.Disconnect();
             }
         });

@@ -14,16 +14,13 @@ export class TurnSystem {
         this.READINESS_TICK_INTERVAL = config.gauntletTickInterval;
         const _logger = this.logger;
         // subscribe(this.listOfReadinessState, (newList) => {
-        //     _logger.debug("Readiness list updated", newList);
+
         // })
     }
 
     public getCurrentActorID(): number {
         return this.currentActorId;
-    }
-
-    private gauntletTick(): void {
-        this.logger.info("Readiness gauntlet in progress...");
+    } private gauntletTick(): void {
         // Calculate readiness for entities
         for (const atom of this.listOfReadinessState()) {
             atom(frag => {
@@ -59,10 +56,7 @@ export class TurnSystem {
             while (!listOfReadinessState.some((e) => e().pos() >= 100)) {
                 this.gauntletTick();
                 await Promise.delay(this.READINESS_TICK_INTERVAL);
-            }
-
-            const nextActor = listOfReadinessState.sort((a, b) => a().pos() - b().pos() > 0)[0]();
-            this.logger.info(`Readiness gauntlet winner: ${nextActor.id}`, nextActor);
+            } const nextActor = listOfReadinessState.sort((a, b) => a().pos() - b().pos() > 0)[0]();
             this.currentActorId = nextActor.id;
             return nextActor;
         } catch (err) {
@@ -82,10 +76,7 @@ export class TurnSystem {
 
     public getReadinessFragments() {
         return this.listOfReadinessState;
-    }
-
-    public updateFragments(givenFrags: ReadinessFragment[]): void {
-        this.logger.debug("Updating fragments", givenFrags);
+    } public updateFragments(givenFrags: ReadinessFragment[]): void {
         const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
         const missingFrags: ReadinessFragment[] = [];
         const removingIndices: number[] = [];
@@ -95,13 +86,10 @@ export class TurnSystem {
                 frag(gf);
             }
             else {
-                this.logger.debug(`Fragment with ID ${gf.id} not found in provided fragments`);
                 missingFrags.push(gf);
             }
-        });
-        currentFragments.forEach((frag, i) => {
+        }); currentFragments.forEach((frag, i) => {
             if (!givenFrags.some((gf) => gf.id === frag().id)) {
-                this.logger.debug(`Fragment with ID ${frag().id} not found in provided fragments`);
                 removingIndices.push(i);
             }
         })
@@ -116,7 +104,7 @@ export class TurnSystem {
     // public endTurn(entityId: number): void {
     //     const entity = this.entityManager.getEntity(entityId);
     //     if (!entity) {
-    //         this.logger.warn(`Cannot end turn: Entity ${entityId} not found`);
+
     //         return;
     //     }
 

@@ -126,7 +126,7 @@ export default class EntityGraphics {
         const dot = modelPrimaryPart.CFrame.LookVector.Dot(lookAtCFrame.LookVector);
         if (dot !== dot || dot > 0.999) {
             this.logger.warn("Dot product:", dot);
-            // this.logger.debug("Already facing the entity", modelPrimaryPart.CFrame.LookVector, lookAtCFrame.LookVector);
+
             return;
         }
 
@@ -141,13 +141,13 @@ export default class EntityGraphics {
     }
     // private faceClosestEntity(entities: Entity[]) {
     //     if (entities.size() === 0) {
-    //         this.logger.warn("No other entities found");
+
     //         return;
     //     }
 
     //     const myXY = this.cell
     //     if (!myXY) {
-    //         this.logger.warn("Current entity coordinates not set");
+
     //         return;
     //     }
 
@@ -156,7 +156,7 @@ export default class EntityGraphics {
     //         const currentEntityXY = c.cell?.qrs;
 
     //         if (!closestEntityXY || !currentEntityXY) {
-    //             this.logger.warn("Coordinates not set for entity");
+
     //             return closestEntity;
     //         }
 
@@ -169,7 +169,7 @@ export default class EntityGraphics {
     //     if (closestEntity) {
     //         this.faceEntity(closestEntity);
     //     } else {
-    //         this.logger.warn("No closest entity found");
+
     //     }
     // }
     //#endregion

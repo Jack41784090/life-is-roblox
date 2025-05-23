@@ -297,14 +297,11 @@ export default class Entity {
         //             Y: screenPosResult[0].Y
         //         };
         //         const viewportSize = camera.ViewportSize;
-        //         this.logger.debug(``)
-        //         this.logger.debug(`Screen position: ${screenPos.X}, ${screenPos.Y}`);
-        //         this.logger.debug(`Viewport size: ${viewportSize.X}, ${viewportSize.Y}`);
 
         //         // Calculate position as UDim2 (percentage of screen)
         //         const posX = screenPos.X / viewportSize.X;
         //         const posY = screenPos.Y / viewportSize.Y;
-        //         this.logger.debug(`Normalized position: ${posX}, ${posY}`);
+
 
         //         // Create the damage effect
         //         combatEffects.showDamage(UDim2.fromScale(posX, posY), num);

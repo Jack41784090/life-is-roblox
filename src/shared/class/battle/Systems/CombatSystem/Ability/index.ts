@@ -35,7 +35,7 @@ class Ability {
         if (opt.using) this.using = opt.using;
         if (opt.target) this.target = opt.target;
 
-        // this.logger.debug(`Created ability ${this.name} of type ${this.type}`, {
+
         //     direction: this.direction,
         //     cost: this.cost,
         //     dices: this.dices,
@@ -45,7 +45,7 @@ class Ability {
     }
 
     getState() {
-        // this.logger.debug(`Getting state for ability ${this.name}`);
+
         return {
             ... this,
             using: this.using?.state(),
@@ -73,28 +73,19 @@ export class ActiveAbility extends Ability {
         const damageTypesArray: [DamageType, number][] = [];
         this.damageType.forEach((value, key) => damageTypesArray.push([key, value]));
 
-        // this.logger.debug(`Created ActiveAbility ${this.name}`, {
+
         //     range: [this.range.Min, this.range.Max],
         //     potencies: potenciesArray,
         //     damageTypes: damageTypesArray
         // });
-    }
-
-    public getTotalDamageArray(): Record<DamageType, number> {
-        this.logger.debug(`Calculating total damage array for ${this.name}`);
+    } public getTotalDamageArray(): Record<DamageType, number> {
         const rawTotalDamage = this.getRawTotalDamage();
-        const result = {} as Record<DamageType, number>;
-        this.damageType.forEach((perc, dtype) => {
+        const result = {} as Record<DamageType, number>; this.damageType.forEach((perc, dtype) => {
             const damageValue = rawTotalDamage * perc / 100;
             result[dtype] = damageValue;
-            this.logger.debug(`Damage for type ${dtype}: ${rawTotalDamage} * ${perc}% = ${damageValue}`);
         });
-        this.logger.debug(`Final damage array:`, result);
         return result;
-    }
-
-    public getRawTotalDamage() {
-        this.logger.debug(`Calculating raw total damage for ${this.name}`);
+    } public getRawTotalDamage() {
         if (this.using === undefined) {
             this.logger.warn("No attacker entity set for ability");
             return 0;
@@ -103,16 +94,13 @@ export class ActiveAbility extends Ability {
 
         let damage = 0;
         const damagePotencies = attacker.weapon.getPotencyArrayDamage(attacker);
-        this.logger.debug(`Weapon potency array:`, damagePotencies);
 
         this.potencies.forEach((perc, pot) => {
             const potencyValue = damagePotencies[pot] || 0;
             const damageValue = potencyValue * perc / 100;
             damage += damageValue;
-            this.logger.debug(`Potency ${pot}: ${potencyValue} * ${perc}% = ${damageValue}`);
         });
 
-        this.logger.debug(`Total raw damage: ${damage}`);
         return damage;
     }
 
@@ -139,27 +127,18 @@ export class ReactiveAbility extends Ability {
         this.successReaction = opt.successReaction;
         this.failureReaction = opt.failureReaction;
         this.getSuccessChance = opt.getSuccessChance;
-        // this.logger.debug(`Created ReactiveAbility ${this.name}`);
-    }
 
-    react(againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) {
-        this.logger.debug(`${this.name} reacting to ${againstAbility.name}`);
+    } react(againstAbility: ActiveAbilityState, clashResult: PreReactionClashResult) {
         const successChance = this.getSuccessChance(againstAbility, clashResult);
-        this.logger.debug(`Success chance: ${successChance}%`);
         const roll = math.random(100);
-        this.logger.debug(`Reaction roll: ${roll}`);
 
         if (roll <= successChance) {
             this.defendAttemptSuccessful = true;
-            this.logger.info(`Reaction SUCCESSFUL: ${this.name} against ${againstAbility.name}`);
             const reaction = this.successReaction(againstAbility, clashResult);
-            this.logger.debug(`Success reaction result:`, reaction);
             return reaction;
         } else {
             this.defendAttemptSuccessful = false;
-            this.logger.info(`Reaction FAILED: ${this.name} against ${againstAbility.name}`);
             const reaction = this.failureReaction(againstAbility, clashResult);
-            this.logger.debug(`Failure reaction result:`, reaction);
             return reaction;
         }
     }

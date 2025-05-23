@@ -157,7 +157,7 @@ export default class HexGrid {
     public update(config: Partial<HexGridState>) {
         let changed = false;
 
-        // this.logger.info("Updating grid with ", config);
+
         for (const [x, y] of pairs(config)) {
             if (x === 'cellsMap') continue; // cellsMap is not a property of the grid, but a derived property
             if (typeOf(y) === typeOf(this[x])) {
@@ -233,7 +233,7 @@ export default class HexGrid {
         }
 
         const cell = this.cellsQR.get(x, y);
-        // this.logger.debug("Getting cell at", x, y, cell, this.cellsQR);
+
 
         return cell
     }

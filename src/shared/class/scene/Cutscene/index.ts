@@ -43,10 +43,7 @@ export class Cutscene {
 
     /**
      * Main constructor for the Cutscene class
-     */
-    constructor(config: CutsceneConfig) {
-        this.logger.info("Creating cutscene", config);
-
+     */    constructor(config: CutsceneConfig) {
         // Initialize scene model
         this.modelName = config.sceneModel;
         const scene = scenesFolder.WaitForChild(this.modelName) as Model;
@@ -83,9 +80,7 @@ export class Cutscene {
     /**
      * Initialize character movement triggers from the scene model
      * @returns Array of trigger pairs for character movements
-     */
-    private initializeCharacterTriggers(): [number, Trigger][] {
-        this.logger.info("Initializing character move triggers");
+     */    private initializeCharacterTriggers(): [number, Trigger][] {
         const scriptObj = this.model.WaitForChild("Script") as Model;
         const charMoves = scriptObj.WaitForChild("CharMoves") as Model;
 
@@ -160,9 +155,7 @@ export class Cutscene {
     /**
      * Initialize camera movement triggers from the scene model
      * @returns Array of trigger pairs for camera movements
-     */
-    private initializeCameraTriggers(): [number, Trigger][] {
-        this.logger.info("Initializing camera move triggers");
+     */    private initializeCameraTriggers(): [number, Trigger][] {
         const scriptObj = this.model.WaitForChild("Script") as Model;
         const camMoves = scriptObj.WaitForChild("CamMoves") as Model;
 
@@ -188,14 +181,12 @@ export class Cutscene {
 
         return triggers;
     }
-
     private initializeCamera() {
-        this.logger.info("Initializing camera");
         this.cameraManager.initialize();
 
         // Initialize camera for cutscene playback
         this.initializeCamera = () => {
-            this.logger.info("Camera already initialized");
+            // Camera already initialized
         };
     }
 
@@ -217,20 +208,14 @@ export class Cutscene {
     //#region Cutscene playback
     /**
      * Play the cutscene from the beginning
-     */
-    public playFromStart(): void {
-        this.logger.info("Playing cutscene from start");
-
+     */    public playFromStart(): void {
         // Clean up any existing runtime
         this.stopCutscene();
 
         // Initialize camera
-        this.initializeCamera();
-
-        // Initialize playback state
+        this.initializeCamera();        // Initialize playback state
         this.elapsedTime = 0;
         const triggers = this.script.getSortedTriggerMap();
-        this.logger.debug("Sorted triggers", triggers);
 
         let nextTriggerPair: TriggerPair | undefined = triggers.shift();
         this.cutsceneSet.show();
@@ -240,17 +225,12 @@ export class Cutscene {
             if (dt > 0.5) {
                 this.logger.warn("Performance issue detected (lag spike):", dt);
                 return; // Skip lag spike updates
-            }
-
-            this.elapsedTime += dt;
+            } this.elapsedTime += dt;
             nextTriggerPair = nextTriggerPair || triggers.shift();
-
-            this.logger.debug(`[${math.floor(this.elapsedTime)}s ${this.elapsedTime % 1}ms]`, nextTriggerPair);
 
             // Check if there are no more triggers to process
             if (!nextTriggerPair) {
                 // triggers done, schedule stopcutscene
-                this.logger.info("All triggers finished");
                 (Promise.all(this.triggerManager.getAllTriggers().map(trigger => trigger[1].finished ? Promise.resolve() :
                     new Promise(resolve => {
                         const checkTriggered = RunService.RenderStepped.Connect(() => {
@@ -281,12 +261,10 @@ export class Cutscene {
             // Execute the trigger
             this.triggerManager.executeTrigger(nextTriggerPair, this);
         });
-    }
-    /**
+    }    /**
      * Stop the cutscene and clean up
      */
     public stopCutscene(): void {
-        this.logger.info("Stopping cutscene");
         this.runtime?.Disconnect();
         this.cameraManager.cleanup();
         this.elapsedTime = -1;

@@ -25,7 +25,7 @@ export default class FightingStyle {
         // Initialize all abilities as available
         this.resetAbilities();
 
-        // this.logger.info(`Created fighting style: ${this.name} with ${this.activeAbilities.size()} active abilities, ${this.reactionAbilities.size()} reactive abilities, and ${this.passiveEffects.size()} passive effects`);
+
     }
 
     public getName(): string {
@@ -75,8 +75,6 @@ export default class FightingStyle {
         this.availableAbilities.remove(abilityIndex);
         this.usedAbilities.push(ability);
 
-        this.logger.debug(`Used ability ${abilityName} from style ${this.name}. ${this.availableAbilities.size()} abilities remaining.`);
-
         // If no more abilities are available, recycle them
         if (this.availableAbilities.size() === 0) {
             this.recycleAbilities();
@@ -90,14 +88,12 @@ export default class FightingStyle {
     }
 
     public recycleAbilities(): void {
-        this.logger.info(`Recycling all abilities for fighting style ${this.name}`);
         this.resetAbilities();
     }
 
     public resetAbilities(): void {
         this.availableAbilities = [...this.activeAbilities];
         this.usedAbilities = [];
-        this.logger.debug(`Reset abilities for style ${this.name}. ${this.availableAbilities.size()} abilities now available.`);
     }
 
     public getPassiveEffectValue(effectType: PassiveEffectType): number {

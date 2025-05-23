@@ -16,42 +16,29 @@ export default class Armour {
                 [DamageType.Impale, -0.2],
             ])
         });
-    }
-
-    constructor({ DV, PV, resistance }: ArmourConfig) {
+    } constructor({ DV, PV, resistance }: ArmourConfig) {
         this.DV = DV;
         this.PV = PV;
         this.resistance = resistance;
-        this.logger.debug("Armour created", { DV, PV, resistance });
     }
 
     public getDV(): number {
-        this.logger.debug(`Getting Deflection Value: ${this.DV}`);
         return this.DV;
     }
     public getPV(): number {
-        this.logger.debug(`Getting Penetration Value: ${this.PV}`);
         return this.PV;
-    }
-
-    public getRawDamageTaken(ability: ActiveAbility): number {
+    } public getRawDamageTaken(ability: ActiveAbility): number {
         const attacker = ability.getState().using;
         if (!attacker?.weapon) {
-            this.logger.debug("No attacker or weapon found, returning 0 damage");
             return 0;
-        }
-
-        this.logger.debug(`Calculating damage from ${attacker.name}'s ability: ${ability.getState().name}`);
-
-        const damageTypesArray = ability.getTotalDamageArray();
-        this.logger.debug("Damage types array:", damageTypesArray);
+        } const damageTypesArray = ability.getTotalDamageArray();
 
         let damage = 0;
         for (const [damageType, value] of pairs(damageTypesArray)) {
             damage += this.resistance.get(damageType) ? value * (1 - this.resistance.get(damageType)!) : value;
         }
 
-        this.logger.debug(`Total raw damage taken: ${damage}`);
+        return damage;
         return damage;
     }
 

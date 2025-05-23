@@ -40,7 +40,6 @@ export class NetworkService {
     }
 
     public onServerRequestOf<T extends ServerRequestRemoteKey>(key: T, callback: Parameters<typeof serverRequestRemote[T]['onRequest']>[0]): void {
-        this.logger.debug(`Listening to ${key} with callback:`, callback);
         const remote = serverRequestRemote[key];
         if (RunService.IsServer()) {
             const requestCallbackWrapper = (player: Player, ...rest: unknown[]) => {
@@ -55,8 +54,8 @@ export class NetworkService {
 
     //#region Client-side
     // public request<K extends ServerRequestRemoteKey>(key: K, ...param: (RemoteParam<K> | RemoteNoParam<K>)): ReturnType<typeof serverRequestRemote[K]['request']> {
-    //     this.logger.debug(`Requesting ${key} with param:`, param);
-    //     const remote = serverRequestRemote[key];
+
+    //     const remote = serverRequestRemote[K];
     //     if (RunService.IsClient()) {
     //         // const requestMethod = (...param: unknown[]) => { return remote.request(...param) };
     //         // // remote.request()
@@ -71,7 +70,6 @@ export class NetworkService {
     // }
 
     public onClientRemote<T extends ClientRemotesKey>(key: T, callback: Parameters<typeof clientRemotes[T]['connect']>[0]): void {
-        this.logger.debug(`Listening to ${key} with callback:`, callback);
         const remote = clientRemotes[key];
         if (RunService.IsClient()) {
             const requestCallbackWrapper = (player: Player, ...rest: unknown[]) => {

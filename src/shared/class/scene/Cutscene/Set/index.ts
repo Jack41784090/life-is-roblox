@@ -8,7 +8,6 @@ export class CutsceneActor extends C {
     constructor(actorConfig: ActorConfig) {
         super(actorConfig);
         this.logger.recontext("Actor");
-        this.logger.info("Actor created", actorConfig);
     }
 }
 
@@ -20,9 +19,7 @@ export class CutsceneSet {
     private cutsceneModel: Model;
     private setModel: Model;
     private scriptModel: Model;
-    private centreOfScene: Vector3;
-
-    constructor(
+    private centreOfScene: Vector3; constructor(
         public setting: SetConfig,
     ) {
         this.cutsceneModel = setting.cutsceneModel;
@@ -30,7 +27,6 @@ export class CutsceneSet {
         this.scriptModel = setting.cutsceneModel.WaitForChild("Script") as Model;
         this.centreOfScene = setting.centreOfScene;
         this.actorShells = setting.actors;
-        this.logger.info("Cutscene set created", setting);
     }
 
     private showSetModels() {

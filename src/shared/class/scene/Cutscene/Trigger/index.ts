@@ -30,12 +30,10 @@ export class Trigger {
         this.activated = true;
         const actor = this.modelID === "camera" ?
             cutscene.getCamera() :
-            cutscene.getActor(this.modelID);
-        if (!actor) {
-            this.logger.error(`[ACTOR_NOT_FOUND] Failed to retrieve actor with ID "${this.modelID}" for trigger "${this.name}"`);
-            return;
-        }
-        this.logger.info(`[TRIGGER_ACTIVATED] "${this.name}" | Actor: "${this.modelID}" | Type: ${this.name}`);
+            cutscene.getActor(this.modelID); if (!actor) {
+                this.logger.error(`[ACTOR_NOT_FOUND] Failed to retrieve actor with ID "${this.modelID}" for trigger "${this.name}"`);
+                return;
+            }
 
         return this.triggersAfter ?
             new Promise(resolve => {
@@ -43,7 +41,6 @@ export class Trigger {
                     if (cutscene.isXTriggerActivated(this.triggersAfter!)) {
                         checkTriggered.Disconnect();
                         wait(this.delay)
-                        this.logger.debug(`[SEQUENTIAL_TRIGGER] "${this.name}" activated after "${this.triggersAfter}" with delay of ${this.delay}s`);
                         resolve(actor);
                     }
                 })
@@ -58,16 +55,12 @@ export class MoveTrigger extends Trigger {
         super(config);
         this.dest = config.dest;
     }
-
     public async run(cutscene: Cutscene) {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
-        this.logger.info(`Moving to ${this.dest.Position}`);
-
         if (actor instanceof CutsceneActor) {
             actor.setDestination(this.dest.Position).then(() => {
-                this.logger.info("Move finished");
                 this.finished = true;
             });
         }
@@ -85,13 +78,10 @@ export class LookAtTrigger extends Trigger {
     constructor(config: LookAtTriggerConfig) {
         super(config);
         this.lookAtActor = config.lookAtActor;
-    }
-
-    public async run(cutscene: Cutscene) {
+    } public async run(cutscene: Cutscene) {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
-        this.logger.info(`Looking at ${this.lookAtActor}`);
         const lookAt = cutscene.getAny(this.lookAtActor);
         if (!lookAt) {
             this.logger.error("No actor found with id", this.lookAtActor);
@@ -118,17 +108,12 @@ export class SpeakTrigger extends Trigger {
     constructor(config: SpeakConfig) {
         super(config);
         this.text = config.text;
-    }
-
-    public async run(cutscene: Cutscene) {
+    } public async run(cutscene: Cutscene) {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
-        this.logger.info(`Speaking ${this.text}`);
-
         if (actor instanceof CutsceneActor) {
             actor.speak(this.text).then(() => {
-                this.logger.info("Speak finished");
                 this.finished = true;
             });
         }

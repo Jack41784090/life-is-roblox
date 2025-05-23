@@ -40,7 +40,7 @@ export default class BattleClient {
     private controlLocks: ControlLocks = new Map();
 
     private constructor(config: ClientSideConfig) {
-        // this.logger.debug("ClientSide constructor", config)
+
         const { worldCenter, size, width, height, camera } = config;
         const halfWidth = (width * size) / 2;
         const halfHeight = (height * size) / 2;
@@ -103,6 +103,8 @@ export default class BattleClient {
                 this.logger.error("Invalid ID type for TURN_ENDED event", id as defined);
                 return;
             }
+
+            // verify the entity's state with server
             this.animating
                 .andThen(() => serverRequestRemote.actor(id))
                 .andThen((serverEntityState: EntityState | undefined) => {
@@ -110,7 +112,7 @@ export default class BattleClient {
                     if (serverEntityState) {
                         const entity = this.state.getEntity(id);
                         if (entity) {
-                            let localEntityGraphic = this.graphics.findEntityGByEntity(entity);
+                            let localEntityGraphic = this.graphics.findEntityG(entity.playerID);
                             let localEntity = this.state.getEntity(id);
                             if (!localEntity) {
                                 this.logger.warn("Entity not found in state", context, id);
@@ -724,11 +726,11 @@ export default class BattleClient {
                 targetHead && targetHead.IsA("BasePart") ? targetHead.Position :
                     target.model.PrimaryPart ? target.model.PrimaryPart.Position : undefined;
 
-            // this.logger.debug("Target head position", targetHeadPos);
+
 
             if (targetHeadPos) {
                 const screenPos = this.worldToScreenPosition(targetHeadPos);
-                // this.logger.debug("Screen position", screenPos);
+
 
                 // Show impact effect
                 const impactSize = clash.result.fate === "CRIT" ? 50 : 30;

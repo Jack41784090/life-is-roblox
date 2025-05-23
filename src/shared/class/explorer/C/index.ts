@@ -479,13 +479,10 @@ export default class C {
         if (!this.model) {
             this.logger.warn(`Cannot speak - model is not initialized`);
             return Promise.resolve(false);
-        }
-        if (!this.model.PrimaryPart) {
+        } if (!this.model.PrimaryPart) {
             this.logger.warn(`Cannot position speech bubble - model has no PrimaryPart`);
             return Promise.resolve(false);
         }
-
-        this.logger.debug(`Speaking: "${message}"`);
 
         // Clean up any existing speech bubble first
         this.cleanupActiveSpeechBubble();

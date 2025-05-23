@@ -33,7 +33,7 @@ export default class HexCellGraphics {
         this.part.Material = Enum.Material.Pebble;
         this.part.Color = new Color3(1, 1, 1);
 
-        // this.logger.debug(`Materialised cell ${this.qrs} at ${this.part.Position}`, this);
+
     }
 
     public destroy() {
