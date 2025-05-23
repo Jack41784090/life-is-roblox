@@ -142,7 +142,8 @@ export default class CombatSystem {
                     fate: success ? "Hit" : "Miss",
                     // Only add preliminary damage if we're generating a successful PV roll
                     damage: success && checkType === "PV" ? 5 : undefined // Placeholder, actual damage calculated in applyAttack
-                }
+                },
+                clashKills: false, // Assuming clashKills is false for misses
             };
 
             if (success) {
@@ -158,14 +159,12 @@ export default class CombatSystem {
 
     private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): NeoClashResult[] {
         const rollHistory: NeoClashResult[] = [];
-        // Create a copy to avoid mutating the original array if it's used elsewhere, and to allow .pop()
         const availableDice = [...initialAbilityDices];
 
+        // Perform DV check first
         const dv = target.armour?.getDV() || 0;
         const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
-
         const hitAttempt = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
-
         if (!hitAttempt || !hitAttempt.success) {
             // Log all dice attempts as misses if no hit occurred
             initialAbilityDices.forEach(d => {
@@ -175,18 +174,21 @@ export default class CombatSystem {
                 // For now, if hitAttempt is undefined (no dice), or not successful, we log a generic miss for the sequence.
                 // Or, we can construct a miss result based on the first die if available.
                 if (initialAbilityDices[0]) {
-                    rollHistory.push({
+                    const clashResult = {
                         armour: target.armour.getState(),
                         weapon: attacker.weapon.getState(),
                         result: {
-                            die: `d${initialAbilityDices[0]}`, // Example: log based on first die
-                            against: "DV",
+                            die: `d${initialAbilityDices[0]}` as `d${number}`,
+                            against: "DV" as "DV",
                             toSurmount: dv,
                             roll: 0, // Placeholder, actual roll for miss wasn't tracked this way
                             bonus: bonusHit,
-                            fate: "Miss",
-                        }
-                    });
+                            fate: "Miss" as "Miss",
+                        },
+                        clashKills: false
+                    };
+                    clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
+                    rollHistory.push(clashResult);
                 }
             });
             return rollHistory;
@@ -194,33 +196,65 @@ export default class CombatSystem {
 
         rollHistory.push(hitAttempt.rollResult);
 
+        // Use remaining dice for penetration check
         const pv = target.armour?.getPV() || 0;
         const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
-
-        // Use remaining dice for penetration check
         const penetrationAttempt = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
-
         if (!penetrationAttempt || !penetrationAttempt.success) {
             // Similar to DV miss, log a generic penetration miss or based on available dice
             if (availableDice[0]) {
-                rollHistory.push({
+                const clashResult = {
                     armour: target.armour.getState(),
                     weapon: attacker.weapon.getState(),
                     result: {
-                        die: `d${availableDice[0]}`,
-                        against: "PV",
-                        toSurmount: pv,
-                        roll: 0, // Placeholder
-                        bonus: bonusPen,
-                        fate: "Miss",
-                    }
-                });
+                        die: `d${initialAbilityDices[0]}` as `d${number}`,
+                        against: "DV" as "DV",
+                        toSurmount: dv,
+                        roll: 0, // Placeholder, actual roll for miss wasn't tracked this way
+                        bonus: bonusHit,
+                        fate: "Miss" as "Miss",
+                    },
+                    clashKills: false
+                };
+                clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
+                rollHistory.push(clashResult);
             }
             return rollHistory;
         }
 
         rollHistory.push(penetrationAttempt.rollResult);
+
         return rollHistory;
+    }
+
+    private calculateDamageFromResult(clash: NeoClashResult): number {
+        const { weapon, armour: target, result } = clash
+
+        if (result.fate === "Miss" || result.fate === "Cling") {
+            return 0;
+        }
+
+        let damageMultiplier = 1;
+        if (result.fate === "CRIT") {
+            damageMultiplier = 1.5;
+        }
+
+        const baseDamage = result.roll + result.bonus;
+        return math.floor(baseDamage * damageMultiplier);
+    }
+
+    private isAttackKills(against: number, clash: NeoClashResult) {
+        const target = this.gameState.getEntity(against);
+        const { result } = clash
+        if (!target) return false;
+
+        if (result.fate === "Miss" || result.fate === "Cling") {
+            return false;
+        }
+
+        const targetHp = target.get('hip') || 0;
+        const damage = this.calculateDamageFromResult(clash);
+        return targetHp <= damage;
     }
 }
 

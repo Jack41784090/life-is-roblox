@@ -713,3 +713,14 @@ export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>)
         },
     };
 }
+
+export function promiseWrapper(anyPromise: Promise<unknown>) {
+    let resolver: (_: unknown) => void = () => { };
+    const promise = new Promise(resolve => {
+        resolver = resolve;
+        anyPromise.then(() => {
+            resolver(void 0);
+        })
+    })
+    return [promise, resolver] as const;
+}

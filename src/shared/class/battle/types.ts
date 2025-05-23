@@ -99,6 +99,7 @@ export interface NeoClashResult {
     weapon: WeaponState
     armour: ArmourState,
     result: NeoClashResultRoll,
+    clashKills: boolean,
 }
 
 export type PlayerID = number

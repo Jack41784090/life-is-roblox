@@ -74,6 +74,8 @@ export default class EntityGraphics {
         const displacement = adjustedTargetPosition.sub(modelPrimaryPart.Position);
 
         // Check if already at target position (or very close)
+        this.logger.debug(`${this.name}: Displacement vector`, displacement);
+        this.logger.debug(`${this.name}: Displacement magnitude`, displacement.Magnitude);
         if (displacement.Magnitude < 0.1) {
             this.logger.info(`${this.name}: Already at target position, skipping movement`);
             return;

@@ -2,24 +2,22 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, BattleAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, EntityStatus, MoveAction, NeoClashResult, PlayerID, ReadinessIcon, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, NeoClashResult, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
+import { promiseWrapper } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { GameEvent } from "../Events/EventBus";
 import { NetworkService } from "../Network";
 import { attackActionRefVerification, clashesVerification, entityMovedEventDataVerification } from "../Network/SyncSystem/veri";
 import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
-import EntityGraphics from "../State/Entity/Graphics";
-import { AnimationType } from "../State/Entity/Graphics/AnimationHandler";
 import { EntityState } from "../State/Entity/types";
 import HexCell from "../State/Hex/Cell";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
-import { ReadinessFragment } from "../Systems/TurnSystem/types";
+import BattleAnimationManager from "./AnimationQueue";
 import BattleCamera from "./BattleCamera";
-import CombatEffectsService from "./Effects/CombatEffectsServices";
 import Graphics from "./Graphics";
 import EntityCellGraphicsTuple from "./Graphics/Tuple";
 import Gui from './Gui';
@@ -29,11 +27,11 @@ export default class BattleClient {
     private logger = Logger.createContextLogger("ClientSide");
 
     private graphicsInitialised: Promise<[StateState]>;
-    private animating: Promise<unknown> = Promise.resolve();
     private gui: Gui;
     private camera: BattleCamera;
     private state: State;
     private graphics: Graphics;
+    private animations: BattleAnimationManager;
 
     private networking: NetworkService;
 
@@ -55,6 +53,7 @@ export default class BattleClient {
             size,
             this.state.getGridManager().getGrid()
         );
+        this.animations = new BattleAnimationManager();
 
         // this.setupEventListeners();
 
@@ -106,7 +105,7 @@ export default class BattleClient {
             }
 
             // verify the entity's state with server
-            this.animating
+            this.animations.waitForAllAnimationsToEnd()
                 .andThen(() => serverRequestRemote.actor(id))
                 .andThen((serverEntityState: EntityState | undefined) => {
                     const context = 'in TURN_ENDED after requesting actor'
@@ -142,23 +141,14 @@ export default class BattleClient {
         })
 
         eventBus.subscribe(GameEvent.ENTITY_INTEND_MOVE, (data: unknown) => {
+            const context = 'in ENTITY_INTEND_MOVE event'
             const veri = entityMovedEventDataVerification(data);
             if (!veri) {
                 this.logger.error("Invalid data type for ENTITY_INTEND_MOVE event", data as defined);
                 return;
             }
             const { entityId, from, to } = data;
-
-            // animating movement 
-            this.animating.then(() => {
-                this.animating = this.graphics.moveEntity(from, to).then(() => {
-                    eventBus.emit(GameEvent.ENTITY_MOVED, {
-                        entityId,
-                        from,
-                        to,
-                    });
-                })
-            })
+            this.handleMoveAnimation(entityId, from, to);
         })
         // eventBus.subscribe(GameEvent.ENTITY_MOVED, (data) => {
         // })
@@ -177,11 +167,16 @@ export default class BattleClient {
             }
 
             // animating clashes
-            this.animating.then(() => {
-                this.animating = this.handleAnimatingClashes(neoClashResults, attackActionRef).then(() => {
-                    eventBus.emit(GameEvent.ENTITY_ATTACKED, neoClashResults, attackActionRef);
-                });
-            })
+            // this.animating.then(() => {
+            //     this.animating = this.handleAnimatingClashes(neoClashResults, attackActionRef).then(() => {
+            //         eventBus.emit(GameEvent.ENTITY_ATTACKED, neoClashResults, attackActionRef);
+            //     });
+            // })
+            if (attackActionRef.against === undefined) {
+                this.logger.error("Attack action has no target", "in ENTITY_INTEND_ATTACK event", attackActionRef);
+                return;
+            }
+            this.handleAttackAnimation(attackActionRef.by, attackActionRef.against, neoClashResults);
         })
 
         // eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entityUpdate: unknown) => {
@@ -190,7 +185,7 @@ export default class BattleClient {
 
     private setupRemoteListeners() {
         const eventBus = this.state.getEventBus();
-        this.networking.onClientRemote('animate', (accessToken: AccessToken) => {
+        this.networking.onClientRemote('animate', async (accessToken: AccessToken) => {
             const context = 'client remote called to animate'
             if (!accessToken.action) {
                 this.logger.error("Access token has no action", context, accessToken);
@@ -201,10 +196,30 @@ export default class BattleClient {
                 return;
             }
             this.state.commit(accessToken.action);
-            this.animating.then(() => {
-                this.animating = this.handleGeneralAnimation(accessToken.action!);
-            })
-        })
+            switch (accessToken.action.type) {
+                case ActionType.Move:
+                    const { by, from, to } = accessToken.action as MoveAction;
+                    this.handleMoveAnimation(by, from, to);
+                    break;
+                case ActionType.Attack:
+                    const { by: attacker, against } = accessToken.action as AttackAction;
+                    if (!against) {
+                        this.logger.error("Attack action has no target", context, accessToken);
+                        return;
+                    }
+                    const clashes = await serverRequestRemote.clashes(accessToken);
+                    this.handleAttackAnimation(attacker, against, clashes);
+                    break;
+                case ActionType.ResolveAttacks:
+                    const { by: attacker_, against: against_, results } = accessToken.action as ResolveAttacksAction;
+                    if (!against_) {
+                        this.logger.error("ResolveAttacks action has no target", context, accessToken);
+                        return;
+                    }
+                    this.handleAttackAnimation(attacker_, against_, results)
+                    break;
+            }
+        });
         this.networking.onClientRemote('turnEnd', (id?: number) => {
             this.logger.debug("Client received: Turn ended", id);
             eventBus.emit(GameEvent.TURN_ENDED, id);
@@ -276,26 +291,37 @@ export default class BattleClient {
     }
     //#endregion
 
-    //#region Get
-    private getAttackerAndDefenderGraphics(attackActionRef: AttackAction): [EntityGraphics?, EntityGraphics?] {
-        return [
-            this.graphics.findEntityG(attackActionRef.by),
-            attackActionRef.against ? this.graphics.findEntityG(attackActionRef.against) : undefined,
-        ]
-    }
-    private getReadinessIcons() {
-        const crMap: Map<PlayerID, ReadinessFragment> = this.state.getReadinessMapping();
-        const readinessIcons: ReadinessIcon[] = [];
-        for (const [playerID, readiness] of pairs(crMap)) {
-            readinessIcons.push({
-                playerID,
-                iconUrl: this.state.getEntity(playerID)?.stats.id ?? '',
-                readiness: readiness.pos,
-            })
+    //#region Animations
+    private handleAttackAnimation(attackerId: number, targetId: number, clashes: NeoClashResult[]) {
+        const attacker = this.graphics.findEntityG(attackerId);
+        const target = this.graphics.findEntityG(targetId);
+        if (!attacker || !target) {
+            this.logger.error(`Cannot find: `, { attacker, target })
+            return;
         }
-        this.logger.debug("Readiness Icons", readinessIcons);
-        return readinessIcons;
+
+        this.animations.handleClashes(attacker, target, clashes);
     }
+
+    private handleMoveAnimation(entityId: number, from: Vector2, to: Vector2) {
+        // const mover = this.graphics.findEntityG(entityId);
+        // const fromWorldLocation = this.graphics.findCellG(from)?.worldPosition();
+        // const toWorldLocation = this.graphics.findCellG(to)?.worldPosition();
+        // if (!mover || !fromWorldLocation || !toWorldLocation) {
+        //     this.logger.error(`Cannot find: `, { mover, fromWorldLocation, toWorldLocation })
+        //     return;
+        // }
+
+        // this.animations.handleMoveAnimation(mover, fromWorldLocation, toWorldLocation);
+        const [promise, resolver] = promiseWrapper(this.graphics.moveEntity(from, to));
+        this.animations.queueAnimation({
+            promise,
+            promise_resolve: resolver,
+            timeout: 5,
+        })
+    }
+
+
     //#endregion
 
     //#region Entity Management
@@ -508,7 +534,7 @@ export default class BattleClient {
             // commit action to local state
             this.state.commit(accessToken.action);
 
-            const waitForMoveAnimation = await this.animating;
+            const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
 
             const localE = await this.localEntity();
             if (localE.get('pos') >= 75) {
@@ -525,41 +551,6 @@ export default class BattleClient {
     //#endregion
 
     //#region Combat
-
-    private isAttackKills(attackerAction: AttackAction, clash: NeoClashResult) {
-        const { against } = attackerAction;
-        if (!against) {
-            this.logger.warn("Attack action has no target");
-            return false;
-        }
-        const target = this.state.getEntity(against);
-        const { result } = clash
-        if (!target) return false;
-
-        if (result.fate === "Miss" || result.fate === "Cling") {
-            return false;
-        }
-
-        const targetHp = target.get('hip') || 0;
-        const damage = this.calculateDamageFromResult(clash);
-        return targetHp <= damage;
-    }
-
-    private calculateDamageFromResult(clash: NeoClashResult): number {
-        const { weapon, armour: target, result } = clash
-
-        if (result.fate === "Miss" || result.fate === "Cling") {
-            return 0;
-        }
-
-        let damageMultiplier = 1;
-        if (result.fate === "CRIT") {
-            damageMultiplier = 1.5;
-        }
-
-        const baseDamage = result.roll + result.bonus;
-        return math.floor(baseDamage * damageMultiplier);
-    }
 
     private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
         this.logger.debug("Clicked on entity", clickedOn);
@@ -604,7 +595,7 @@ export default class BattleClient {
         // commit action to local state
         this.state.commit(resolveAction);
 
-        const waitForMoveAnimation = await this.animating;
+        const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
 
         const localE = await this.localEntity();
         if (localE.get('pos') >= 75) {
@@ -648,217 +639,5 @@ export default class BattleClient {
     }
     //#endregion
 
-    //#region Animations
-    private async handleGeneralAnimation(action: BattleAction) {
-        const context = 'in handleGeneralAnimation'
-        switch (action.type) {
-            case ActionType.Move:
-                this.logger.debug("Handling move animation", action, context);
-                const { by, from, to } = action as MoveAction;
-                const graphic = this.graphics.findEntityG(by);
-                if (graphic) {
-                    return this.graphics.moveEntity(from, to);
-                }
-                else {
-                    this.logger.warn("Graphic not found for entity", by, context);
-                }
-                break;
-            case ActionType.Attack:
-                break;
-            case ActionType.ResolveAttacks:
-                break;
-        }
-    }
-
-    private async handleAnimatingClashes(clashes: NeoClashResult[], attackActionRef: AttackAction): Promise<void> {
-        this.logger.debug("Animating clashes", clashes, "BattleClient");
-        // await this.animating;
-        // const [attacker, defender] = this.state.getAttackerAndDefender(attackActionRef);
-        for (const clash of clashes) {
-            const { weapon, armour: target, result } = clash;
-            const defenceSuccessful = result.fate === 'Miss' || result.fate === 'Cling';
-            await this.playAttackAnimation({
-                ability: attackActionRef.ability,
-                type: ActionType.Attack,
-                by: attackActionRef.by,
-                against: attackActionRef.against,
-                executed: false,
-            }, clash)
-        }
-    }
-    /**
-     * Convert a world position to screen position for UI effects
-     */
-    private worldToScreenPosition(worldPos: Vector3): UDim2 {
-        const camera = game.Workspace.CurrentCamera;
-        if (!camera) return new UDim2(0.5, 0, 0.5, 0);
-
-        const [screenPos, isVisible] = camera.WorldToScreenPoint(worldPos);
-        return new UDim2(0, screenPos.X, 0, screenPos.Y);
-    }
-
-    private async playAttackAnimation(aa: AttackAction, clash: NeoClashResult) {
-        await this.animating;
-        this.logger.debug("Playing attack animation", aa);
-        const { animation } = aa.ability;
-        const [attacker, target] = this.getAttackerAndDefenderGraphics(aa);
-        if (!attacker || !target) {
-            this.logger.warn(`[playAttackAnimation] ${!attacker ? "Attacker" : ""} ${!target ? "Target" : ""} not found`);
-            return;
-        }
-        const targetAnimationHandler = target.animationHandler;
-        await target.faceEntity(attacker);
-        const attackAnimation = attacker.playAnimation(
-            AnimationType.Attack,
-            {
-                animation,
-                priority: Enum.AnimationPriority.Action4,
-                loop: false,
-            });
-        const defendIdleAnimation = target.playAnimation(
-            AnimationType.Defend,
-            {
-                animation: "defend",
-                priority: Enum.AnimationPriority.Action2,
-                loop: false,
-            });
-
-        if (!attackAnimation) {
-            this.logger.warn("[playAttackAnimation] Attacker animation track not found.");
-            // return;
-        }
-
-        try {
-            // 1. Wait for the attack animation to reach the "Hit" marker.
-            if (attackAnimation) await this.waitForAnimationMarker(attackAnimation, "Hit");            // 2. Show combat effects for the attack outcome
-            const combatEffects = CombatEffectsService.getInstance();
-            const targetHead = target.model.FindFirstChild("Head");
-            const targetHeadPos =
-                targetHead && targetHead.IsA("BasePart") ? targetHead.Position :
-                    target.model.PrimaryPart ? target.model.PrimaryPart.Position : undefined;
-
-
-
-            if (targetHeadPos) {
-                const screenPos = this.worldToScreenPosition(targetHeadPos);
-
-
-                // Show impact effect
-                const impactSize = clash.result.fate === "CRIT" ? 50 : 30;
-                combatEffects.showHitImpact(screenPos, new Color3(1, 0, 0), impactSize);
-
-                // Show damage indicator if the attack hit
-                if (clash.result.damage && clash.result.fate !== "Miss" && clash.result.fate !== "Cling") {
-                    const damage = clash.result.damage;
-
-                    // Show critical hit effect if applicable
-                    if (clash.result.fate === "CRIT") {
-                        combatEffects.showAbilityReaction(
-                            new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
-                            new Color3(1, 0.8, 0),
-                            "CRITICAL!"
-                        );
-                    }
-
-                    task.delay(.5, () => {
-                        combatEffects.showDamage(screenPos, damage);
-                    })
-                } else {
-                    // Show miss text
-                    combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), clash.result.fate);
-                }
-            }
-
-            // 3. Play the appropriate animation based on the outcome of the attack.
-            targetAnimationHandler.killAnimation(AnimationType.Idle);
-            targetAnimationHandler.killAnimation(AnimationType.Defend);
-
-            if (this.isAttackKills(aa, clash)) {
-                const deathPoseIdleAnimation = target.playAnimation(
-                    AnimationType.Idle,
-                    {
-                        animation: "death-idle",
-                        priority: Enum.AnimationPriority.Idle,
-                        loop: true,
-                    })
-                const deathAnimation = target.playAnimation(
-                    AnimationType.Hit,
-                    {
-                        animation: "death",
-                        priority: Enum.AnimationPriority.Action3,
-                        loop: false,
-                    });
-
-                return this.waitForAnimationEnd(deathAnimation);
-            }
-            else {
-                const gotHitAnimation = target.playAnimation(
-                    AnimationType.Hit,
-                    {
-                        animation: "defend-hit",
-                        priority: Enum.AnimationPriority.Action3,
-                        loop: false,
-                    });
-
-                await this.waitForAnimationEnd(attackAnimation);
-                await this.waitForAnimationEnd(gotHitAnimation);
-
-                const transitionTrack = target.playAnimation(
-                    AnimationType.Transition,
-                    {
-                        animation: "defend->idle",
-                        priority: Enum.AnimationPriority.Action4,
-                        loop: false,
-                    });
-                const refreshedIdleAnimation = target.playAnimation(
-                    AnimationType.Idle,
-                    {
-                        animation: "idle",
-                        priority: Enum.AnimationPriority.Idle,
-                        loop: true,
-                    })
-
-                return this.waitForAnimationEnd(transitionTrack);
-            }
-        }
-        catch (error) {
-            this.logger.error(`[playAttackAnimation] Error during attack animation: ${error}`);
-        }
-
-        attacker.playAudio(EntityStatus.Idle);
-    }
-    /**
-     * Waits for a specific marker in an animation track.
-     * @param track The animation track to monitor.
-     * @param markerName The name of the marker to wait for.
-     */
-    private async waitForAnimationMarker(track: AnimationTrack, markerName: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const connection = track.GetMarkerReachedSignal(markerName).Once(() => {
-                resolve();
-            });
-
-            wait(5);
-            if (connection.Connected) {
-                connection.Disconnect();
-                reject();
-            }
-        });
-    }
-    /**
-     * Waits for an animation track to end.
-     * @param track The animation track to monitor.
-     */
-    private async waitForAnimationEnd(track?: AnimationTrack): Promise<void> {
-        this.logger.debug("TRACK", track?.Name, "Waiting end", track);
-        if (!track) return;
-        return new Promise((resolve) => {
-            track.Ended.Once(() => {
-                this.logger.debug("TRACK", track?.Name, "Animation ended", track);
-                resolve();
-            });
-        });
-    }
-    //#endregion
 
 }

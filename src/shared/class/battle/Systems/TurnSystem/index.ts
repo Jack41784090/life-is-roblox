@@ -118,9 +118,9 @@ export class TurnSystem {
         const missingFrags: ReadinessFragment[] = [];
         const removingIndices: number[] = [];
         givenFrags.forEach(gf => {
-            const frag = currentFragments.find(_f => gf.id === _f().id);
-            if (frag) {
-                frag(gf);
+            const cf = currentFragments.find(_f => gf.id === _f().id);
+            if (cf) {
+                cf(gf);
             }
             else {
                 missingFrags.push(gf);
