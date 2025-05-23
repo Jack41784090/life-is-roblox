@@ -156,18 +156,6 @@ export default class Graphics {
             return Promise.resolve();
         }
 
-        // Validate start position
-        if (start.X === -1 && start.Y === -1) {
-            this.logger.warn(`Invalid start position (-1, -1), cannot move entity`);
-            return Promise.reject(`Invalid start position (-1, -1)`);
-        }
-
-        // Validate destination position
-        if (dest.X === -1 && dest.Y === -1) {
-            this.logger.warn(`Invalid destination position (-1, -1), cannot move entity`);
-            return Promise.reject(`Invalid destination position (-1, -1)`);
-        }
-
         this.logger.info(`Moving entity from ${start} to ${dest}`);
         const startTuple = this.tupleManager.getTupleByPosition(start);
 

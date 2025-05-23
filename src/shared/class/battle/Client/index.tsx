@@ -92,7 +92,9 @@ export default class BattleClient {
                     })
                 }
                 else {
-                    this.camera.enterHOI4Mode();
+                    const currentActorGraphics = this.graphics.findEntityG(id);
+                    if (!currentActorGraphics) return;
+                    this.camera.enterHOI4Mode(currentActorGraphics.getWorldPosition());
                 }
             })
         })
@@ -192,6 +194,10 @@ export default class BattleClient {
             const context = 'client remote called to animate'
             if (!accessToken.action) {
                 this.logger.error("Access token has no action", context, accessToken);
+                return;
+            }
+            if (accessToken.userId === Players.LocalPlayer.UserId) {
+                this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
                 return;
             }
             this.state.commit(accessToken.action);
@@ -644,16 +650,17 @@ export default class BattleClient {
 
     //#region Animations
     private async handleGeneralAnimation(action: BattleAction) {
+        const context = 'in handleGeneralAnimation'
         switch (action.type) {
             case ActionType.Move:
-                this.logger.debug("Handling move animation", action);
-                const { by, to } = action as MoveAction;
-                const entity = this.state.getEntity(by);
-                if (entity) {
-                    const graphic = this.graphics.findEntityG(entity);
-                    if (graphic) {
-                        return this.graphics.moveEntity(entity.qr, to);
-                    }
+                this.logger.debug("Handling move animation", action, context);
+                const { by, from, to } = action as MoveAction;
+                const graphic = this.graphics.findEntityG(by);
+                if (graphic) {
+                    return this.graphics.moveEntity(from, to);
+                }
+                else {
+                    this.logger.warn("Graphic not found for entity", by, context);
                 }
                 break;
             case ActionType.Attack:

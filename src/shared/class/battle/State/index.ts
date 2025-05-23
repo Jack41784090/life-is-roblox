@@ -348,7 +348,7 @@ export default class State {
                 }
             }
             this.turnSystem.sync({
-                listOfReadinessState: other.entities.mapFiltered(m => {
+                changingReadinessFrags: other.entities.mapFiltered(m => {
                     const entity = this.entityManager.getEntity(m.playerID);
                     if (!entity) {
                         this.logger.warn(`Entity with ID ${m.playerID} not found`);

@@ -21,7 +21,7 @@ export interface LoggerConfig {
 export class Logger {
     private static instance: Logger;
     private config: LoggerConfig = {
-        minLevel: LogLevel.INFO,
+        minLevel: LogLevel.DEBUG,
         includeTimestamp: false,
         includeSource: true
     };
@@ -43,6 +43,24 @@ export class Logger {
         return { ...this.config };
     }
 
+    private getVisualSeparator(context?: string): string {
+        if (!context) return "";
+
+        let hash = 0;
+        const length = context.size();
+
+        for (let i = 1; i <= length; i++) {
+            const [byteValue] = string.byte(context, i, i) as unknown as [number];
+            hash = (hash + byteValue) % 10000;
+        }
+
+        const totalWidth = 12;
+        const leftSpaces = hash % (totalWidth - 1);
+        const rightSpaces = totalWidth - leftSpaces - 1;
+
+        return string.rep(" ", leftSpaces) + "|" + string.rep(" ", rightSpaces);
+    }
+
     private formatMessage(level: string, context?: string): string {
         const parts: string[] = [];
 
@@ -53,7 +71,8 @@ export class Logger {
         parts.push(`[${level}]`);
 
         if (context || this.config.context) {
-            parts.push(`[${context || this.config.context}]`);
+            const ctx = context || this.config.context;
+            parts.push(`[${ctx}]`);
         }
 
         return parts.join(" ");
@@ -63,7 +82,7 @@ export class Logger {
         if (this.config.minLevel <= LogLevel.DEBUG) {
             const context = typeIs(messages[messages.size() - 1], "string") && messages.size() > 1 ?
                 (messages as defined[]).pop() as string : undefined;
-            const mesformat = this.formatMessage("DEBUG", context);
+            const mesformat = this.formatMessage("DBG", context);
             print(`${mesformat}`, ...messages);
         }
     }
@@ -72,7 +91,7 @@ export class Logger {
         if (this.config.minLevel <= LogLevel.INFO) {
             const context = typeIs(messages[messages.size() - 1], "string") && messages.size() > 1 ?
                 (messages as defined[]).pop() as string : undefined;
-            const mesformat = this.formatMessage("INFO", context);
+            const mesformat = this.formatMessage("INF", context);
             print(`${mesformat}`, ...messages);
         }
     }
@@ -81,7 +100,7 @@ export class Logger {
         if (this.config.minLevel <= LogLevel.WARN) {
             const context = typeIs(messages[messages.size() - 1], "string") && messages.size() > 1 ?
                 (messages as defined[]).pop() as string : undefined;
-            const mesformat = this.formatMessage("WARN", context);
+            const mesformat = this.formatMessage("WRN", context);
             warn(`${mesformat}`, ...messages);
         }
     }
@@ -90,7 +109,7 @@ export class Logger {
         if (this.config.minLevel <= LogLevel.ERROR) {
             const context = typeIs(messages[messages.size() - 1], "string") && messages.size() > 1 ?
                 (messages as defined[]).pop() as string : undefined;
-            const mesformat = this.formatMessage("ERROR", context);
+            const mesformat = this.formatMessage("ERR", context);
             warn(`${mesformat}`, ...messages);
         }
     }
@@ -99,7 +118,7 @@ export class Logger {
         if (this.config.minLevel <= LogLevel.FATAL) {
             const context = typeIs(messages[messages.size() - 1], "string") && messages.size() > 1 ?
                 (messages as defined[]).pop() as string : undefined;
-            const mesformat = this.formatMessage("FATAL", context);
+            const mesformat = this.formatMessage("FTL", context);
             warn(`${mesformat}`, ...messages);
         }
     }

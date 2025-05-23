@@ -113,7 +113,9 @@ export default class BattleGui {
             <AbilitySetElement>
                 <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>);
-    } public mountFightingStyleSelector(entity: Entity) {
+    }
+
+    public mountFightingStyleSelector(entity: Entity) {
         this.logger.debug(`Mounting fighting style selector for ${entity.name}`);
         GuiMothership.Mount(
             GuiTag.FightingStyleSelector,

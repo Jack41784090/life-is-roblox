@@ -22,8 +22,16 @@ export class TurnSystem {
         if (otherState.currentActorId) this.currentActorId = otherState.currentActorId;
         if (otherState.isGauntletRunning) this.isGauntletRunning = otherState.isGauntletRunning;
         if (otherState.listOfReadinessState !== undefined) {
-            this.listOfReadinessState(() => this.updateFragments(otherState.listOfReadinessState!));
+            this.listOfReadinessState(() => this.updateFragments_complete(otherState.listOfReadinessState!));
+            const oldID = this.currentActorId;
             this.currentActorId = this.sortReadinessState()[0].id;
+            this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
+        }
+        if (otherState.changingReadinessFrags) {
+            this.listOfReadinessState(() => this.updateFragments_partial(otherState.changingReadinessFrags!));
+            const oldID = this.currentActorId;
+            this.currentActorId = this.sortReadinessState()[0].id;
+            this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
         }
     }
 
@@ -94,7 +102,18 @@ export class TurnSystem {
         return this.listOfReadinessState;
     }
 
-    private updateFragments(givenFrags: ReadinessFragment[]) {
+    private updateFragments_partial(givenFrags: ReadinessFragment[]) {
+        const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
+        givenFrags.forEach(gf => {
+            const frag = currentFragments.find(_f => gf.id === _f().id);
+            if (frag) {
+                frag(gf);
+            }
+        });
+        return currentFragments
+    }
+
+    private updateFragments_complete(givenFrags: ReadinessFragment[]) {
         const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
         const missingFrags: ReadinessFragment[] = [];
         const removingIndices: number[] = [];

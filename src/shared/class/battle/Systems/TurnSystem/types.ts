@@ -16,4 +16,5 @@ export interface TurnSystemState {
     currentActorId: number;
     isGauntletRunning: boolean;
     listOfReadinessState: ReadinessFragment[];
+    changingReadinessFrags: ReadinessFragment[];
 }

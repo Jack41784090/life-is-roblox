@@ -39,7 +39,13 @@ export default class EntityGraphics {
         this.animationHandler = ah;
         this.audioHandler = new AudioHandler(this, template.Name);
         this.tweenManager = new TweenManager();
-    }    // Damage indicators are now handled by CombatEffectsService
+    }
+
+    public getWorldPosition() {
+        const modelPrimaryPart = this.model.PrimaryPart;
+        assert(modelPrimaryPart, "[EntityGraphics] Primary part not found in model");
+        return modelPrimaryPart.Position;
+    }
 
     //#region play animation/audio
     public playAnimation(id: AnimationType, opt: AnimationOptions): AnimationTrack | undefined {

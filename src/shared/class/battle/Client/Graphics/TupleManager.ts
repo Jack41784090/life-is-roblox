@@ -109,7 +109,8 @@ export default class TupleManager {
     }
 
     public getTupleByEntity(entity: Entity): EntityCellGraphicsTuple | undefined {
-        return this.tupleQR.get(entity.qr);
+        return this.playerIdToPosition.get(entity.playerID) ?
+            this.tupleQR.get(this.playerIdToPosition.get(entity.playerID) as Vector2) : undefined;
     }
 
     public getEntityGraphics(playerID: PlayerID): EntityGraphics | undefined;

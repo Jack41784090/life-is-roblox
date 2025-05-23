@@ -179,7 +179,7 @@ export default class BattleCam {
     }
 
     async enterHOI4Mode(worldFocus?: Vector3) {
-        print('Setting up HOI4 Camera Pan');
+        // print('Setting up HOI4 Camera Pan');
         this.panningEnabled = false;
         const center = worldFocus ?? this.worldCenter;
         const x1 = new Vector3(center.X, 25, center.Z);
