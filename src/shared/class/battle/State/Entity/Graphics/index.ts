@@ -56,7 +56,6 @@ export default class EntityGraphics {
     //#endregion
 
     //#region cell move
-
     public async moveToPosition(targetPosition: Vector3) {
         const modelPrimaryPart = this.model.PrimaryPart;
         assert(modelPrimaryPart, "Primary part not found in model");
@@ -65,16 +64,40 @@ export default class EntityGraphics {
         const adjustedTargetPosition = new Vector3(targetPosition.X, modelPrimaryPart.Position.Y, targetPosition.Z);
         this.logger.info(`${this.name}: Moving to position`, adjustedTargetPosition);
 
-        const direction = (adjustedTargetPosition.sub(modelPrimaryPart.Position)).Unit;
+        // Calculate the displacement vector
+        const displacement = adjustedTargetPosition.sub(modelPrimaryPart.Position);
+
+        // Check if already at target position (or very close)
+        if (displacement.Magnitude < 0.1) {
+            this.logger.info(`${this.name}: Already at target position, skipping movement`);
+            return;
+        }
+
+        // Additional validation for positions
+        if (!this.isValidPosition(adjustedTargetPosition)) {
+            this.logger.warn(`${this.name}: Invalid target position ${adjustedTargetPosition.X}, ${adjustedTargetPosition.Y}, ${adjustedTargetPosition.Z}`);
+            return;
+        }
+
+        // Check for zero magnitude to avoid division by zero
+        if (displacement.Magnitude < 0.001) {
+            this.logger.warn(`${this.name}: Displacement magnitude too small, skipping movement`);
+            return;
+        }
+
+        // Now safely calculate direction since we know the magnitude is not zero
+        const direction = displacement.Unit;
+
+        // Final safety check for NaN values
+        if (!this.isValidVector(direction)) {
+            this.logger.warn(`${this.name}: Direction is NaN; bypassed already at position? ${direction.X}, ${direction.Y}, ${direction.Z}`);
+            return;
+        }
+
         const lookAtCFrame = CFrame.lookAt(modelPrimaryPart.Position, modelPrimaryPart.Position.add(direction));
 
         // Create target CFrame with correct position and facing direction
         const targetCFrame = new CFrame(adjustedTargetPosition).mul(lookAtCFrame.sub(modelPrimaryPart.Position));
-
-        if (direction.X !== direction.X || direction.Y !== direction.Y || direction.Z !== direction.Z) {
-            this.logger.warn("Direction is NaN; bypassed already at position?", direction);
-            return;
-        }
 
         // Tween to the new CFrame
         const tween = TweenService.Create(
@@ -85,6 +108,21 @@ export default class EntityGraphics {
 
         this.tweenManager.addTween(tween);
         return tween.Completed.Wait();
+    }
+
+    // Helper methods for position validation
+    private isValidPosition(position: Vector3): boolean {
+        // Check for NaN values or other invalid conditions
+        return position.X === position.X && // Not NaN
+            position.Y === position.Y && // Not NaN
+            position.Z === position.Z && // Not NaN
+            position.Magnitude < 10000; // Not too far away (reasonable limit)
+    }
+
+    private isValidVector(vector: Vector3): boolean {
+        return vector.X === vector.X && // Not NaN
+            vector.Y === vector.Y && // Not NaN
+            vector.Z === vector.Z;   // Not NaN
     }
 
     public async moveToCell(cell: HexCellGraphics, path?: HexCellGraphics[]): Promise<void> {

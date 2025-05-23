@@ -435,11 +435,18 @@ export default class State {
      */
     public move(moveAction: MoveAction): void {
         const { from, to } = moveAction;
+
+        // Skip if source and destination are the same
+        if (from.X === to.X && from.Y === to.Y) {
+            this.logger.info(`Move skipped: Source and destination are the same (${from})`);
+            return;
+        }
+
         const fromCell = this.gridManager.getCell(from);
         const toCell = this.gridManager.getCell(to);
 
         if (!fromCell || !toCell) {
-            this.logger.warn("Move failed: Invalid cell coordinates");
+            this.logger.warn(`Move failed: Invalid cell coordinates - from ${from} to ${to}`);
             return;
         }
 
