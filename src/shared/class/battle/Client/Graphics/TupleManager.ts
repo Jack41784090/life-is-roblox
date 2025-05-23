@@ -103,6 +103,7 @@ export default class TupleManager {
 
     public getTupleByPlayerId(playerID: PlayerID): EntityCellGraphicsTuple | undefined {
         const position = this.playerIdToPosition.get(playerID);
+        this.logger.debug(`Getting tuple for player ${playerID}; looking into position ${position}`); //checkthis
         if (!position) return undefined;
         return this.tupleQR.get(position);
     }
@@ -115,7 +116,7 @@ export default class TupleManager {
     public getEntityGraphics(entity: Entity): EntityGraphics | undefined;
     public getEntityGraphics(qr: Vector2): EntityGraphics | undefined;
     public getEntityGraphics(qrs: Vector3): EntityGraphics | undefined;
-    public getEntityGraphics(query: Vector2 | Vector3 | Entity | PlayerID): EntityGraphics | undefined {
+    public getEntityGraphics(query: Vector2 | Vector3 | Entity | PlayerID): EntityGraphics | undefined { //checkthis
         let tuple: EntityCellGraphicsTuple | undefined;
 
         if (typeIs(query, 'Vector2') || typeIs(query, 'Vector3')) {
@@ -123,7 +124,7 @@ export default class TupleManager {
         } else if (query instanceof Entity) {
             tuple = this.getTupleByEntity(query);
         } else if (typeIs(query, 'number')) {
-            tuple = this.getTupleByPlayerId(query);
+            tuple = this.getTupleByPlayerId(query); //checkthis
         }
 
         return tuple?.entityGraphics;
@@ -145,36 +146,36 @@ export default class TupleManager {
     }
 
     public updatePlayerPosition(playerID: PlayerID, oldPosition: Vector2, newPosition: Vector2): void {
+        const context = 'updating player position';
+
         // Skip if old and new positions are the same
         if (oldPosition.X === newPosition.X && oldPosition.Y === newPosition.Y) {
-            this.logger.info(`Player ${playerID} position unchanged at ${newPosition}`);
+            this.logger.info(`Player ${playerID} position unchanged at ${newPosition}`, context);
             return;
         }
 
-        // Validate positions to avoid -1,-1 issues
-        if (newPosition.X === -1 && newPosition.Y === -1) {
-            this.logger.warn(`Attempted to update player ${playerID} to invalid position (-1, -1)`);
+        // Get both old and new tuples
+        const oldTuple = this.tupleQR.get(oldPosition);
+        if (!oldTuple) {
+            this.logger.warn(`No tuple found at old position ${oldPosition} for player ${playerID}`, context);
+            return;
+        }
+        const entityAttached = oldTuple.decouple();
+        if (!entityAttached) {
+            this.logger.warn(`No entity found attached to tuple at old position ${oldPosition} for player ${playerID}`, context);
+            return;
+        }
+        const existingTuple = this.tupleQR.get(newPosition)
+        if (!existingTuple) {
+            this.logger.warn(`No tuple found at new position ${newPosition} for player ${playerID}`, context);
             return;
         }
 
-        const tuple = this.tupleQR.get(oldPosition);
-        if (!tuple) {
-            this.logger.warn(`No tuple found at old position ${oldPosition} for player ${playerID}`);
-            return;
-        }
-
-        // Check if there's already a tuple at the new position
-        const existingTuple = this.tupleQR.get(newPosition);
-        if (existingTuple) {
-            this.logger.warn(`Tuple already exists at ${newPosition}, replacing it`);
-            this.removeTupleInternal(existingTuple);
-        }
-
-        this.tupleQR.delete(oldPosition);
-        this.tupleQR.set(newPosition, tuple);
+        // coupling with what was decoupled in the old position
+        existingTuple.couple(entityAttached)
         this.playerIdToPosition.set(playerID, newPosition);
 
-        this.logger.info(`Updated player ${playerID} position from ${oldPosition} to ${newPosition}`);
+        this.logger.info(`Updated player ${playerID} position from ${oldPosition} to ${newPosition}`, context);
     }
 
     public associateEntityWithPlayer(entityGraphics: EntityGraphics, playerID: PlayerID): void {

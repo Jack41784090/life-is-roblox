@@ -40,7 +40,6 @@ export default class BattleClient {
     private controlLocks: ControlLocks = new Map();
 
     private constructor(config: ClientSideConfig) {
-
         const { worldCenter, size, width, height, camera } = config;
         const halfWidth = (width * size) / 2;
         const halfHeight = (height * size) / 2;
@@ -147,13 +146,16 @@ export default class BattleClient {
                 return;
             }
             const { entityId, from, to } = data;
-            this.animating = this.graphics.moveEntity(from, to);
+
+            // animating movement 
             this.animating.then(() => {
-                this.state.getEventBus().emit(GameEvent.ENTITY_MOVED, {
-                    entityId,
-                    from,
-                    to,
-                });
+                this.animating = this.graphics.moveEntity(from, to).then(() => {
+                    eventBus.emit(GameEvent.ENTITY_MOVED, {
+                        entityId,
+                        from,
+                        to,
+                    });
+                })
             })
         })
         // eventBus.subscribe(GameEvent.ENTITY_MOVED, (data) => {
@@ -172,10 +174,12 @@ export default class BattleClient {
                 return;
             }
 
-            this.handleAnimatingClashes(neoClashResults, attackActionRef).then(() => {
-                this.state.getEventBus().emit(GameEvent.COMBAT_STARTED, neoClashResults, attackActionRef);
-            });
-
+            // animating clashes
+            this.animating.then(() => {
+                this.animating = this.handleAnimatingClashes(neoClashResults, attackActionRef).then(() => {
+                    eventBus.emit(GameEvent.ENTITY_ATTACKED, neoClashResults, attackActionRef);
+                });
+            })
         })
 
         // eventBus.subscribe(GameEvent.ENTITY_UPDATED, (entityUpdate: unknown) => {
@@ -388,7 +392,7 @@ export default class BattleClient {
     }
 
     private getSensitiveCellElements(accessToken: AccessToken): React.Element {
-        const currentGraphicRepresentation = this.graphics.tuples();
+        const currentGraphicRepresentation = this.graphics.getTuples();
         return <frame key={'SensitiveCells'}>{
             currentGraphicRepresentation.map(t => <CellSurface
                 cell={t.cellGraphics}
@@ -405,7 +409,7 @@ export default class BattleClient {
         const currentActor = this.state.getCurrentActor();
         const currentActorQR = currentActor.qr;
         const currentCell = this.state.getCell(currentActorQR); assert(currentCell, "[handleCellEnter] Current cell is not defined");
-        const currentActorGraphics = this.graphics.findTupleByEntity(currentActor)?.entityGraphics; assert(currentActorGraphics, "[handleCellEnter] Current actor graphics is not defined");
+        const currentActorGraphics = this.graphics.findEntityG(currentActor.playerID); assert(currentActorGraphics, "[handleCellEnter] Current actor graphics is not defined"); //checkthis
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();

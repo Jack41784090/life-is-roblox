@@ -25,7 +25,7 @@ export default class Graphics {
         this.grid = grid;
     }
 
-    public tuples(): EntityCellGraphicsTuple[] {
+    public getTuples(): EntityCellGraphicsTuple[] {
         return this.tupleManager.values();
     }
 
@@ -44,17 +44,12 @@ export default class Graphics {
         }
     }
 
-    public findTupleByEntity(entity: Entity) {
-        this.logger.debug("Finding tuple by entity", entity.qr);
-        return this.tupleManager.getTupleByEntity(entity);
-    }
-
     public findEntityG(playerID: PlayerID): EntityGraphics | undefined;
     public findEntityG(entity: Entity): EntityGraphics | undefined;
     public findEntityG(qr: Vector2): EntityGraphics | undefined;
     public findEntityG(qrs: Vector3): EntityGraphics | undefined;
     public findEntityG(qr: Vector2 | Vector3 | Entity | PlayerID): EntityGraphics | undefined {
-        return this.tupleManager.getEntityGraphics(qr as any);
+        return this.tupleManager.getEntityGraphics(qr as any); //checkthis
     }
 
     public findCellG(qr: Vector2): HexCellGraphics | undefined;
@@ -103,7 +98,7 @@ export default class Graphics {
                 const playerTuple = this.tupleManager.getTupleByPlayerId(entityState.playerID);
 
                 if (playerTuple) {
-                    this.logger.info(`Existing: ${entityState.playerID} => ${newQR}`);
+                    this.logger.info(`Existing: ${entityState.playerID} => [${newQR}]`);
                     const oldQR = playerTuple.cellGraphics.qr;
                     // Proper comparison of Vector2 positions
                     if (newQR.X === oldQR.X && newQR.Y === oldQR.Y) {
@@ -112,7 +107,7 @@ export default class Graphics {
                     }
                     this.repositionPlayer(entityState.playerID, newQR);
                 } else {
-                    this.logger.info(`New player: ${entityState.playerID} => ${newQR}`);
+                    this.logger.info(`New player: ${entityState.playerID} => [${newQR}]`);
                     this.positionNewPlayer(entityState, newQR);
                 }
             }
@@ -125,54 +120,33 @@ export default class Graphics {
         const newTuple = this.positionTuple(qr);
         newTuple.couple(newEntityG);
         this.tupleManager.addTuple(entityState.playerID, newTuple);
-        this.logger.info(`Player ${entityState.playerID} positioned at ${qr}`);
+        this.logger.info(`Player ${entityState.playerID} positioned at [${qr}]`);
         return newEntityG;
     }
 
     public repositionPlayer(playerID: PlayerID, newQR: Vector2) {
-        // Check for invalid coordinates
-        if (newQR.X === -1 && newQR.Y === -1) {
-            this.logger.warn(`Cannot reposition player ${playerID} to invalid position (-1, -1)`);
-            return;
-        }
-
         // Verify if player actually needs to be repositioned
         const playerTuple = this.tupleManager.getTupleByPlayerId(playerID);
         if (!playerTuple) {
             this.logger.warn(`Player tuple not found for ${playerID}`);
             return;
         }
-
         const oldQR = playerTuple.cellGraphics.qr;
-
-        // Skip if player is already at the target position
         if (oldQR.X === newQR.X && oldQR.Y === newQR.Y) {
             this.logger.info(`Player ${playerID} is already at ${newQR}, skipping repositioning`);
             return;
         }
 
-        this.logger.info(`Repositioning player ${playerID} from ${oldQR} to ${newQR}`);
-        const entity = playerTuple.decouple();
-
+        // Reposition the player
+        const entity = playerTuple.entityGraphics;
         if (!entity) {
             this.logger.warn(`Entity graphics not found for player ${playerID}`);
             return;
         }
-
-        const newTuple = this.positionTuple(newQR);
-
-        // Check if destination tuple already has an entity
-        if (newTuple.entityGraphics) {
-            this.logger.warn(`Destination ${newQR} already has an entity, replacing it`);
-            newTuple.decouple();
-        }
-
-        newTuple.couple(entity);
-
         this.tupleManager.updatePlayerPosition(playerID, oldQR, newQR);
         this.tupleManager.associateEntityWithPlayer(entity, playerID);
 
-        this.logger.info(`Player ${playerID} repositioned from ${oldQR} to ${newQR}`);
+        this.logger.info(`Player ${playerID} repositioned from [${oldQR}] to [${newQR}]`);
     }
 
     public async moveEntity(start: Vector2, dest: Vector2) {
@@ -195,15 +169,15 @@ export default class Graphics {
         }
 
         this.logger.info(`Moving entity from ${start} to ${dest}`);
-        const tuple = this.tupleManager.getTupleByPosition(start);
+        const startTuple = this.tupleManager.getTupleByPosition(start);
 
         // Enhanced entity validation
-        if (!tuple) {
+        if (!startTuple) {
             this.logger.warn(`No tuple found at source position ${start}`);
             return Promise.reject(`No tuple found at source position ${start}`);
         }
 
-        const entity = tuple.decouple();
+        const entity = startTuple.decouple();
         if (!entity) {
             this.logger.warn(`Entity not found at ${start}`);
             return Promise.reject(`Entity not found at ${start}`);
@@ -235,10 +209,10 @@ export default class Graphics {
             await entity.moveToCell(destinationCell, cellPath);
 
             // Check if destination already has a tuple and handle appropriately
-            const existingDestTuple = this.tupleManager.getTupleByPosition(dest);
-            if (existingDestTuple && existingDestTuple !== tuple) {
-                this.logger.warn(`Destination ${dest} already has a tuple, decoupling it`);
-                existingDestTuple.decouple();
+            const destTuple = this.tupleManager.getTupleByPosition(dest);
+            if (destTuple && destTuple !== startTuple) {
+                this.logger.warn(`Destination ${dest} already has a tuple, decoupling it and discarding the entity`);
+                destTuple.decouple();
             }
 
             const newTuple = new EntityCellGraphicsTuple(destinationCell, entity);

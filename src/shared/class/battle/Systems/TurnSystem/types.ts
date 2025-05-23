@@ -11,3 +11,9 @@ export interface ReadinessFragment {
     spd: Atom<number>,
     pos: Atom<number>,
 }
+
+export interface TurnSystemState {
+    currentActorId: number;
+    isGauntletRunning: boolean;
+    listOfReadinessState: ReadinessFragment[];
+}

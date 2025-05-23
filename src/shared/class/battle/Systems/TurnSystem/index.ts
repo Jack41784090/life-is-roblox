@@ -1,13 +1,13 @@
 import { atom, Atom } from "@rbxts/charm";
 import Logger from "shared/utils/Logger";
-import { ReadinessFragment, TurnSystemConfig } from "./types";
+import { ReadinessFragment, TurnSystemConfig, TurnSystemState } from "./types";
 
 export class TurnSystem {
     private logger = Logger.createContextLogger("TurnSystem");
     private currentActorId: number = -4178;
     private readonly READINESS_TICK_INTERVAL: number;
     private isGauntletRunning = false;
-    private listOfReadinessState: Atom<Array<Atom<ReadinessFragment>>>;
+    private listOfReadinessState: Atom<Atom<ReadinessFragment>[]>;
 
     constructor(config: TurnSystemConfig) {
         this.listOfReadinessState = config.readinessAtoms;
@@ -18,9 +18,24 @@ export class TurnSystem {
         // })
     }
 
+    public sync(otherState: Partial<TurnSystemState>) {
+        if (otherState.currentActorId) this.currentActorId = otherState.currentActorId;
+        if (otherState.isGauntletRunning) this.isGauntletRunning = otherState.isGauntletRunning;
+        if (otherState.listOfReadinessState !== undefined) {
+            this.listOfReadinessState(() => this.updateFragments(otherState.listOfReadinessState!));
+            this.currentActorId = this.sortReadinessState()[0].id;
+        }
+    }
+
+    public sortReadinessState(): ReadinessFragment[] {
+        return this.listOfReadinessState().sort((a, b) => a().pos() - b().pos() > 0).map(frag => frag());
+    }
+
     public getCurrentActorID(): number {
         return this.currentActorId;
-    } private gauntletTick(): void {
+    }
+
+    private gauntletTick(): void {
         // Calculate readiness for entities
         for (const atom of this.listOfReadinessState()) {
             atom(frag => {
@@ -56,7 +71,8 @@ export class TurnSystem {
             while (!listOfReadinessState.some((e) => e().pos() >= 100)) {
                 this.gauntletTick();
                 await Promise.delay(this.READINESS_TICK_INTERVAL);
-            } const nextActor = listOfReadinessState.sort((a, b) => a().pos() - b().pos() > 0)[0]();
+            }
+            const nextActor = this.sortReadinessState()[0];
             this.currentActorId = nextActor.id;
             return nextActor;
         } catch (err) {
@@ -76,7 +92,9 @@ export class TurnSystem {
 
     public getReadinessFragments() {
         return this.listOfReadinessState;
-    } public updateFragments(givenFrags: ReadinessFragment[]): void {
+    }
+
+    private updateFragments(givenFrags: ReadinessFragment[]) {
         const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
         const missingFrags: ReadinessFragment[] = [];
         const removingIndices: number[] = [];
@@ -88,17 +106,19 @@ export class TurnSystem {
             else {
                 missingFrags.push(gf);
             }
-        }); currentFragments.forEach((frag, i) => {
+        });
+
+        currentFragments.forEach((frag, i) => {
             if (!givenFrags.some((gf) => gf.id === frag().id)) {
                 removingIndices.push(i);
             }
         })
 
         removingIndices.forEach(i => currentFragments.remove(i));
-        this.listOfReadinessState([
+        return [
             ...currentFragments,
             ...missingFrags.map((frag) => atom(frag)),
-        ])
+        ];
     }
 
     // public endTurn(entityId: number): void {

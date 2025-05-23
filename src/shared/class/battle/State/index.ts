@@ -319,18 +319,20 @@ export default class State {
             for (const team of other.teams) {
                 team.members.forEach(_ => members.push(_));
             }
-            this.turnSystem.updateFragments(members.mapFiltered(m => {
-                const entity = this.entityManager.getEntity(m.playerID);
-                if (!entity) {
-                    this.logger.warn(`Entity with ID ${m.playerID} not found`);
-                    return;
-                }
-                return {
-                    id: m.playerID,
-                    pos: entity.getState('pos'),
-                    spd: atom(entity.stats.spd),
-                }
-            }))
+            this.turnSystem.sync({
+                listOfReadinessState: members.mapFiltered(m => {
+                    const entity = this.entityManager.getEntity(m.playerID);
+                    if (!entity) {
+                        this.logger.warn(`Entity with ID ${m.playerID} not found`);
+                        return;
+                    }
+                    return {
+                        id: m.playerID,
+                        pos: entity.getState('pos'),
+                        spd: atom(entity.stats.spd),
+                    }
+                })
+            })
         }
 
         if (other.entities) {
@@ -345,6 +347,20 @@ export default class State {
                     this.logger.warn(`Entity with ID ${entityUpdate.playerID} not found`);
                 }
             }
+            this.turnSystem.sync({
+                listOfReadinessState: other.entities.mapFiltered(m => {
+                    const entity = this.entityManager.getEntity(m.playerID);
+                    if (!entity) {
+                        this.logger.warn(`Entity with ID ${m.playerID} not found`);
+                        return;
+                    }
+                    return {
+                        id: m.playerID,
+                        pos: entity.getState('pos'),
+                        spd: atom(entity.stats.spd),
+                    }
+                })
+            })
         }
     }
 
@@ -378,6 +394,7 @@ export default class State {
      * @returns Clash result if any occurs
      */
     public commit(action: BattleAction): ClashResult | void {
+        this.logger.info(`Committing action: ${action.type}`, action);
         switch (action.type) {
             case ActionType.ResolveAttacks:
                 const clashes = (action as ResolveAttacksAction).results;

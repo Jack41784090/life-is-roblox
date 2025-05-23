@@ -58,7 +58,7 @@ export default class BattleCam {
     }
 
     private updateHOI4CameraPosition(gridDelta: Vector2, gridMin: Vector2, gridMax: Vector2) {
-        this.logger.debug("HOI4")
+        // this.logger.debug("HOI4")
         const camera = this.camera ?? Workspace.CurrentCamera;
         if (!camera) {
             warn("Camera not found!");
@@ -79,7 +79,7 @@ export default class BattleCam {
     }
 
     private updateCharCenterCameraPosition(gridDelta: Vector2, deltaTime: number) {
-        this.logger.debug("CHAR_CENTER")
+        // this.logger.debug("CHAR_CENTER")
 
         const model = this.focusedChar?.model;
         if (model?.PrimaryPart === undefined) {

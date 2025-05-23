@@ -29,8 +29,8 @@ export default class EntityCellGraphicsTuple {
     }
 
     decouple() {
-        this.logger.debug(`Decoupling entity: ${this.entityGraphics?.model.Name} from cell: ${this.cellGraphics.part.Name}`);
         if (!this.entityGraphics) return;
+        this.logger.debug(`Decoupling entity: ${this.entityGraphics.model.Name} from cell: ${this.cellGraphics.part.Name}`);
         this.entityGraphics.model.Parent = undefined;
         const e = this.entityGraphics
         this.entityGraphics = undefined;

@@ -30,29 +30,33 @@ export default class XY<T> {
     set(x: number, y: number, value: T): T
     set(vec: Vector2, value: T): T
     set(vec: Vector3, value: T): T
-    set(x: number | Vector2 | Vector3, y: number | T, value?: T) {
+    set(arg1: number | Vector2 | Vector3, arg2: number | T, arg3?: T) {
+        // print("set", arg1, arg2, arg3);
         let coordX: number;
         let coordY: number;
-        if (typeIs(x, "Vector2") || typeIs(x, "Vector3")) {
-            const vec = x as Vector2;
+        let value: T;
+        if (typeIs(arg1, "Vector2") || typeIs(arg1, "Vector3")) {
+            const vec = arg1 as Vector2;
             coordX = vec.X;
             coordY = vec.Y;
-            value = y as T;
+            value = arg2 as T;
         } else {
-            coordX = x as number;
-            coordY = y as number;
+            coordX = arg1 as number;
+            coordY = arg2 as number;
+            value = arg3 as T;
         }
 
         if (this.isValidCoordinate(coordX, coordY)) {
             this.dictionary[`${coordX},${coordY}`] = value;
         }
-        return value
+        return arg3
     }
 
     get(vec: Vector3): T | undefined
     get(vec: Vector2): T | undefined
     get(x: number, y: number): T | undefined
     get(x: number | Vector2 | Vector3, y?: number) {
+        // print("get", x, y, this.dictionary);
         if (typeIs(x, "Vector2")) {
             const vec = x as Vector2;
             return this.dictionary[`${vec.X},${vec.Y}`];
