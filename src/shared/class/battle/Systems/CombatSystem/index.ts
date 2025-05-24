@@ -9,9 +9,10 @@ import Entity from "../../State/Entity";
 
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
-    constructor(
-        private gameState: State,
-    ) { }
+    private gameState: State;
+    constructor(gameState: State) {
+        this.gameState = gameState;
+    }
 
     private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
         for (const [stat, modifier] of pairs(ability.cost)) {
@@ -36,7 +37,6 @@ export default class CombatSystem {
         return 0;
     }
 
-    // Calculate damage modification based on fighting style passive effects
     private calculateModifiedDamage(damage: number, attacker: Entity, target: Entity): number {
         // Apply attacker's damage increase effects
         const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
@@ -62,8 +62,6 @@ export default class CombatSystem {
         });
         return ability;
     }
-
-    // ## 
 
     public resolveAttack(action: AttackAction): StrikeSequence[] {
         const attacker = this.gameState.getEntity(action.by);
@@ -144,8 +142,7 @@ export default class CombatSystem {
                     roll: roll,
                     bonus: bonus,
                     fate: success ? "Hit" : "Miss",
-                    // Only add preliminary damage if we're generating a successful PV roll
-                    damage: success && checkType === "PV" ? 5 : undefined // Placeholder, actual damage calculated in applyAttack
+                    damage: success && checkType === "PV" ? 5 : undefined
                 },
                 clashKills: false, // Assuming clashKills is false for misses
             };

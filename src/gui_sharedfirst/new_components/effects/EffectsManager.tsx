@@ -3,6 +3,7 @@ import EffectsEventBus from "shared/class/battle/Client/Effects";
 import {
     AbilityReactionEventData,
     AbilityUseEventData,
+    ClashFateEventData,
     DamageEventData,
     Effect,
     EffectType,
@@ -11,6 +12,7 @@ import {
 } from "../../../shared/class/battle/Client/Effects/types";
 import AbilityReactionEffect from "./AbilityReactionEffect";
 import AbilityUseEffect from "./AbilityUseEffect";
+import ClashFateEffect from "./ClashFateEffect";
 import DamageIndicator from "./DamageIndicator";
 import HitImpactEffect from "./HitImpactEffect";
 import StyleSwitchEffect from "./StyleSwitchEffect";
@@ -60,6 +62,18 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
         const connections = new Array<() => void>();
 
         print("EffectsManager: Setting up event subscriptions");
+
+        connections.push(
+            eventBus.subscribe(EffectType.ClashFate, (data: unknown) => {
+                print("EffectsManager: Received ClashFate event", data);
+                const eventData = data as ClashFateEventData;
+                addEffect(EffectType.ClashFate, {
+                    position: eventData.position,
+                    color: eventData.color,
+                    fate: eventData.fate
+                });
+            })
+        );
 
         connections.push(
             eventBus.subscribe(EffectType.Damage, (data: unknown) => {
@@ -122,6 +136,16 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
 
     const renderEffect = (effect: Effect) => {
         switch (effect.type) {
+            case EffectType.ClashFate:
+                return (
+                    <ClashFateEffect
+                        key={effect.id}
+                        position={effect.position}
+                        fate={effect.fate!}
+                        onComplete={() => removeEffect(effect.id)}
+                    />
+                );
+
             case EffectType.Damage:
                 return (
                     <DamageIndicator

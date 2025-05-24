@@ -75,16 +75,6 @@ export default class BattleAnimationManager {
         }
     }
 
-    // for (const clash of strikeSequence) {
-    //     const [promise, resolver] = promiseWrapper(this.OneClash(attacker, target, clash, sequenceHits));
-    //     this.queueAnimation({
-    //         promise,
-    //         promise_resolve: resolver,
-    //         timeout: 5,
-    //     });
-    //     await promise;
-    // }
-
     private async animateRolls(attacker: EntityGraphics, target: EntityGraphics, clash: NeoClashResult): Promise<void> {
         const { roll, against, toSurmount, bonus, fate } = clash.result;
 
@@ -100,32 +90,41 @@ export default class BattleAnimationManager {
             targetHead && targetHead.IsA("BasePart") ? targetHead.Position :
                 target.model.PrimaryPart ? target.model.PrimaryPart.Position : undefined;
 
-        // Show rolls
-        if (attackerHeadPos) {
-            const screenPos = this.worldToScreenPosition(attackerHeadPos);
 
+        const attackerScreenPos = attackerHeadPos ? this.worldToScreenPosition(attackerHeadPos) : undefined;
+        const targetScreenPos = targetHeadPos ? this.worldToScreenPosition(targetHeadPos) : undefined;
+
+        // Show rolls
+        if (attackerScreenPos) {
             // Show attack roll
             combatEffects.showAbilityReaction(
-                new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                new UDim2(attackerScreenPos.X.Scale, attackerScreenPos.X.Offset, attackerScreenPos.Y.Scale, attackerScreenPos.Y.Offset - 30),
                 new Color3(1, 0.2, 0),
                 `🤺${roll + bonus}`
             );
         }
 
-        // Damage texts
-        if (targetHeadPos) {
-            const screenPos = this.worldToScreenPosition(targetHeadPos);
+        if (attackerScreenPos && targetScreenPos) {
+            const averagePos = attackerScreenPos.Lerp(targetScreenPos, 0.5);
+            combatEffects.showAbilityReaction(
+                averagePos,
+                new Color3(1, 0.2, 0),
+                `${clash.result.fate}`
+            )
+        }
 
+        // Damage texts
+        if (targetScreenPos) {
             // Show defence
             combatEffects.showAbilityReaction(
-                new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                new UDim2(targetScreenPos.X.Scale, targetScreenPos.X.Offset, targetScreenPos.Y.Scale, targetScreenPos.Y.Offset - 30),
                 new Color3(0, 0.2, 1),
                 `${against === 'DV' ? '🏃‍♂️' : '🛡️'} ${toSurmount}`
             );
 
             // Show impact effect
             const impactSize = clash.result.fate === "CRIT" ? 50 : 30;
-            combatEffects.showHitImpact(screenPos, new Color3(1, 0, 0), impactSize);
+            combatEffects.showHitImpact(targetScreenPos, new Color3(1, 0, 0), impactSize);
 
             // Show damage indicator if the attack hit
             if (clash.result.damage && clash.result.fate !== "Miss" && clash.result.fate !== "Cling") {
@@ -134,17 +133,17 @@ export default class BattleAnimationManager {
                 // Show critical hit effect if applicable
                 if (clash.result.fate === "CRIT") {
                     combatEffects.showAbilityReaction(
-                        new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                        new UDim2(targetScreenPos.X.Scale, targetScreenPos.X.Offset, targetScreenPos.Y.Scale, targetScreenPos.Y.Offset - 30),
                         new Color3(1, 0.8, 0),
                         "CRITICAL!"
                     );
                 }
 
                 task.delay(.5, () => {
-                    combatEffects.showDamage(screenPos, damage);
+                    combatEffects.showDamage(targetScreenPos, damage);
                 })
             } else {
-                combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), clash.result.fate);
+                combatEffects.showAbilityReaction(targetScreenPos, new Color3(0.7, 0.7, 0.7), clash.result.fate);
             }
         }
     }
@@ -185,8 +184,9 @@ export default class BattleAnimationManager {
             }
 
             attackAnimation.AdjustSpeed(2);
+            const _clash = { ...clash };
             this.waitForAnimationMarker(attackAnimation, "Hit").then(() => {
-                this.animateRolls(attacker, target, clash!);
+                this.animateRolls(attacker, target, _clash);
                 target.playAnimation(
                     AnimationType.Defend,
                     {

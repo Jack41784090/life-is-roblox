@@ -1,5 +1,6 @@
 // Define the different types of effects we support
 export enum EffectType {
+    ClashFate = "clashFate",
     Damage = "damage",
     StyleSwitch = "styleSwitch",
     AbilityReaction = "abilityReaction",
@@ -16,6 +17,7 @@ export interface Effect {
     damage?: number;
     abilityName?: string;
     impactSize?: number;
+    fate?: string;
     createdAt: number;
 }
 
@@ -30,6 +32,12 @@ export interface CombatEffectsAPI {
 }
 
 // Define interface for event data
+export interface ClashFateEventData {
+    position: UDim2;
+    color: Color3;
+    fate: string;
+}
+
 export interface DamageEventData {
     position: UDim2;
     damage: number;
