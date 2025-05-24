@@ -1,4 +1,3 @@
-import { Workspace } from "@rbxts/services";
 import EntityCellGraphicsTuple from "shared/class/battle/Client/Graphics/Tuple";
 import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { HexGridState, PlayerID, StateState, TeamState } from "shared/class/battle/types";
@@ -44,80 +43,40 @@ export default class Graphics {
         }
     }
 
-    public findEntityG(playerID: PlayerID): EntityGraphics | undefined;
-    public findEntityG(entity: Entity): EntityGraphics | undefined;
-    public findEntityG(qr: Vector2): EntityGraphics | undefined;
-    public findEntityG(qrs: Vector3): EntityGraphics | undefined;
-    public findEntityG(qr: Vector2 | Vector3 | Entity | PlayerID): EntityGraphics | undefined {
+    public getEntityGraphic(playerID: PlayerID): EntityGraphics | undefined;
+    public getEntityGraphic(entity: Entity): EntityGraphics | undefined;
+    public getEntityGraphic(qr: Vector2): EntityGraphics | undefined;
+    public getEntityGraphic(qrs: Vector3): EntityGraphics | undefined;
+    public getEntityGraphic(qr: Vector2 | Vector3 | Entity | PlayerID): EntityGraphics | undefined {
         return this.tupleManager.getEntityGraphics(qr as any); //checkthis
     }
 
-    public findCellG(qr: Vector2): HexCellGraphics | undefined;
-    public findCellG(qrs: Vector3): HexCellGraphics | undefined;
-    public findCellG(dest: Vector2 | Vector3): HexCellGraphics | undefined {
+    public getCellGraphic(qr: Vector2): HexCellGraphics | undefined;
+    public getCellGraphic(qrs: Vector3): HexCellGraphics | undefined;
+    public getCellGraphic(dest: Vector2 | Vector3): HexCellGraphics | undefined {
         return this.tupleManager.getCellGraphics(dest as any);
     }
 
-    public findEntityGByEntity(entity: Entity): EntityGraphics | undefined {
-        return this.tupleManager.getEntityGraphics(entity);
-    }
-
-    public positionTuple(qr: Vector2) {
+    public getTupleAtPosition(qr: Vector2) {
         assert(this.grid.model, "Grid model not set");
         return this.tupleManager.getTupleByPosition(qr) ??
-            this.tupleManager.setTupleAtPosition(qr, new EntityCellGraphicsTuple(
-                new HexCellGraphics({
-                    qr: qr,
-                    parent: this.grid.model,
-                    worldPosition: this.grid.findWorldPositionFromQRS(qr),
-                    height: this.height,
-                    size: this.size,
-                })
-            ));
+            this.tupleManager.setTupleAtPosition(
+                qr,
+                new EntityCellGraphicsTuple(
+                    new HexCellGraphics({
+                        qr: qr,
+                        parent: this.grid.model,
+                        worldPosition: this.grid.findWorldPositionFromQRS(qr),
+                        height: this.height,
+                        size: this.size,
+                    })
+                ));
     }
 
-    public async sync(stateState: StateState) {
-        const syncs: Promise<void>[] = [];
-        syncs.push(this.syncGrid(stateState.grid), this.syncTeams(stateState.teams));
-        return Promise.all(syncs);
-    }
-
-    public async syncGrid(hgs: HexGridState) {
-        this.logger.info(`Graphically syncing grid`, hgs);
-        const cells = hgs.cells;
-        for (const c of cells) {
-            const p = this.positionTuple(c.qr);
-        }
-    }
-
-    public async syncTeams(teamStates: TeamState[]) {
-        this.logger.info(`Graphically syncing teams`, teamStates);
-        for (const teamState of teamStates) {
-            for (const entityState of teamState.members) {
-                const newQR = entityState.qr;
-                const playerTuple = this.tupleManager.getTupleByPlayerId(entityState.playerID);
-
-                if (playerTuple) {
-                    this.logger.info(`Existing: ${entityState.playerID} => [${newQR}]`);
-                    const oldQR = playerTuple.cellGraphics.qr;
-                    // Proper comparison of Vector2 positions
-                    if (newQR.X === oldQR.X && newQR.Y === oldQR.Y) {
-                        this.logger.info(`||=> Player ${entityState.playerID} is already at ${newQR}`);
-                        continue;
-                    }
-                    this.repositionPlayer(entityState.playerID, newQR);
-                } else {
-                    this.logger.info(`New player: ${entityState.playerID} => [${newQR}]`);
-                    this.positionNewPlayer(entityState, newQR);
-                }
-            }
-        }
-    }
-
-    public positionNewPlayer(entityState: EntityState, qr: Vector2) {
+    public setNewEntity(entityState: EntityState, qr: Vector2) {
         const modelID = entityState.stats.id;
         const newEntityG = this.createEntityGraphics(modelID, entityState.playerID);
-        const newTuple = this.positionTuple(qr);
+        const newTuple = this.getTupleAtPosition(qr);
         newTuple.couple(newEntityG);
         this.tupleManager.addTuple(entityState.playerID, newTuple);
         this.logger.info(`Player ${entityState.playerID} positioned at [${qr}]`);
@@ -150,42 +109,33 @@ export default class Graphics {
     }
 
     public async moveEntity(start: Vector2, dest: Vector2) {
+        const context = "during moving entity's graphic"
+
         // Skip if start and destination are the same
         if (start.X === dest.X && start.Y === dest.Y) {
             this.logger.info(`Entity already at destination ${dest}, skipping movement`);
             return Promise.resolve();
         }
 
-        this.logger.info(`Moving entity from ${start} to ${dest}`);
-        const startTuple = this.tupleManager.getTupleByPosition(start);
-
-        // Enhanced entity validation
-        if (!startTuple) {
-            this.logger.warn(`No tuple found at source position ${start}`);
-            return Promise.reject(`No tuple found at source position ${start}`);
+        const moverEntityGraphic = this.tupleManager.getEntityGraphics(start);
+        if (!moverEntityGraphic) {
+            this.logger.error(`No entity graphics found at ${start}`, context);
+            return Promise.reject(`No entity graphics found at ${start}, ${context}`);
+        }
+        const moversID = this.tupleManager.getPlayerIdFromEntityGraphics(moverEntityGraphic);
+        if (!moversID) {
+            this.logger.error(`No player ID found for entity graphics at ${start}`, context);
+            return Promise.reject(`No player ID found for entity graphics at ${start}, ${context}`);
         }
 
-        const entity = startTuple.decouple();
-        if (!entity) {
-            this.logger.warn(`Entity not found at ${start}`);
-            return Promise.reject(`Entity not found at ${start}`);
-        }
-
-        const playerID = this.tupleManager.getPlayerIdFromEntityGraphics(entity);
-
-        entity.model.Parent = Workspace;
-        const destinationCell = this.tupleManager.getCellGraphics(dest) ?? this.positionTuple(dest).cellGraphics;
-
+        let tupleUpdateSuccess = false;
         try {
+            // Separation of concerns
+
+            // this updates the graphics
+            const destTuple = this.getTupleAtPosition(dest);
+            const destinationCell = destTuple.cellGraphics;
             const path = (new Pathfinding({ grid: this.grid.info(), dest, start })).begin();
-
-            // Check if path is empty
-            if (path.size() === 0) {
-                this.logger.warn(`No valid path found from ${start} to ${dest}`);
-                return Promise.reject(`No valid path found from ${start} to ${dest}`);
-            }
-
-            // Convert path to cell graphics
             const cellPath = path.mapFiltered(p => {
                 const cell = this.tupleManager.getCellGraphics(p);
                 if (!cell) {
@@ -194,35 +144,15 @@ export default class Graphics {
                 return cell;
             });
 
-            await entity.moveToCell(destinationCell, cellPath);
-
-            // Check if destination already has a tuple and handle appropriately
-            const destTuple = this.tupleManager.getTupleByPosition(dest);
-            if (destTuple && destTuple !== startTuple) {
-                this.logger.warn(`Destination ${dest} already has a tuple, decoupling it and discarding the entity`);
-                destTuple.decouple();
-            }
-
-            const newTuple = new EntityCellGraphicsTuple(destinationCell, entity);
-            this.tupleManager.setTupleAtPosition(dest, newTuple);
-
-            if (playerID) {
-                this.tupleManager.addTuple(playerID, newTuple);
-                this.logger.info(`Updated player ${playerID} position to ${dest}`);
-            } else {
-                this.logger.warn(`Could not find player ID for entity at ${start}, maps may be inconsistent`);
-            }
-
-            return Promise.resolve();
+            return moverEntityGraphic.moveToCell(destinationCell, cellPath).then(() => {
+                // this updates the tuple
+                tupleUpdateSuccess = this.tupleManager.updatePlayerPosition(moversID, start, dest);
+            });
         } catch (error) {
             this.logger.error(`Error moving entity from ${start} to ${dest}: ${error}`);
 
             // Try to recover by placing the entity back at the start position
-            const startTuple = this.tupleManager.getTupleByPosition(start);
-            if (startTuple) {
-                startTuple.couple(entity);
-                this.logger.info(`Recovered entity by placing it back at ${start}`);
-            }
+            if (tupleUpdateSuccess) this.tupleManager.updatePlayerPosition(moversID, dest, start);
 
             return Promise.reject(error);
         }
@@ -237,4 +167,44 @@ export default class Graphics {
         this.tupleManager.associateEntityWithPlayer(entityG, playerId);
         return entityG;
     }
+
+    //#region Sync
+    public async sync(stateState: StateState) {
+        const syncs: Promise<void>[] = [];
+        syncs.push(this.syncGrid(stateState.grid), this.syncTeams(stateState.teams));
+        return Promise.all(syncs);
+    }
+
+    public async syncGrid(hgs: HexGridState) {
+        this.logger.info(`Graphically syncing grid`, hgs);
+        const cells = hgs.cells;
+        for (const c of cells) {
+            const p = this.getTupleAtPosition(c.qr);
+        }
+    }
+
+    public async syncTeams(teamStates: TeamState[]) {
+        this.logger.info(`Graphically syncing teams`, teamStates);
+        for (const teamState of teamStates) {
+            for (const entityState of teamState.members) {
+                const newQR = entityState.qr;
+                const playerTuple = this.tupleManager.getTupleByPlayerId(entityState.playerID);
+
+                if (playerTuple) {
+                    this.logger.info(`Existing: ${entityState.playerID} => [${newQR}]`);
+                    const oldQR = playerTuple.cellGraphics.qr;
+                    // Proper comparison of Vector2 positions
+                    if (newQR.X === oldQR.X && newQR.Y === oldQR.Y) {
+                        this.logger.info(`||=> Player ${entityState.playerID} is already at ${newQR}`);
+                        continue;
+                    }
+                    this.repositionPlayer(entityState.playerID, newQR);
+                } else {
+                    this.logger.info(`New player: ${entityState.playerID} => [${newQR}]`);
+                    this.setNewEntity(entityState, newQR);
+                }
+            }
+        }
+    }
+    //#endregion
 }

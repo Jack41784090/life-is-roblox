@@ -85,13 +85,13 @@ export default class BattleClient {
 
                 if (id === Players.LocalPlayer.UserId) {
                     this.localEntity().then(e => {
-                        this.camera.enterCharacterCenterMode(this.graphics.findEntityGByEntity(e)).then(() => {
+                        this.camera.enterCharacterCenterMode(this.graphics.getEntityGraphic(e)).then(() => {
                             this.gui.mountActionMenu(this.getCharacterMenuActions(e));
                         })
                     })
                 }
                 else {
-                    const currentActorGraphics = this.graphics.findEntityG(id);
+                    const currentActorGraphics = this.graphics.getEntityGraphic(id);
                     if (!currentActorGraphics) return;
                     this.camera.enterHOI4Mode(currentActorGraphics.getWorldPosition());
                 }
@@ -112,7 +112,7 @@ export default class BattleClient {
                     if (serverEntityState) {
                         const entity = this.state.getEntity(id);
                         if (entity) {
-                            let localEntityGraphic = this.graphics.findEntityG(entity.playerID);
+                            let localEntityGraphic = this.graphics.getEntityGraphic(entity.playerID);
                             let localEntity = this.state.getEntity(id);
                             if (!localEntity) {
                                 this.logger.warn("Entity not found in state", context, id);
@@ -120,13 +120,14 @@ export default class BattleClient {
                             }
                             if (!localEntityGraphic) {
                                 this.logger.warn("Graphic not found for entity", context, id);
-                                localEntityGraphic = this.graphics.positionNewPlayer(serverEntityState, localEntity.qr)
+                                localEntityGraphic = this.graphics.setNewEntity(serverEntityState, localEntity.qr)
                             }
 
                             this.state.sync({
                                 entities: [serverEntityState],
                             })
-                            this.graphics.moveEntity(localEntity.qr, serverEntityState.qr);
+                            // this.graphics.moveEntity(localEntity.qr, serverEntityState.qr);
+                            this.handleMoveAnimation(id, localEntity.qr, serverEntityState.qr);
                         }
                         else {
                             this.logger.error("Entity not found locally", context, id);
@@ -293,8 +294,8 @@ export default class BattleClient {
 
     //#region Animations
     private handleAttackAnimation(attackerId: number, targetId: number, clashes: NeoClashResult[]) {
-        const attacker = this.graphics.findEntityG(attackerId);
-        const target = this.graphics.findEntityG(targetId);
+        const attacker = this.graphics.getEntityGraphic(attackerId);
+        const target = this.graphics.getEntityGraphic(targetId);
         if (!attacker || !target) {
             this.logger.error(`Cannot find: `, { attacker, target })
             return;
@@ -379,7 +380,7 @@ export default class BattleClient {
     private async returnToSelections() {
         this.exitMovement()
         await this.localEntity().then(e => {
-            this.camera.enterCharacterCenterMode(this.graphics.findEntityGByEntity(e)).then(() => {
+            this.camera.enterCharacterCenterMode(this.graphics.getEntityGraphic(e)).then(() => {
                 this.gui.mountActionMenu(this.getCharacterMenuActions(e));
             })
         })
@@ -441,7 +442,7 @@ export default class BattleClient {
         const currentActor = this.state.getCurrentActor();
         const currentActorQR = currentActor.qr;
         const currentCell = this.state.getCell(currentActorQR); assert(currentCell, "[handleCellEnter] Current cell is not defined");
-        const currentActorGraphics = this.graphics.findEntityG(currentActor.playerID); assert(currentActorGraphics, "[handleCellEnter] Current actor graphics is not defined"); //checkthis
+        const currentActorGraphics = this.graphics.getEntityGraphic(currentActor.playerID); assert(currentActorGraphics, "[handleCellEnter] Current actor graphics is not defined"); //checkthis
 
         // 0. Change mouse icon if the cell is not vacant
         const mouse = Players.LocalPlayer.GetMouse();
@@ -458,7 +459,7 @@ export default class BattleClient {
                 }
                 const inrange = currentCell.findCellsWithinRange(ability.range);
                 inrange
-                    .mapFiltered((cell: HexCell) => this.graphics.positionTuple(cell.qr()))
+                    .mapFiltered((cell: HexCell) => this.graphics.getTupleAtPosition(cell.qr()))
                     .forEach((t: EntityCellGraphicsTuple) => glowHexCells.push(t.cellGraphics))
             }
             else {
@@ -478,7 +479,7 @@ export default class BattleClient {
             })
             if (!pf) return;
             const path = pf.begin();
-            return this.gui.mountOrUpdateGlow(path.mapFiltered((qr) => this.graphics.positionTuple(qr).cellGraphics));
+            return this.gui.mountOrUpdateGlow(path.mapFiltered((qr) => this.graphics.getTupleAtPosition(qr).cellGraphics));
         }
 
         // 2. Move readiness icon to forecast post-move position

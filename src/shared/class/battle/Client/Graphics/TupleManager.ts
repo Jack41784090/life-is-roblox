@@ -146,37 +146,39 @@ export default class TupleManager {
         return this.tupleQR.set(qr, tuple);
     }
 
-    public updatePlayerPosition(playerID: PlayerID, oldPosition: Vector2, newPosition: Vector2): void {
+    public updatePlayerPosition(playerID: PlayerID, oldPosition: Vector2, newPosition: Vector2): boolean {
         const context = 'updating player position';
 
         // Skip if old and new positions are the same
         if (oldPosition.X === newPosition.X && oldPosition.Y === newPosition.Y) {
             this.logger.info(`Player ${playerID} position unchanged at ${newPosition}`, context);
-            return;
+            return false;
         }
 
         // Get both old and new tuples
         const oldTuple = this.tupleQR.get(oldPosition);
         if (!oldTuple) {
             this.logger.warn(`No tuple found at old position ${oldPosition} for player ${playerID}`, context);
-            return;
+            return false;
         }
-        const entityAttached = oldTuple.decouple();
+        const entityAttached = oldTuple.entityGraphics;
         if (!entityAttached) {
             this.logger.warn(`No entity found attached to tuple at old position ${oldPosition} for player ${playerID}`, context);
-            return;
+            return false;
         }
         const existingTuple = this.tupleQR.get(newPosition)
         if (!existingTuple) {
             this.logger.warn(`No tuple found at new position ${newPosition} for player ${playerID}`, context);
-            return;
+            return false;
         }
 
         // coupling with what was decoupled in the old position
-        existingTuple.couple(entityAttached)
+        existingTuple.couple(oldTuple.decouple()!)
         this.playerIdToPosition.set(playerID, newPosition);
+        // this.
 
         this.logger.info(`Updated player ${playerID} position from ${oldPosition} to ${newPosition}`, context);
+        return true;
     }
 
     public associateEntityWithPlayer(entityGraphics: EntityGraphics, playerID: PlayerID): void {

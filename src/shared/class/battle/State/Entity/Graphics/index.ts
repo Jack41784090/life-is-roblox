@@ -70,12 +70,11 @@ export default class EntityGraphics {
         const adjustedTargetPosition = new Vector3(targetPosition.X, modelPrimaryPart.Position.Y, targetPosition.Z);
         this.logger.info(`${this.name}: Moving to position`, adjustedTargetPosition);
 
+
         // Calculate the displacement vector
         const displacement = adjustedTargetPosition.sub(modelPrimaryPart.Position);
 
         // Check if already at target position (or very close)
-        this.logger.debug(`${this.name}: Displacement vector`, displacement);
-        this.logger.debug(`${this.name}: Displacement magnitude`, displacement.Magnitude);
         if (displacement.Magnitude < 0.1) {
             this.logger.info(`${this.name}: Already at target position, skipping movement`);
             return;
