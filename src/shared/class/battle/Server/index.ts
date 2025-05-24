@@ -1,6 +1,6 @@
 import { RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction, NeoClashResult, ResolveAttacksAction } from "shared/class/battle/types";
+import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, MoveAction, ResolveAttacksAction, StrikeSequence } from "shared/class/battle/types";
 import { IDGenerator } from "shared/class/IDGenerator";
 import { MOVEMENT_COST } from "shared/const";
 import { extractMapValues, get2DManhattanDistance } from "shared/utils";
@@ -109,7 +109,7 @@ export default class BattleServer {
     //#region Server-Side Loop
     //#region Validations
     private givenTokens: string[] = [];
-    private validedClashes: Map<string, NeoClashResult[]> = new Map();
+    private validedClashes: Map<string, StrikeSequence[]> = new Map();
 
     private validateBaseActionInfo({ declaredAccess, client, winningClient }: ActionValidator): boolean {
         const { token, action, allowed } = declaredAccess;

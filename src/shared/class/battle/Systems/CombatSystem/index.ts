@@ -1,7 +1,7 @@
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { PassiveEffectType } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
-import { AttackAction, NeoClashResult, PlayerID } from "shared/class/battle/types";
+import { AttackAction, NeoClashResult, PlayerID, StrikeSequence } from "shared/class/battle/types";
 import { uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import State from "../../State";
@@ -65,7 +65,7 @@ export default class CombatSystem {
 
     // ## 
 
-    public resolveAttack(action: AttackAction): NeoClashResult[] {
+    public resolveAttack(action: AttackAction): StrikeSequence[] {
         const attacker = this.gameState.getEntity(action.by);
         const target = action.against !== undefined ? this.gameState.getEntity(action.against) : undefined;
         if (!attacker || !target) {
@@ -76,32 +76,36 @@ export default class CombatSystem {
         const abilityDices = action.ability.dices.map(d => d);
 
         let dice = abilityDices.pop();
-        const globalResult: NeoClashResult[] = [];
+        const globalResult: StrikeSequence[] = [];
 
         while (dice) {
-            const result: NeoClashResult[] = this.resolveStrikeSequence([dice], attacker, target);
-            result.forEach(r => globalResult.push(r));
+            const result: StrikeSequence = this.resolveStrikeSequence([dice], attacker, target);
+            globalResult.push(result);
             dice = abilityDices.pop();
         }
 
         return globalResult;
     }
 
-    public applyAttack(clashes: NeoClashResult[], attacker: Entity, target: Entity) {
-        for (const clash of clashes) {
-            if (clash.result.fate === "Hit") {
-                // Calculate base damage from weapon and ability
-                const baseDamage = 5; // Placeholder - replace with actual damage calculation
+    public applyAttack(clashes: StrikeSequence[], attacker: Entity, target: Entity) {
+        for (const sequence of clashes) {
+            for (const clash of sequence) {
+                if (clash.result.fate === "Hit") {
+                    // Calculate base damage from weapon and ability
+                    const baseDamage = 5; // Placeholder - replace with actual damage calculation
 
-                // Apply fighting style modifiers
-                const finalDamage = this.calculateModifiedDamage(baseDamage, attacker, target);
+                    // Apply fighting style modifiers
+                    const finalDamage = this.calculateModifiedDamage(baseDamage, attacker, target);
 
-                target.damage(finalDamage);
+                    target.damage(finalDamage);
 
-                // Add damage info to the clash result
-                clash.result.damage = finalDamage;
+                    // Add damage info to the clash result
+                    clash.result.damage = finalDamage;
+                }
             }
         }
+        // this.tireAttacker(attacker, clashes[0]);
+        // this.tireDefender(target, clash.weapon);
     }
 
     private performRoll(
@@ -157,8 +161,8 @@ export default class CombatSystem {
         return undefined; // No dice left or no successful roll
     }
 
-    private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): NeoClashResult[] {
-        const rollHistory: NeoClashResult[] = [];
+    private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): StrikeSequence {
+        const rollHistory: StrikeSequence = [];
         const availableDice = [...initialAbilityDices];
 
         // Perform DV check first

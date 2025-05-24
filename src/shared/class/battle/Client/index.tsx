@@ -2,7 +2,7 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, NeoClashResult, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, StrikeSequence, TILE_SIZE } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
 import { promiseWrapper } from "shared/utils";
@@ -293,7 +293,7 @@ export default class BattleClient {
     //#endregion
 
     //#region Animations
-    private handleAttackAnimation(attackerId: number, targetId: number, clashes: NeoClashResult[]) {
+    private handleAttackAnimation(attackerId: number, targetId: number, clashes: StrikeSequence[]) {
         const attacker = this.graphics.getEntityGraphic(attackerId);
         const target = this.graphics.getEntityGraphic(targetId);
         if (!attacker || !target) {
@@ -554,6 +554,13 @@ export default class BattleClient {
     //#region Combat
 
     private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
+        if (this.gui.getMode() !== 'withSensitiveCells') {
+            this.logger.warn("Clicked on entity, but mode is not 'withSensitiveCells'");
+            return;
+        }
+
+        this.gui.setMode('onlyReadinessBar');
+
         this.logger.debug("Clicked on entity", clickedOn);
         const cre = this.state.getCurrentActor();
         if (!cre.armed) {
@@ -639,6 +646,4 @@ export default class BattleClient {
         }
     }
     //#endregion
-
-
 }

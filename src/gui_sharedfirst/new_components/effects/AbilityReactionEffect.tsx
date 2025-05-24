@@ -1,5 +1,4 @@
 import React, { useBinding } from "@rbxts/react";
-import { TWEEN_TIME } from "shared/const";
 
 interface AbilityReactionEffectProps {
     position: UDim2;
@@ -7,6 +6,8 @@ interface AbilityReactionEffectProps {
     abilityName: string;
     onComplete?: () => void;
 }
+
+const TWEEN_TIME = 1.5; // Duration of the animation in seconds
 
 export default function AbilityReactionEffect({ position, color, abilityName, onComplete }: AbilityReactionEffectProps) {
     const [transparency, setTransparency] = useBinding(0);
@@ -51,7 +52,7 @@ export default function AbilityReactionEffect({ position, color, abilityName, on
         <frame
             Position={position}
             AnchorPoint={new Vector2(0.5, 0.5)}
-            Size={scale.map(s => new UDim2(0, 160 * s, 0, 50 * s))}
+            Size={scale.map(s => new UDim2(0, 50 * s, 0, 50 * s))}
             BackgroundColor3={new Color3(0.1, 0.1, 0.1)}
             BackgroundTransparency={transparency.map(t => math.min(t + 0.2, 1))}
             Rotation={rotation}
@@ -67,8 +68,8 @@ export default function AbilityReactionEffect({ position, color, abilityName, on
                 Size={new UDim2(1, 0, 1, 0)}
                 BackgroundTransparency={1}
                 TextTransparency={transparency}
-                Text={`REACTION: ${abilityName}`}
-                TextColor3={color}
+                Text={`${abilityName}`}
+                TextColor3={new Color3(1 - color.R, 1 - color.G, 1 - color.B)}
                 Font={Enum.Font.GothamBold}
                 TextSize={scale.map(s => 16 * s)}
                 TextScaled={false}

@@ -135,18 +135,18 @@ import { saveCharacterStats } from "shared/utils";
 
 saveCharacterStats({
     id: "entity_adalbrecht",
-    str: 10, // Strength
-    dex: 10, // Dexterity
-    acr: 10, // Acrobatics
-    spd: 10, // Speed
-    siz: 10, // Size
-    int: 10, // Intelligence
-    spr: 10, // Spirituality
-    fai: 10, // Faith
-    cha: 10, // Charisma
-    beu: 10, // Beauty
-    wil: 10, // Willpower
-    end: 10  // Endurance
+    str: 2, // Strength
+    dex: 2, // Dexterity
+    acr: 2, // Acrobatics
+    spd: 2, // Speed
+    siz: 2, // Size
+    int: 2, // Intelligence
+    spr: 2, // Spirituality
+    fai: 2, // Faith
+    cha: 2, // Charisma
+    beu: 2, // Beauty
+    wil: 2, // Willpower
+    end: 2  // Endurance
 }, true);
 
 Players.PlayerAdded.Connect(p => {

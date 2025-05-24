@@ -120,7 +120,7 @@ export const attackActionRefVerification = t.interface({
     ability: activeAbilityStateType, // Added ability
 });
 
-export const clashesVerification = t.array(neoClashResultType);
+export const clashesVerification = t.array(t.array(neoClashResultType));
 
 export const entityMovedEventDataVerification = t.interface({
     entityId: t.number,

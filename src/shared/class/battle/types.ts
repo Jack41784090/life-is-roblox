@@ -64,7 +64,7 @@ export enum ActionType {
     Attack = 'attack',
 }
 export interface ResolveAttacksAction extends BattleAction {
-    results: NeoClashResult[],
+    results: StrikeSequence[],
 }
 export interface AttackAction extends BattleAction {
     ability: ActiveAbilityState,
@@ -101,6 +101,8 @@ export interface NeoClashResult {
     result: NeoClashResultRoll,
     clashKills: boolean,
 }
+
+export type StrikeSequence = Array<NeoClashResult>
 
 export type PlayerID = number
 

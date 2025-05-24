@@ -3,7 +3,7 @@ import { promiseWrapper } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import EntityGraphics from "../../State/Entity/Graphics";
 import { AnimationType } from "../../State/Entity/Graphics/AnimationHandler";
-import { EntityStatus, NeoClashResult } from "../../types";
+import { EntityStatus, NeoClashResult, StrikeSequence } from "../../types";
 import CombatEffectsService from "../Effects/CombatEffectsServices";
 import BattleAnimation from "./BattleAnimation";
 import { iBattleAnimation } from "./type";
@@ -62,33 +62,104 @@ export default class BattleAnimationManager {
         })
     }
 
-    public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: NeoClashResult[]): Promise<void> {
+    public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
         this.logger.debug("Animating clashes", clashes, "BattleClient");
         for (const clash of clashes) {
-            const [promise, resolver] = promiseWrapper(this.OneClash(attacker, target, clash, clash.clashKills));
+            const [promise, resolver] = promiseWrapper(this.OneSequence(attacker, target, clash));
             this.queueAnimation({
                 promise,
                 promise_resolve: resolver,
                 timeout: 5,
             });
-            await this.waitForAllAnimationsToEnd();
+            await promise;
         }
     }
 
-    private async OneClash(attacker: EntityGraphics, target: EntityGraphics, clash: NeoClashResult, clashKills = false): Promise<void> {
+    // for (const clash of strikeSequence) {
+    //     const [promise, resolver] = promiseWrapper(this.OneClash(attacker, target, clash, sequenceHits));
+    //     this.queueAnimation({
+    //         promise,
+    //         promise_resolve: resolver,
+    //         timeout: 5,
+    //     });
+    //     await promise;
+    // }
+
+    private async animateRolls(attacker: EntityGraphics, target: EntityGraphics, clash: NeoClashResult): Promise<void> {
+        const { roll, against, toSurmount, bonus, fate } = clash.result;
+
+        const combatEffects = CombatEffectsService.getInstance();
+
+        const attackerHead = attacker.model.FindFirstChild("Head");
+        const attackerHeadPos =
+            attackerHead && attackerHead.IsA("BasePart") ? attackerHead.Position :
+                attacker.model.PrimaryPart ? attacker.model.PrimaryPart.Position : undefined;
+
+        const targetHead = target.model.FindFirstChild("Head");
+        const targetHeadPos =
+            targetHead && targetHead.IsA("BasePart") ? targetHead.Position :
+                target.model.PrimaryPart ? target.model.PrimaryPart.Position : undefined;
+
+        // Show rolls
+        if (attackerHeadPos) {
+            const screenPos = this.worldToScreenPosition(attackerHeadPos);
+
+            // Show attack roll
+            combatEffects.showAbilityReaction(
+                new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                new Color3(1, 0.2, 0),
+                `🤺${roll + bonus}`
+            );
+        }
+
+        // Damage texts
+        if (targetHeadPos) {
+            const screenPos = this.worldToScreenPosition(targetHeadPos);
+
+            // Show defence
+            combatEffects.showAbilityReaction(
+                new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                new Color3(0, 0.2, 1),
+                `${against === 'DV' ? '🏃‍♂️' : '🛡️'} ${toSurmount}`
+            );
+
+            // Show impact effect
+            const impactSize = clash.result.fate === "CRIT" ? 50 : 30;
+            combatEffects.showHitImpact(screenPos, new Color3(1, 0, 0), impactSize);
+
+            // Show damage indicator if the attack hit
+            if (clash.result.damage && clash.result.fate !== "Miss" && clash.result.fate !== "Cling") {
+                const damage = clash.result.damage;
+
+                // Show critical hit effect if applicable
+                if (clash.result.fate === "CRIT") {
+                    combatEffects.showAbilityReaction(
+                        new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
+                        new Color3(1, 0.8, 0),
+                        "CRITICAL!"
+                    );
+                }
+
+                task.delay(.5, () => {
+                    combatEffects.showDamage(screenPos, damage);
+                })
+            } else {
+                combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), clash.result.fate);
+            }
+        }
+    }
+
+    private async OneSequence(attacker: EntityGraphics, target: EntityGraphics, strikeSequence: StrikeSequence): Promise<unknown> {
+        const clashKills = false; // TODO
+
         if (!attacker || !target) {
             this.logger.warn(`[playAttackAnimation] ${!attacker ? "Attacker" : ""} ${!target ? "Target" : ""} not found`);
             return;
         }
         const targetAnimationHandler = target.animationHandler;
+
+        // 1. Target will face the attacker and play the defend animation while the attacker plays the attack animation.
         await target.faceEntity(attacker);
-        const attackAnimation = attacker.playAnimation(
-            AnimationType.Attack,
-            {
-                animation: 'swing',
-                priority: Enum.AnimationPriority.Action4,
-                loop: false,
-            });
         const defendIdleAnimation = target.playAnimation(
             AnimationType.Defend,
             {
@@ -97,57 +168,73 @@ export default class BattleAnimationManager {
                 loop: false,
             });
 
-        if (!attackAnimation) {
-            this.logger.warn("[playAttackAnimation] Attacker animation track not found.");
-            // return;
-        }
+        // 2. First phase: the attacks that miss-- play the attack animation quickly as the defender dodges.
+        let clash: NeoClashResult | undefined = strikeSequence.shift();
+        while (clash && clash.result.fate === "Miss") {
+            const attackAnimation = attacker.playAnimation(
+                AnimationType.Attack,
+                {
+                    animation: 'swing',
+                    priority: Enum.AnimationPriority.Action4,
+                    loop: false,
+                });
 
-        try {
-            // 1. Wait for the attack animation to reach the "Hit" marker.
-            if (attackAnimation) await this.waitForAnimationMarker(attackAnimation, "Hit");            // 2. Show combat effects for the attack outcome
-            const combatEffects = CombatEffectsService.getInstance();
-            const targetHead = target.model.FindFirstChild("Head");
-            const targetHeadPos =
-                targetHead && targetHead.IsA("BasePart") ? targetHead.Position :
-                    target.model.PrimaryPart ? target.model.PrimaryPart.Position : undefined;
-
-
-
-            if (targetHeadPos) {
-                const screenPos = this.worldToScreenPosition(targetHeadPos);
-
-
-                // Show impact effect
-                const impactSize = clash.result.fate === "CRIT" ? 50 : 30;
-                combatEffects.showHitImpact(screenPos, new Color3(1, 0, 0), impactSize);
-
-                // Show damage indicator if the attack hit
-                if (clash.result.damage && clash.result.fate !== "Miss" && clash.result.fate !== "Cling") {
-                    const damage = clash.result.damage;
-
-                    // Show critical hit effect if applicable
-                    if (clash.result.fate === "CRIT") {
-                        combatEffects.showAbilityReaction(
-                            new UDim2(screenPos.X.Scale, screenPos.X.Offset, screenPos.Y.Scale, screenPos.Y.Offset - 30),
-                            new Color3(1, 0.8, 0),
-                            "CRITICAL!"
-                        );
-                    }
-
-                    task.delay(.5, () => {
-                        combatEffects.showDamage(screenPos, damage);
-                    })
-                } else {
-                    // Show miss text
-                    combatEffects.showAbilityReaction(screenPos, new Color3(0.7, 0.7, 0.7), clash.result.fate);
-                }
+            if (!attackAnimation) {
+                this.logger.warn("[playAttackAnimation] Attacker animation track not found.");
+                break;
             }
 
+            attackAnimation.AdjustSpeed(2);
+            this.waitForAnimationMarker(attackAnimation, "Hit").then(() => {
+                this.animateRolls(attacker, target, clash!);
+                target.playAnimation(
+                    AnimationType.Defend,
+                    {
+                        animation: "dodge",
+                        priority: Enum.AnimationPriority.Action3,
+                        loop: false,
+                    })
+            })
+            clash = strikeSequence.shift();
+            wait(0.25);
+        }
+
+        // 2.5 Inform the players attacks that didn't miss
+        while (clash && clash.result.against === 'DV' && clash.result.fate !== "Miss") {
+            this.animateRolls(attacker, target, clash);
+            clash = strikeSequence.shift();
+        }
+
+        // 3. Second phase: the attacks that hit-- once the attacker hits the target,
+        // the target will focus on defending himself 
+        while (clash && clash.result.fate !== "Miss") {
+            const attackAnimation = attacker.playAnimation(
+                AnimationType.Attack,
+                {
+                    animation: 'swing',
+                    priority: Enum.AnimationPriority.Action4,
+                    loop: false,
+                });
+
+            if (!attackAnimation) {
+                this.logger.warn("[playAttackAnimation] Attacker animation track not found.");
+                break;
+            }
+
+            await this.waitForAnimationMarker(attackAnimation, "Hit");
+            attackAnimation?.AdjustSpeed(0);
+            defendIdleAnimation?.AdjustSpeed(0);
+
+            this.animateRolls(attacker, target, clash);
+
             // 3. Play the appropriate animation based on the outcome of the attack.
-            targetAnimationHandler.killAnimation(AnimationType.Idle);
-            targetAnimationHandler.killAnimation(AnimationType.Defend);
+            wait(0.25);
+            defendIdleAnimation?.AdjustSpeed(1);
+            attackAnimation?.AdjustSpeed(1);
 
             if (clashKills) {
+                targetAnimationHandler.killAnimation(AnimationType.Idle);
+                targetAnimationHandler.killAnimation(AnimationType.Defend);
                 const deathPoseIdleAnimation = target.playAnimation(
                     AnimationType.Idle,
                     {
@@ -169,7 +256,7 @@ export default class BattleAnimationManager {
                 const gotHitAnimation = target.playAnimation(
                     AnimationType.Hit,
                     {
-                        animation: "defend-hit",
+                        animation: 'defend-hit',
                         priority: Enum.AnimationPriority.Action3,
                         loop: false,
                     });
@@ -195,9 +282,6 @@ export default class BattleAnimationManager {
                 return this.waitForAnimationEnd(transitionTrack);
             }
         }
-        catch (error) {
-            this.logger.error(`[playAttackAnimation] Error during attack animation: ${error}`);
-        }
 
         attacker.playAudio(EntityStatus.Idle);
     }
@@ -210,27 +294,27 @@ export default class BattleAnimationManager {
         return new UDim2(0, screenPos.X, 0, screenPos.Y);
     }
 
-    private async waitForAnimationMarker(track: AnimationTrack, markerName: string): Promise<void> {
+    private async waitForAnimationMarker(track: AnimationTrack, markerName: string): Promise<string> {
         return new Promise((resolve, reject) => {
             const connection = track.GetMarkerReachedSignal(markerName).Once(() => {
-                resolve();
+                resolve("Animation marker reached: " + markerName);
             });
 
             wait(5);
             if (connection.Connected) {
                 connection.Disconnect();
-                reject();
+                reject("Wait for animation marker timed out");
             }
         });
     }
 
-    private async waitForAnimationEnd(track?: AnimationTrack): Promise<void> {
+    private async waitForAnimationEnd(track?: AnimationTrack): Promise<string> {
         this.logger.debug("TRACK", track?.Name, "Waiting end", track);
-        if (!track) return;
+        if (!track) return Promise.resolve("No track to wait for");
         return new Promise((resolve) => {
             track.Ended.Once(() => {
                 this.logger.debug("TRACK", track?.Name, "Animation ended", track);
-                resolve();
+                resolve("Animation ended: " + track?.Name);
             });
         });
     }

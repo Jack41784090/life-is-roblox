@@ -8,10 +8,10 @@ type ServerRequestRemoteKey = keyof typeof serverRequestRemote;
 type ClientRemotesKey = keyof typeof clientRemotes;
 // type RemoteParam<K extends ServerRequestRemoteKey> =
 //     K extends 'act' ? Parameters<typeof serverRequestRemote['act']['request']>[0] : undefined;
-type RemoteParam<K extends ServerRequestRemoteKey> =
-    Parameters<typeof serverRequestRemote[K]['request']>
-type RemoteNoParam<K extends ServerRequestRemoteKey> =
-    Parameters<typeof serverRequestRemote[K]['request']>[0] extends undefined ? [] : Parameters<typeof serverRequestRemote[K]['request']>;
+// type RemoteParam<K extends ServerRequestRemoteKey> =
+//     Parameters<typeof serverRequestRemote[K]['request']>
+// type RemoteNoParam<K extends ServerRequestRemoteKey> =
+//     Parameters<typeof serverRequestRemote[K]['request']>[0] extends undefined ? [] : Parameters<typeof serverRequestRemote[K]['request']>;
 
 export class NetworkService {
     private logger = Logger.createContextLogger("NetworkService");

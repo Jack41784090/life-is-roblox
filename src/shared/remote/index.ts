@@ -2,7 +2,7 @@ import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
 import { EntityState } from "shared/class/battle/State/Entity/types";
-import { AccessToken, ActionType, AttackAction, BattleConfig, HexGridState, NeoClashResult, StateState, TeamState } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, BattleConfig, HexGridState, StateState, StrikeSequence, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
 import Logger from "shared/utils/Logger";
@@ -25,7 +25,7 @@ export const serverRemotes = createRemotes({
 });
 
 export const serverRequestRemote = createRemotes({
-    clashes: remote<Server, [attackAction: AccessToken]>().returns<NeoClashResult[]>(),
+    clashes: remote<Server, [attackAction: AccessToken]>().returns<StrikeSequence[]>(),
     map: remote<Server>().returns<HexGridState>(),
     team: remote<Server>().returns<TeamState[]>(),
     state: remote<Server>().returns<StateState>(),
@@ -54,7 +54,7 @@ export const clientRemotes = createRemotes({        //#region Server => Client
     // camera: namespace({
     //     hoi4: remote<Client>(),
     // }),
-    animateClashes: remote<Client, [clashes: NeoClashResult[], attackActionRef: AttackAction]>(),
+    animateClashes: remote<Client, [clashes: StrikeSequence, attackActionRef: AttackAction]>(),
     ui: namespace({
         unmount: remote<Client, [tag: GuiTag]>(),
         startRoom: remote<Client, [arg: Player[]]>(),

@@ -50,6 +50,7 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
     };
 
     const removeEffect = (id: string) => {
+        wait(0.5);
         setEffects(prevEffects => prevEffects.filter(e => e.id !== id));
     };
 
