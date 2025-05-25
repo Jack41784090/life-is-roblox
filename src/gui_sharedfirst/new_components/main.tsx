@@ -32,6 +32,7 @@ class GuiMothership {
             GuiMothership.instance = new GuiMothership();
         }
         const instance = GuiMothership.instance;
+        instance.children.delete(key);
         instance.children.set(key, element);
         instance.root.render(instance.element());
         // print("Mounting", key, instance.children);

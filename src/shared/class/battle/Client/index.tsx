@@ -316,6 +316,7 @@ export default class BattleClient {
         // this.animations.handleMoveAnimation(mover, fromWorldLocation, toWorldLocation);
         const [promise, resolver] = promiseWrapper(this.graphics.moveEntity(from, to));
         this.animations.queueAnimation({
+            name: `handleMoveAnimation of ${entityId} from ${from} to ${to}`,
             promise,
             promise_resolve: resolver,
             timeout: 5,
@@ -540,7 +541,7 @@ export default class BattleClient {
             const localE = await this.localEntity();
             if (localE.get('pos') >= 75) {
                 this.logger.debug("Local entity is still ready");
-                this.gui.setMode('withSensitiveCells');
+                this.gui.forceUpdateMainFrame('withSensitiveCells',)
             }
         }
         else {
@@ -604,11 +605,13 @@ export default class BattleClient {
         this.state.commit(resolveAction);
 
         const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
+        this.logger.debug("Animations ended", waitForMoveAnimation!);
 
         const localE = await this.localEntity();
+        this.logger.debug("Local entity pos", localE.get('pos'))
         if (localE.get('pos') >= 75) {
             this.logger.debug("Local entity is still ready");
-            this.gui.setMode('withSensitiveCells');
+            this.gui.forceUpdateMainFrame('withSensitiveCells',)
         }
     }
 

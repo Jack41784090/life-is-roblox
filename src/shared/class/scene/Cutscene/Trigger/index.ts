@@ -78,7 +78,8 @@ export class LookAtTrigger extends Trigger {
     constructor(config: LookAtTriggerConfig) {
         super(config);
         this.lookAtActor = config.lookAtActor;
-    } public async run(cutscene: Cutscene) {
+    }
+    public async run(cutscene: Cutscene) {
         const actor = await super.run(cutscene);
         if (!actor) return;
 
@@ -108,7 +109,8 @@ export class SpeakTrigger extends Trigger {
     constructor(config: SpeakConfig) {
         super(config);
         this.text = config.text;
-    } public async run(cutscene: Cutscene) {
+    }
+    public async run(cutscene: Cutscene) {
         const actor = await super.run(cutscene);
         if (!actor) return;
 

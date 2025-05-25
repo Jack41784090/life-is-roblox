@@ -51,11 +51,13 @@ export class CameraManager {
                 this.rotateCamera(-percentage * 60 * deltaTime, camera);
             }
         });
-    } private rotateCamera(angleChange: number, camera: Camera): void {
+    }
+    private rotateCamera(angleChange: number, camera: Camera): void {
         const currentCFrame = camera.CFrame;
         const rotation = CFrame.Angles(0, math.rad(angleChange), 0);
         camera.CFrame = currentCFrame.mul(rotation);
-    } public handleLookAt(lookAtTrigger: LookAtTrigger): Promise<void> {
+    }
+    public handleLookAt(lookAtTrigger: LookAtTrigger): Promise<void> {
         this.cameraEnabled = false;
         this.cameraMode = "LOCKED";
 

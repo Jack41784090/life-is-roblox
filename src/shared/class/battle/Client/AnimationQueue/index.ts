@@ -1,4 +1,3 @@
-import { RunService } from "@rbxts/services";
 import { promiseWrapper } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import EntityGraphics from "../../State/Entity/Graphics";
@@ -10,45 +9,104 @@ import { iBattleAnimation } from "./type";
 
 export default class BattleAnimationManager {
     private logger = Logger.createContextLogger("AnimationQueue");
-    private animating?: Promise<unknown> = Promise.resolve();
     private queue: BattleAnimation[] = [];
+    private isProcessing = false;
+    private currentAnimation?: BattleAnimation;
 
     constructor() {
-        RunService.RenderStepped.Connect(async () => {
-            if (this.animating) {
-                return;
+
+    }
+
+    private async processQueue(): Promise<void> {
+        if (this.isProcessing || this.queue.size() === 0) {
+            return;
+        }
+
+        this.isProcessing = true;
+
+        try {
+            while (this.queue.size() > 0) {
+                const nextAnimation = this.queue.shift();
+                if (!nextAnimation) break;
+
+                this.currentAnimation = nextAnimation;
+                this.logger.debug(`Starting animation: ${nextAnimation.name}`); try {
+                    await nextAnimation.awaitingPromise();
+                    this.logger.debug(`Animation ${nextAnimation.name} completed successfully`);
+                } catch (error) {
+                    this.logger.warn(`Animation ${nextAnimation.name} failed:`, tostring(error));
+
+                    // Report detailed error information to help with debugging
+                    this.reportError(nextAnimation, error as defined);
+                }
+
+                this.currentAnimation = undefined;
             }
-            this.animating = this.queue.shift()?.awaitingPromise().then(() => {
-                this.animating = undefined;
-                this.logger.debug("Animation ended");
-            })
-        })
+        } finally {
+            this.isProcessing = false;
+            this.currentAnimation = undefined;
+        }
     }
 
     public queueAnimation(animation: iBattleAnimation) {
-        this.queue.push(new BattleAnimation(animation))
+        this.queue.push(new BattleAnimation(animation));
+        this.processQueue();
+    }
+    public async waitForAllAnimationsToEnd(): Promise<void> {
+        if (this.queue.size() === 0 && !this.isProcessing) {
+            this.logger.debug("No animations to wait for");
+            return;
+        }
+
+        this.logger.debug("Waiting for all animations to end");
+
+        return new Promise<void>((resolve) => {
+            // Create a local function that checks if animations are complete
+            const checkComplete = () => {
+                if (this.queue.size() === 0 && !this.isProcessing) {
+                    this.logger.debug("All animations ended");
+                    resolve();
+                    return;
+                }
+
+                // Use task.delay instead of recursive calls to prevent stack overflow
+                task.delay(0.1, checkComplete);
+            };
+
+            // Start checking
+            checkComplete();
+        });
     }
 
-    public async waitForAllAnimationsToEnd() {
-        this.logger.debug("Waiting for all animations to end");
-        return new Promise(resolve => {
-            const cu = RunService.RenderStepped.Connect(() => {
-                if (this.queue.size() === 0) {
-                    this.logger.debug("All animations ended");
-                    cu.Disconnect();
-                    resolve(void 0);
-                }
-                else {
-                    // this.logger.debug(this.queue);
-                }
-            })
-        })
+    public getCurrentAnimation(): string | undefined {
+        return this.currentAnimation?.name;
+    }
+
+    public getQueueSize(): number {
+        return this.queue.size();
+    }
+    public isCurrentlyProcessing(): boolean {
+        return this.isProcessing;
+    }
+
+    public clearQueue(): void {
+        this.logger.debug(`Clearing queue with ${this.queue.size()} animations`);
+        this.queue.clear();
+    }
+
+    public getQueueInfo(): { currentAnimation?: string; queueSize: number; isProcessing: boolean } {
+        return {
+            currentAnimation: this.currentAnimation?.name,
+            queueSize: this.queue.size(),
+            isProcessing: this.isProcessing
+        };
     }
 
     public async handleMoveAnimation(mover: EntityGraphics, fromWorldLocation: Vector3, toWorldLocation: Vector3) {
         this.logger.debug("Animating movement from ", fromWorldLocation, " to ", toWorldLocation);
         const [promise, resolver] = promiseWrapper(mover.moveToPosition(fromWorldLocation));
         this.queueAnimation({
+            name: `handleMoveAnimation of ${mover.name} to ${fromWorldLocation}`,
             promise,
             promise_resolve: resolver,
             timeout: 5,
@@ -56,6 +114,7 @@ export default class BattleAnimationManager {
 
         const [promise_2, resolver_2] = promiseWrapper(mover.moveToPosition(toWorldLocation));
         this.queueAnimation({
+            name: `handleMoveAnimation of ${mover.name} to ${toWorldLocation}`,
             promise: promise_2,
             promise_resolve: resolver_2,
             timeout: 5,
@@ -67,6 +126,7 @@ export default class BattleAnimationManager {
         for (const clash of clashes) {
             const [promise, resolver] = promiseWrapper(this.OneSequence(attacker, target, clash));
             this.queueAnimation({
+                name: `handleClash of ${attacker.name} vs ${target.name}`,
                 promise,
                 promise_resolve: resolver,
                 timeout: 5,
@@ -284,6 +344,18 @@ export default class BattleAnimationManager {
         }
 
         attacker.playAudio(EntityStatus.Idle);
+    }
+    private reportError(animation: BattleAnimation, err: defined): void {
+        this.logger.warn({
+            animation: animation.name,
+            duration: animation.getDuration(),
+            error: tostring(err),
+            queueState: {
+                size: this.queue.size(),
+                processing: this.isProcessing,
+                currentAnimation: this.currentAnimation?.name
+            }
+        });
     }
 
     private worldToScreenPosition(worldPos: Vector3): UDim2 {

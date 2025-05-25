@@ -685,6 +685,7 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 //===========================================================================
 
 import { SyncPayload } from "@rbxts/charm-sync";
+import { setTimeout } from "@rbxts/set-timeout";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { ClashResult, Reality } from "shared/class/battle/types";
@@ -723,4 +724,16 @@ export function promiseWrapper(anyPromise: Promise<unknown>) {
         })
     })
     return [promise, resolver] as const;
+}
+
+export async function getPromiseStatus<T>(promise: Promise<T>): Promise<'pending' | 'fulfilled' | 'rejected'> {
+    try {
+        await Promise.race([promise, new Promise((_, reject) => setTimeout(reject, 0))]);
+        return 'pending';
+    } catch (error) {
+        if (error === undefined) {
+            return 'fulfilled';
+        }
+        return 'rejected';
+    }
 }

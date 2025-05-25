@@ -73,7 +73,8 @@ export class TeamManager {
         const team = new Team(name, []);
         this.teams.push(team);
         return team;
-    } public getTeam(name: string): Team | undefined {
+    }
+    public getTeam(name: string): Team | undefined {
         return this.teams.find(team => team.name === name);
     }
 
@@ -108,7 +109,8 @@ export class TeamManager {
             name: team.name,
             members: team.members.map(entity => entity.state()),
         }));
-    } private updateExistingTeam(existingTeam: Team, teamState: TeamState, entityManager: EntityManager): void {
+    }
+    private updateExistingTeam(existingTeam: Team, teamState: TeamState, entityManager: EntityManager): void {
         // Update existing team members
         // Implementation depends on how you want to handle updates
         for (const memberState of teamState.members) {
@@ -122,7 +124,8 @@ export class TeamManager {
                 newMember.team = existingTeam.name;
             }
         }
-    } private updateNewTeam(teamState: TeamState, entityManager: EntityManager): void {
+    }
+    private updateNewTeam(teamState: TeamState, entityManager: EntityManager): void {
         const newTeam = this.createTeam(teamState.name);
         for (const memberState of teamState.members) {
             const entityConfig = this.convertStateToConfig(memberState);
