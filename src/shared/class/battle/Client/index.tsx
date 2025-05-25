@@ -403,6 +403,7 @@ export default class BattleClient {
             } as StyleSwitchAction
             this.validateAndCommit(withToken.action)
             this.submitAction(withToken.action);
+            this.gui.mountAbilitySlots(localE);
         });
         this.gui.forceUpdateMainFrame('withSensitiveCells',
             this.state.getEntity(Players.LocalPlayer.UserId)!,
@@ -525,7 +526,9 @@ export default class BattleClient {
                 entityId: accessToken.userId,
                 from: start,
                 to: dest,
-            })            // commit action to local state
+            })
+
+            // commit action to local state
             this.validateAndCommit(accessToken.action);
 
             const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
