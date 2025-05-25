@@ -33,7 +33,9 @@ export default class BattleGui {
         this.mode = atom<GuiModes>('onlyReadinessBar');
         this.readinessFragments = config.readinessFragments;
         this.forceUpdateMainFrame('onlyReadinessBar');
-    } public setMode(mode: GuiModes) {
+    }
+
+    public setMode(mode: GuiModes) {
         // this.logger.debug(`Setting mode to ${mode}`);
         this.mode(mode);
         this.updateUI();

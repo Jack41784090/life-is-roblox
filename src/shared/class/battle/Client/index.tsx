@@ -39,6 +39,7 @@ export default class BattleClient {
     private controlLocks: ControlLocks = new Map();
 
     private constructor(config: ClientSideConfig) {
+        this.logger.debug("Creating BattleClient with config:", config);
         const { worldCenter, size, width, height, camera } = config;
         const halfWidth = (width * size) / 2;
         const halfHeight = (height * size) / 2;

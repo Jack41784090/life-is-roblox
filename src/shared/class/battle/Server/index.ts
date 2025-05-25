@@ -26,7 +26,9 @@ export default class BattleServer {
     private logger = Logger.createContextLogger("Battle");
     private state: State;
     private networkService: NetworkService;
-    private syncSystem: SyncSystem; private constructor(config: Partial<BattleConfig>) {
+    private syncSystem: SyncSystem;
+
+    private constructor(config: Partial<BattleConfig>) {
         this.logger.info(`Creation of Battle with config:`, config);
         assert(config.teamMap, "No team map provided");
         this.state = new State({

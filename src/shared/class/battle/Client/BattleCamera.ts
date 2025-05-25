@@ -21,7 +21,13 @@ export default class BattleCam {
 
     private camAnimFolder: Folder;
 
+    public destroy(): void {
+        this.disconnectPanService();
+    }
+
     constructor(camera: Camera, worldCenter: Vector3, gridMin: Vector2, gridMax: Vector2) {
+        this.logger.debug("BattleCam constructor");
+
         this.worldCenter = worldCenter;
         this.camera = camera;
         this.gridMin = gridMin;
@@ -35,17 +41,27 @@ export default class BattleCam {
     static readonly EDGE_BUFFER = 0.15;
 
     private setupRenderStepped() {
-        // Manage a single RenderStepped connection for all camera panning
+        this.logger.debug("Setting up RenderStepped");
+        this.disconnectPanService();
         this.panService = RunService.RenderStepped.Connect((deltaTime) => {
+            print("RenderStepped", deltaTime);
             if (this.panningEnabled) {
                 const gridDelta = this.detectEdgeMovement();
-                this.updateCameraPosition(gridDelta, deltaTime,);
+                this.updateCameraPosition(gridDelta, deltaTime);
             }
         });
     }
 
+    private disconnectPanService() {
+        if (this.panService) {
+            this.panService.Disconnect();
+            this.panService = undefined;
+        }
+    }
+
     //#region Camera Movement
     private updateCameraPosition(gridDelta: Vector2, deltaTime: number) {
+        print("Updating camera position", this.mode);
         // Determine which camera mode is active and update accordingly
         switch (this.mode) {
             case "HOI4":
@@ -176,10 +192,7 @@ export default class BattleCam {
         const zDiff = cZ - mZ;
         const initAngle = math.atan2(zDiff, xDiff);
         BattleCam.CHAR_ANGLE = initAngle;
-    }
-
-    async enterHOI4Mode(worldFocus?: Vector3) {
-        // print('Setting up HOI4 Camera Pan');
+    } async enterHOI4Mode(worldFocus?: Vector3) {
         this.panningEnabled = false;
         const center = worldFocus ?? this.worldCenter;
         const x1 = new Vector3(center.X, 25, center.Z);
@@ -187,12 +200,9 @@ export default class BattleCam {
         const lookAtCframe = new CFrame(x1, x2).ToWorldSpace(CFrame.Angles(math.rad(30), 0, 0));
         return this.setCameraCFrame(lookAtCframe).then(() => {
             this.mode = "HOI4";
-            this.panningEnabled = true
+            this.panningEnabled = true;
         });
-    }
-
-    async enterCharacterCenterMode(_eG?: EntityGraphics) {
-        print('Setting up Character Center Camera Pan');
+    } async enterCharacterCenterMode(_eG?: EntityGraphics) {
         this.panningEnabled = false;
         const eG = _eG ?? this.focusedChar;
         const model = eG?.model; this.focusedChar = eG;
@@ -209,9 +219,7 @@ export default class BattleCam {
                 this.panningEnabled = true;
             }) :
             Promise.resolve();
-    }
-
-    async playAnimation({ animation, center, }: { animation: string; center?: CFrame }) {
+    } async playAnimation({ animation, center, }: { animation: string; center?: CFrame }) {
         const a = this.camAnimFolder.FindFirstChild(animation) as Animation;
         const framesFolder = a?.FindFirstChild("Frames") as Folder;
         if (!a) {
@@ -227,6 +235,8 @@ export default class BattleCam {
         const oldCameraType = this.camera.CameraType;
         const oldCameraCFrame = this.camera.CFrame;
         let frameTime = 0;
+
+        this.panningEnabled = false;
         this.camera.CameraType = Enum.CameraType.Scriptable;
         this.mode = "ANIMATION";
 
@@ -262,11 +272,11 @@ export default class BattleCam {
 
 
         return {
-            playPromise,
-            doneCallback: () => {
+            playPromise, doneCallback: () => {
                 this.camera.CameraType = oldCameraType;
                 this.camera.CFrame = oldCameraCFrame;
                 this.mode = oldCameraMode;
+                this.panningEnabled = true;
             }
         };
     }
