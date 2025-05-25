@@ -1,4 +1,5 @@
 Avoid using comments;
+Assume the role of a tech lead and adhere to industry coding standards in AAA games, such as: 
 
 DRY (Don't Repeat Yourself): This principle emphasizes avoiding code duplication to reduce maintenance complexity and potential inconsistencies. Continuously review and refactor your code to identify and eliminate repetitions.
 

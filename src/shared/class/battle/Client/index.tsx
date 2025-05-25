@@ -541,13 +541,18 @@ export default class BattleClient {
             const localE = await this.localEntity();
             if (localE.get('pos') >= 75) {
                 this.logger.debug("Local entity is still ready");
-                this.gui.forceUpdateMainFrame('withSensitiveCells',)
+
+                // Request new access token for subsequent actions
+                const newAccessToken = await serverRequestRemote.toAct();
+                if (newAccessToken.allowed) {
+                    // Properly re-enable movement with the new token
+                    this.enterMovement(newAccessToken);
+                }
             }
         }
         else {
             this.logger.warn("Action not allowed", ac);
             this.gui.setMode('onlyReadinessBar');
-            // this.state.getEventBus().emit(GameEvent.ACTION_NOT_ALLOWED, accessToken.action);
         }
     }
     //#endregion
@@ -596,7 +601,7 @@ export default class BattleClient {
         accessToken.action = resolveAction;
 
         // commit action to server
-        this.commitToServer(accessToken)
+        this.commitToServer(accessToken);
 
         // emit event to this client
         this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);
@@ -608,10 +613,16 @@ export default class BattleClient {
         this.logger.debug("Animations ended", waitForMoveAnimation!);
 
         const localE = await this.localEntity();
-        this.logger.debug("Local entity pos", localE.get('pos'))
+        this.logger.debug("Local entity pos", localE.get('pos'));
         if (localE.get('pos') >= 75) {
             this.logger.debug("Local entity is still ready");
-            this.gui.forceUpdateMainFrame('withSensitiveCells',)
+
+            // Request new access token for subsequent actions
+            const newAccessToken = await serverRequestRemote.toAct();
+            if (newAccessToken.allowed) {
+                // Properly re-enable movement with the new token
+                this.enterMovement(newAccessToken);
+            }
         }
     }
 
