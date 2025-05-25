@@ -30,9 +30,10 @@ export default class BattleAnimationManager {
                 if (!nextAnimation) break;
 
                 this.currentAnimation = nextAnimation;
-                this.logger.debug(`Starting animation: ${nextAnimation.name}`); try {
+                // this.logger.debug(`Starting animation: ${nextAnimation.name}`);
+                try {
                     await nextAnimation.awaitingPromise();
-                    this.logger.debug(`Animation ${nextAnimation.name} completed successfully`);
+                    // this.logger.debug(`Animation ${nextAnimation.name} completed successfully`);
                 } catch (error) {
                     this.logger.warn(`Animation ${nextAnimation.name} failed:`, tostring(error));
 
@@ -54,17 +55,17 @@ export default class BattleAnimationManager {
     }
     public async waitForAllAnimationsToEnd(): Promise<void> {
         if (this.queue.size() === 0 && !this.isProcessing) {
-            this.logger.debug("No animations to wait for");
+            // this.logger.debug("No animations to wait for");
             return;
         }
 
-        this.logger.debug("Waiting for all animations to end");
+        // this.logger.debug("Waiting for all animations to end");
 
         return new Promise<void>((resolve) => {
             // Create a local function that checks if animations are complete
             const checkComplete = () => {
                 if (this.queue.size() === 0 && !this.isProcessing) {
-                    this.logger.debug("All animations ended");
+                    // this.logger.debug("All animations ended");
                     resolve();
                     return;
                 }
@@ -90,7 +91,7 @@ export default class BattleAnimationManager {
     }
 
     public clearQueue(): void {
-        this.logger.debug(`Clearing queue with ${this.queue.size()} animations`);
+        // this.logger.debug(`Clearing queue with ${this.queue.size()} animations`);
         this.queue.clear();
     }
 
@@ -103,7 +104,7 @@ export default class BattleAnimationManager {
     }
 
     public async handleMoveAnimation(mover: EntityGraphics, fromWorldLocation: Vector3, toWorldLocation: Vector3) {
-        this.logger.debug("Animating movement from ", fromWorldLocation, " to ", toWorldLocation);
+        // this.logger.debug("Animating movement from ", fromWorldLocation, " to ", toWorldLocation);
         const [promise, resolver] = promiseWrapper(mover.moveToPosition(fromWorldLocation));
         this.queueAnimation({
             name: `handleMoveAnimation of ${mover.name} to ${fromWorldLocation}`,
@@ -122,7 +123,7 @@ export default class BattleAnimationManager {
     }
 
     public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
-        this.logger.debug("Animating clashes", clashes, "BattleClient");
+        // this.logger.debug("Animating clashes", clashes, "BattleClient");
         for (const clash of clashes) {
             const [promise, resolver] = promiseWrapper(this.OneSequence(attacker, target, clash));
             this.queueAnimation({
@@ -381,11 +382,11 @@ export default class BattleAnimationManager {
     }
 
     private async waitForAnimationEnd(track?: AnimationTrack): Promise<string> {
-        this.logger.debug("TRACK", track?.Name, "Waiting end", track);
+        // this.logger.debug("TRACK", track?.Name, "Waiting end", track);
         if (!track) return Promise.resolve("No track to wait for");
         return new Promise((resolve) => {
             track.Ended.Once(() => {
-                this.logger.debug("TRACK", track?.Name, "Animation ended", track);
+                // this.logger.debug("TRACK", track?.Name, "Animation ended", track);
                 resolve("Animation ended: " + track?.Name);
             });
         });

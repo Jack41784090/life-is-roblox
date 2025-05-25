@@ -242,7 +242,7 @@ export default class SpeechBubble {
 
         // Subscribe to state changes
         this.stateSubscription = subscribe(this.stateAtom, (newState, oldState) => {
-            this.logger.debug(`State changed: ${oldState} -> ${newState}`);
+            // this.logger.debug(`State changed: ${oldState} -> ${newState}`);
 
             if (newState === SpeechBubbleState.APPEARING) {
                 this.appear();

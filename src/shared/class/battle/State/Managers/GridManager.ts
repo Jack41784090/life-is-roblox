@@ -139,7 +139,7 @@ export class GridManager {
         // Only emit grid updated event on the server side
         // This ensures clients can't manipulate the game state
         if (this.eventBus && RunService.IsServer()) {
-            this.logger.debug("Emitting grid updated event");
+            // this.logger.debug("Emitting grid updated event");
             this.eventBus.emit(GameEvent.GRID_UPDATED, gridState);
         }
     }

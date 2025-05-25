@@ -75,11 +75,11 @@ export default class BattleServer {
 
     private setUpRemotes() {
         this.networkService.onServerRequestOf('state', (p) => {
-            this.logger.debug(`Received state request from ${p.Name}`);
+            // this.logger.debug(`Received state request from ${p.Name}`);
             return this.state.getState();
         })
         this.networkService.onServerRequestOf('cre', (p) => {
-            this.logger.debug(`Received CRE request from ${p.Name}`);
+            // this.logger.debug(`Received CRE request from ${p.Name}`);
             return this.state.getCurrentActorID();
         })
         this.networkService.onServerRequestOf('clashes', (p, accessToken) => {
@@ -101,7 +101,7 @@ export default class BattleServer {
             return clashes;
         });
         this.networkService.onServerRequestOf('actor', (p, id) => {
-            this.logger.debug(`Received actor request from ${p.Name}`);
+            // this.logger.debug(`Received actor request from ${p.Name}`);
             return this.state.getEntity(id)?.state();
         })
     }
@@ -191,7 +191,7 @@ export default class BattleServer {
             this.logger.warn(`Movement validation failed for ${entityPerformingMovement.Name}: Insufficient posture (${currentPosture}) for movement (cost: ${costOfMovement}).`);
             return false;
         }
-        this.logger.debug(`Movement validation successful: ${entityPerformingMovement.Name} can move from ${from} to ${to}.`);
+        // this.logger.debug(`Movement validation successful: ${entityPerformingMovement.Name} can move from ${from} to ${to}.`);
         return true;
     }
 
@@ -208,7 +208,7 @@ export default class BattleServer {
             }
         }
         if (action?.type === ActionType.Attack) {
-            this.logger.debug(`Attack action validation for ${actingPlayer.Name}.`);
+            // this.logger.debug(`Attack action validation for ${actingPlayer.Name}.`);
         }
 
         return true;
@@ -309,7 +309,7 @@ export default class BattleServer {
             return { userId: requestingPlayer.UserId, allowed: false, token: undefined };
         }
         this.givenTokens.push(accessCode);
-        this.logger.debug(`Action request from ${requestingPlayer.Name} validated, access token provided.`);
+        // this.logger.debug(`Action request from ${requestingPlayer.Name} validated, access token provided.`);
         return { userId: requestingPlayer.UserId, allowed: true, token: accessCode };
     }
 
@@ -337,7 +337,7 @@ export default class BattleServer {
             const resolveAttacksAction = access.action as ResolveAttacksAction;
             const clashes = this.validedClashes.get(access.token!);
             if (clashes) {
-                this.logger.debug(`Clashes for ${actingPlayer.Name}:`, clashes);
+                // this.logger.debug(`Clashes for ${actingPlayer.Name}:`, clashes);
                 resolveAttacksAction.results = clashes;
             } else {
                 this.logger.error(`No clashes found for ${actingPlayer.Name} with token ${access.token}.`);
@@ -352,7 +352,7 @@ export default class BattleServer {
         // posture check to see if turn will end
         const currentActor = this.state.getCurrentActor();
         const posture = currentActor.get('pos');
-        this.logger.debug(`Posture for ${actingPlayer.Name} after action: ${posture}.`);
+        // this.logger.debug(`Posture for ${actingPlayer.Name} after action: ${posture}.`);
         if (posture < BattleServer.MIN_POSTURE_TO_CONTINUE_TURN) {
             this.logger.info(`Turn ended for ${actingPlayer.Name}: Posture (${posture}) fell below ${BattleServer.MIN_POSTURE_TO_CONTINUE_TURN}.`);
             eventBus.emit(GameEvent.TURN_ENDED, currentActor.playerID);

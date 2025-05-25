@@ -2,7 +2,7 @@ import { Atom, atom } from "@rbxts/charm";
 import { ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 import { setTimeout } from "@rbxts/set-timeout";
 import AnimationHandler, { AnimationType } from "shared/class/battle/State/Entity/Graphics/AnimationHandler";
-import { copyVector3, disableCharacter, enableCharacter, formatVector3, mapRange } from "shared/utils";
+import { copyVector3, disableCharacter, enableCharacter, mapRange } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Place from "../Place";
 import SpeechBubbleController from "../SpeechBubble";
@@ -388,7 +388,7 @@ export default class C {
             blendFactor
         ).Unit;
 
-        // this.logger.debug(`
+        // // this.logger.debug(`
         //     Intended Direction: ${formatVector3(this.intendedDirection)},
         //     Momentum Direction: ${formatVector3(momentumDir)},
         //     Dot Product: ${string.format("%.2f", dot)},
@@ -634,7 +634,7 @@ export default class C {
 
         // if the difference is less than the threshold, then we reached the waypoint
         if (diff.Magnitude <= WAYPOINT_THRESHOLD) {
-            this.logger.debug(`Reached waypoint ${formatVector3(waypointPos)}`);
+            // this.logger.debug(`Reached waypoint ${formatVector3(waypointPos)}`);
             this.currentWaypoint = undefined
             this.waypointArriveTimeout?.();
             this.waypointArriveTimeout = undefined
@@ -654,7 +654,7 @@ export default class C {
 
         // want to go somewhere, but not going yet
         if (!this.currentGoing) {
-            this.logger.debug(`Starting to go to ${formatVector3(this.currentDestination)}`);
+            // this.logger.debug(`Starting to go to ${formatVector3(this.currentDestination)}`);
             try {
                 this.currentGoing = new Going({
                     destination: this.currentDestination,
@@ -670,13 +670,13 @@ export default class C {
 
         // going somewhere, still thinking the path
         if (this.currentGoing.calculatingPath) {
-            this.logger.debug(`Still calculating path to ${formatVector3(this.currentDestination)}`);
+            // this.logger.debug(`Still calculating path to ${formatVector3(this.currentDestination)}`);
             return;
         }
 
         // not calculating, and is not calculated, so calculate
         if (this.currentGoing.isCalculated === false) {
-            this.logger.debug(`Calculating path to ${formatVector3(this.currentDestination)}`);
+            // this.logger.debug(`Calculating path to ${formatVector3(this.currentDestination)}`);
             try {
                 this.currentGoing.calculatePath();
             } catch (e) {
@@ -691,14 +691,14 @@ export default class C {
         // get the waypoint
         this.currentWaypoint = this.currentWaypoint ?? this.currentGoing.nextWaypoint();
         if (!this.currentWaypoint) {
-            this.logger.debug(`No more waypoints`);
+            // this.logger.debug(`No more waypoints`);
             this.currentGoing.destroy();
             this.currentGoing = undefined;
 
             const distanceToDestination = this.currentDestination.sub(this.getPosition()).Magnitude;
-            this.logger.debug(`Distance to destination: ${distanceToDestination}`);
+            // this.logger.debug(`Distance to destination: ${distanceToDestination}`);
             if (distanceToDestination <= DESTINATION_THRESHOLD) {
-                this.logger.debug(`Reached destination ${formatVector3(this.currentDestination)}`);
+                // this.logger.debug(`Reached destination ${formatVector3(this.currentDestination)}`);
                 this.currentDestination = undefined;
                 this.stopMoving();
                 return true;
@@ -724,7 +724,7 @@ export default class C {
 
         if (this.lookingAt && this.head && neck) {
             if (math.random() < 0.1) {
-                this.logger.debug(`Looking at ${formatVector3(this.lookingAt)}`);
+                // this.logger.debug(`Looking at ${formatVector3(this.lookingAt)}`);
             }
 
             // Check if lookingAt is valid first
@@ -1063,7 +1063,7 @@ export default class C {
     }
 
     public toggleVisibility() {
-        this.logger.debug(`[${this.id}] Toggling visibility ${this.visible} => ${!this.visible}`);
+        // this.logger.debug(`[${this.id}] Toggling visibility ${this.visible} => ${!this.visible}`);
         this.visible = !this.visible;
         if (this.model) {
             if (this.visible) {

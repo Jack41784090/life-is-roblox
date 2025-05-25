@@ -304,7 +304,7 @@ export default class Place {
      */
     private logDebug(message: string) {
         if (DEBUG_PORTALS) {
-            this.logger.debug(`[${this.location}] ${message}`);
+            // this.logger.debug(`[${this.location}] ${message}`);
         }
     }
 

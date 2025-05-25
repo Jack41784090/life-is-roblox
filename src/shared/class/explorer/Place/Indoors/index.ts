@@ -64,7 +64,7 @@ export default class IndoorLocation {
 
     private logDebug(message: string) {
         if (DEBUG_PORTALS) {
-            this.logger.debug(`[${this.locationName}] ${message}`);
+            // this.logger.debug(`[${this.locationName}] ${message}`);
         }
     }
 

@@ -103,7 +103,7 @@ export default class TupleManager {
 
     public getTupleByPlayerId(playerID: PlayerID): EntityCellGraphicsTuple | undefined {
         const position = this.playerIdToPosition.get(playerID);
-        this.logger.debug(`Getting tuple for player ${playerID}; looking into position ${position}`); //checkthis
+        // this.logger.debug(`Getting tuple for player ${playerID}; looking into position ${position}`); //checkthis
         if (!position) return undefined;
         return this.tupleQR.get(position);
     }

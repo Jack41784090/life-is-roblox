@@ -8,7 +8,7 @@ export default class EntityCellGraphicsTuple {
     public cellGraphics: HexCellGraphics;
 
     constructor(cell: HexCellGraphics, entity?: EntityGraphics) {
-        this.logger.debug(`Creating tuple for cell: ${cell.part.Name} with entity: ${entity?.model.Name}`);
+        // this.logger.debug(`Creating tuple for cell: ${cell.part.Name} with entity: ${entity?.model.Name}`);
         this.entityGraphics = entity;
         this.cellGraphics = cell;
         if (this.entityGraphics) {
@@ -17,7 +17,7 @@ export default class EntityCellGraphicsTuple {
     }
 
     couple(entity: EntityGraphics) {
-        this.logger.debug(`Coupling entity: ${entity.model.Name} to cell: ${this.cellGraphics.part.Name}`);
+        // this.logger.debug(`Coupling entity: ${entity.model.Name} to cell: ${this.cellGraphics.part.Name}`);
 
         const oldEntity = this.decouple();
         this.entityGraphics = entity;
@@ -30,7 +30,7 @@ export default class EntityCellGraphicsTuple {
 
     decouple() {
         if (!this.entityGraphics) return;
-        this.logger.debug(`Decoupling entity: ${this.entityGraphics.model.Name} from cell: ${this.cellGraphics.part.Name}`);
+        // this.logger.debug(`Decoupling entity: ${this.entityGraphics.model.Name} from cell: ${this.cellGraphics.part.Name}`);
         this.entityGraphics.model.Parent = undefined;
         const e = this.entityGraphics
         this.entityGraphics = undefined;

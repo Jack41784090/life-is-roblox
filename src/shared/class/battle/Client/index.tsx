@@ -193,7 +193,7 @@ export default class BattleClient {
                 return;
             }
             if (accessToken.userId === Players.LocalPlayer.UserId) {
-                this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
+                // this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
                 return;
             }
             this.state.commit(accessToken.action);
@@ -222,7 +222,7 @@ export default class BattleClient {
             }
         });
         this.networking.onClientRemote('turnEnd', (id?: number) => {
-            this.logger.debug("Client received: Turn ended", id);
+            // this.logger.debug("Client received: Turn ended", id);
             eventBus.emit(GameEvent.TURN_ENDED, id);
             this.camera.enterHOI4Mode();
         });
@@ -266,7 +266,7 @@ export default class BattleClient {
     //#region Updates
 
     private async completeUpdate() {
-        this.logger.debug("Requesting update state and readiness map");
+        // this.logger.debug("Requesting update state and readiness map");
         const stateData = await serverRequestRemote.state();
         await this.state.sync(stateData);
         // this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
@@ -344,7 +344,7 @@ export default class BattleClient {
                 type: CharacterActionMenuAction.Move,
                 run: () => {
                     serverRequestRemote.toAct().then(async accessToken => {
-                        this.logger.debug("Access token received", accessToken);
+                        // this.logger.debug("Access token received", accessToken);
                         if (accessToken.allowed) {
                             const newAccessToken = {
                                 ...accessToken,
@@ -402,7 +402,7 @@ export default class BattleClient {
      *    - Mount the ability slots for the current entity.
      */
     private async enterMovement(withToken: AccessToken) {
-        this.logger.debug("Entering movement mode");
+        // this.logger.debug("Entering movement mode");
         const localE = await this.localEntity()
 
         this.controlLocks.set(Enum.KeyCode.X, true);
@@ -437,7 +437,7 @@ export default class BattleClient {
     }
 
     private async handleCellEnter(tuple: EntityCellGraphicsTuple) {
-        this.logger.debug("Cell entered", tuple);
+        // this.logger.debug("Cell entered", tuple);
         const hoveredOverEntity = this.state.getEntity(tuple.cellGraphics.qr);
         const hoveredOverEntityGraphics = tuple.entityGraphics
         const currentActor = this.state.getCurrentActor();
@@ -490,9 +490,9 @@ export default class BattleClient {
     }
 
     private handleCellClick(clickedtuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
-        this.logger.debug("Cell clicked", clickedtuple);
+        // this.logger.debug("Cell clicked", clickedtuple);
         if (clickedtuple.entityGraphics) {
-            this.logger.debug("State", this.state);
+            // this.logger.debug("State", this.state);
             const clickedOnEntity = this.state.getEntity(clickedtuple.cellGraphics.qr); assert(clickedOnEntity, "Clicked on entity is not defined");
             this.clickedOnEntity(clickedOnEntity, accessToken);
         }
@@ -506,7 +506,7 @@ export default class BattleClient {
             this.logger.warn("Clicked on empty cell, but mode is not 'withSensitiveCells'");
             return;
         }
-        this.logger.debug("Clicked on empty cell", emptyTuple);
+        // this.logger.debug("Clicked on empty cell", emptyTuple);
 
         this.gui.setMode('onlyReadinessBar');
 
@@ -540,7 +540,7 @@ export default class BattleClient {
 
             const localE = await this.localEntity();
             if (localE.get('pos') >= 75) {
-                this.logger.debug("Local entity is still ready");
+                // this.logger.debug("Local entity is still ready");
 
                 // Request new access token for subsequent actions
                 const newAccessToken = await serverRequestRemote.toAct();
@@ -567,7 +567,7 @@ export default class BattleClient {
 
         this.gui.setMode('onlyReadinessBar');
 
-        this.logger.debug("Clicked on entity", clickedOn);
+        // this.logger.debug("Clicked on entity", clickedOn);
         const cre = this.state.getCurrentActor();
         if (!cre.armed) {
             this.logger.warn("[clickedOnEntity] Current entity is not armed");
@@ -610,12 +610,12 @@ export default class BattleClient {
         this.state.commit(resolveAction);
 
         const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
-        this.logger.debug("Animations ended", waitForMoveAnimation!);
+        // this.logger.debug("Animations ended", waitForMoveAnimation!);
 
         const localE = await this.localEntity();
-        this.logger.debug("Local entity pos", localE.get('pos'));
+        // this.logger.debug("Local entity pos", localE.get('pos'));
         if (localE.get('pos') >= 75) {
-            this.logger.debug("Local entity is still ready");
+            // this.logger.debug("Local entity is still ready");
 
             // Request new access token for subsequent actions
             const newAccessToken = await serverRequestRemote.toAct();
@@ -632,7 +632,7 @@ export default class BattleClient {
     //#region Server Requests
     private async commitToServer(ac: AccessToken) {
         const res = await serverRequestRemote.act(ac);
-        this.logger.debug("action committed, resolution:", res);
+        // this.logger.debug("action committed, resolution:", res);
         return res
     }
     //#endregion

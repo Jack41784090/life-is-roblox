@@ -32,7 +32,7 @@ export default class Going {
             this.path!.ComputeAsync(this.characterModel.PrimaryPart!.Position, this.currentDestination!);
         })
         if (success && this.path.Status === Enum.PathStatus.Success) {
-            this.logger.debug(`Path calculated`, this.path.GetWaypoints());
+            // this.logger.debug(`Path calculated`, this.path.GetWaypoints());
 
             this.isCalculated = true;
             this.calculatingPath = false;

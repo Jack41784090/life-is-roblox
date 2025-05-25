@@ -26,7 +26,7 @@ export class EntityManager {
 
         this.createEntities(entities);
         this.mapEntities(gridManager);
-        this.logger.debug(`EntityManager initialized with ${entities.size()} entities`, entities);
+        // this.logger.debug(`EntityManager initialized with ${entities.size()} entities`, entities);
     }
 
     //#region Initialization
@@ -45,7 +45,7 @@ export class EntityManager {
         if (this.eventBus) {
             this.eventBus.emit(GameEvent.ENTITY_CREATED, entity);
         }
-        this.logger.debug(`Entity created: ${entity.name} (${entity.playerID})`);
+        // this.logger.debug(`Entity created: ${entity.name} (${entity.playerID})`);
         return entity;
     }
 
@@ -67,7 +67,7 @@ export class EntityManager {
     public getEntity(id: number): Entity | undefined {
         const entity = this.entities.get(id);
         if (!entity) {
-            this.logger.debug(`Entity with ID ${id} not found`);
+            // this.logger.debug(`Entity with ID ${id} not found`);
         }
         return entity;
     }
@@ -77,7 +77,7 @@ export class EntityManager {
      */
     public getAllEntities(filter: (e: Entity) => boolean = (e => true)): Entity[] {
         const entities = extractMapValues(this.entities, filter);
-        this.logger.debug(`Retrieved ${entities.size()} entities`);
+        // this.logger.debug(`Retrieved ${entities.size()} entities`);
         return entities;
     }
 
@@ -85,14 +85,14 @@ export class EntityManager {
      * Find entity at the specified grid position
      */
     public getEntityAtPosition(qr: Vector2): Entity | undefined {
-        this.logger.debug(`Searching for entity at position (${qr.X}, ${qr.Y})`);
+        // this.logger.debug(`Searching for entity at position (${qr.X}, ${qr.Y})`);
         for (const [_, entity] of this.entities) {
             if (entity.qr.X === qr.X && entity.qr.Y === qr.Y) {
-                this.logger.debug(`Found entity ${entity.name} (${entity.playerID}) at position (${qr.X}, ${qr.Y})`);
+                // this.logger.debug(`Found entity ${entity.name} (${entity.playerID}) at position (${qr.X}, ${qr.Y})`);
                 return entity;
             }
         }
-        this.logger.debug(`No entity found at position (${qr.X}, ${qr.Y})`);
+        // this.logger.debug(`No entity found at position (${qr.X}, ${qr.Y})`);
         return undefined;
     }
 
@@ -100,14 +100,14 @@ export class EntityManager {
      * Get all entities within a specified distance of a position
      */
     public getEntitiesInRange(position: Vector2, range: number): Entity[] {
-        this.logger.debug(`Finding entities in range ${range} from position (${position.X}, ${position.Y})`);
+        // this.logger.debug(`Finding entities in range ${range} from position (${position.X}, ${position.Y})`);
         const entitiesInRange = this.getAllEntities().filter(entity => {
             const dx = entity.qr.X - position.X;
             const dy = entity.qr.Y - position.Y;
             // Using hex grid distance calculation
             return (math.abs(dx) + math.abs(dy) + math.abs(dx - dy)) / 2 <= range;
         });
-        this.logger.debug(`Found ${entitiesInRange.size()} entities in range ${range}`);
+        // this.logger.debug(`Found ${entitiesInRange.size()} entities in range ${range}`);
         return entitiesInRange;
     }
 
@@ -150,7 +150,7 @@ export class EntityManager {
             this.eventBus.emit(GameEvent.ENTITY_REMOVED, id, entity);
         }
 
-        this.logger.debug(`Entity removal ${result ? "successful" : "failed"} for ID ${id}`);
+        // this.logger.debug(`Entity removal ${result ? "successful" : "failed"} for ID ${id}`);
         return result;
     }
 
@@ -159,7 +159,7 @@ export class EntityManager {
      */
     public hasEntity(id: number): boolean {
         const exists = this.entities.has(id);
-        this.logger.debug(`Entity existence check: ID ${id} ${exists ? "exists" : "does not exist"}`);
+        // this.logger.debug(`Entity existence check: ID ${id} ${exists ? "exists" : "does not exist"}`);
         return exists;
     }
 
@@ -170,7 +170,7 @@ export class EntityManager {
         const count = this.entities.size();
         this.logger.info(`Clearing all entities (${count} entities)`);
         this.entities.clear();
-        this.logger.debug(`All entities cleared`);
+        // this.logger.debug(`All entities cleared`);
     }
 
     public mapEntities(gridManager: GridManager) {
@@ -181,13 +181,13 @@ export class EntityManager {
                 if (cell) {
                     cell.pairWith(entity);
                     entity.setCell(cell.qr());
-                    this.logger.debug(`Mapped entity ${entity.name} (${entity.playerID}) to cell (${cell.qr().X}, ${cell.qr().Y})`);
+                    // this.logger.debug(`Mapped entity ${entity.name} (${entity.playerID}) to cell (${cell.qr().X}, ${cell.qr().Y})`);
                 } else {
                     this.logger.warn(`Failed to map entity ${entity.name} (${entity.playerID}) to invalid cell (${entity.qr.X}, ${entity.qr.Y})`);
                 }
             }
         });
-        this.logger.debug(`All entities mapped to grid`);
+        // this.logger.debug(`All entities mapped to grid`);
     }
 
 
@@ -201,7 +201,7 @@ export class EntityManager {
      */
     public getEntityCount(): number {
         const count = this.entities.size();
-        this.logger.debug(`Current entity count: ${count}`);
+        // this.logger.debug(`Current entity count: ${count}`);
         return count;
     }
 
@@ -210,7 +210,7 @@ export class EntityManager {
      */
     public isPositionOccupied(qr: Vector2): boolean {
         const isOccupied = this.getEntityAtPosition(qr) !== undefined;
-        this.logger.debug(`Position (${qr.X}, ${qr.Y}) is ${isOccupied ? "occupied" : "not occupied"}`);
+        // this.logger.debug(`Position (${qr.X}, ${qr.Y}) is ${isOccupied ? "occupied" : "not occupied"}`);
         return isOccupied;
     }
 
@@ -225,7 +225,7 @@ export class EntityManager {
                 teamMap.get(team)!.push(entity);
             }
         });
-        this.logger.debug(`Team map created with ${teamMap.size()} teams`);
+        // this.logger.debug(`Team map created with ${teamMap.size()} teams`);
         return teamMap;
     }
     //#endregion

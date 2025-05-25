@@ -144,7 +144,7 @@ export class ContextLogger {
     public debug(...messages: (defined | undefined)[]): void {
         // Fix: append context to messages array before spreading
         const messagesWithContext = [...messages, this.context];
-        this.logger.debug(...messagesWithContext);
+        // this.logger.debug(...messagesWithContext);
     }
 
     public info(...messages: (defined | undefined)[]): void {

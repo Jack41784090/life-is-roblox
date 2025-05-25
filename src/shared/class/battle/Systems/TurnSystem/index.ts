@@ -25,13 +25,13 @@ export class TurnSystem {
             this.listOfReadinessState(() => this.updateFragments_complete(otherState.listOfReadinessState!));
             const oldID = this.currentActorId;
             this.currentActorId = this.sortReadinessState()[0].id;
-            this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
+            // this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
         }
         if (otherState.changingReadinessFrags) {
             this.listOfReadinessState(() => this.updateFragments_partial(otherState.changingReadinessFrags!));
             const oldID = this.currentActorId;
             this.currentActorId = this.sortReadinessState()[0].id;
-            this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
+            // this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
         }
     }
 

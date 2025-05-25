@@ -47,12 +47,12 @@ export class SyncSystem {
     }
 
     public addPlayer(player: Player): void {
-        this.logger.debug(`Adding player ${player.Name} to SyncSystem`);
+        // this.logger.debug(`Adding player ${player.Name} to SyncSystem`);
         this.players.push(player);
     }
 
     public broadcast<T extends keyof typeof clientRemotes>(key: T, ...args: OmitFirstParameter<typeof clientRemotes[T]>): void {
-        this.logger.debug(`Broadcasting ${key} to ${this.players.size()} players`);
+        // this.logger.debug(`Broadcasting ${key} to ${this.players.size()} players`);
         const remote: ClientRemote<unknown[]> = clientRemotes[key] as ClientRemote<unknown[]>;
         if (RunService.IsServer()) {
             for (const player of this.players) {
@@ -70,12 +70,12 @@ export class SyncSystem {
         this.logger.info("Destroying SyncSystem");
 
         // Unsubscribe from all events
-        this.logger.debug(`Unsubscribing from ${this.unsubscribeFunctions.size()} events`);
+        // this.logger.debug(`Unsubscribing from ${this.unsubscribeFunctions.size()} events`);
         for (const unsubscribe of this.unsubscribeFunctions) {
             unsubscribe();
         }
         this.unsubscribeFunctions = [];
 
-        this.logger.debug("SyncSystem destroyed");
+        // this.logger.debug("SyncSystem destroyed");
     }
 }

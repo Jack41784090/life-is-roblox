@@ -30,7 +30,7 @@ export default class BattleAnimation {
         ]).then(
             (result) => {
                 const duration = tick() - this.startTime;
-                this.logger.debug(`Animation ${this.name} completed in ${math.floor(duration * 100) / 100}s`);
+                // this.logger.debug(`Animation ${this.name} completed in ${math.floor(duration * 100) / 100}s`);
                 this.resolver(result);
                 return result;
             },

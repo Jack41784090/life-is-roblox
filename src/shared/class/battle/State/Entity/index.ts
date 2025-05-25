@@ -95,7 +95,7 @@ export default class Entity {
 
     //#region get stats
     set(property: EntityChangeable, by: number) {
-        this.logger.debug(`${this.name}: Changing ${property} by ${by}`);
+        // this.logger.debug(`${this.name}: Changing ${property} by ${by}`);
         const oldValue = this[property]();
         this[property](math.max(0, by));
 
@@ -222,7 +222,7 @@ export default class Entity {
 
     //#region Modifying
     public update(updates: EntityUpdate) {
-        this.logger.debug(`${this.name}: Updating entity with ${updates}`);
+        // this.logger.debug(`${this.name}: Updating entity with ${updates}`);
         for (const [key, value] of pairs(updates)) {
             if (key === 'qr') {
                 this.setCell(value as Vector2);
@@ -260,13 +260,13 @@ export default class Entity {
     }
 
     public changeHP(num: number) {
-        this.logger.debug(`${this.name}: Changing HP by ${num}`);
+        // this.logger.debug(`${this.name}: Changing HP by ${num}`);
 
         const oldHip = this.hip();
         this.hip(this.hip() + num);
         const maxHP = calculateRealityValue(Reality.HP, this.stats);
         const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9);
-        this.logger.debug(`HP percentage: ${hpPercentage}`);
+        // this.logger.debug(`HP percentage: ${hpPercentage}`);
     }
 
     public heal(num: number) {

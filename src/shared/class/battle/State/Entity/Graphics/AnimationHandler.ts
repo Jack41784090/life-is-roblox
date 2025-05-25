@@ -42,7 +42,7 @@ export default class AnimationHandler {
     private expression?: Expression;
 
     constructor(humanoid: Humanoid, animator: Animator, model: Model) {
-        this.logger.debug(`Constructing animation handler for: ${model}`);
+        // this.logger.debug(`Constructing animation handler for: ${model}`);
         this.humanoid = humanoid;
         this.animator = animator;
         this.model = model;
@@ -55,7 +55,7 @@ export default class AnimationHandler {
         RunService.RenderStepped.Connect(() => {
             const size = this.playingTrackMap.size();
             if (size !== this.prevSize) {
-                this.logger.debug(`${this.model.Name} has ${size} animations playing.`, this.playingTrackMap);
+                // this.logger.debug(`${this.model.Name} has ${size} animations playing.`, this.playingTrackMap);
                 this.prevSize = size;
             }
         });
@@ -180,7 +180,7 @@ export default class AnimationHandler {
 
     public playAnimationIfNotPlaying(animType: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
         if (this.isPlaying(animType)) {
-            this.logger.debug(`Animation ${options.animation} is already playing.`);
+            // this.logger.debug(`Animation ${options.animation} is already playing.`);
             if (options.update) {
                 this.updatePlayingAnimation(animType, options);
             }
@@ -215,7 +215,7 @@ export default class AnimationHandler {
             this.logger.warn(`Expected playing track for ${animType} not found.`);
             return;
         }
-        this.logger.debug(`${animType}: "${playingTrack.Name}" => "${newAnimation.Name}"`);
+        // this.logger.debug(`${animType}: "${playingTrack.Name}" => "${newAnimation.Name}"`);
         const position = playingTrack.TimePosition / playingTrack.Length;
         playingTrack.Name = newAnimation.Name;
         playingTrack.Stop(0.2);
@@ -256,7 +256,7 @@ export default class AnimationHandler {
      * @returns The AnimationTrack if successfully played, undefined otherwise.
      */
     public playAnimation(id: AnimationType, options: AnimationOptions): AnimationTrack | undefined {
-        this.logger.debug(`Playing animation [${id}] with options:`, options);
+        // this.logger.debug(`Playing animation [${id}] with options:`, options);
         const { animation, priority = Enum.AnimationPriority.Action, hold = 0, loop } = options;
 
         const track = this.loadAnimationTrack(animation);
@@ -273,7 +273,7 @@ export default class AnimationHandler {
             }
 
             track.Stopped.Once(() => {
-                this.logger.debug(`Track {${id}} stopped`);
+                // this.logger.debug(`Track {${id}} stopped`);
             });
         }
 
@@ -313,7 +313,7 @@ export default class AnimationHandler {
     }
 
     public killAnimation(animType: AnimationType): void {
-        this.logger.debug(`Killing animation ${animType}`);
+        // this.logger.debug(`Killing animation ${animType}`);
         const animation: AnimationTrack | undefined = this.playingTrackMap.get(animType);
         if (!animation) return;
         task.spawn(() => {
