@@ -1,9 +1,9 @@
 import { atom, Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
 import { AbilitySetElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
-import FightingStyleSelector from "gui_sharedfirst/components/fighting-style-selector";
 import AbilitySlots from "gui_sharedfirst/new_components/battle/ability_slots";
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
+import FightingStyleSelector from "gui_sharedfirst/new_components/battle/fighting_style_selector";
 import MainFrame from "gui_sharedfirst/new_components/battle/main-frame";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
 import GuiMothership from "gui_sharedfirst/new_components/main";
