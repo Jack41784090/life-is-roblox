@@ -62,7 +62,12 @@ export enum ActionType {
     ResolveAttacks = 'clash-results',
     Move = 'move',
     Attack = 'attack',
+    StyleSwitch = "StyleSwitch",
 }
+export interface StyleSwitchAction extends BattleAction {
+    styleIndex: number,
+}
+
 export interface ResolveAttacksAction extends BattleAction {
     results: StrikeSequence[],
     ability: ActiveAbilityState,

@@ -20,10 +20,8 @@ function FightingStyleSelector({ entity, onStyleSelect }: FightingStyleSelectorP
     }, [entity]);
 
     const handleStyleSelect = (styleIndex: number) => {
-        if (entity.switchFightingStyle(styleIndex)) {
-            setActiveStyleIndex(styleIndex);
-            onStyleSelect?.(styleIndex);
-        }
+        setActiveStyleIndex(styleIndex);
+        onStyleSelect?.(styleIndex);
     };
 
     return (

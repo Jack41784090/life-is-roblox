@@ -2,7 +2,7 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, StrikeSequence, TILE_SIZE } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, StrikeSequence, StyleSwitchAction, TILE_SIZE } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
 import { promiseWrapper } from "shared/utils";
@@ -196,7 +196,7 @@ export default class BattleClient {
                 // this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
                 return;
             }
-            this.state.commit(accessToken.action);
+            this.state.validateThenCommit(accessToken.action);
             switch (accessToken.action.type) {
                 case ActionType.Move:
                     const { by, from, to } = accessToken.action as MoveAction;
@@ -374,12 +374,7 @@ export default class BattleClient {
             },
         ];
     }
-    /**
-     * Return to the selection screen after movement or canceling an action
-     *  1. exitMovementUI() is called to reset the UI
-     *  2. The camera is centered on the current entity
-     *  3. going back to the action selection screen
-     */
+
     private async returnToSelections() {
         this.exitMovement()
         await this.localEntity().then(e => {
@@ -389,20 +384,7 @@ export default class BattleClient {
         })
     }
     //#region Movement
-    /**
-     * Enter movement mode
-     * 
-     * Movement mode: when cells glow along with the cursor to create a pathfinding effect.
-     * 
-     * Steps:
-     * 
-     * 1. Set up scripts:
-     *    - Set up an escape script to cancel the current action.
-     * 
-     * 2. Rendering:
-     *    - Re-render the UI to include sensitive cells.
-     *    - Mount the ability slots for the current entity.
-     */
+
     private async enterMovement(withToken: AccessToken) {
         // this.logger.debug("Entering movement mode");
         const localE = await this.localEntity()
@@ -411,7 +393,15 @@ export default class BattleClient {
 
         this.gui.unmountAndClear(GuiTag.ActionMenu);
         this.gui.mountAbilitySlots(localE);
-        this.gui.mountFightingStyleSelector(localE);
+        this.gui.mountFightingStyleSelector(localE, (styleIndex: number) => {
+            withToken.action = {
+                type: ActionType.StyleSwitch,
+                by: localE.playerID,
+                styleIndex: styleIndex,
+            } as StyleSwitchAction
+            this.state.validateThenCommit(withToken.action);
+            this.commitToServer(withToken);
+        });
         this.gui.forceUpdateMainFrame('withSensitiveCells',
             this.state.getEntity(Players.LocalPlayer.UserId)!,
             this.getSensitiveCellElements(withToken)
@@ -536,7 +526,7 @@ export default class BattleClient {
             })
 
             // commit action to local state
-            this.state.commit(accessToken.action);
+            this.state.validateThenCommit(accessToken.action);
 
             const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
 
@@ -609,7 +599,7 @@ export default class BattleClient {
         this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);
 
         // commit action to local state
-        this.state.commit(resolveAction);
+        this.state.validateThenCommit(resolveAction);
 
         const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
         // this.logger.debug("Animations ended", waitForMoveAnimation!);

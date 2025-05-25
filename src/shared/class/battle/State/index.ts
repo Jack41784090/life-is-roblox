@@ -1,6 +1,6 @@
 import { atom } from "@rbxts/charm";
 import { t } from "@rbxts/t";
-import { ActionType, AttackAction, BattleAction, ClashResult, MoveAction, Reality, ResolveAttacksAction, StateConfig, StateState, TeamMap } from "shared/class/battle/types";
+import { ActionType, AttackAction, BattleAction, ClashResult, MoveAction, Reality, ResolveAttacksAction, StateConfig, StateState, StyleSwitchAction, TeamMap } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
 import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
@@ -434,6 +434,21 @@ export default class State {
             case ActionType.Move:
                 this.move(action as MoveAction);
                 return;
+            case ActionType.StyleSwitch:
+                const entity = this.getEntity(action.by);
+                if (!entity) {
+                    this.logger.warn(`Entity with ID ${action.by} not found`);
+                    return;
+                }
+                const ssaction = action as StyleSwitchAction;
+                const styleIndex = ssaction.styleIndex;
+                if (entity.switchFightingStyle(styleIndex)) {
+                    this.logger.info(`Entity ${entity.playerID} switched to style ${styleIndex}`);
+                } else {
+                    this.logger.warn(`Entity ${entity.playerID} failed to switch to style ${styleIndex}`);
+                }
+                break;
+
             default:
                 this.logger.warn(`Unknown action type: ${action.type}`);
                 return;

@@ -115,7 +115,7 @@ export default class BattleGui {
         );
     }
 
-    public mountFightingStyleSelector(entity: Entity) {
+    public mountFightingStyleSelector(entity: Entity, onSelectionChange?: (styleIndex: number) => void) {
         // this.logger.debug(`Mounting fighting style selector for ${entity.name}`);
         GuiMothership.Mount(
             GuiTag.FightingStyleSelector,
@@ -125,6 +125,9 @@ export default class BattleGui {
                     // When style changes, update ability slots if they're currently showing
                     if (this.mode() === 'withSensitiveCells') {
                         this.mountAbilitySlots(entity);
+                    }
+                    if (onSelectionChange) {
+                        onSelectionChange(styleIndex);
                     }
                 }}
             />
