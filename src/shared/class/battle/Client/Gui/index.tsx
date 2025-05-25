@@ -1,7 +1,8 @@
 import { atom, Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import { AbilitySetElement, AbilitySlotsElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
+import { AbilitySetElement, ButtonElement, ButtonFrameElement, MenuFrameElement, OPTElement } from "gui_sharedfirst";
 import FightingStyleSelector from "gui_sharedfirst/components/fighting-style-selector";
+import AbilitySlots from "gui_sharedfirst/new_components/battle/ability_slots";
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
 import MainFrame from "gui_sharedfirst/new_components/battle/main-frame";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
@@ -109,8 +110,9 @@ export default class BattleGui {
         }
         GuiMothership.Mount(GuiTag.AbilitySlot,
             <AbilitySetElement>
-                <AbilitySlotsElement cre={cre} gui={this} abilitySet={mountingAbilitySet} />
-            </AbilitySetElement>);
+                <AbilitySlots cre={cre} gui={this} abilitySet={mountingAbilitySet} />
+            </AbilitySetElement>
+        );
     }
 
     public mountFightingStyleSelector(entity: Entity) {
