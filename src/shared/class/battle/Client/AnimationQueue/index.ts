@@ -246,16 +246,20 @@ export default class BattleAnimationManager {
 
             attackAnimation.AdjustSpeed(2);
             const _clash = { ...clash };
-            this.waitForAnimationMarker(attackAnimation, "Hit").then(() => {
-                this.animateRolls(attacker, target, _clash);
-                target.playAnimation(
-                    AnimationType.Defend,
-                    {
-                        animation: "dodge",
-                        priority: Enum.AnimationPriority.Action3,
-                        loop: false,
-                    })
-            })
+            this.waitForAnimationMarker(attackAnimation, "Hit")
+                .then(() => {
+                    this.animateRolls(attacker, target, _clash);
+                    target.playAnimation(
+                        AnimationType.Defend,
+                        {
+                            animation: "dodge",
+                            priority: Enum.AnimationPriority.Action3,
+                            loop: false,
+                        })
+                })
+                .catch(err => {
+                    this.logger.warn("[playAttackAnimation] Error waiting for animation marker:", tostring(err));
+                })
             clash = strikeSequence.shift();
             wait(0.25);
         }
@@ -282,7 +286,9 @@ export default class BattleAnimationManager {
                 break;
             }
 
-            await this.waitForAnimationMarker(attackAnimation, "Hit");
+            await this.waitForAnimationMarker(attackAnimation, "Hit").catch(err => {
+                this.logger.warn("[playAttackAnimation] Error waiting for animation marker:", tostring(err));
+            });
             attackAnimation?.AdjustSpeed(0);
             defendIdleAnimation?.AdjustSpeed(0);
 

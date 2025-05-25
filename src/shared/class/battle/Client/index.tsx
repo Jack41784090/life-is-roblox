@@ -2,7 +2,7 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, StrikeSequence, StyleSwitchAction, TILE_SIZE } from "shared/class/battle/types";
+import { AccessToken, ActionType, AttackAction, BattleAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, StrikeSequence, StyleSwitchAction, TILE_SIZE } from "shared/class/battle/types";
 import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
 import { promiseWrapper } from "shared/utils";
@@ -18,6 +18,7 @@ import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
 import BattleAnimationManager from "./AnimationQueue";
 import BattleCamera from "./BattleCamera";
+import { ClientActionValidator } from "./ClientValidation";
 import Graphics from "./Graphics";
 import EntityCellGraphicsTuple from "./Graphics/Tuple";
 import Gui from './Gui';
@@ -32,8 +33,8 @@ export default class BattleClient {
     private state: State;
     private graphics: Graphics;
     private animations: BattleAnimationManager;
-
     private networking: NetworkService;
+    private validator: ClientActionValidator;
 
     private controlLocks: ControlLocks = new Map();
 
@@ -54,6 +55,7 @@ export default class BattleClient {
             this.state.getGridManager().getGrid()
         );
         this.animations = new BattleAnimationManager();
+        this.validator = new ClientActionValidator(this.state);
 
         // this.setupEventListeners();
 
@@ -191,12 +193,11 @@ export default class BattleClient {
             if (!accessToken.action) {
                 this.logger.error("Access token has no action", context, accessToken);
                 return;
-            }
-            if (accessToken.userId === Players.LocalPlayer.UserId) {
-                // this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
+            } if (accessToken.userId === Players.LocalPlayer.UserId) {
+                this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
                 return;
             }
-            this.state.validateThenCommit(accessToken.action);
+            this.validateAndCommit(accessToken.action);
             switch (accessToken.action.type) {
                 case ActionType.Move:
                     const { by, from, to } = accessToken.action as MoveAction;
@@ -399,8 +400,8 @@ export default class BattleClient {
                 by: localE.playerID,
                 styleIndex: styleIndex,
             } as StyleSwitchAction
-            this.state.validateThenCommit(withToken.action);
-            this.commitToServer(withToken);
+            this.validateAndCommit(withToken.action)
+            this.submitAction(withToken.action);
         });
         this.gui.forceUpdateMainFrame('withSensitiveCells',
             this.state.getEntity(Players.LocalPlayer.UserId)!,
@@ -515,18 +516,16 @@ export default class BattleClient {
         } as MoveAction;
 
         // commit action to server
-        const ac = await this.commitToServer(accessToken);
+        const ac = await this.submitAction(accessToken.action);
 
-        if (ac.allowed) {
+        if (ac) {
             // emit event to this client
             this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
                 entityId: accessToken.userId,
                 from: start,
                 to: dest,
-            })
-
-            // commit action to local state
-            this.state.validateThenCommit(accessToken.action);
+            })            // commit action to local state
+            this.validateAndCommit(accessToken.action);
 
             const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
 
@@ -593,13 +592,11 @@ export default class BattleClient {
         accessToken.action = resolveAction;
 
         // commit action to server
-        this.commitToServer(accessToken);
+        this.submitAction(accessToken.action);
 
         // emit event to this client
-        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);
-
-        // commit action to local state
-        this.state.validateThenCommit(resolveAction);
+        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);        // commit action to local state
+        this.validateAndCommit(resolveAction);
 
         const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
         // this.logger.debug("Animations ended", waitForMoveAnimation!);
@@ -622,10 +619,77 @@ export default class BattleClient {
     //#endregion
 
     //#region Server Requests
-    private async commitToServer(ac: AccessToken) {
-        const res = await serverRequestRemote.act(ac);
-        // this.logger.debug("action committed, resolution:", res);
-        return res
+    private validateLocalAction(action: BattleAction): boolean {
+        return this.validator.validateLocalAction(action);
+    }
+
+    private async submitAction(action: BattleAction, refreshWhenFail = true): Promise<boolean> {
+        if (!this.validateLocalAction(action)) {
+            this.logger.warn("Action failed local validation and was not sent to server");
+            return false;
+        }
+
+        try {
+            const accessToken = await serverRequestRemote.toAct();
+            if (!accessToken.allowed) {
+                this.logger.warn("Server denied action request");
+                if (refreshWhenFail) {
+                    this.gui.setMode('onlyReadinessBar');
+                    await this.completeUpdate();
+                }
+                return false;
+            }
+
+            const result = await serverRequestRemote.act({
+                token: accessToken.token!,
+                action: action,
+                allowed: accessToken.allowed,
+                userId: Players.LocalPlayer.UserId,
+            });
+
+            return result.allowed;
+        } catch (e) {
+            this.logger.error("Error submitting action to server:", e as defined);
+            return false;
+        }
+    }
+
+    async endTurn(): Promise<boolean> {
+        try {
+            const accessToken = await serverRequestRemote.toAct();
+
+            if (!accessToken.allowed) {
+                this.logger.warn("Server denied turn end request");
+                return false;
+            }
+
+            serverRemotes.end({
+                token: accessToken.token!,
+                allowed: accessToken.allowed,
+                userId: Players.LocalPlayer.UserId,
+                action: undefined
+            });
+
+            return true;
+        } catch (e) {
+            this.logger.error("Error ending turn:", e as defined);
+            return false;
+        }
+    }
+    async endTurnWithAccessToken(accessToken: AccessToken): Promise<boolean> {
+        try {
+            serverRemotes.end({
+                token: accessToken.token!,
+                allowed: accessToken.allowed,
+                userId: Players.LocalPlayer.UserId,
+                action: undefined
+            });
+
+            return true;
+        } catch (e) {
+            this.logger.error("Error ending turn:", e as defined);
+            return false;
+        }
     }
     //#endregion
 
@@ -652,4 +716,22 @@ export default class BattleClient {
         }
     }
     //#endregion
+
+    /**
+     * Validates an action locally and commits it to the state if valid
+     */
+    private validateAndCommit(action: BattleAction | undefined): boolean {
+        if (!action) {
+            this.logger.warn("Cannot validate and commit undefined action");
+            return false;
+        }
+
+        if (!this.validateLocalAction(action)) {
+            this.logger.warn("Action failed local validation and was not committed");
+            return false;
+        }
+
+        this.state.commit(action);
+        return true;
+    }
 }
