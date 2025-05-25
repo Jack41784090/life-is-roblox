@@ -32,18 +32,20 @@ export default class BattleGui {
         this.mode = atom<GuiModes>('onlyReadinessBar');
         this.readinessFragments = config.readinessFragments;
         this.forceUpdateMainFrame('onlyReadinessBar');
-    }
-
-    public setMode(mode: GuiModes) {
-        this.logger.debug(`Setting mode to ${mode}`);
+    } public setMode(mode: GuiModes) {
+        // this.logger.debug(`Setting mode to ${mode}`);
         this.mode(mode);
+        this.updateUI();
     }
 
     //#region UI Mounting Methods
     public forceUpdateMainFrame(mode: MainUIModes, localEntity?: Entity, sensitiveCells?: React.Element) {
-        this.logger.debug(`Force updating main UI with mode: ${mode}`);
+        // this.logger.debug(`Force updating main UI with mode: ${mode}`);
         this.mode(mode);
+        this.updateUI(localEntity, sensitiveCells);
+    }
 
+    private updateUI(localEntity?: Entity, sensitiveCells?: React.Element) {
         const playerPortrait = localEntity ?
             <PlayerPortrait
                 entityId={localEntity.stats.id}
@@ -53,16 +55,12 @@ export default class BattleGui {
 
         GuiMothership.Mount(GuiTag.MainGui,
             <MainFrame
-                key={`BattleUI`}
+                key={`BattleUI-${tick()}`}
                 mode={this.mode}
                 icons={this.readinessFragments}
                 portrait={playerPortrait}
                 cells={sensitiveCells}
             />
-            // <ReadinessBar icons={this.readinessFragments} />
-            // {playerPortrait}
-            // {sensitiveCells}
-            // </MainFrame>
         )
     }
     /**
@@ -116,7 +114,7 @@ export default class BattleGui {
     }
 
     public mountFightingStyleSelector(entity: Entity) {
-        this.logger.debug(`Mounting fighting style selector for ${entity.name}`);
+        // this.logger.debug(`Mounting fighting style selector for ${entity.name}`);
         GuiMothership.Mount(
             GuiTag.FightingStyleSelector,
             <FightingStyleSelector

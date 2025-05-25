@@ -60,16 +60,21 @@ class GuiMothership {
             return undefined;
         }
 
+        // Convert the Map to an array to ensure React renders properly
+        const childrenArray: React.Element[] = [];
+        this.children.forEach((element, key) => {
+            childrenArray.push(element);
+        });
+
         return (
             createPortal(
                 <screengui
-                    key={"MAIN"}
+                    key={`MAIN-${childrenArray.size()}`}
                     ResetOnSpawn={false}
                     ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
                     IgnoreGuiInset={true}
                 >
-                    {this.children}
-                    {/* {extractMapValues(this.children)} */}
+                    {childrenArray}
                 </screengui>,
                 playerGUI)
         );

@@ -11,11 +11,13 @@ interface Props {
 function ReadinessBar(props: Props) {
     // Use useAtom to properly subscribe to changes in the icons atom
     const icons = useAtom(props.icons);
-    print(`ReadinessBar updated:`, icons.map(icon => icon().pos()));
+
+    // Use a unique key based on the contents to force re-render when order changes
+    const barKey = `ReadinessBar-${icons.map(i => i().pos()).join('-')}`;
 
     return (
         <frame
-            key={"ReadinessBar"}
+            key={barKey}
             Position={new UDim2(0.05, 0, 0.02, 0)} // Changed from 0.1 to 0.02 to move to top
             Size={new UDim2(0.9, 0, 0.06, 0)} // Made wider and slightly taller
             BackgroundTransparency={0.25}
@@ -24,7 +26,7 @@ function ReadinessBar(props: Props) {
             BorderSizePixel={2}
         >
             {icons.map((icon, index) => {
-                return <ReadinessIconElement {... { icon, index }} />
+                return <ReadinessIconElement key={`icon-${index}-${icon().pos()}`} icon={icon} index={index} />
             })}
         </frame>
     );

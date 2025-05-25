@@ -16,15 +16,19 @@ interface Props {
 function MainFrame(props: Props) {
     const mode = useAtom(props.mode);
 
+    // Use a mode-specific identifier in the key to ensure React recreates the component
+    // when the mode changes
+    const frameKey = `MenuFrame-${mode}-${tick()}`;
+
     return (
         <screengui
-            key="MenuScreenGui"
+            key={`MenuScreenGui-${mode}`}
             ResetOnSpawn={false}
             ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
             IgnoreGuiInset={true}
         >
             <frame
-                key={"MenuFrame"}
+                key={frameKey}
                 Size={new UDim2(1, 0, 1, 0)}
                 BackgroundColor3={Color3.fromRGB(0, 0, 0)}
                 BackgroundTransparency={1}
