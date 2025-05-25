@@ -224,7 +224,7 @@ export default class BattleClient {
         this.networking.onClientRemote('turnEnd', (id?: number) => {
             // this.logger.debug("Client received: Turn ended", id);
             eventBus.emit(GameEvent.TURN_ENDED, id);
-            this.camera.enterHOI4Mode();
+            // this.camera.enterHOI4Mode();
         });
     }
 
@@ -355,7 +355,9 @@ export default class BattleClient {
                                     executed: false
                                 }
                             };
-                            this.camera.enterHOI4Mode().then(() => {
+                            const localEntity = await this.localEntity();
+                            const localEntityGraphic = this.graphics.getEntityGraphic(localEntity.playerID);
+                            this.camera.enterHOI4Mode(localEntityGraphic?.getWorldPosition()).then(() => {
                                 this.enterMovement(newAccessToken);
                             })
                         }
