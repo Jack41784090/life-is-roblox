@@ -65,6 +65,7 @@ export enum ActionType {
 }
 export interface ResolveAttacksAction extends BattleAction {
     results: StrikeSequence[],
+    ability: ActiveAbilityState,
 }
 export interface AttackAction extends BattleAction {
     ability: ActiveAbilityState,

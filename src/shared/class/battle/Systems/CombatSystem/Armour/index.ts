@@ -1,5 +1,4 @@
 import Logger from "shared/utils/Logger";
-import { ActiveAbility } from "../Ability";
 import { DamageType } from "../Ability/types";
 import { ArmourConfig, ArmourState } from "./types";
 
@@ -16,7 +15,9 @@ export default class Armour {
                 [DamageType.Impale, -0.2],
             ])
         });
-    } constructor({ DV, PV, resistance }: ArmourConfig) {
+    }
+
+    constructor({ DV, PV, resistance }: ArmourConfig) {
         this.DV = DV;
         this.PV = PV;
         this.resistance = resistance;
@@ -25,20 +26,17 @@ export default class Armour {
     public getDV(): number {
         return this.DV;
     }
+
     public getPV(): number {
         return this.PV;
-    } public getRawDamageTaken(ability: ActiveAbility): number {
-        const attacker = ability.getState().using;
-        if (!attacker?.weapon) {
-            return 0;
-        } const damageTypesArray = ability.getTotalDamageArray();
+    }
 
+    public getRawDamageTaken(damageTypesArray: Record<DamageType, number>): number {
         let damage = 0;
         for (const [damageType, value] of pairs(damageTypesArray)) {
             damage += this.resistance.get(damageType) ? value * (1 - this.resistance.get(damageType)!) : value;
         }
 
-        return damage;
         return damage;
     }
 

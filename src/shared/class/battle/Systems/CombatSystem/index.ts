@@ -82,23 +82,22 @@ export default class CombatSystem {
             dice = abilityDices.pop();
         }
 
-        return globalResult;
+        return globalResult.map(ss => {
+            return ss.map(clash => {
+                const damage = this.calculateDamage(this.rebuildAbility(action.ability, action.by, action.against!));
+                clash.result.damage = this.calculateModifiedDamage(damage, attacker, target);
+                // clash.clashKills = this.isAttackKills(target.playerID, clash);
+                return clash;
+            });
+        });
     }
 
-    public applyAttack(clashes: StrikeSequence[], attacker: Entity, target: Entity) {
+    public applyAttack(clashes: StrikeSequence[], target: Entity) {
         for (const sequence of clashes) {
             for (const clash of sequence) {
-                if (clash.result.fate === "Hit") {
-                    // Calculate base damage from weapon and ability
-                    const baseDamage = 5; // Placeholder - replace with actual damage calculation
-
-                    // Apply fighting style modifiers
-                    const finalDamage = this.calculateModifiedDamage(baseDamage, attacker, target);
-
-                    target.damage(finalDamage);
-
-                    // Add damage info to the clash result
-                    clash.result.damage = finalDamage;
+                const { against, fate } = clash.result;
+                if (against === "PV" && fate === "Hit") {
+                    target.damage(clash.result.damage || 0);
                 }
             }
         }
@@ -142,7 +141,7 @@ export default class CombatSystem {
                     roll: roll,
                     bonus: bonus,
                     fate: success ? "Hit" : "Miss",
-                    damage: success && checkType === "PV" ? 5 : undefined
+                    damage: undefined
                 },
                 clashKills: false, // Assuming clashKills is false for misses
             };
@@ -188,7 +187,7 @@ export default class CombatSystem {
                         },
                         clashKills: false
                     };
-                    clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
+                    // clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
                     rollHistory.push(clashResult);
                 }
             });
@@ -217,7 +216,7 @@ export default class CombatSystem {
                     },
                     clashKills: false
                 };
-                clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
+                // clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
                 rollHistory.push(clashResult);
             }
             return rollHistory;
@@ -228,20 +227,13 @@ export default class CombatSystem {
         return rollHistory;
     }
 
-    private calculateDamageFromResult(clash: NeoClashResult): number {
-        const { weapon, armour: target, result } = clash
-
-        if (result.fate === "Miss" || result.fate === "Cling") {
+    private calculateDamage(ability: ActiveAbility): number {
+        const [attacker, defender] = this.gameState.getAttackerAndDefender(ability)
+        if (!attacker || !defender) {
+            this.logger.error("Attacker or defender not found", attacker, defender);
             return 0;
         }
-
-        let damageMultiplier = 1;
-        if (result.fate === "CRIT") {
-            damageMultiplier = 1.5;
-        }
-
-        const baseDamage = result.roll + result.bonus;
-        return math.floor(baseDamage * damageMultiplier);
+        return this.calculateModifiedDamage(defender.armour.getRawDamageTaken(ability.getTotalDamageArray()), attacker, defender);
     }
 
     private isAttackKills(against: number, clash: NeoClashResult) {
@@ -254,8 +246,13 @@ export default class CombatSystem {
         }
 
         const targetHp = target.get('hip') || 0;
-        const damage = this.calculateDamageFromResult(clash);
-        return targetHp <= damage;
+        // const damage = this.calculateDamage({
+        //     against,
+        //     attacker,
+        //     defender,
+        //     ability
+        // });
+        // return targetHp <= damage;
     }
 }
 

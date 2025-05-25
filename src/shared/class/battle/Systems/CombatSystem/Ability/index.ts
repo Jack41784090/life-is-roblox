@@ -44,6 +44,14 @@ class Ability {
         // });
     }
 
+    getAttacker(): Entity | undefined {
+        return this.using;
+    }
+
+    getTarget(): Entity | undefined {
+        return this.target;
+    }
+
     getState() {
 
         return {
@@ -78,14 +86,20 @@ export class ActiveAbility extends Ability {
         //     potencies: potenciesArray,
         //     damageTypes: damageTypesArray
         // });
-    } public getTotalDamageArray(): Record<DamageType, number> {
+    }
+
+    public getTotalDamageArray(): Record<DamageType, number> {
         const rawTotalDamage = this.getRawTotalDamage();
-        const result = {} as Record<DamageType, number>; this.damageType.forEach((perc, dtype) => {
+        const result = {} as Record<DamageType, number>;
+
+        this.damageType.forEach((perc, dtype) => {
             const damageValue = rawTotalDamage * perc / 100;
             result[dtype] = damageValue;
         });
         return result;
-    } public getRawTotalDamage() {
+    }
+
+    public getRawTotalDamage() {
         if (this.using === undefined) {
             this.logger.warn("No attacker entity set for ability");
             return 0;

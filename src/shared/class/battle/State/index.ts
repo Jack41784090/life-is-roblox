@@ -6,6 +6,7 @@ import { calculateRealityValue, createDummyEntityStats, requestData } from "shar
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
+import { ActiveAbility } from "../Systems/CombatSystem/Ability";
 import { TurnSystem } from "../Systems/TurnSystem";
 import Entity from "./Entity";
 import { EntityConfig, EntityState, EntityStats, EntityUpdate, ReadonlyEntityState } from "./Entity/types";
@@ -137,8 +138,19 @@ export default class State {
     //#endregion
 
     //#region Entity Management
-    public getAttackerAndDefender(action: AttackAction): [Entity?, Entity?] {
-        return [this.entityManager.getEntity(action.by), action.against ? this.entityManager.getEntity(action.against) : undefined];
+    public getAttackerAndDefender(action: ActiveAbility): [Entity?, Entity?]
+    public getAttackerAndDefender(action: AttackAction): [Entity?, Entity?]
+    public getAttackerAndDefender(arg1: AttackAction | ActiveAbility): [Entity?, Entity?] {
+        if (arg1 instanceof ActiveAbility) {
+            return [
+                arg1.getAttacker(),
+                arg1.getTarget()
+            ];
+        }
+        return [
+            this.entityManager.getEntity(arg1.by),
+            arg1.against ? this.entityManager.getEntity(arg1.against) : undefined
+        ];
     }
 
     getCurrentActor(): Entity {
@@ -397,6 +409,7 @@ export default class State {
         this.logger.info(`Committing action: ${action.type}`, action);
         switch (action.type) {
             case ActionType.ResolveAttacks:
+                const raaction = action as ResolveAttacksAction
                 const clashes = (action as ResolveAttacksAction).results;
                 if (!clashes) {
                     this.logger.warn("No clashes found in committed action");
@@ -407,7 +420,7 @@ export default class State {
                     this.logger.warn("Attacker or target not found in committed action");
                     return;
                 }
-                this.combatSystem.applyAttack(clashes, attacker, target);
+                this.combatSystem.applyAttack(clashes, target);
                 return;
             case ActionType.Attack:
                 this.rollAndApply({
@@ -439,7 +452,7 @@ export default class State {
             const target = this.getEntity(action.against);
 
             if (attacker && target) {
-                cs.applyAttack(clashes, attacker, target);
+                cs.applyAttack(clashes, target);
             } else {
                 this.logger.warn("Cannot apply attack: attacker or target not found");
             }
