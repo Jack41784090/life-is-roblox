@@ -2,6 +2,7 @@ import { TweenService } from "@rbxts/services";
 import { EntityStatus } from "shared/class/battle/types";
 import Logger from "shared/utils/Logger";
 import HexCellGraphics from "../../Hex/Cell/Graphics";
+import { EntityGraphicsConfig } from "../types";
 import AnimationHandler, { AnimationOptions, AnimationType } from "./AnimationHandler";
 import AudioHandler from "./AudioHandler";
 import Expression from "./Expression";
@@ -21,11 +22,11 @@ export default class EntityGraphics {
     animator: Animator;
     nameTag: TextBox;
 
-    constructor(template: Model) {
-        this.template = template;
-        this.model = template.Clone();
+    constructor(config: EntityGraphicsConfig) {
+        this.template = config.template;
+        this.model = this.template.Clone();
         this.model.Parent = game.Workspace;
-        this.name = this.model.Name;
+        this.name = config.nametagText;
         const ntOBJ = this.model.FindFirstChild('nametag') || this.model.FindFirstChild("Essentials")?.FindFirstChild('nametag');
         this.nameTag = ntOBJ?.FindFirstChildOfClass('BillboardGui')?.FindFirstChild('TextBox') as TextBox; assert(this.nameTag, "[EntityGraphics] Name tag not found in model.");
         this.nameTag.Text = this.name;
@@ -37,7 +38,7 @@ export default class EntityGraphics {
         this.expression = new Expression(this);
         const ah = AnimationHandler.Create(this); assert(ah, "[EntityGraphics] Animation handler not created");
         this.animationHandler = ah;
-        this.audioHandler = new AudioHandler(this, template.Name);
+        this.audioHandler = new AudioHandler(this, this.template.Name);
         this.tweenManager = new TweenManager();
     }
 

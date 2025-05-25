@@ -69,6 +69,11 @@ export type EntityState = EntityBaseAttributes & EntityEquipmentState & {
     fightingStyles: FightingStyleState[];
 };
 
+export type EntityGraphicsConfig = {
+    template: Model;
+    nametagText: string;
+}
+
 // Utility types
 export type EntityStatsNoID = Omit<EntityStats, 'id'>;
 export type EntityStatsUpdate = Partial<EntityStatsNoID>;

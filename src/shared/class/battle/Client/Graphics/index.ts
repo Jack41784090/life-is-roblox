@@ -1,3 +1,4 @@
+import { Players } from "@rbxts/services";
 import EntityCellGraphicsTuple from "shared/class/battle/Client/Graphics/Tuple";
 import HexCellGraphics from "shared/class/battle/State/Hex/Cell/Graphics";
 import { HexGridState, PlayerID, StateState, TeamState } from "shared/class/battle/types";
@@ -163,7 +164,17 @@ export default class Graphics {
         const model = getModelTemplateByID(modelId);
         assert(model, `Model name: "${modelId}" not found.`);
 
-        const entityG = new EntityGraphics(model);
+        let playerName = 'Unknown Player';
+        const [success, response] = pcall(() => {
+            playerName = Players.GetNameFromUserIdAsync(playerId)
+        })
+        if (!success) {
+            this.logger.warn(`Failed to get player name for ID ${playerId}. Response: `, response!);
+        }
+        const entityG = new EntityGraphics({
+            template: model,
+            nametagText: success ? playerName : `Player ${playerId}`,
+        });
         this.tupleManager.associateEntityWithPlayer(entityG, playerId);
         return entityG;
     }
