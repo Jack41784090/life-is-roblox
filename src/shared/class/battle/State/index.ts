@@ -420,7 +420,11 @@ export default class State {
                     this.logger.warn("Attacker or target not found in committed action");
                     return;
                 }
-                this.combatSystem.applyAttack(clashes, target);
+                this.combatSystem.applyAttack(clashes, new ActiveAbility({
+                    ...raaction.ability,
+                    using: attacker,
+                    target,
+                }));
                 return;
             case ActionType.Attack:
                 this.rollAndApply({
@@ -452,11 +456,15 @@ export default class State {
             const target = this.getEntity(action.against);
 
             if (attacker && target) {
-                cs.applyAttack(clashes, target);
+                cs.applyAttack(clashes, new ActiveAbility({
+                    ...action.ability,
+                    using: attacker,
+                    target,
+                }));
             } else {
                 this.logger.warn("Cannot apply attack: attacker or target not found");
             }
-        }
+        } ``
     }
 
     /**

@@ -21,7 +21,7 @@ export default class CombatSystem {
     }
 
     private tireDefender(defender: Entity, ability: ActiveAbilityState) {
-        defender.set('pos', defender.get('pos') - ability.cost.pos);
+        // defender.set('pos', defender.get('pos') - ability.cost.pos);
     }
 
     private getPassiveEffectValue(entity: Entity, effectType: PassiveEffectType): number {
@@ -92,17 +92,24 @@ export default class CombatSystem {
         });
     }
 
-    public applyAttack(clashes: StrikeSequence[], target: Entity) {
+    public applyAttack(clashes: StrikeSequence[], ability: ActiveAbility) {
+        const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
+        if (!attacker || !defender) {
+            this.logger.error("Attacker or defender not found", attacker, defender);
+            return;
+        }
         for (const sequence of clashes) {
             for (const clash of sequence) {
                 const { against, fate } = clash.result;
                 if (against === "PV" && fate === "Hit") {
-                    target.damage(clash.result.damage || 0);
+                    defender.damage(clash.result.damage || 0);
                 }
             }
         }
-        // this.tireAttacker(attacker, clashes[0]);
-        // this.tireDefender(target, clash.weapon);
+
+        this.tireAttacker(attacker, ability.getState());
+        this.tireDefender(defender, ability.getState());
+
     }
 
     private performRoll(
