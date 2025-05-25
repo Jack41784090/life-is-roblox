@@ -41,10 +41,8 @@ export default class BattleCam {
     static readonly EDGE_BUFFER = 0.15;
 
     private setupRenderStepped() {
-        this.logger.debug("Setting up RenderStepped");
         this.disconnectPanService();
         this.panService = RunService.RenderStepped.Connect((deltaTime) => {
-            print("RenderStepped", deltaTime);
             if (this.panningEnabled) {
                 const gridDelta = this.detectEdgeMovement();
                 this.updateCameraPosition(gridDelta, deltaTime);
@@ -61,7 +59,6 @@ export default class BattleCam {
 
     //#region Camera Movement
     private updateCameraPosition(gridDelta: Vector2, deltaTime: number) {
-        print("Updating camera position", this.mode);
         // Determine which camera mode is active and update accordingly
         switch (this.mode) {
             case "HOI4":
