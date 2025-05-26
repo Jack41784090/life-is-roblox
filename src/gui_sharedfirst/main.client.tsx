@@ -196,12 +196,16 @@ function mainMenuSetup() {
 
 clientRemotes.ui.unmount.connect(tag => GuiMothership.Unmount(tag));
 clientRemotes.ui.startRoom.connect(s => {
-    // print("Start Room", s);
     GuiMothership.Mount(GuiTag.WaitingRoom, <WaitingRoomElement
         players={s}
         readyButtonClicked={() => {
             enterBattle();
         }}
+        onLeaveRoom={() => {
+            GuiMothership.Unmount(GuiTag.WaitingRoom);
+            mainMenuSetup();
+        }}
+        roomCode={`ROOM${math.random(1000, 9999)}`}
     />)
 })
 

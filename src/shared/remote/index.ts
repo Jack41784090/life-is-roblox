@@ -17,11 +17,16 @@ const remotes = createRemotes({
 }, loggerMiddleware)
 
 export const serverRemotes = createRemotes({
-    // #region Client => Server
     startBattle: remote<Server, [arg: Player[]]>(),
     requestRoom: remote<Server>(),
     request: remote<Server>(),
-    end: remote<Server, [access: AccessToken]>(), //#endregion
+    end: remote<Server, [access: AccessToken]>(),
+
+    room: namespace({
+        setReady: remote<Server, [isReady: boolean]>(),
+        leave: remote<Server>(),
+        kick: remote<Server, [playerId: number]>(),
+    }),
 });
 
 export const serverRequestRemote = createRemotes({
@@ -54,10 +59,10 @@ export const clientRemotes = createRemotes({        //#region Server => Client
     // camera: namespace({
     //     hoi4: remote<Client>(),
     // }),
-    animateClashes: remote<Client, [clashes: StrikeSequence, attackActionRef: AttackAction]>(),
-    ui: namespace({
+    animateClashes: remote<Client, [clashes: StrikeSequence, attackActionRef: AttackAction]>(), ui: namespace({
         unmount: remote<Client, [tag: GuiTag]>(),
         startRoom: remote<Client, [arg: Player[]]>(),
+        updateRoom: remote<Client, [players: Player[], readyStates: Array<[number, boolean]>]>(),
         mount: namespace({
             actionMenu: remote<Client>(),
             otherPlayersTurn: remote<Client>(),
