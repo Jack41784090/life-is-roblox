@@ -70,12 +70,16 @@ export default class BattleClient {
 
     private setupEventListeners() {
         const eventBus = this.state.getEventBus();
-        eventBus.subscribe(GameEvent.TURN_STARTED, (id: unknown) => {
+        eventBus.subscribe(GameEvent.TURN_STARTED, async (id: unknown) => {
             const verification = t.number(id);
             if (!verification) {
                 this.logger.error("Invalid ID type for TURN_STARTED event", id as defined);
                 return;
             }
+
+            await this.graphicsInitialised;
+            await this.animations.waitForAllAnimationsToEnd();
+
             const validateTurnStartIDWithServer = serverRequestRemote.cre()
             validateTurnStartIDWithServer.then(server_id => {
                 if (id !== server_id) {
@@ -100,13 +104,14 @@ export default class BattleClient {
                 }
             })
         })
-        eventBus.subscribe(GameEvent.TURN_ENDED, (id: unknown) => {
+        eventBus.subscribe(GameEvent.TURN_ENDED, async (id: unknown) => {
             const verification = t.number(id);
             if (!verification) {
                 this.logger.error("Invalid ID type for TURN_ENDED event", id as defined);
                 return;
             }
 
+            await this.graphicsInitialised;
             // verify the entity's state with server
             this.animations.waitForAllAnimationsToEnd()
                 .andThen(() => serverRequestRemote.actor(id))

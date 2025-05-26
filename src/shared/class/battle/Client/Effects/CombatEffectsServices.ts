@@ -1,5 +1,5 @@
 import EffectsEventBus from "shared/class/battle/Client/Effects";
-import { EffectType } from "./types";
+import { DetailedHitAnalysisData, DetailedHitAnalysisEventData, EffectType } from "./types";
 
 export default class CombatEffectsService {
     private static instance: CombatEffectsService;
@@ -34,9 +34,14 @@ export default class CombatEffectsService {
 
     public showAbilityUse(position: UDim2, color: Color3, abilityName: string): void {
         this.eventBus.emit(EffectType.AbilityUse, { position, color, abilityName });
+    } public showClashFate(position: UDim2, color: Color3, fate: string): void {
+        this.eventBus.emit(EffectType.ClashFate, { position, color, fate });
     }
 
-    public showClashFate(position: UDim2, color: Color3, fate: string): void {
-        this.eventBus.emit(EffectType.ClashFate, { position, color, fate });
+    public showDetailedHitAnalysis(position: UDim2, analysisData: DetailedHitAnalysisData): void {
+        this.eventBus.emit(EffectType.DetailedHitAnalysis, {
+            position,
+            analysisData
+        } as DetailedHitAnalysisEventData);
     }
 }

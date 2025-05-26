@@ -5,6 +5,7 @@ import { AnimationType } from "../../State/Entity/Graphics/AnimationHandler";
 import { EntityStatus, NeoClashResult, StrikeSequence } from "../../types";
 import CombatEffectsService from "../Effects/CombatEffectsServices";
 import BattleAnimation from "./BattleAnimation";
+import SequentialAnimationController from "./SequentialAnimationController";
 import { iBattleAnimation } from "./type";
 
 export default class BattleAnimationManager {
@@ -120,17 +121,26 @@ export default class BattleAnimationManager {
             promise_resolve: resolver_2,
             timeout: 5,
         })
-    }
-
-    public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
-        // this.logger.debug("Animating clashes", clashes, "BattleClient");
+    } public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
         for (const clash of clashes) {
-            const [promise, resolver] = promiseWrapper(this.OneSequence(attacker, target, clash));
+            const dice: NeoClashResult[] = [];
+            for (const result of clash) {
+                dice.push(result);
+            }
+
+            const sequentialController = new SequentialAnimationController({
+                attacker,
+                target,
+                dice,
+                pauseDuration: 2
+            });
+
+            const [promise, resolver] = promiseWrapper(sequentialController.playSequence());
             this.queueAnimation({
-                name: `handleClash of ${attacker.name} vs ${target.name}`,
+                name: `Sequential clash animation of ${attacker.name} vs ${target.name}`,
                 promise,
                 promise_resolve: resolver,
-                timeout: 5,
+                timeout: 15,
             });
             await promise;
         }

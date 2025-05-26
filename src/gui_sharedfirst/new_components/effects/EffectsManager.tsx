@@ -5,6 +5,7 @@ import {
     AbilityUseEventData,
     ClashFateEventData,
     DamageEventData,
+    DetailedHitAnalysisEventData,
     Effect,
     EffectType,
     HitImpactEventData,
@@ -15,6 +16,7 @@ import AbilityUseEffect from "./AbilityUseEffect";
 import ClashFateEffect from "./ClashFateEffect";
 import DamageIndicator from "./DamageIndicator";
 import HitImpactEffect from "./HitImpactEffect";
+import SequentialRollRevealEffect from "./SequentialRollRevealEffect";
 import StyleSwitchEffect from "./StyleSwitchEffect";
 
 interface EffectsManagerProps {
@@ -22,9 +24,7 @@ interface EffectsManagerProps {
 }
 
 export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps) {
-    const [effects, setEffects] = React.useState<Effect[]>([]);
-
-    const addEffect = (effectType: EffectType, effectData: Partial<Effect>) => {
+    const [effects, setEffects] = React.useState<Effect[]>([]); const addEffect = (effectType: EffectType, effectData: Partial<Effect>) => {
         const newEffect: Effect = {
             id: tostring(game.GetService("HttpService").GenerateGUID(false)),
             type: effectType,
@@ -33,6 +33,14 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
             damage: effectData.damage,
             abilityName: effectData.abilityName,
             impactSize: effectData.impactSize,
+            fate: effectData.fate,
+            roll: effectData.roll,
+            target: effectData.target,
+            die: effectData.die,
+            bonus: effectData.bonus,
+            checkType: effectData.checkType,
+            weaponName: effectData.weaponName,
+            armourName: effectData.armourName,
             createdAt: tick()
         };
 
@@ -116,15 +124,31 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
                     impactSize: eventData.impactSize
                 });
             })
-        );
-
-        connections.push(
+        ); connections.push(
             eventBus.subscribe(EffectType.AbilityUse, (data: unknown) => {
                 const eventData = data as AbilityUseEventData;
                 addEffect(EffectType.AbilityUse, {
                     position: eventData.position,
                     color: eventData.color,
                     abilityName: eventData.abilityName
+                });
+            })
+        );
+
+        connections.push(
+            eventBus.subscribe(EffectType.DetailedHitAnalysis, (data: unknown) => {
+                const eventData = data as DetailedHitAnalysisEventData;
+                addEffect(EffectType.DetailedHitAnalysis, {
+                    position: eventData.position,
+                    roll: eventData.analysisData.roll,
+                    target: eventData.analysisData.target,
+                    die: eventData.analysisData.die,
+                    bonus: eventData.analysisData.bonus,
+                    checkType: eventData.analysisData.checkType,
+                    fate: eventData.analysisData.fate,
+                    damage: eventData.analysisData.damage,
+                    weaponName: eventData.analysisData.weaponName,
+                    armourName: eventData.analysisData.armourName
                 });
             })
         );
@@ -183,8 +207,7 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
                         impactSize={effect.impactSize!}
                         onComplete={() => removeEffect(effect.id)}
                     />
-                );
-            case EffectType.AbilityUse:
+                ); case EffectType.AbilityUse:
                 return (
                     <AbilityUseEffect
                         key={effect.id}
@@ -194,6 +217,26 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
                         onComplete={() => removeEffect(effect.id)}
                     />
                 );
+            case EffectType.DetailedHitAnalysis: return (
+                <SequentialRollRevealEffect
+                    key={effect.id}
+                    analysisData={
+                        {
+                            roll: effect.roll!,
+                            target: effect.target!,
+                            die: effect.die!,
+                            bonus: effect.bonus!,
+                            checkType: effect.checkType!,
+                            fate: effect.fate!,
+                            damage: effect.damage,
+                            weaponName: effect.weaponName!,
+                            armourName: effect.armourName!
+                        }
+                    }
+                    position={effect.position}
+                    onComplete={() => removeEffect(effect.id)}
+                />
+            );
             default:
                 return undefined;
         }
