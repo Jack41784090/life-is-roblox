@@ -45,3 +45,14 @@ export interface NeoClashResult {
 }
 
 export type StrikeSequence = Array<NeoClashResult>
+
+export interface StrikeSequenceRoll {
+    rollResult: NeoClashResult;
+    success: boolean;
+    diceUsed?: number
+}
+
+export interface StrikeSequenceResult {
+    sequence: StrikeSequenceRoll[];
+    success: boolean;
+}

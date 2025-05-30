@@ -6,7 +6,7 @@ import Logger from "shared/utils/Logger";
 import State from "../../State";
 import Entity from "../../State/Entity";
 import { AttackAction, PlayerID } from "../../types";
-import { NeoClashResult, StrikeSequence } from "./types";
+import { NeoClashResult, StrikeSequence, StrikeSequenceResult, StrikeSequenceRoll } from "./types";
 
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
@@ -113,8 +113,10 @@ export default class CombatSystem {
         checkType: "DV" | "PV",
         attacker: Entity,
         target: Entity
-    ): { rollResult: NeoClashResult; success: boolean; diceUsed: number | undefined } | undefined {
+    ): StrikeSequenceResult {
         let die = dicePool.pop();
+        const results: StrikeSequenceRoll[] = [];
+        let overallSuccess = false;
         while (die !== undefined) {
             const roll = math.floor(uniformRandom(1, die + 1));
 
@@ -128,6 +130,7 @@ export default class CombatSystem {
 
             const totalRoll = roll + adjustedBonus;
             const success = totalRoll >= adjustedTarget;
+            overallSuccess = overallSuccess || success;
 
             const rollResult: NeoClashResult = {
                 armour: target.armour.getState(),
@@ -145,14 +148,18 @@ export default class CombatSystem {
                 clashKills: false, // Assuming clashKills is false for misses
             };
 
-            if (success) {
-                return { rollResult, success: true, diceUsed: die };
-            } else {
-
-            }
+            results.push({
+                rollResult,
+                success,
+                diceUsed: die
+            })
             die = dicePool.pop();
         }
-        return undefined; // No dice left or no successful roll
+
+        return {
+            sequence: results,
+            success: overallSuccess,
+        };
     }
 
     private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): StrikeSequence {
@@ -162,65 +169,19 @@ export default class CombatSystem {
         // Perform DV check first
         const dv = target.armour?.getDV() || 0;
         const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
-        const hitAttempt = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
-        if (!hitAttempt || !hitAttempt.success) {
-            // Log all dice attempts as misses if no hit occurred
-            initialAbilityDices.forEach(d => {
-                // This part needs careful consideration on how to log misses if performRoll doesn't return individual miss results
-                // For simplicity, we'll assume the last roll from performRoll (if any) is the one to log, or a generic miss.
-                // A more robust solution might involve performRoll returning all attempts.
-                // For now, if hitAttempt is undefined (no dice), or not successful, we log a generic miss for the sequence.
-                // Or, we can construct a miss result based on the first die if available.
-                if (initialAbilityDices[0]) {
-                    const clashResult = {
-                        armour: target.armour.getState(),
-                        weapon: attacker.weapon.getState(),
-                        result: {
-                            die: `d${initialAbilityDices[0]}` as const,
-                            against: "DV" as "DV",
-                            toSurmount: dv,
-                            roll: 0, // Placeholder, actual roll for miss wasn't tracked this way
-                            bonus: bonusHit,
-                            fate: "Miss" as "Miss",
-                        },
-                        clashKills: false
-                    };
-                    // clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
-                    rollHistory.push(clashResult);
-                }
-            });
+        const sequenceToHitResult = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
+        sequenceToHitResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult))
+
+        // all dices failed to hit
+        if (!sequenceToHitResult.success) {
             return rollHistory;
         }
-
-        rollHistory.push(hitAttempt.rollResult);
 
         // Use remaining dice for penetration check
         const pv = target.armour?.getPV() || 0;
         const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
-        const penetrationAttempt = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
-        if (!penetrationAttempt || !penetrationAttempt.success) {
-            // Similar to DV miss, log a generic penetration miss or based on available dice
-            if (availableDice[0]) {
-                const clashResult = {
-                    armour: target.armour.getState(),
-                    weapon: attacker.weapon.getState(),
-                    result: {
-                        die: `d${initialAbilityDices[0]}` as `d${number}`,
-                        against: "DV" as "DV",
-                        toSurmount: dv,
-                        roll: 0, // Placeholder, actual roll for miss wasn't tracked this way
-                        bonus: bonusHit,
-                        fate: "Miss" as "Miss",
-                    },
-                    clashKills: false
-                };
-                // clashResult.clashKills = this.isAttackKills(target.playerID, clashResult);
-                rollHistory.push(clashResult);
-            }
-            return rollHistory;
-        }
-
-        rollHistory.push(penetrationAttempt.rollResult);
+        const sequenceToPenetrateResult = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
+        sequenceToPenetrateResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult));
 
         return rollHistory;
     }
