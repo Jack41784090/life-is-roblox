@@ -15,6 +15,93 @@ export default class CombatSystem {
         this.gameState = gameState;
     }
 
+    /**
+     * Resolves an attack action and returns an array of strike sequences.
+     * 
+     * This method handles the combat resolution process by:
+     * 1. Retrieving the attacker and defender from the game state
+     * 2. Processing each ability dice to generate strike sequences; doesn't update the clash damage
+     * 3. Calculating and updating damage for each clash in the sequences
+     * 
+     * @param action - The attack action to resolve containing ability details and target information
+     * @returns An array of strike sequences, each containing clash results with calculated damage
+     * @remarks
+     * Strike sequences represent the outcome of dice-based combat encounters.
+     * Damage calculation considers both the base ability damage and potential modifiers from attacker and defender.
+     */
+    public resolveAttack(action: AttackAction): StrikeSequence[] {
+        const [attacker, target] = this.gameState.getAttackerAndDefender(action);
+        if (!attacker || !target) {
+            this.logger.error("Attacker or target not found", attacker, target);
+            return [];
+        }
+
+        // initialise the dices
+        const abilityDices = action.ability.dices.map(d => d);
+        let dice = abilityDices.pop();
+        const strikeSequences: StrikeSequence[] = [];
+
+        // clear out the clash event subscriptions and resubscribe for the new combatants
+
+        // Loop through all dices and resolve the strike sequence
+        while (dice) {
+            const result: StrikeSequence = this.resolveStrikeSequence([dice], attacker, target);
+            strikeSequences.push(result);
+            dice = abilityDices.pop();
+        }
+
+        const attackingAbility = this.rebuildAbility(action.ability, action.by, action.against!);
+        return strikeSequences.map(ss => {
+            return ss.map(clash => {
+                const damage = this.calculateDamage(attackingAbility);
+                clash.result.damage = this.calculateModifiedDamage(damage, attacker, target);
+                // clash.clashKills = this.isAttackKills(target.playerID, clash);
+                return clash;
+            });
+        });
+    }
+
+    /**
+     * Resolves a strike sequence between an attacker and a target using the provided ability dice.
+     * 
+     * The function performs two sequential checks:
+     * 1. A Defense Value (DV) check to determine if the attack hits
+     * 2. If successful, a Penetration Value (PV) check to determine if the attack penetrates armor
+     * 
+     * @param initialAbilityDices - Array of dice values representing the attacker's ability
+     * @param attacker - The attacking Entity
+     * @param target - The target Entity being attacked
+     * @returns A StrikeSequence array containing the results of all dice rolls during the sequence
+     * 
+     * @remarks
+     * - If the DV check fails (attacker misses), the function returns early with only the DV roll results
+     * - Both checks utilize the target's armor properties and the attacker's weapon properties
+     * - The remaining dice after the DV check are used for the PV check
+     */
+    private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): StrikeSequence {
+        const rollHistory: StrikeSequence = [];
+        const availableDice = [...initialAbilityDices];
+
+        // Perform DV check first
+        const dv = target.armour?.getDV() || 0;
+        const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
+        const sequenceToHitResult = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
+        sequenceToHitResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult))
+
+        // all dices failed to hit
+        if (!sequenceToHitResult.success) {
+            return rollHistory;
+        }
+
+        // Use remaining dice for penetration check
+        const pv = target.armour?.getPV() || 0;
+        const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
+        const sequenceToPenetrateResult = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
+        sequenceToPenetrateResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult));
+
+        return rollHistory;
+    }
+
     private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
         for (const [stat, modifier] of pairs(ability.cost)) {
             attacker.set(stat, attacker.get(stat) - modifier);
@@ -54,36 +141,6 @@ export default class CombatSystem {
             target: allEntities.find((e: Entity) => e.playerID === against),
         });
         return ability;
-    }
-
-    public resolveAttack(action: AttackAction): StrikeSequence[] {
-        const [attacker, target] = this.gameState.getAttackerAndDefender(action);
-        if (!attacker || !target) {
-            this.logger.error("Attacker or target not found", attacker, target);
-            return [];
-        }
-
-        // initialise the dices
-        const abilityDices = action.ability.dices.map(d => d);
-        let dice = abilityDices.pop();
-        const strikeSequences: StrikeSequence[] = [];
-
-        // Loop through all dices and resolve the strike sequence
-        while (dice) {
-            const result: StrikeSequence = this.resolveStrikeSequence([dice], attacker, target);
-            strikeSequences.push(result);
-            dice = abilityDices.pop();
-        }
-
-        const attackingAbility = this.rebuildAbility(action.ability, action.by, action.against!);
-        return strikeSequences.map(ss => {
-            return ss.map(clash => {
-                const damage = this.calculateDamage(attackingAbility);
-                clash.result.damage = this.calculateModifiedDamage(damage, attacker, target);
-                // clash.clashKills = this.isAttackKills(target.playerID, clash);
-                return clash;
-            });
-        });
     }
 
     public applyAttack(strikeSequences: StrikeSequence[], ability: ActiveAbility) {
@@ -160,30 +217,6 @@ export default class CombatSystem {
             sequence: results,
             success: overallSuccess,
         };
-    }
-
-    private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): StrikeSequence {
-        const rollHistory: StrikeSequence = [];
-        const availableDice = [...initialAbilityDices];
-
-        // Perform DV check first
-        const dv = target.armour?.getDV() || 0;
-        const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
-        const sequenceToHitResult = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
-        sequenceToHitResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult))
-
-        // all dices failed to hit
-        if (!sequenceToHitResult.success) {
-            return rollHistory;
-        }
-
-        // Use remaining dice for penetration check
-        const pv = target.armour?.getPV() || 0;
-        const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
-        const sequenceToPenetrateResult = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
-        sequenceToPenetrateResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult));
-
-        return rollHistory;
     }
 
     private calculateDamage(ability: ActiveAbility): number {
