@@ -1,6 +1,6 @@
-import { ClashResult } from "shared/class/battle/types";
 import Entity from "../../../State/Entity";
 import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
+import { ClashResult } from "../types";
 
 export interface AbilityConfig {
     animation: string,

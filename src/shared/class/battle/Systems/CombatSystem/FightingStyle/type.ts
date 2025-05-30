@@ -7,10 +7,14 @@ export type FightingStylePassiveEffect = {
 }
 
 export enum PassiveEffectType {
-    ReduceEnemyDV = 'reduceEnemyDV',
-    ReduceEnemyPV = 'reduceEnemyPV',
-    BoostOwnHit = 'boostOwnHit',
-    BoostOwnPenetration = 'boostOwnPenetration',
+    AdjustDV = 'boostOwnDV',
+    AdjustPV = 'boostOwnPV',
+    AdjustEnemyDV = 'reduceEnemyDV',
+    AdjustEnemyPV = 'reduceEnemyPV',
+    AdjustHit = 'boostOwnHit',
+    AdjustPen = 'boostOwnPenetration',
+    AdjustEnemyHit = 'reduceEnemyHit',
+    AdjustEnemyPen = 'reduceEnemyPenetration',
     ReduceDamageReceived = 'reduceDamageReceived',
     IncreaseDamageDealt = 'increaseDamageDealt'
 }

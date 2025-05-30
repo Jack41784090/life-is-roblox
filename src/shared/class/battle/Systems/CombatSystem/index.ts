@@ -1,11 +1,12 @@
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { PassiveEffectType } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
-import { AttackAction, NeoClashResult, PlayerID, StrikeSequence } from "shared/class/battle/types";
 import { uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import State from "../../State";
 import Entity from "../../State/Entity";
+import { AttackAction, PlayerID } from "../../types";
+import { NeoClashResult, StrikeSequence } from "./types";
 
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
@@ -38,18 +39,10 @@ export default class CombatSystem {
     }
 
     private calculateModifiedDamage(damage: number, attacker: Entity, target: Entity): number {
-        // Apply attacker's damage increase effects
         const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
-
-        // Apply defender's damage reduction effects
         const damageReduction = this.getPassiveEffectValue(target, PassiveEffectType.ReduceDamageReceived);
-
-        // Calculate final damage with both effects
         let modifiedDamage = damage + damageIncrease - damageReduction;
-
-        // Ensure damage doesn't go below 1 if hit is successful
         modifiedDamage = math.max(1, modifiedDamage);
-
         return modifiedDamage;
     }
 
@@ -64,27 +57,28 @@ export default class CombatSystem {
     }
 
     public resolveAttack(action: AttackAction): StrikeSequence[] {
-        const attacker = this.gameState.getEntity(action.by);
-        const target = action.against !== undefined ? this.gameState.getEntity(action.against) : undefined;
+        const [attacker, target] = this.gameState.getAttackerAndDefender(action);
         if (!attacker || !target) {
             this.logger.error("Attacker or target not found", attacker, target);
             return [];
         }
 
+        // initialise the dices
         const abilityDices = action.ability.dices.map(d => d);
-
         let dice = abilityDices.pop();
-        const globalResult: StrikeSequence[] = [];
+        const strikeSequences: StrikeSequence[] = [];
 
+        // Loop through all dices and resolve the strike sequence
         while (dice) {
             const result: StrikeSequence = this.resolveStrikeSequence([dice], attacker, target);
-            globalResult.push(result);
+            strikeSequences.push(result);
             dice = abilityDices.pop();
         }
 
-        return globalResult.map(ss => {
+        const attackingAbility = this.rebuildAbility(action.ability, action.by, action.against!);
+        return strikeSequences.map(ss => {
             return ss.map(clash => {
-                const damage = this.calculateDamage(this.rebuildAbility(action.ability, action.by, action.against!));
+                const damage = this.calculateDamage(attackingAbility);
                 clash.result.damage = this.calculateModifiedDamage(damage, attacker, target);
                 // clash.clashKills = this.isAttackKills(target.playerID, clash);
                 return clash;
@@ -124,15 +118,13 @@ export default class CombatSystem {
         while (die !== undefined) {
             const roll = math.floor(uniformRandom(1, die + 1));
 
-            // Apply fighting style passive effects
             let adjustedBonus = bonus;
             let adjustedTarget = targetValue;
 
-            // Apply attacker's style effects - available if Entity has implemented fighting styles
-            adjustedBonus += this.getPassiveEffectValue(attacker, checkType === "DV" ? PassiveEffectType.BoostOwnHit : PassiveEffectType.BoostOwnPenetration);
-
-            // Apply defender's style effects - available if Entity has implemented fighting styles
-            adjustedTarget += this.getPassiveEffectValue(target, checkType === "DV" ? PassiveEffectType.ReduceEnemyDV : PassiveEffectType.ReduceEnemyPV);
+            adjustedBonus += this.getPassiveEffectValue(attacker, checkType === "DV" ? PassiveEffectType.AdjustHit : PassiveEffectType.AdjustPen);
+            adjustedBonus += this.getPassiveEffectValue(target, checkType === "DV" ? PassiveEffectType.AdjustEnemyHit : PassiveEffectType.AdjustEnemyPen);
+            adjustedTarget += this.getPassiveEffectValue(attacker, checkType === "DV" ? PassiveEffectType.AdjustEnemyDV : PassiveEffectType.AdjustEnemyPV);
+            adjustedTarget += this.getPassiveEffectValue(target, checkType === "DV" ? PassiveEffectType.AdjustDV : PassiveEffectType.AdjustPV);
 
             const totalRoll = roll + adjustedBonus;
             const success = totalRoll >= adjustedTarget;
@@ -156,8 +148,7 @@ export default class CombatSystem {
             if (success) {
                 return { rollResult, success: true, diceUsed: die };
             } else {
-                // Log the miss and continue to the next die
-                // The actual NeoClashResult for the miss will be added to history by the caller if no success occurs
+
             }
             die = dicePool.pop();
         }
@@ -185,7 +176,7 @@ export default class CombatSystem {
                         armour: target.armour.getState(),
                         weapon: attacker.weapon.getState(),
                         result: {
-                            die: `d${initialAbilityDices[0]}` as `d${number}`,
+                            die: `d${initialAbilityDices[0]}` as const,
                             against: "DV" as "DV",
                             toSurmount: dv,
                             roll: 0, // Placeholder, actual roll for miss wasn't tracked this way

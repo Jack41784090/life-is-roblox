@@ -104,7 +104,7 @@ export const BASIC_STANCE = () => new FightingStyle({
     ],
     passiveEffects: [
         {
-            type: PassiveEffectType.BoostOwnHit,
+            type: PassiveEffectType.AdjustHit,
             value: 1,
             description: "Increases your hit bonus by 1"
         }
@@ -193,7 +193,7 @@ export const AGGRESSIVE_STANCE = () => new FightingStyle({
             description: "Increases damage dealt by 2"
         },
         {
-            type: PassiveEffectType.BoostOwnPenetration,
+            type: PassiveEffectType.AdjustPen,
             value: 1,
             description: "Increases your penetration bonus by 1"
         }
@@ -282,7 +282,7 @@ export const DEFENSIVE_STANCE = () => new FightingStyle({
             description: "Reduces damage received by 2"
         },
         {
-            type: PassiveEffectType.ReduceEnemyDV,
+            type: PassiveEffectType.AdjustEnemyDV,
             value: -2,
             description: "Reduces enemy DV rolls by 2"
         }

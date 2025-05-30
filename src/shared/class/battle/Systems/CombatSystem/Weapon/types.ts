@@ -1,5 +1,5 @@
-import { Reality } from "shared/class/battle/types";
 import { Potency } from "../Ability/types";
+import { Reality } from "../types";
 
 export interface WeaponConfig {
     hitBonus: number;

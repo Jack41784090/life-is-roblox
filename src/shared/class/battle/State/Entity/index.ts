@@ -1,5 +1,4 @@
 import { atom, Atom } from "@rbxts/charm";
-import { Reality } from "shared/class/battle/types";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 // import CombatEffectsService from "../../Client/Effects/CombatEffectsServices";
@@ -10,6 +9,7 @@ import Armour from "../../Systems/CombatSystem/Armour";
 import { ArmourConfig } from "../../Systems/CombatSystem/Armour/types";
 import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
 import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems/CombatSystem/FightingStyle/const";
+import { Reality } from "../../Systems/CombatSystem/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityUpdate } from "./types";

@@ -7,12 +7,13 @@ import FightingStyleSelector from "gui_sharedfirst/new_components/battle/fightin
 import MainFrame from "gui_sharedfirst/new_components/battle/main-frame";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { CharacterMenuAction, MainUIModes, Reality } from "shared/class/battle/types";
+import { CharacterMenuAction, MainUIModes, } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import Entity from "../../State/Entity";
 import HexCellGraphics from "../../State/Hex/Cell/Graphics";
+import { Reality } from "../../Systems/CombatSystem/types";
 import { ReadinessFragment } from "../../Systems/TurnSystem/types";
 import { GuiConfig, GuiModes } from "./types";
 

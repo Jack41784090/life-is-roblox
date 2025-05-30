@@ -1,13 +1,14 @@
 import { atom } from "@rbxts/charm";
 import { t } from "@rbxts/t";
-import { ActionType, AttackAction, BattleAction, ClashResult, MoveAction, Reality, ResolveAttacksAction, StateConfig, StateState, StyleSwitchAction, TeamMap } from "shared/class/battle/types";
 import { MOVEMENT_COST } from "shared/const";
 import { calculateRealityValue, createDummyEntityStats, requestData } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
 import { ActiveAbility } from "../Systems/CombatSystem/Ability";
+import { ClashResult, Reality } from "../Systems/CombatSystem/types";
 import { TurnSystem } from "../Systems/TurnSystem";
+import { ActionType, AttackAction, BattleAction, MoveAction, ResolveAttacksAction, StateConfig, StateState, StyleSwitchAction, TeamMap } from "../types";
 import Entity from "./Entity";
 import { EntityConfig, EntityState, EntityStats, EntityUpdate, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";

@@ -1,6 +1,6 @@
 import { RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, ResolveAttacksAction, StrikeSequence } from "shared/class/battle/types";
+import { AccessToken, ActionType, ActionValidator, BattleAction, BattleConfig, ResolveAttacksAction, } from "shared/class/battle/types";
 import { IDGenerator } from "shared/class/IDGenerator";
 import { extractMapValues } from "shared/utils";
 import Logger from 'shared/utils/Logger';
@@ -9,6 +9,7 @@ import { NetworkService } from "../Network";
 import { SyncSystem } from "../Network/SyncSystem";
 import { attackActionRefVerification } from "../Network/SyncSystem/veri";
 import State from "../State";
+import { StrikeSequence } from "../Systems/CombatSystem/types";
 import { ServerActionValidator } from "./ServerValidation";
 
 export default class BattleServer {

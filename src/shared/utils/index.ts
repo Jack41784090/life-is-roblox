@@ -688,7 +688,7 @@ import { SyncPayload } from "@rbxts/charm-sync";
 import { setTimeout } from "@rbxts/set-timeout";
 import { EntityStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
-import { ClashResult, Reality } from "shared/class/battle/types";
+import { ClashResult, Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { GlobalAtoms } from "shared/datastore";
 
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {

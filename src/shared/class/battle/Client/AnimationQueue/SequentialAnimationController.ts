@@ -1,7 +1,7 @@
 import Logger from "shared/utils/Logger";
 import EntityGraphics from "../../State/Entity/Graphics";
 import { AnimationType } from "../../State/Entity/Graphics/AnimationHandler";
-import { NeoClashResult } from "../../types";
+import { NeoClashResult } from "../../Systems/CombatSystem/types";
 import CombatEffectsService from "../Effects/CombatEffectsServices";
 
 export interface AnimationSequenceStep {
@@ -110,7 +110,7 @@ export default class SequentialAnimationController {
                 await this.executeStep(step);
 
                 if (step.pauseBeforeNext && step.pauseBeforeNext > 0) {
-                    // await this.pauseWithRollReveal(step);
+                    await this.pauseWithRollReveal(step);
                 }
 
                 this.currentStep++;

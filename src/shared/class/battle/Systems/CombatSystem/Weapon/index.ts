@@ -1,8 +1,8 @@
 import Entity from "shared/class/battle/State/Entity";
-import { Reality } from "shared/class/battle/types";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { Potency } from "../Ability/types";
+import { Reality } from "../types";
 import { WeaponConfig } from "./types";
 
 export default class Weapon {
@@ -24,7 +24,7 @@ export default class Weapon {
         this.hitBonus = config.hitBonus;
         this.penetrationBonus = config.penetrationBonus;
         for (const [key, value] of pairs(config.damageTranslation)) {
-            this.damageTranslation.push([key, value]);
+            this.damageTranslation.push([key, value] as [Reality, [Potency, number][]]);
         }
     }
 

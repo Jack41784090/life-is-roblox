@@ -1,23 +1,11 @@
 import { Atom } from "@rbxts/charm";
 import { EntityState } from "shared/class/battle/State/Entity/types";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
-import { ActiveAbilityState, ReactionUpdate } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import State from "./State";
-import { ArmourState } from "./Systems/CombatSystem/Armour/types";
-import { WeaponState } from "./Systems/CombatSystem/Weapon/types";
+import { StrikeSequence } from "./Systems/CombatSystem/types";
 
-export type ClashResultFate = "Miss" | "Cling" | "Hit" | "CRIT"
-export enum Reality {
-    HP = 'hp',
-    Force = 'force',
-    Mana = 'mana',
-    Spirituality = 'spirituality',
-    Divinity = 'divinity',
-    Precision = 'precision',
-    Maneuver = 'maneuver',
-    Convince = 'convince',
-    Bravery = 'bravery',
-}
+
 
 export type TeamState = { name: string; members: EntityState[] };
 
@@ -79,36 +67,6 @@ export interface MoveAction extends BattleAction {
     from: Vector2,
     to: Vector2,
 }
-
-export interface ClashResult {
-    damage: number,
-    u_damage: number,
-    fate: ClashResultFate,
-    roll: number,
-    defendAttemptSuccessful: boolean,
-    defendAttemptName: string,
-    defendReactionUpdate: ReactionUpdate,
-}
-
-export interface NeoClashResultRoll {
-    die: `d${number}`,
-    against: 'DV' | 'PV',
-    toSurmount: number,
-    roll: number,
-    bonus: number,
-    fate: ClashResultFate,
-    damage?: number // Adding damage field to store the final calculated damage
-    // damage: [DamageType, number]
-}
-
-export interface NeoClashResult {
-    weapon: WeaponState
-    armour: ArmourState,
-    result: NeoClashResultRoll,
-    clashKills: boolean,
-}
-
-export type StrikeSequence = Array<NeoClashResult>
 
 export type PlayerID = number
 
