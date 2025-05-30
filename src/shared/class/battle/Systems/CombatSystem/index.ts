@@ -86,13 +86,13 @@ export default class CombatSystem {
         });
     }
 
-    public applyAttack(clashes: StrikeSequence[], ability: ActiveAbility) {
+    public applyAttack(strikeSequences: StrikeSequence[], ability: ActiveAbility) {
         const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
         if (!attacker || !defender) {
             this.logger.error("Attacker or defender not found", attacker, defender);
             return;
         }
-        for (const sequence of clashes) {
+        for (const sequence of strikeSequences) {
             for (const clash of sequence) {
                 const { against, fate } = clash.result;
                 if (against === "PV" && fate === "Hit") {
