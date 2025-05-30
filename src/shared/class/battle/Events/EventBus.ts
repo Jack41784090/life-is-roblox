@@ -7,6 +7,13 @@ export enum GameEvent {
     // Combat Events
     ENTITY_INTEND_ATTACK = "entity:attack",
     ENTITY_ATTACKED = "entity:attack:confirmed",
+    BEFORE_DV_ROLL = "entity:before-dv-roll",
+    AFTER_DV_ROLL = "entity:after-dv-roll",
+    BEFORE_PV_ROLL = "entity:before-pv-roll",
+    AFTER_PV_ROLL = "entity:after-pv-roll",
+    ON_TOUCH = "entity:touch",
+    ON_DEAL_DAMAGE = "entity:deal-damage",
+    ON_MISS = "entity:miss",
 
     // Entity events
     ENTITY_CREATED = "entity:created",
