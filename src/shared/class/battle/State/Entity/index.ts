@@ -12,7 +12,6 @@ import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems
 import { Reality } from "../../Systems/CombatSystem/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
-import StatusEffectManager from "../../Systems/StatusEffectSystem/StatusEffectManager";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityUpdate } from "./types";
 
 export default class Entity {
@@ -40,9 +39,7 @@ export default class Entity {
     private fightingStyles: FightingStyle[] = [];
     private activeStyleIndex: number = 0;
 
-    // Status Effect System
-    private statusEffectManager: StatusEffectManager;
-    private eventBus?: EventBus; constructor(options: EntityConfig, eventBus?: EventBus) {
+    constructor(options: EntityConfig, eventBus?: EventBus) {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
@@ -54,9 +51,7 @@ export default class Entity {
         this.mana = atom(options.mana ?? 0);
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
-        this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();        // Initialize status effect system
-        this.eventBus = eventBus;
-        this.statusEffectManager = new StatusEffectManager(this, eventBus || new EventBus());
+        this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
 
         // Initialize with default fighting styles
         this.initializeFightingStyles(options.fightingStyles);
