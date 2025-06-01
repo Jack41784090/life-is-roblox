@@ -2,6 +2,19 @@ import Entity from "../../../State/Entity";
 import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
 import { ClashResult } from "../types";
 
+export enum AbilityTriggerCondition {
+    BeforeAttack = 'beforeAttack',
+    AfterAttack = 'afterAttack',
+    BeforeStrikeSequence = 'beforeStrikeSequence',
+    AfterStrikeSequence = 'afterStrikeSequence',
+}
+
+export interface AbilityContext {
+    attacker: EntityState,
+    defender: EntityState,
+
+}
+
 export interface AbilityConfig {
     animation: string,
     name: string;
@@ -17,6 +30,10 @@ export interface AbilityConfig {
         pos: number,
         mana: number,
     }
+
+    triggerMap?: {
+        [key in AbilityTriggerCondition]?: (context: AbilityContext) => void;
+    };
 }
 export type ActiveAbilityConfig = AbilityConfig & {
     potencies: Map<Potency, number>;

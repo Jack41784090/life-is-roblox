@@ -1,18 +1,24 @@
+import { t } from "@rbxts/t";
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { PassiveEffectType } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
-import { uniformRandom } from "shared/utils";
+import { calculateRealityValue, uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
+import { neoClashResultType } from "../../Network/SyncSystem/veri";
 import State from "../../State";
 import Entity from "../../State/Entity";
+import { EntityStance, EntityState } from "../../State/Entity/types";
 import { AttackAction, PlayerID } from "../../types";
-import { NeoClashResult, StrikeSequence, StrikeSequenceResult, StrikeSequenceRoll } from "./types";
+import TriggerModifyIntegrationService from "../Integration/TriggerModifyIntegrationService";
+import { DamageType } from './Ability/types';
+import { NeoClashResult, Reality, StrikeSequence, StrikeSequenceResult, StrikeSequenceRoll, TriggerModify } from "./types";
 
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
     private gameState: State;
-    constructor(gameState: State) {
+    private triggerModifyService: TriggerModifyIntegrationService; constructor(gameState: State) {
         this.gameState = gameState;
+        this.triggerModifyService = new TriggerModifyIntegrationService(gameState, gameState.getStatusEffectSystem());
     }
 
     /**
@@ -28,13 +34,20 @@ export default class CombatSystem {
      * @remarks
      * Strike sequences represent the outcome of dice-based combat encounters.
      * Damage calculation considers both the base ability damage and potential modifiers from attacker and defender.
-     */
-    public resolveAttack(action: AttackAction): StrikeSequence[] {
+     */    public resolveAttack(action: AttackAction): (StrikeSequence | TriggerModify)[] {
         const [attacker, target] = this.gameState.getAttackerAndDefender(action);
         if (!attacker || !target) {
             this.logger.error("Attacker or target not found", attacker, target);
             return [];
         }
+
+        const attackerState = attacker.state();
+        const targetState = target.state();
+        const abilityState = action.ability;
+
+        // Initialize result array to hold both StrikeSequences and TriggerModify objects
+        const results: (StrikeSequence | TriggerModify)[] = [];
+        const triggerModifies: TriggerModify[] = [];
 
         // initialise the dices
         const abilityDices = action.ability.dices.map(d => d);
@@ -43,24 +56,69 @@ export default class CombatSystem {
 
         // clear out the clash event subscriptions and resubscribe for the new combatants
 
+        // EVENT: BEFORE_ATTACK
+        abilityState.triggerMap?.beforeAttack?.({
+            attacker: attackerState,
+            defender: targetState,
+        })
+
+        // Generate TriggerModify objects from ability triggers before attack
+        const beforeAttackTriggers = this.generateTriggerModifiesFromAbility(abilityState, 'beforeAttack', attackerState, targetState);
+        beforeAttackTriggers.forEach(modify => triggerModifies.push(modify));
+
         // Loop through all dices and resolve the strike sequence
         while (dice) {
-            const result: StrikeSequence = this.resolveStrikeSequence([dice], attacker, target);
+            // EVENT: BEFORE_SS
+            abilityState.triggerMap?.beforeStrikeSequence?.({
+                attacker: attackerState,
+                defender: targetState,
+                // dice: dice,
+            })
+
+            const result: StrikeSequence = this.resolveStrikeSequence([dice], attackerState, targetState);
             strikeSequences.push(result);
             dice = abilityDices.pop();
+
+            // EVENT: AFTER_SS
+            abilityState.triggerMap?.afterStrikeSequence?.({
+                attacker: attackerState,
+                defender: targetState,
+                // sequence: result,
+            });
         }
 
+        // EVENT: AFTER_ATTACK
+        abilityState.triggerMap?.afterAttack?.({
+            attacker: attackerState,
+            defender: targetState,
+        })
+
+        // Generate TriggerModify objects from ability triggers after attack
+        const afterAttackTriggers = this.generateTriggerModifiesFromAbility(abilityState, 'afterAttack', attackerState, targetState);
+        afterAttackTriggers.forEach(modify => triggerModifies.push(modify));
+
+        // Generate TriggerModify objects based on combat results (crits, hits, etc.)
+        const combatResultTriggers = this.generateTriggerModifiesFromCombatResults(strikeSequences, attackerState, targetState);
+        combatResultTriggers.forEach(modify => triggerModifies.push(modify));
+
         const attackingAbility = this.rebuildAbility(action.ability, action.by, action.against!);
-        return strikeSequences.map(ss => {
+        const processedStrikeSequences = strikeSequences.map(ss => {
             return ss.map(clash => {
                 const damage = this.calculateDamage(attackingAbility);
-                clash.result.damage = this.calculateModifiedDamage(damage, attacker, target);
+                clash.result.damage = this.calculateModifiedDamage(damage, attackerState, targetState);
                 // clash.clashKills = this.isAttackKills(target.playerID, clash);
                 return clash;
             });
         });
-    }
 
+        // Add all processed strike sequences to results
+        processedStrikeSequences.forEach(sequence => results.push(sequence));
+
+        // Add all generated TriggerModify objects to results
+        triggerModifies.forEach(modify => results.push(modify));
+
+        return results;
+    }
     /**
      * Resolves a strike sequence between an attacker and a target using the provided ability dice.
      * 
@@ -78,89 +136,48 @@ export default class CombatSystem {
      * - Both checks utilize the target's armor properties and the attacker's weapon properties
      * - The remaining dice after the DV check are used for the PV check
      */
-    private resolveStrikeSequence(initialAbilityDices: number[], attacker: Entity, target: Entity): StrikeSequence {
+    private resolveStrikeSequence(initialAbilityDices: number[], attacker: EntityState, target: EntityState): StrikeSequence {
         const rollHistory: StrikeSequence = [];
         const availableDice = [...initialAbilityDices];
 
+        // EVENT: BEFORE_DV_CHECK
+
         // Perform DV check first
-        const dv = target.armour?.getDV() || 0;
-        const bonusHit = attacker.weapon?.getTotalHitValue(attacker) || 0;
+        const getTotalHitValue = (attacker: EntityState): number => {
+            const man = calculateRealityValue(Reality.Maneuver, attacker.stats);
+            const pre = calculateRealityValue(Reality.Precision, attacker.stats);
+            const result = attacker.weapon.hitBonus + man / 2 + pre / 2;
+            return result;
+        }
+        const dv = target.armour.DV || 0;
+        const bonusHit = getTotalHitValue(attacker) || 0;
         const sequenceToHitResult = this.performRoll([...availableDice], dv, bonusHit, "DV", attacker, target);
         sequenceToHitResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult))
+
+        // EVENT: AFTER_DV_CHECK
 
         // all dices failed to hit
         if (!sequenceToHitResult.success) {
             return rollHistory;
         }
 
+        // EVENT: BEFORE_PV_CHECK
+
         // Use remaining dice for penetration check
-        const pv = target.armour?.getPV() || 0;
-        const bonusPen = attacker.weapon?.getTotalPenetrationValue(attacker) || 0;
+        const getTotalPenetrationValue = (attacker: EntityState): number => {
+            const force = calculateRealityValue(Reality.Force, attacker.stats);
+            const pre = calculateRealityValue(Reality.Precision, attacker.stats);
+            const result = attacker.weapon.penetrationBonus + force * 0.67 + pre * 0.33;
+            return result;
+        }
+        const pv = target.armour.PV || 0;
+        const bonusPen = getTotalPenetrationValue(attacker) || 0;
         const sequenceToPenetrateResult = this.performRoll([...availableDice], pv, bonusPen, "PV", attacker, target);
         sequenceToPenetrateResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult));
 
+        // EVENT: AFTER_PV_CHECK
+
         return rollHistory;
-    }
-
-    private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
-        for (const [stat, modifier] of pairs(ability.cost)) {
-            attacker.set(stat, attacker.get(stat) - modifier);
-        }
-    }
-
-    private tireDefender(defender: Entity, ability: ActiveAbilityState) {
-        // defender.set('pos', defender.get('pos') - ability.cost.pos);
-    }
-
-    private getPassiveEffectValue(entity: Entity, effectType: PassiveEffectType): number {
-        // Safely checks if an entity has a fighting style and returns the passive effect value
-        if (entity.getActiveStyle !== undefined) {
-            try {
-                const style = entity.getActiveStyle();
-                return style.getPassiveEffectValue(effectType);
-            } catch (err) {
-                this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.name}:`, err as defined);
-            }
-        }
-        return 0;
-    }
-
-    private calculateModifiedDamage(damage: number, attacker: Entity, target: Entity): number {
-        const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
-        const damageReduction = this.getPassiveEffectValue(target, PassiveEffectType.ReduceDamageReceived);
-        let modifiedDamage = damage + damageIncrease - damageReduction;
-        modifiedDamage = math.max(1, modifiedDamage);
-        return modifiedDamage;
-    }
-
-    private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
-        const allEntities = this.gameState.getEntityManager().getAllEntities();
-        const ability = new ActiveAbility({
-            ...abilityState,
-            using: allEntities.find((e: Entity) => e.playerID === by),
-            target: allEntities.find((e: Entity) => e.playerID === against),
-        });
-        return ability;
-    }
-
-    public applyAttack(strikeSequences: StrikeSequence[], ability: ActiveAbility) {
-        const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
-        if (!attacker || !defender) {
-            this.logger.error("Attacker or defender not found", attacker, defender);
-            return;
-        }
-        for (const sequence of strikeSequences) {
-            for (const clash of sequence) {
-                const { against, fate } = clash.result;
-                if (against === "PV" && fate === "Hit") {
-                    defender.damage(clash.result.damage || 0);
-                }
-            }
-        }
-
-        this.tireAttacker(attacker, ability.getState());
-        this.tireDefender(defender, ability.getState());
-
     }
 
     private performRoll(
@@ -168,8 +185,8 @@ export default class CombatSystem {
         targetValue: number,
         bonus: number,
         checkType: "DV" | "PV",
-        attacker: Entity,
-        target: Entity
+        attacker: EntityState,
+        target: EntityState
     ): StrikeSequenceResult {
         let die = dicePool.pop();
         const results: StrikeSequenceRoll[] = [];
@@ -190,8 +207,8 @@ export default class CombatSystem {
             overallSuccess = overallSuccess || success;
 
             const rollResult: NeoClashResult = {
-                armour: target.armour.getState(),
-                weapon: attacker.weapon.getState(),
+                armour: target.armour,
+                weapon: attacker.weapon,
                 // ability: attacker.weapon.getAbility(), // Assuming you might want to add ability context here
                 result: {
                     die: `d${die}`,
@@ -219,13 +236,91 @@ export default class CombatSystem {
         };
     }
 
+    private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
+        for (const [stat, modifier] of pairs(ability.cost)) {
+            attacker.set(stat, attacker.get(stat) - modifier);
+        }
+    }
+
+    private tireDefender(defender: Entity, ability: ActiveAbilityState) {
+        // defender.set('pos', defender.get('pos') - ability.cost.pos);
+    }
+
+    private getPassiveEffectValue(entity: EntityState, effectType: PassiveEffectType): number {
+        try {
+            const style = entity.fightingStyles[entity.activeStyleIndex];
+            return style.passiveEffects.find(effect => effect.type === effectType)?.value || 0;
+        } catch (err) {
+            this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.name}:`, err as defined);
+        }
+        return 0;
+    }
+
+    private calculateModifiedDamage(damage: number, attacker: EntityState, target: EntityState): number {
+        const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
+        const damageReduction = this.getPassiveEffectValue(target, PassiveEffectType.ReduceDamageReceived);
+        let modifiedDamage = damage + damageIncrease - damageReduction;
+        modifiedDamage = math.max(1, modifiedDamage);
+        return modifiedDamage;
+    }
+
+    private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
+        const allEntities = this.gameState.getEntityManager().getAllEntities();
+        const ability = new ActiveAbility({
+            ...abilityState,
+            using: allEntities.find((e: Entity) => e.playerID === by),
+            target: allEntities.find((e: Entity) => e.playerID === against),
+        });
+        return ability;
+    }
+
+    public applyAttack(strikeSequences: (StrikeSequence | TriggerModify)[], ability: ActiveAbility) {
+        const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
+        if (!attacker || !defender) {
+            this.logger.error("Attacker or defender not found", attacker, defender);
+            return;
+        }
+
+        for (const sequence of strikeSequences) {
+            if (t.array(neoClashResultType)(sequence)) {
+                // Handle regular strike sequence
+                for (const clash of sequence) {
+                    const { against, fate } = clash.result;
+                    if (against === "PV" && fate === "Hit") {
+                        defender.damage(clash.result.damage || 0);
+                    }
+                }
+            } else {
+                // Handle TriggerModify object through the integration service
+                const triggerModify = sequence as TriggerModify;
+                this.triggerModifyService.applyTriggerModify(triggerModify, defender.playerID, attacker.playerID);
+            }
+        }
+
+        this.tireAttacker(attacker, ability.getState());
+        this.tireDefender(defender, ability.getState());
+    }
+
     private calculateDamage(ability: ActiveAbility): number {
         const [attacker, defender] = this.gameState.getAttackerAndDefender(ability)
         if (!attacker || !defender) {
             this.logger.error("Attacker or defender not found", attacker, defender);
             return 0;
         }
-        return this.calculateModifiedDamage(defender.armour.getRawDamageTaken(ability.getTotalDamageArray()), attacker, defender);
+        const attackerState = attacker.state();
+        const defenderState = defender.state();
+
+        const getRawDamageTaken = (damageTypesArray: Record<string, number>): number => {
+            let damage = 0;
+            for (const [damageType, value] of pairs(damageTypesArray)) {
+                const res = defenderState.armour.resistance.get(damageType as DamageType);
+                damage += res ?
+                    value * (1 - res) :
+                    value;
+            }
+            return damage;
+        }
+        return this.calculateModifiedDamage(getRawDamageTaken(ability.getTotalDamageArray()), attackerState, defenderState);
     }
 
     private isAttackKills(against: number, clash: NeoClashResult) {
@@ -245,6 +340,83 @@ export default class CombatSystem {
         //     ability
         // });
         // return targetHp <= damage;
+    } private generateTriggerModifiesFromAbility(
+        abilityState: ActiveAbilityState,
+        triggerType: 'beforeAttack' | 'afterAttack' | 'beforeStrikeSequence' | 'afterStrikeSequence',
+        attackerState: EntityState,
+        targetState: EntityState
+    ): TriggerModify[] {
+        const triggerModifies: TriggerModify[] = [];
+
+        // Generate TriggerModify objects based on ability characteristics
+        // This can be expanded to read from ability configurations or special trigger rules
+
+        if (triggerType === 'beforeAttack') {
+            // Example: Some abilities might boost attacker stats before attacking
+            if (abilityState.name === 'Power Slash') {
+                triggerModifies.push({
+                    mod: 'str',
+                    value: 2
+                });
+            }
+        }
+
+        if (triggerType === 'afterAttack') {
+            // Example: Some abilities might have lingering effects after attacking
+            if (abilityState.direction === EntityStance.High) {
+                triggerModifies.push({
+                    mod: 'pos',
+                    value: -5
+                });
+            }
+        }
+
+        return triggerModifies;
+    } private generateTriggerModifiesFromCombatResults(
+        strikeSequences: StrikeSequence[],
+        attackerState: EntityState,
+        targetState: EntityState
+    ): TriggerModify[] {
+        const triggerModifies: TriggerModify[] = [];
+
+        // Analyze combat results and generate appropriate TriggerModify objects
+        for (const sequence of strikeSequences) {
+            for (const clash of sequence) {
+                const { fate, against } = clash.result;
+
+                // Critical hit bonuses - boost attacker's strength
+                if (fate === "CRIT") {
+                    triggerModifies.push({
+                        mod: 'str',
+                        value: 3
+                    });
+
+                    // Target might get stunned effect - reduce posture
+                    triggerModifies.push({
+                        mod: 'pos',
+                        value: -10
+                    });
+                }
+
+                // Successful penetration effects - restore mana
+                if (against === "PV" && fate === "Hit") {
+                    triggerModifies.push({
+                        mod: 'mana',
+                        value: 2
+                    });
+                }
+
+                // Miss penalties - reduce posture
+                if (fate === "Miss") {
+                    triggerModifies.push({
+                        mod: 'pos',
+                        value: -3
+                    });
+                }
+            }
+        }
+
+        return triggerModifies;
     }
 }
 

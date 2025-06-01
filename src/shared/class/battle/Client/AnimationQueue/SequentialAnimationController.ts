@@ -1,12 +1,12 @@
 import Logger from "shared/utils/Logger";
 import EntityGraphics from "../../State/Entity/Graphics";
 import { AnimationType } from "../../State/Entity/Graphics/AnimationHandler";
-import { NeoClashResult } from "../../Systems/CombatSystem/types";
+import { NeoClashResult, TriggerModify } from "../../Systems/CombatSystem/types";
 import CombatEffectsService from "../Effects/CombatEffectsServices";
 
 export interface AnimationSequenceStep {
-    type: "die_reveal" | "hit_impact" | "miss_dodge" | "recovery";
-    die: NeoClashResult;
+    type: "die_reveal" | "hit_impact" | "miss_dodge" | "recovery" | "trigger_modify";
+    die: NeoClashResult | TriggerModify;
     duration: number;
     pauseBeforeNext?: number;
 }
@@ -14,7 +14,7 @@ export interface AnimationSequenceStep {
 export interface SequentialAnimationConfig {
     attacker: EntityGraphics;
     target: EntityGraphics;
-    dice: NeoClashResult[];
+    dice: (NeoClashResult | TriggerModify)[];
     pauseDuration: number;
 }
 
@@ -29,7 +29,6 @@ export default class SequentialAnimationController {
     constructor(private config: SequentialAnimationConfig) {
         this.buildAnimationSequence();
     }
-
     private buildAnimationSequence(): void {
         this.animationSteps = [];
 
@@ -47,11 +46,15 @@ export default class SequentialAnimationController {
             type: "recovery",
             die: this.config.dice[this.config.dice.size() - 1],
             duration: 1.0,
-            pauseBeforeNext: 0 // No pause after recovery
+            pauseBeforeNext: 0
         })
     }
 
-    private determineStepType(die: NeoClashResult): AnimationSequenceStep["type"] {
+    private determineStepType(die: NeoClashResult | TriggerModify): AnimationSequenceStep["type"] {
+        if ("mod" in die) {
+            return "trigger_modify";
+        }
+
         switch (die.result.fate) {
             case "Miss":
                 return "miss_dodge";
@@ -65,7 +68,11 @@ export default class SequentialAnimationController {
         }
     }
 
-    private calculateStepDuration(die: NeoClashResult): number {
+    private calculateStepDuration(die: NeoClashResult | TriggerModify): number {
+        if ("mod" in die) {
+            return 1.2;
+        }
+
         const baseDuration = 1.0;
 
         switch (die.result.fate) {
@@ -82,7 +89,11 @@ export default class SequentialAnimationController {
         }
     }
 
-    private calculateHitStunDuration(die: NeoClashResult): number {
+    private calculateHitStunDuration(die: NeoClashResult | TriggerModify): number {
+        if ("mod" in die) {
+            return 0.3;
+        }
+
         if (die.result.fate === "Miss" || die.result.fate === "Cling") {
             return 0;
         }
@@ -148,7 +159,6 @@ export default class SequentialAnimationController {
         //     loop: false,
         // });
     }
-
     private async executeStep(step: AnimationSequenceStep): Promise<void> {
         const { attacker, target } = this.config;
 
@@ -165,10 +175,14 @@ export default class SequentialAnimationController {
             case "recovery":
                 await this.executeRecoverySequence(step);
                 break;
+            case "trigger_modify":
+                await this.executeTriggerModifySequence(step);
+                break;
         }
     }
-
     private async executeMissSequence(step: AnimationSequenceStep): Promise<void> {
+        if ("mod" in step.die) return;
+
         const { attacker, target } = this.config;
 
         this.showRollEffects(step.die);
@@ -185,11 +199,15 @@ export default class SequentialAnimationController {
     }
 
     private async executeDieRevealSequence(step: AnimationSequenceStep): Promise<void> {
+        if ("mod" in step.die) return;
+
         this.showRollEffects(step.die);
         await this.wait(step.duration);
     }
 
     private async executeHitImpactSequence(step: AnimationSequenceStep): Promise<void> {
+        if ("mod" in step.die) return;
+
         const { attacker, target } = this.config;
 
         if (!this.currentDefendAnim) {
@@ -227,6 +245,16 @@ export default class SequentialAnimationController {
         await this.waitForAnimationEnd(hitAnimation);
     }
 
+    private async executeTriggerModifySequence(step: AnimationSequenceStep): Promise<void> {
+        if (!("mod" in step.die)) return;
+
+        const { target } = this.config;
+        const triggerModify = step.die as TriggerModify;
+
+        this.showTriggerModifyEffects(triggerModify, target);
+        await this.wait(step.duration);
+    }
+
     private async executeRecoverySequence(step: AnimationSequenceStep): Promise<void> {
         const { attacker, target } = this.config;
 
@@ -254,9 +282,12 @@ export default class SequentialAnimationController {
         // if (this.currentDefendAnim) {
         //     target.animationHandler.killAnimation(AnimationType.Defend);
         // }
-    }
+    } private async pauseWithRollReveal(step: AnimationSequenceStep): Promise<void> {
+        if ("mod" in step.die) {
+            await this.wait(step.pauseBeforeNext || this.config.pauseDuration);
+            return;
+        }
 
-    private async pauseWithRollReveal(step: AnimationSequenceStep): Promise<void> {
         const combatEffects = CombatEffectsService.getInstance();
         const { target } = this.config;
 
@@ -312,6 +343,29 @@ export default class SequentialAnimationController {
                 new Color3(0, 0.2, 1),
                 `${die.result.against === 'DV' ? '🏃‍♂️' : '🛡️'} ${die.result.toSurmount}`
             );
+        }
+    }
+
+    private showTriggerModifyEffects(triggerModify: TriggerModify, target: EntityGraphics): void {
+        const combatEffects = CombatEffectsService.getInstance();
+
+        const targetHead = target.model.FindFirstChild("Head");
+        const targetPos = targetHead && targetHead.IsA("BasePart") ?
+            targetHead.Position : target.model.PrimaryPart?.Position;
+
+        if (targetPos) {
+            const screenPos = this.worldToScreenPosition(targetPos);
+
+            const isPositive = triggerModify.value > 0;
+            const effectColor = isPositive ? new Color3(0, 1, 0) : new Color3(1, 0.5, 0);
+            const prefix = isPositive ? "+" : "";
+            const modText = `${prefix}${triggerModify.value} ${string.upper(triggerModify.mod)}`;
+
+            combatEffects.showAbilityReaction(screenPos, effectColor, modText);
+
+            if (isPositive) {
+                combatEffects.showHitImpact(screenPos, new Color3(0.2, 1, 0.2), 30);
+            }
         }
     }
 

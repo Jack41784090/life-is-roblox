@@ -3,7 +3,7 @@ import { EntityState } from "shared/class/battle/State/Entity/types";
 import HexGrid from "shared/class/battle/State/Hex/Grid";
 import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import State from "./State";
-import { StrikeSequence } from "./Systems/CombatSystem/types";
+import { StrikeSequence, TriggerModify } from "./Systems/CombatSystem/types";
 
 
 
@@ -47,7 +47,7 @@ export interface StyleSwitchAction extends BattleAction {
 }
 
 export interface ResolveAttacksAction extends BattleAction {
-    results: StrikeSequence[],
+    results: (StrikeSequence | TriggerModify)[],
     ability: ActiveAbilityState,
 }
 export interface AttackAction extends BattleAction {

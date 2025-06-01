@@ -44,16 +44,15 @@ class Ability {
         // });
     }
 
-    getAttacker(): Entity | undefined {
+    public getAttacker(): Entity | undefined {
         return this.using;
     }
 
-    getTarget(): Entity | undefined {
+    public getTarget(): Entity | undefined {
         return this.target;
     }
 
-    getState() {
-
+    public getState() {
         return {
             ... this,
             using: this.using?.state(),

@@ -9,7 +9,7 @@ import { NetworkService } from "../Network";
 import { SyncSystem } from "../Network/SyncSystem";
 import { attackActionRefVerification } from "../Network/SyncSystem/veri";
 import State from "../State";
-import { StrikeSequence } from "../Systems/CombatSystem/types";
+import { StrikeSequence, TriggerModify } from "../Systems/CombatSystem/types";
 import { ServerActionValidator } from "./ServerValidation";
 
 export default class BattleServer {
@@ -96,9 +96,14 @@ export default class BattleServer {
                 this.logger.error(`Invalid token for attack action: ${accessToken.token}`);
                 return [];
             }
-            const clashes =
-                this.validedClashes.get(accessToken.token) ??
-                this.validedClashes.set(accessToken.token, this.state.getCombatSystem().resolveAttack(attackAction)).get(accessToken.token)!;
+            const clashes = (() => {
+                if (this.validedClashes.has(accessToken.token)) {
+                    return this.validedClashes.get(accessToken.token)!;
+                }
+                const res = this.state.getCombatSystem().resolveAttack(attackAction);
+                this.validedClashes.set(accessToken.token, res);
+                return res;
+            })();
 
             return clashes;
         });
@@ -106,10 +111,12 @@ export default class BattleServer {
             // this.logger.debug(`Received actor request from ${p.Name}`);
             return this.state.getEntity(id)?.state();
         })
-    }    //#region Server-Side Loop
+    }
+
+    //#region Server-Side Loop
     //#region Validations
     private givenTokens: string[] = [];
-    private validedClashes: Map<string, StrikeSequence[]> = new Map();
+    private validedClashes: Map<string, (StrikeSequence | TriggerModify)[]> = new Map();
     private validator: ServerActionValidator;
     //#endregion
 

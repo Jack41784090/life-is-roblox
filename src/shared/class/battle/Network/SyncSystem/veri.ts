@@ -92,7 +92,8 @@ export const neoClashResultRollType = t.interface({
     toSurmount: t.number,
     roll: t.number,
     bonus: t.number,
-    fate: t.union(t.literal('Miss'), t.literal('Cling'), t.literal('Hit'), t.literal('CRIT'))
+    fate: t.union(t.literal('Miss'), t.literal('Cling'), t.literal('Hit'), t.literal('CRIT')),
+    damage: t.optional(t.number), // Optional damage field
 })
 
 export const neoClashResultType = t.interface({

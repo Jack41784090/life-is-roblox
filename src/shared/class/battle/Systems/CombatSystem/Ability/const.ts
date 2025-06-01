@@ -21,6 +21,12 @@ export const UNIVERSAL_PHYS = new Map<string, ActiveAbilityConfig>([
             mana: 0,
         },
         range: new NumberRange(1, 1),
+        triggerMap: {
+            'beforeAttack': (context) => {
+                const { attacker } = context;
+                attacker.stats.str += 1;
+            }
+        }
     }]
 ])
 

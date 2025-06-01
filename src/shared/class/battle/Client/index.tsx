@@ -15,7 +15,7 @@ import Entity from "../State/Entity";
 import HexCell from "../State/Hex/Cell";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
-import { StrikeSequence } from "../Systems/CombatSystem/types";
+import { StrikeSequence, TriggerModify } from "../Systems/CombatSystem/types";
 import BattleAnimationManager from "./AnimationQueue";
 import BattleCamera from "./BattleCamera";
 import { ClientActionValidator } from "./ClientValidation";
@@ -292,7 +292,7 @@ export default class BattleClient {
     //#endregion
 
     //#region Animations
-    private handleAttackAnimation(attackerId: number, targetId: number, clashes: StrikeSequence[]) {
+    private handleAttackAnimation(attackerId: number, targetId: number, clashes: (StrikeSequence | TriggerModify)[]) {
         const attacker = this.graphics.getEntityGraphic(attackerId);
         const target = this.graphics.getEntityGraphic(targetId);
         if (!attacker || !target) {

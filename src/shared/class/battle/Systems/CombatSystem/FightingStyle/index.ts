@@ -110,4 +110,16 @@ export default class FightingStyle {
             passiveEffects: this.passiveEffects
         };
     }
+
+    // public clone(): FightingStyle {
+    //     const cloned = new FightingStyle({
+    //         name: this.name,
+    //         description: this.description,
+    //         activeAbilities: this.activeAbilities.map(a => a.getState()),
+    //         reactionAbilities: this.reactionAbilities.map(a => a.getState()),
+    //         passiveEffects: [...this.passiveEffects],
+    //         switchCost: this.switchCost
+    //     });
+    //     return cloned;
+    // }
 }

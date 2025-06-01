@@ -9,7 +9,7 @@ import Armour from "../../Systems/CombatSystem/Armour";
 import { ArmourConfig } from "../../Systems/CombatSystem/Armour/types";
 import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
 import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems/CombatSystem/FightingStyle/const";
-import { Reality } from "../../Systems/CombatSystem/types";
+import { EntityStatistics, Reality } from "../../Systems/CombatSystem/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
 import { EntityChangeable, EntityConfig, EntityStance, EntityState, EntityStats, EntityUpdate } from "./types";
@@ -93,18 +93,59 @@ export default class Entity {
         }
     }
 
-    //#region get stats
-    set(property: EntityChangeable, by: number) {
-        // this.logger.debug(`${this.name}: Changing ${property} by ${by}`);
-        const oldValue = this[property]();
-        this[property](math.max(0, by));
-
-
-        return this[property];
+    // public clone(): Entity {
+    //     const state = this.getState();
+    //     const cloned = new Entity({
+    //         qr: state.qr,
+    //         playerID: state.playerID,
+    //         team: state.team,
+    //         stats: { ...state.stats },
+    //         sta: state.sta,
+    //         hip: state.hip,
+    //         org: state.org,
+    //         pos: state.pos,
+    //         mana: state.mana,
+    //         name: state.name,
+    //         weapon: state.weapon as WeaponConfig,
+    //         armour: state.armour as ArmourConfig,
+    //         fightingStyles: this.fightingStyles.map(style => style.clone()),
+    //     })
+    //     return cloned
+    // }    //#region get stats
+    set(property: EntityChangeable, by: number): Atom<number>;
+    set(property: EntityStatistics, by: number): void;
+    set(property: EntityChangeable | EntityStatistics, by: number): Atom<number> | void {
+        // Handle EntityChangeable properties (atoms)
+        if (property === 'pos' || property === 'hip' || property === 'org' || property === 'sta' || property === 'mana') {
+            const oldValue = this[property]();
+            this[property](math.max(0, by));
+            return this[property];
+        }
+        // Handle EntityStats properties (direct values)
+        else if (property in this.stats) {
+            this.stats[property as EntityStatistics] = by;
+            return;
+        }
+        else {
+            this.logger.warn(`Attempted to set unknown property: ${property}`);
+        }
     }
 
-    get(property: EntityChangeable): number {
-        return this[property]();
+    get(property: EntityChangeable): number;
+    get(property: EntityStatistics): number;
+    get(property: EntityChangeable | EntityStatistics): number {
+        // Handle EntityChangeable properties (atoms)
+        if (property === 'pos' || property === 'hip' || property === 'org' || property === 'sta' || property === 'mana') {
+            return this[property]();
+        }
+        // Handle EntityStats properties (direct values)
+        else if (property in this.stats) {
+            return this.stats[property as EntityStatistics];
+        }
+        else {
+            this.logger.warn(`Attempted to get unknown property: ${property}`);
+            return 0;
+        }
     }
 
     getState(property: EntityChangeable): Atom<number> {

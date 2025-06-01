@@ -83,8 +83,8 @@ export default class StatusEffectSystem {
         return manager;
     }
 
-    public getEntityManager(entityId: number): StatusEffectManager | undefined {
-        return this.entityManagers.get(entityId);
+    public getEntityManager(entityId: number): StatusEffectManager {
+        return this.entityManagers.get(entityId) ?? (this.createEntityManager(this.gameState.getEntityManager().getEntity(entityId)!));
     }
 
     public async applyEffect(

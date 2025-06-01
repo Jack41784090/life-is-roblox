@@ -2,7 +2,7 @@ import { SyncPayload } from "@rbxts/charm-sync";
 import { Client, createRemotes, loggerMiddleware, namespace, remote, Server } from "@rbxts/remo";
 import { t } from "@rbxts/t";
 import { EntityState } from "shared/class/battle/State/Entity/types";
-import { StrikeSequence } from "shared/class/battle/Systems/CombatSystem/types";
+import { StrikeSequence, TriggerModify } from "shared/class/battle/Systems/CombatSystem/types";
 import { AccessToken, ActionType, AttackAction, BattleConfig, HexGridState, StateState, TeamState } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { GlobalAtoms } from "shared/datastore";
@@ -31,7 +31,7 @@ export const serverRemotes = createRemotes({
 });
 
 export const serverRequestRemote = createRemotes({
-    clashes: remote<Server, [attackAction: AccessToken]>().returns<StrikeSequence[]>(),
+    clashes: remote<Server, [attackAction: AccessToken]>().returns<(StrikeSequence | TriggerModify)[]>(),
     map: remote<Server>().returns<HexGridState>(),
     team: remote<Server>().returns<TeamState[]>(),
     state: remote<Server>().returns<StateState>(),

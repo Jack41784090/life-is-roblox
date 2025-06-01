@@ -1,3 +1,4 @@
+import { EntityChangeable, EntityStats } from "../../State/Entity/types"
 import { ReactionUpdate } from "./Ability/types"
 import { ArmourState } from "./Armour/types"
 import { WeaponState } from "./Weapon/types"
@@ -33,8 +34,7 @@ export interface NeoClashResultRoll {
     roll: number,
     bonus: number,
     fate: ClashResultFate,
-    damage?: number // Adding damage field to store the final calculated damage
-    // damage: [DamageType, number]
+    damage?: number
 }
 
 export interface NeoClashResult {
@@ -56,3 +56,12 @@ export interface StrikeSequenceResult {
     sequence: StrikeSequenceRoll[];
     success: boolean;
 }
+
+export type EntityStatistics = keyof Omit<EntityStats, 'id'>;
+
+export interface TriggerModify {
+    mod: EntityChangeable | EntityStatistics;
+    value: number;
+}
+
+

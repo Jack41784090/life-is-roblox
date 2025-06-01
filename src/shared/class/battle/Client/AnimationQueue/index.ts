@@ -1,8 +1,10 @@
+import { t } from "@rbxts/t";
 import { promiseWrapper } from "shared/utils";
 import Logger from "shared/utils/Logger";
+import { neoClashResultType } from "../../Network/SyncSystem/veri";
 import EntityGraphics from "../../State/Entity/Graphics";
 import { AnimationType } from "../../State/Entity/Graphics/AnimationHandler";
-import { NeoClashResult, StrikeSequence } from "../../Systems/CombatSystem/types";
+import { NeoClashResult, StrikeSequence, TriggerModify } from "../../Systems/CombatSystem/types";
 import { EntityStatus } from "../../types";
 import CombatEffectsService from "../Effects/CombatEffectsServices";
 import BattleAnimation from "./BattleAnimation";
@@ -123,11 +125,16 @@ export default class BattleAnimationManager {
             timeout: 5,
         })
     }
-    public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
+    public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: (StrikeSequence | TriggerModify)[]): Promise<void> {
         for (const clash of clashes) {
-            const dice: NeoClashResult[] = [];
-            for (const result of clash) {
-                dice.push(result);
+            const dice: (NeoClashResult | TriggerModify)[] = [];
+            if (t.array(neoClashResultType)(clash)) {
+                for (const result of clash) {
+                    dice.push(result);
+                }
+            }
+            else {
+                dice.push(clash as TriggerModify);
             }
 
             const sequentialController = new SequentialAnimationController({

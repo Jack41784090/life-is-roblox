@@ -7,6 +7,7 @@ import { EventBus, GameEvent } from "../Events/EventBus";
 import CombatSystem from "../Systems/CombatSystem";
 import { ActiveAbility } from "../Systems/CombatSystem/Ability";
 import { ClashResult, Reality } from "../Systems/CombatSystem/types";
+import StatusEffectSystem from "../Systems/StatusEffectSystem";
 import { TurnSystem } from "../Systems/TurnSystem";
 import { ActionType, AttackAction, BattleAction, MoveAction, ResolveAttacksAction, StateConfig, StateState, StyleSwitchAction, TeamMap } from "../types";
 import Entity from "./Entity";
@@ -37,13 +38,13 @@ export default class State {
     private teamManager: TeamManager;
     private combatSystem: CombatSystem;
     private turnSystem: TurnSystem;
-
-    public constructor(config: StateConfig) {
+    private statusEffectSystem: StatusEffectSystem; public constructor(config: StateConfig) {
         this.eventBus = new EventBus();
         this.gridManager = new GridManager(config, this.eventBus);
         const entitiesInit: EntityConfig[] = this.getEntitiesInitFromTeamMap(config.teamMap);
         this.entityManager = new EntityManager(entitiesInit, this.gridManager, this.eventBus); // Pass eventBus to EntityManager
         this.teamManager = new TeamManager(this.entityManager.getTeamMap());
+        this.statusEffectSystem = new StatusEffectSystem(this);
         this.combatSystem = new CombatSystem(this);
         this.turnSystem = new TurnSystem({
             gauntletTickInterval: 0.2,
@@ -131,10 +132,12 @@ export default class State {
      */
     public getTeamManager(): TeamManager {
         return this.teamManager;
+    } public getEventBus(): EventBus {
+        return this.eventBus;
     }
 
-    public getEventBus(): EventBus {
-        return this.eventBus;
+    public getStatusEffectSystem(): StatusEffectSystem {
+        return this.statusEffectSystem;
     }
     //#endregion
 
