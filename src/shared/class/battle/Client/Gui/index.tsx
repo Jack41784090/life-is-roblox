@@ -84,6 +84,38 @@ export default class BattleGui {
         GuiMothership.Mount(GuiTag.OtherTurn, <OPTElement />);
     }
 
+    public mountAbilitySlots(cre: Entity) {
+        const mountingAbilitySet = cre.getAllAbilitySets().find(a => a !== undefined);
+        if (!mountingAbilitySet) {
+            this.logger.warn("No ability set found for entity");
+            return;
+        }
+        GuiMothership.Mount(GuiTag.AbilitySlot,
+            <AbilitySetElement>
+                <AbilitySlots cre={cre} abilitySet={mountingAbilitySet} />
+            </AbilitySetElement>
+        );
+    }
+
+    public mountFightingStyleSelector(entity: Entity, onSelectionChange?: (styleIndex: number) => void) {
+        // this.logger.debug(`Mounting fighting style selector for ${entity.name}`);
+        GuiMothership.Mount(
+            GuiTag.FightingStyleSelector,
+            <FightingStyleSelector
+                entity={entity}
+                onStyleSelect={(styleIndex) => {
+                    // When style changes, update ability slots if they're currently showing
+                    if (this.mode() === 'withSensitiveCells') {
+                        this.mountAbilitySlots(entity);
+                    }
+                    if (onSelectionChange) {
+                        onSelectionChange(styleIndex);
+                    }
+                }}
+            />
+        );
+    }
+
     public unmountAndClear(tag: GuiTag) {
         GuiMothership.Unmount(tag);
     }

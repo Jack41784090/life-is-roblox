@@ -46,6 +46,7 @@ function ReadinessIconElement(props: Props) {
                 key={`Label${props.index}`}
                 Position={UDim2.fromScale(0, 0.25)}
                 Size={UDim2.fromScale(.6, .6)}
+                // Text={string.format("%.2f", readinessPercent)}
                 Text={`${math.round(readinessPercent)}`}
                 TextScaled={true}
                 BackgroundTransparency={1}
