@@ -7,7 +7,6 @@ import FightingStyleSelector from "gui_sharedfirst/new_components/battle/fightin
 import MainFrame from "gui_sharedfirst/new_components/battle/main-frame";
 import PlayerPortrait from "gui_sharedfirst/new_components/battle/statusBar/playerPortrait";
 import GuiMothership from "gui_sharedfirst/new_components/main";
-import { CharacterMenuAction, MainUIModes, } from "shared/class/battle/types";
 import { GuiTag } from "shared/const";
 import { calculateRealityValue } from "shared/utils";
 import Logger from "shared/utils/Logger";
@@ -33,19 +32,15 @@ export default class BattleGui {
     private constructor(config: GuiConfig) {
         this.mode = atom<GuiModes>('onlyReadinessBar');
         this.readinessFragments = config.readinessFragments;
-        this.forceUpdateMainFrame('onlyReadinessBar');
-    }
-
-    public setMode(mode: GuiModes) {
-        // this.logger.debug(`Setting mode to ${mode}`);
-        this.mode(mode);
         this.updateUI();
     }
 
     //#region UI Mounting Methods
-    public forceUpdateMainFrame(mode: MainUIModes, localEntity?: Entity, sensitiveCells?: React.Element) {
-        // this.logger.debug(`Force updating main UI with mode: ${mode}`);
-        this.mode(mode);
+    public forceUpdateMainFrame(localEntity?: Entity, sensitiveCells?: React.Element) {
+        this.logger.info("Forcing update of the main frame UI", {
+            localEntity,
+            sensitiveCells,
+        });
         this.updateUI(localEntity, sensitiveCells);
     }
 
