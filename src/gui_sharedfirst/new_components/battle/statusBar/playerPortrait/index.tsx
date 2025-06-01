@@ -1,6 +1,6 @@
 // filepath: c:\Users\tszmi\Documents\Code\roblox-game\src\gui_sharedfirst\new_components\battle\statusBar\playerPortrait\index.tsx
 import { Atom } from "@rbxts/charm";
-import { useMotion } from "@rbxts/pretty-react-hooks";
+import { useMotion, useViewport } from "@rbxts/pretty-react-hooks";
 import React, { useEffect } from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
 import { findEntityPortrait, springs } from "shared/utils";
@@ -16,6 +16,7 @@ interface Props {
  * The HP bar is a circular arc that surrounds 25% of the portrait in the top-right quadrant when full.
  */
 function PlayerPortrait(props: Props) {
+    const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);
     const hp = useAtom(props.hp);
 
@@ -29,11 +30,17 @@ function PlayerPortrait(props: Props) {
     const circleSize = 0.25; // Size of the circle (25% of the screen size)
     return (
         <frame
+            key={"PlayerPortrait-" + props.entityId}
             AnchorPoint={new Vector2(0, 1)}
-            Position={UDim2.fromScale(-circleSize / 5, 1 + circleSize / 5)} // Bottom-left corner of screen
-            Size={UDim2.fromScale(circleSize, circleSize)} // 25% of screen size
+            Position={UDim2.fromScale(-.1, 1.2)}
+            Size={UDim2.fromScale(1, 1)}
+            // Size={UDim2.fromScale(1, 1)}
             BackgroundTransparency={1}
-            SizeConstraint={Enum.SizeConstraint.RelativeXX} // Keep it circular
+            SizeConstraint={
+                viewport.getValue().Y < viewport.getValue().X
+                    ? Enum.SizeConstraint.RelativeYY
+                    : Enum.SizeConstraint.RelativeXX
+            }
         >
             {/* Create HP bar segments around the portrait */}
             {(() => {

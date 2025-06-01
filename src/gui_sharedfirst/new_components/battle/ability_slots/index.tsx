@@ -1,5 +1,4 @@
 import React from '@rbxts/react';
-import BattleGui from 'shared/class/battle/Client/Gui';
 import Entity from 'shared/class/battle/State/Entity/index';
 import { AbilitySet } from 'shared/class/battle/Systems/CombatSystem/Ability/types';
 import AbilitySlot from './ability_slot';
@@ -8,10 +7,9 @@ import AbilitySlot from './ability_slot';
 interface AbilitySlotsProps {
     cre: Entity;
     abilitySet: AbilitySet;
-    gui: BattleGui;
 }
 
-export function AbilitySlots({ cre, abilitySet, gui }: AbilitySlotsProps) {
+export function AbilitySlots({ cre, abilitySet }: AbilitySlotsProps) {
     const abilityKeys = ['Q', 'W', 'E', 'R'] as const;
 
     return (

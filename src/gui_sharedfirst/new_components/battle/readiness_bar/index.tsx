@@ -18,13 +18,28 @@ function ReadinessBar(props: Props) {
     return (
         <frame
             key={barKey}
-            Position={new UDim2(0.05, 0, 0.02, 0)} // Changed from 0.1 to 0.02 to move to top
-            Size={new UDim2(0.9, 0, 0.06, 0)} // Made wider and slightly taller
-            BackgroundTransparency={0.25}
-            BackgroundColor3={new Color3(1, 0.03, 0.03)}
+            AnchorPoint={new Vector2(0, .5)}
+            Position={UDim2.fromScale(0.2, 0.9)}
+            // Size={new UDim2(0.5, 0, 0.06, 0)}
+            Size={UDim2.fromScale(0.8, 0.06)}
+            BackgroundTransparency={.45}
+            BackgroundColor3={new Color3(0, 0.03, 0.03)}
             BorderColor3={new Color3(0, 0, 0)}
             BorderSizePixel={2}
+            Transparency={0.5}
         >
+            <textlabel
+                Text={"⌛"}
+                AnchorPoint={new Vector2(0.5, 0.5)}
+                Position={UDim2.fromScale(.75, .5)}
+                ZIndex={10}
+                TextScaled={true}
+                Size={UDim2.fromScale(1, 2)}
+                BackgroundTransparency={1}
+                SizeConstraint={Enum.SizeConstraint.RelativeYY}
+
+            />
+            <uicorner CornerRadius={new UDim(0.5, 0)} />
             {icons.map((icon, index) => {
                 return <ReadinessIconElement key={`icon-${index}-${icon().pos()}`} icon={icon} index={index} />
             })}

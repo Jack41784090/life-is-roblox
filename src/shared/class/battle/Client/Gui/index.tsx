@@ -113,7 +113,7 @@ export default class BattleGui {
         }
         GuiMothership.Mount(GuiTag.AbilitySlot,
             <AbilitySetElement>
-                <AbilitySlots cre={cre} gui={this} abilitySet={mountingAbilitySet} />
+                <AbilitySlots cre={cre} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>
         );
     }

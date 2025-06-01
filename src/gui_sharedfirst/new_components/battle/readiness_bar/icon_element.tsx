@@ -39,8 +39,10 @@ function ReadinessIconElement(props: Props) {
                 Font={Enum.Font.Garamond}
                 AnchorPoint={new Vector2(0.5, 0.5)}
                 key={`Label${props.index}`}
-                Size={UDim2.fromScale(1, 1)}
-                Text={string.format("%.2f", readinessPercent)}
+                Position={UDim2.fromScale(0, 0.25)}
+                Size={UDim2.fromScale(.6, .6)}
+                // Text={string.format("%.2f", readinessPercent)}
+                Text={`${math.round(readinessPercent)}`}
                 TextScaled={true}
                 BackgroundTransparency={1}
                 TextColor3={new Color3(1, 1, 1)}
