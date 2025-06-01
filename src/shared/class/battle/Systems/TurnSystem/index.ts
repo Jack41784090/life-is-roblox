@@ -22,16 +22,16 @@ export class TurnSystem {
         if (otherState.currentActorId) this.currentActorId = otherState.currentActorId;
         if (otherState.isGauntletRunning) this.isGauntletRunning = otherState.isGauntletRunning;
         if (otherState.listOfReadinessState !== undefined) {
-            this.listOfReadinessState(() => this.updateFragments_complete(otherState.listOfReadinessState!));
+            this.updateFragments_complete(otherState.listOfReadinessState);
             const oldID = this.currentActorId;
             this.currentActorId = this.sortReadinessState()[0].id;
-            // this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
+            this.logger.debug(`SRS[c]:`, otherState.listOfReadinessState, `${oldID !== this.currentActorId ? `[${oldID}] -> [${this.currentActorId}]` : ""}`);
         }
         if (otherState.changingReadinessFrags) {
-            this.listOfReadinessState(() => this.updateFragments_partial(otherState.changingReadinessFrags!));
+            this.updateFragments_partial(otherState.changingReadinessFrags);
             const oldID = this.currentActorId;
             this.currentActorId = this.sortReadinessState()[0].id;
-            // this.logger.debug(`Syncing readiness state:`, otherState.listOfReadinessState, `[${oldID}] -> [${this.currentActorId}]`);
+            this.logger.debug(`SRS[p]:`, otherState.listOfReadinessState, `${oldID !== this.currentActorId ? `[${oldID}] -> [${this.currentActorId}]` : ""}`);
         }
     }
 
@@ -57,6 +57,37 @@ export class TurnSystem {
 
     private calculateReadinessIncrement(spd: number): number {
         return spd + math.random(-0.1, 0.1) * spd;
+    }
+
+    public determineNextActorByGauntlet(): ReadinessFragment | undefined {
+        if (this.isGauntletRunning) {
+            this.logger.warn("Readiness gauntlet already running, not starting a new one");
+            return undefined;
+        }
+
+        this.isGauntletRunning = true;
+        const listOfReadinessState = this.listOfReadinessState();
+
+        if (listOfReadinessState.size() === 0) {
+            this.logger.warn("Entity list is empty, cannot run readiness gauntlet");
+            this.isGauntletRunning = false;
+            return undefined;
+        }
+
+        try {
+            // Continue ticking until someone reaches 100%
+            while (!listOfReadinessState.some((e) => e().pos() >= 100)) {
+                this.gauntletTick();
+            }
+            const nextActor = this.sortReadinessState()[0];
+            this.currentActorId = nextActor.id;
+            return nextActor;
+        } catch (err) {
+            this.logger.error(`Error in gradual readiness gauntlet: ${err}`);
+            return undefined;
+        } finally {
+            this.isGauntletRunning = false;
+        }
     }
 
     public async determineNextActorByGauntletGradual(): Promise<ReadinessFragment | undefined> {
@@ -101,6 +132,7 @@ export class TurnSystem {
     public getReadinessFragments() {
         return this.listOfReadinessState;
     }
+    // ...existing code...
 
     private updateFragments_partial(givenFrags: ReadinessFragment[]) {
         const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
@@ -117,12 +149,12 @@ export class TurnSystem {
         const currentFragments: Array<Atom<ReadinessFragment>> = this.listOfReadinessState();
         const missingFrags: ReadinessFragment[] = [];
         const removingIndices: number[] = [];
+
         givenFrags.forEach(gf => {
             const cf = currentFragments.find(_f => gf.id === _f().id);
             if (cf) {
                 cf(gf);
-            }
-            else {
+            } else {
                 missingFrags.push(gf);
             }
         });
@@ -133,12 +165,18 @@ export class TurnSystem {
             }
         })
 
-        removingIndices.forEach(i => currentFragments.remove(i));
-        return [
-            ...currentFragments,
-            ...missingFrags.map((frag) => atom(frag)),
-        ];
+        for (let i = removingIndices.size() - 1; i >= 0; i--) {
+            currentFragments.remove(removingIndices[i]);
+        }
+
+        missingFrags.forEach(frag => {
+            currentFragments.push(atom(frag));
+        });
+
+        return currentFragments;
     }
+
+    // ...existing code...
 
     // public endTurn(entityId: number): void {
     //     const entity = this.entityManager.getEntity(entityId);

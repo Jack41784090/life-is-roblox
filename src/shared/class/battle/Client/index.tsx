@@ -12,7 +12,6 @@ import { NetworkService } from "../Network";
 import { attackActionRefVerification, clashesVerification, entityMovedEventDataVerification } from "../Network/SyncSystem/veri";
 import Pathfinding from "../Pathfinding";
 import Entity from "../State/Entity";
-import { EntityState } from "../State/Entity/types";
 import HexCell from "../State/Hex/Cell";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
@@ -110,40 +109,31 @@ export default class BattleClient {
 
             await this.graphicsInitialised;
             // verify the entity's state with server
-            this.animations.waitForAllAnimationsToEnd()
-                .andThen(() => serverRequestRemote.actor(id))
-                .andThen((serverEntityState: EntityState | undefined) => {
-                    const context = 'in TURN_ENDED after requesting actor'
-                    if (serverEntityState) {
-                        const entity = this.state.getEntity(id);
-                        if (entity) {
-                            let localEntityGraphic = this.graphics.getEntityGraphic(entity.playerID);
-                            let localEntity = this.state.getEntity(id);
-                            if (!localEntity) {
-                                this.logger.warn("Entity not found in state", context, id);
-                                localEntity = this.state.getEntity(id)!; // TODO
-                            }
-                            if (!localEntityGraphic) {
-                                this.logger.warn("Graphic not found for entity", context, id);
-                                localEntityGraphic = this.graphics.setNewEntity(serverEntityState, localEntity.qr)
-                            }
+            await this.animations.waitForAllAnimationsToEnd()
+            const serverEntityState = await serverRequestRemote.actor(id);
+            if (!serverEntityState) return;
+            const context = 'in TURN_ENDED after requesting actor';
+            const entity = this.state.getEntity(id);
+            if (!entity) {
+                this.logger.fatal("Actor not found for TURN_ENDED event", id);
+                return;
+            }
+            let localEntityGraphic = this.graphics.getEntityGraphic(entity.playerID);
+            let localEntity = this.state.getEntity(id);
+            if (!localEntity) {
+                this.logger.warn("Entity not found in state", context, id);
+                localEntity = this.state.getEntity(id)!; // TODO
+                if (!localEntityGraphic) {
+                    this.logger.warn("Graphic not found for entity", context, id);
+                    localEntityGraphic = this.graphics.setNewEntity(serverEntityState, localEntity.qr)
+                }
 
-                            this.state.sync({
-                                entities: [serverEntityState],
-                            })
-                            // this.graphics.moveEntity(localEntity.qr, serverEntityState.qr);
-                            this.handleMoveAnimation(id, localEntity.qr, serverEntityState.qr);
-                        }
-                        else {
-                            this.logger.error("Entity not found locally", context, id);
-                            return;
-                        }
-                    }
-                    else {
-                        this.logger.fatal("Actor not found for TURN_ENDED event", id);
-                        return;
-                    }
+                this.state.sync({
+                    entities: [serverEntityState],
                 })
+                // this.graphics.moveEntity(localEntity.qr, serverEntityState.qr);
+                this.handleMoveAnimation(id, localEntity.qr, serverEntityState.qr);
+            }
         })
 
         eventBus.subscribe(GameEvent.ENTITY_INTEND_MOVE, (data: unknown) => {
@@ -272,11 +262,13 @@ export default class BattleClient {
     private async completeUpdate() {
         // this.logger.debug("Requesting update state and readiness map");
         const stateData = await serverRequestRemote.state();
-        await this.state.sync(stateData);
+        this.state.sync(stateData);
+        this.gui.forceUpdateMainFrame();
         // this._localTickEntitiesCache = this.state.getEntityManager().getAllEntities();
         await this.graphics.sync(stateData)
         return stateData;
     }
+
     private initialiseInputControl() {
         UserInputService.InputBegan.Connect((io, gpe) => {
             this.onInputBegan(io, gpe);

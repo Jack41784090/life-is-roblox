@@ -1,19 +1,22 @@
 import { Atom } from "@rbxts/charm";
-import React from "@rbxts/react";
+import React, { useEffect } from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
 import { ReadinessFragment } from "shared/class/battle/Systems/TurnSystem/types";
 import ReadinessIconElement from "./icon_element";
 
 interface Props {
-    icons: Atom<Atom<ReadinessFragment>[]>; // Array of image URLs or asset IDs for character icons
+    icons: Atom<Atom<ReadinessFragment>[]>;
+    fullReadinessBarTravelTime?: number;
 }
 
 function ReadinessBar(props: Props) {
     // Use useAtom to properly subscribe to changes in the icons atom
     const icons = useAtom(props.icons);
-
-    // Use a unique key based on the contents to force re-render when order changes
     const barKey = `ReadinessBar-${icons.map(i => i().pos()).join('-')}`;
+
+    useEffect(() => {
+        warn(`ReadinessBar updated with icons: ${icons.map(i => i().pos()).join(', ')}`);
+    }, [icons]);
 
     return (
         <frame
@@ -41,7 +44,12 @@ function ReadinessBar(props: Props) {
             />
             <uicorner CornerRadius={new UDim(0.5, 0)} />
             {icons.map((icon, index) => {
-                return <ReadinessIconElement key={`icon-${index}-${icon().pos()}`} icon={icon} index={index} />
+                return <ReadinessIconElement
+                    key={`icon-${index}-${icon().pos()}`}
+                    icon={icon}
+                    index={index}
+                    fullReadinessBarTravelTime={props.fullReadinessBarTravelTime ?? 5} // Default to 5 seconds if not provided
+                />
             })}
         </frame>
     );

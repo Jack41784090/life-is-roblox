@@ -31,6 +31,10 @@ export default class BattleGui {
 
     //#region UI Mounting Methods
     public forceUpdateMainFrame(localEntity?: Entity, sensitiveCells?: React.Element) {
+        this.logger.info("Forcing update of the main frame UI", {
+            localEntity,
+            sensitiveCells,
+        });
         this.updateUI(localEntity, sensitiveCells);
     }
 
