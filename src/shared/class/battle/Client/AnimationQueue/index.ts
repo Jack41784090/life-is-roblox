@@ -122,7 +122,8 @@ export default class BattleAnimationManager {
             promise_resolve: resolver_2,
             timeout: 5,
         })
-    } public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
+    }
+    public async handleClashes(attacker: EntityGraphics, target: EntityGraphics, clashes: StrikeSequence[]): Promise<void> {
         for (const clash of clashes) {
             const dice: NeoClashResult[] = [];
             for (const result of clash) {

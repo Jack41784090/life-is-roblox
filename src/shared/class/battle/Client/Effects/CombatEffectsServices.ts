@@ -34,7 +34,8 @@ export default class CombatEffectsService {
 
     public showAbilityUse(position: UDim2, color: Color3, abilityName: string): void {
         this.eventBus.emit(EffectType.AbilityUse, { position, color, abilityName });
-    } public showClashFate(position: UDim2, color: Color3, fate: string): void {
+    }
+    public showClashFate(position: UDim2, color: Color3, fate: string): void {
         this.eventBus.emit(EffectType.ClashFate, { position, color, fate });
     }
 
