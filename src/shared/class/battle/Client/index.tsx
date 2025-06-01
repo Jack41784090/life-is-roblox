@@ -2,8 +2,8 @@ import React from "@rbxts/react";
 import { Players, RunService, UserInputService, Workspace } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import CellSurface from "gui_sharedfirst/components/cell-surface";
-import { AccessToken, ActionType, AttackAction, BattleAction, CharacterActionMenuAction, CharacterMenuAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, StyleSwitchAction, TILE_SIZE } from "shared/class/battle/types";
-import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE, GuiTag } from "shared/const";
+import { AccessToken, ActionType, AttackAction, BattleAction, ClientSideConfig, ControlLocks, MoveAction, ResolveAttacksAction, StateState, TILE_SIZE } from "shared/class/battle/types";
+import { DECAL_OUTOFRANGE, DECAL_WITHINRANGE } from "shared/const";
 import { serverRemotes, serverRequestRemote } from "shared/remote";
 import { promiseWrapper } from "shared/utils";
 import Logger from "shared/utils/Logger";
@@ -71,10 +71,10 @@ export default class BattleClient {
 
     private setupEventListeners() {
         const eventBus = this.state.getEventBus();
-        eventBus.subscribe(GameEvent.TURN_STARTED, async (id: unknown) => {
-            const verification = t.number(id);
+        eventBus.subscribe(GameEvent.TURN_STARTED, async (received_id: unknown) => {
+            const verification = t.number(received_id);
             if (!verification) {
-                this.logger.error("Invalid ID type for TURN_STARTED event", id as defined);
+                this.logger.error("Invalid ID type for TURN_STARTED event", received_id as defined);
                 return;
             }
 
@@ -83,25 +83,21 @@ export default class BattleClient {
 
             const validateTurnStartIDWithServer = serverRequestRemote.cre()
             validateTurnStartIDWithServer.then(server_id => {
-                if (id !== server_id) {
-                    this.logger.error("Turn ID mismatch", id, server_id);
+                if (received_id !== server_id) {
+                    this.logger.error("Turn ID mismatch", received_id, server_id);
                     this.completeUpdate().then(() => {
                         this.state.getEventBus().emit(GameEvent.TURN_STARTED, server_id);
                     })
                     return;
                 }
 
-                if (id === Players.LocalPlayer.UserId) {
-                    this.localEntity().then(e => {
-                        this.camera.enterCharacterCenterMode(this.graphics.getEntityGraphic(e)).then(() => {
-                            this.gui.mountActionMenu(this.getCharacterMenuActions(e));
-                        })
+                if (received_id === Players.LocalPlayer.UserId) {
+                    serverRequestRemote.toAct().then(ac => {
+                        this.setupInteractiveMode(ac);
                     })
-                }
-                else {
-                    const currentActorGraphics = this.graphics.getEntityGraphic(id);
-                    if (!currentActorGraphics) return;
-                    this.camera.enterHOI4Mode(currentActorGraphics.getWorldPosition());
+                } else {
+                    // Maintain consistent camera view for all players
+                    // Camera position is managed separately from UI state
                 }
             })
         })
@@ -281,11 +277,14 @@ export default class BattleClient {
         await this.graphics.sync(stateData)
         return stateData;
     }
-
     private initialiseInputControl() {
         UserInputService.InputBegan.Connect((io, gpe) => {
             this.onInputBegan(io, gpe);
-        })
+        });
+
+        UserInputService.InputChanged.Connect((io, gpe) => {
+            this.onInputChanged(io, gpe);
+        });
     }
 
     private initialiseCamera() {
@@ -345,85 +344,16 @@ export default class BattleClient {
     //#endregion
 
     //#region UI-Related
-
-    public getCharacterMenuActions(entity: Entity): CharacterMenuAction[] {
-        return [
-            {
-                type: CharacterActionMenuAction.Move,
-                run: () => {
-                    serverRequestRemote.toAct().then(async accessToken => {
-                        // this.logger.debug("Access token received", accessToken);
-                        if (accessToken.allowed) {
-                            const newAccessToken = {
-                                ...accessToken,
-                                action: {
-                                    type: ActionType.Move,
-                                    to: entity.playerID,
-                                    by: entity.playerID,
-                                    executed: false
-                                }
-                            };
-                            const localEntity = await this.localEntity();
-                            const localEntityGraphic = this.graphics.getEntityGraphic(localEntity.playerID);
-                            this.camera.enterHOI4Mode(localEntityGraphic?.getWorldPosition()).then(() => {
-                                this.enterMovement(newAccessToken);
-                            })
-                        }
-                    })
-                },
-            },
-            {
-                type: CharacterActionMenuAction.EndTurn,
-                run: () => {
-                    serverRequestRemote.toAct().then(async accessToken => {
-                        serverRemotes.end(accessToken);
-                    })
-                },
-            },
-        ];
-    }
-
-    private async returnToSelections() {
-        this.exitMovement()
-        await this.localEntity().then(e => {
-            this.camera.enterCharacterCenterMode(this.graphics.getEntityGraphic(e)).then(() => {
-                this.gui.mountActionMenu(this.getCharacterMenuActions(e));
-            })
-        })
-    }
-    //#region Movement
-
-    private async enterMovement(withToken: AccessToken) {
-        // this.logger.debug("Entering movement mode");
-        const localE = await this.localEntity()
-
+    private async setupInteractiveMode(accessToken: AccessToken) {
+        const localE = await this.localEntity();
         this.controlLocks.set(Enum.KeyCode.X, true);
 
-        this.gui.unmountAndClear(GuiTag.ActionMenu);
-        this.gui.mountAbilitySlots(localE);
-        this.gui.mountFightingStyleSelector(localE, (styleIndex: number) => {
-            withToken.action = {
-                type: ActionType.StyleSwitch,
-                by: localE.playerID,
-                styleIndex: styleIndex,
-            } as StyleSwitchAction
-            this.validateAndCommit(withToken.action)
-            this.submitAction(withToken.action);
-            this.gui.mountAbilitySlots(localE);
-        });
-        this.gui.forceUpdateMainFrame('withSensitiveCells',
-            this.state.getEntity(Players.LocalPlayer.UserId)!,
-            this.getSensitiveCellElements(withToken)
+        // Unified system - all UI components are always displayed
+        // The user can interact with all elements simultaneously
+        this.gui.forceUpdateMainFrame(
+            localE,
+            this.getSensitiveCellElements(accessToken)
         );
-    }
-
-    private exitMovement() {
-        this.controlLocks.delete(Enum.KeyCode.X);
-
-        // Clear all UI elements
-        this.gui.unmountAndClear(GuiTag.FightingStyleSelector);
-        this.gui.clearAll();
-        this.gui.setMode('onlyReadinessBar')
     }
 
     private getSensitiveCellElements(accessToken: AccessToken): React.Element {
@@ -438,7 +368,6 @@ export default class BattleClient {
     }
 
     private async handleCellEnter(tuple: EntityCellGraphicsTuple) {
-        // this.logger.debug("Cell entered", tuple);
         const hoveredOverEntity = this.state.getEntity(tuple.cellGraphics.qr);
         const hoveredOverEntityGraphics = tuple.entityGraphics
         const currentActor = this.state.getCurrentActor();
@@ -501,15 +430,8 @@ export default class BattleClient {
             this.clickedOnEmptyCell(clickedtuple, accessToken);
         }
     }
-
     private async clickedOnEmptyCell(emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
-        if (this.gui.getMode() !== 'withSensitiveCells') {
-            this.logger.warn("Clicked on empty cell, but mode is not 'withSensitiveCells'");
-            return;
-        }
         // this.logger.debug("Clicked on empty cell", emptyTuple);
-
-        this.gui.setMode('onlyReadinessBar');
 
         const start = this.state.getCurrentActor().qr;
         const dest = emptyTuple.cellGraphics.qr;
@@ -537,37 +459,27 @@ export default class BattleClient {
             // commit action to local state
             this.validateAndCommit(accessToken.action);
 
-            const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
-
-            const localE = await this.localEntity();
+            const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd(); const localE = await this.localEntity();
             if (localE.get('pos') >= 75) {
                 // this.logger.debug("Local entity is still ready");
 
                 // Request new access token for subsequent actions
                 const newAccessToken = await serverRequestRemote.toAct();
                 if (newAccessToken.allowed) {
-                    // Properly re-enable movement with the new token
-                    this.enterMovement(newAccessToken);
+                    // Properly re-enable interaction with the new token
+                    this.setupInteractiveMode(newAccessToken);
                 }
             }
         }
         else {
             this.logger.warn("Action not allowed", ac);
-            this.gui.setMode('onlyReadinessBar');
+            this.setupInteractiveMode(accessToken);
         }
     }
     //#endregion
 
     //#region Combat
-
     private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
-        if (this.gui.getMode() !== 'withSensitiveCells') {
-            this.logger.warn("Clicked on entity, but mode is not 'withSensitiveCells'");
-            return;
-        }
-
-        this.gui.setMode('onlyReadinessBar');
-
         // this.logger.debug("Clicked on entity", clickedOn);
         const cre = this.state.getCurrentActor();
         if (!cre.armed) {
@@ -606,21 +518,19 @@ export default class BattleClient {
 
         // emit event to this client
         this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);        // commit action to local state
-        this.validateAndCommit(resolveAction);
-
-        const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
+        this.validateAndCommit(resolveAction); const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
         // this.logger.debug("Animations ended", waitForMoveAnimation!);
 
-        const localE = await this.localEntity();
-        // this.logger.debug("Local entity pos", localE.get('pos'));
-        if (localE.get('pos') >= 75) {
+        const localEntity = await this.localEntity();
+        // this.logger.debug("Local entity pos", localEntity.get('pos'));
+        if (localEntity.get('pos') >= 75) {
             // this.logger.debug("Local entity is still ready");
 
             // Request new access token for subsequent actions
             const newAccessToken = await serverRequestRemote.toAct();
             if (newAccessToken.allowed) {
-                // Properly re-enable movement with the new token
-                this.enterMovement(newAccessToken);
+                // Properly re-enable interaction with the new token
+                this.setupInteractiveMode(newAccessToken);
             }
         }
     }
@@ -637,14 +547,12 @@ export default class BattleClient {
         if (!this.validateLocalAction(action)) {
             this.logger.warn("Action failed local validation and was not sent to server");
             return false;
-        }
-
-        try {
+        } try {
             const accessToken = await serverRequestRemote.toAct();
             if (!accessToken.allowed) {
                 this.logger.warn("Server denied action request");
                 if (refreshWhenFail) {
-                    this.gui.setMode('onlyReadinessBar');
+                    this.setupInteractiveMode(accessToken);
                     await this.completeUpdate();
                 }
                 return false;
@@ -702,9 +610,7 @@ export default class BattleClient {
         }
     }
     //#endregion
-
     //#region Inputs
-
     private onInputBegan(io: InputObject, gpe: boolean) {
         if (!this.controlLocks.get(io.KeyCode)) {
             // play "invalid input" audio
@@ -718,11 +624,28 @@ export default class BattleClient {
                     this.localEntity().then(e => {
                         this.controlLocks.set(Enum.KeyCode.X, true);
                         if (e) {
-                            this.returnToSelections();
+                            // Update the unified UI - all components remain visible
+                            // this.setupInteractiveMode()
                         }
                     })
                 };
                 break;
+        }
+    }
+    private onInputChanged(io: InputObject, gpe: boolean) {
+        if (gpe) return;
+
+        // Handle mouse wheel zoom
+        if (io.UserInputType === Enum.UserInputType.MouseWheel) {
+            // this.camera.handleZoom(-io.Position.Z); // Negative for natural scroll direction
+
+            // Update focused character for potential mode switching
+            this.localEntity().then(entity => {
+                const entityGraphics = this.graphics.getEntityGraphic(entity.playerID);
+                if (entityGraphics) {
+                    // this.camera.setFocusedCharacter(entityGraphics);
+                }
+            });
         }
     }
     //#endregion

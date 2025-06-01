@@ -173,7 +173,8 @@ export default class BattleServer {
             }
             return p;
         });
-    } private handleTurnEndRequest(
+    }
+    private handleTurnEndRequest(
         requestingPlayer: Player,
         declaredClientAccess: AccessToken,
     ): boolean {

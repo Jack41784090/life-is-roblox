@@ -15,16 +15,6 @@ export type ReadinessIcon = {
     readiness: Atom<number>;
 }
 
-export enum CharacterActionMenuAction {
-    EndTurn = 'endTurn',
-    Move = 'move',
-}
-
-export interface CharacterMenuAction {
-    type: CharacterActionMenuAction,
-    run: () => void;
-}
-
 export enum EntityStatus {
     Idle = 'idle',
 }
@@ -70,7 +60,6 @@ export interface MoveAction extends BattleAction {
 
 export type PlayerID = number
 
-export type MainUIModes = 'onlyReadinessBar' | 'withSensitiveCells';
 export type ReadinessRequestStatus = 'ReadyForReadinessCheck' | 'RequestWinner'
 
 export type TeamMap = Record<string, Player[]>;

@@ -6,8 +6,6 @@ export interface GuiConfig {
     readinessFragments: Atom<Atom<ReadinessFragment>[]>;
 }
 
-export type GuiModes = 'withSensitiveCells' | 'onlyReadinessBar';
-
 export type GuiMainUIConfig = {
     accessToken: AccessToken,
 }
