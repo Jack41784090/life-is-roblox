@@ -50,7 +50,7 @@ export default abstract class StatusEffect {
             return this.config.shouldRemove(context);
         }
 
-        if (instance.remainingDuration !== undefined && instance.remainingDuration <= 0) {
+        if (instance.remainingTurns !== undefined && instance.remainingTurns <= 0) {
             return true;
         }
 
@@ -67,7 +67,7 @@ export default abstract class StatusEffect {
             target: context.target,
             caster: context.caster,
             stacks: 1,
-            remainingDuration: this.config.duration,
+            remainingTurns: this.config.duration,
             appliedAt: tick(),
             lastUpdated: tick(),
             isActive: true,
@@ -105,13 +105,13 @@ export default abstract class StatusEffect {
         this.executeTriggers(EffectTrigger.OnRemove, context);
     }
 
-    public async update(instance: StatusEffectInstance, deltaTime: number): Promise<void> {
+    public async updateOnTurn(instance: StatusEffectInstance): Promise<void> {
         if (!instance.isActive) return;
 
         instance.lastUpdated = tick();
 
-        if (instance.remainingDuration !== undefined) {
-            instance.remainingDuration -= deltaTime;
+        if (instance.remainingTurns !== undefined) {
+            instance.remainingTurns -= 1;
         }
 
         const context: StatusEffectContext = {
@@ -120,10 +120,10 @@ export default abstract class StatusEffect {
             source: instance.effectId
         };
 
-        await this.onUpdate(context, instance, deltaTime);
+        await this.onTurnUpdate(context, instance);
 
-        if (this.config.onUpdate) {
-            await this.config.onUpdate(context, deltaTime);
+        if (this.config.onTurnUpdate) {
+            await this.config.onTurnUpdate(context);
         }
     }
 
@@ -134,7 +134,7 @@ export default abstract class StatusEffect {
 
             case StackingRule.Replace:
                 existingInstance.stacks = 1;
-                existingInstance.remainingDuration = this.config.duration;
+                existingInstance.remainingTurns = this.config.duration;
                 existingInstance.caster = newContext.caster;
                 break;
 
@@ -146,13 +146,13 @@ export default abstract class StatusEffect {
                 break;
 
             case StackingRule.Refresh:
-                existingInstance.remainingDuration = this.config.duration;
+                existingInstance.remainingTurns = this.config.duration;
                 existingInstance.caster = newContext.caster;
                 break;
 
             case StackingRule.Unique:
                 if (existingInstance.caster === newContext.caster) {
-                    existingInstance.remainingDuration = this.config.duration;
+                    existingInstance.remainingTurns = this.config.duration;
                 }
                 break;
         }
@@ -220,7 +220,7 @@ export default abstract class StatusEffect {
 
     protected abstract onApply(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void>;
     protected abstract onRemove(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void>;
-    protected abstract onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void>;
+    protected abstract onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void>;
 
     private generateInstanceId(): string {
         return `${this.config.id}_${tick()}_${math.random()}`;

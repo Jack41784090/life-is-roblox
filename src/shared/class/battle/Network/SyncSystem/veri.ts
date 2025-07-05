@@ -121,7 +121,37 @@ export const attackActionRefVerification = t.interface({
     ability: activeAbilityStateType, // Added ability
 });
 
-export const clashesVerification = t.array(t.array(neoClashResultType));
+export const triggerModifyVerification = t.interface({
+    targeting: t.union(
+        t.literal('attacker'),
+        t.literal('defender')
+    ),
+    mod: t.union(
+        t.literal('hip'), // Health
+        t.literal('pos'), // Position
+        t.literal('org'), // Organization
+        t.literal('sta'), // Stamina
+        t.literal('mana'), // Mana
+        t.literal('str'), // Strength
+        t.literal('dex'), // Dexterity
+        t.literal('acr'), // Accuracy
+        t.literal('spd'), // Speed
+        t.literal('siz'), // Size
+        t.literal('int'), // Intelligence
+        t.literal('spr'), // Spirituality
+        t.literal('fai'), // Faith
+        t.literal('cha'), // Charisma
+        t.literal('beu'), // Beauty
+        t.literal('wil'), // Willpower
+        t.literal('end') // Endurance
+    ),
+    value: t.number,
+});
+
+export const clashesVerification = t.array(t.union(
+    t.array(neoClashResultType),
+    triggerModifyVerification
+));
 
 export const entityMovedEventDataVerification = t.interface({
     entityId: t.number,

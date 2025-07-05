@@ -57,3 +57,36 @@ clientRemotes.createClient.connect(async (config) => {
 // const cs = new CombatSystem(gs)
 // cs.resolveAttack(aa);
 
+// ===
+// Place in a server-side script, e.g., src/server/riggingDebugger.ts
+import { Workspace } from "@rbxts/services";
+
+// Target the model in the Workspace
+const modelFolder = Workspace.FindFirstChild("_") as Model;
+const model = modelFolder?.FindFirstChild("main_v4") as Model;
+
+if (model) {
+    const upperTorso = model.FindFirstChild("UpperTorso");
+
+    if (upperTorso && upperTorso.IsA("BasePart")) {
+        // Check if the essential shoulder joints exist
+        const rightShoulder = upperTorso.FindFirstChild("RightShoulder") as Motor6D;
+        const leftShoulder = upperTorso.FindFirstChild("LeftShoulder") as Motor6D;
+
+        if (rightShoulder && leftShoulder) {
+            print("SUCCESS: Shoulder joints (RightShoulder, LeftShoulder) found.");
+
+            // Optional: Verify the connections are correct
+            const rightUpperArm = model.FindFirstChild("RightUpperArm");
+            if (rightShoulder.Part0 === upperTorso && rightShoulder.Part1 === rightUpperArm) {
+                print("RightShoulder connection is correct.");
+            } else {
+                warn("WARNING: RightShoulder connection is incorrect.");
+            }
+        } else {
+            warn("ERROR: Model is not rigged correctly. Shoulder Motor6Ds are missing.");
+        }
+    } else {
+        warn("ERROR: Model does not contain an UpperTorso.");
+    }
+}

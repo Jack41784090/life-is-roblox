@@ -1,6 +1,6 @@
 import Entity from "../../../State/Entity";
 import { EntityStance, EntityState, EntityUpdate } from "../../../State/Entity/types";
-import { ClashResult } from "../types";
+import { ClashResult, TriggerModify } from "../types";
 
 export enum AbilityTriggerCondition {
     BeforeAttack = 'beforeAttack',
@@ -27,12 +27,11 @@ export interface AbilityConfig {
     target?: Entity;
     dices: number[];
     cost: {
-        pos: number,
-        mana: number,
+        pos: number, mana: number,
     }
 
     triggerMap?: {
-        [key in AbilityTriggerCondition]?: (context: AbilityContext) => void;
+        [key in AbilityTriggerCondition]?: (context: AbilityContext) => TriggerModify[];
     };
 }
 export type ActiveAbilityConfig = AbilityConfig & {

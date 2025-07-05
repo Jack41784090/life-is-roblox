@@ -104,7 +104,7 @@ export interface StatusEffectConfig {
     triggers: StatusEffectTriggerHandler[];
     onApply?: (context: StatusEffectContext) => void | Promise<void>;
     onRemove?: (context: StatusEffectContext) => void | Promise<void>;
-    onUpdate?: (context: StatusEffectContext, deltaTime: number) => void | Promise<void>;
+    onTurnUpdate?: (context: StatusEffectContext) => void | Promise<void>;
     canApply?: (context: StatusEffectContext) => boolean;
     shouldRemove?: (context: StatusEffectContext) => boolean;
     visualEffect?: {
@@ -121,7 +121,7 @@ export interface StatusEffectInstance {
     target: EntityInterface;
     caster?: EntityInterface;
     stacks: number;
-    remainingDuration?: number;
+    remainingTurns?: number;
     appliedAt: number;
     lastUpdated: number;
     isActive: boolean;

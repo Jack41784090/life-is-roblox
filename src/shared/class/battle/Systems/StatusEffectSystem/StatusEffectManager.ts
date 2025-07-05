@@ -1,4 +1,3 @@
-import { RunService } from "@rbxts/services";
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import StatusEffect from "./StatusEffect";
@@ -18,7 +17,6 @@ export default class StatusEffectManager {
     private eventBus: EventBus;
     private activeEffects: Map<string, StatusEffectInstance> = new Map();
     private effectRegistry: Map<string, StatusEffect> = new Map();
-    private updateConnection?: RBXScriptConnection;
     private config: StatusEffectSystemConfig;
 
     constructor(entity: EntityInterface, eventBus: EventBus, config: StatusEffectSystemConfig = {}) {
@@ -31,9 +29,7 @@ export default class StatusEffectManager {
             debugMode: false,
             ...config
         };
-
         this.setupEventListeners();
-        this.startUpdateLoop();
     }
 
     public registerEffect(effect: StatusEffect): void {
@@ -206,10 +202,6 @@ export default class StatusEffectManager {
     }
 
     public destroy(): void {
-        if (this.updateConnection) {
-            this.updateConnection.Disconnect();
-        }
-
         this.activeEffects.clear();
         this.effectRegistry.clear();
     }
@@ -245,6 +237,7 @@ export default class StatusEffectManager {
         this.eventBus.subscribe(GameEvent.TURN_STARTED, (playerId: unknown) => {
             if (this.entity.playerID === playerId) {
                 this.triggerEffects(EffectTrigger.OnTurnStart);
+                this.updateEffectsOnTurn();
             }
         });
 
@@ -255,23 +248,15 @@ export default class StatusEffectManager {
         });
 
         this.eventBus.subscribe(GameEvent.ON_DEAL_DAMAGE, (data: unknown) => {
-            // TODO: Implement proper data verification
             this.triggerEffects(EffectTrigger.OnDealDamage, { data });
         });
 
         this.eventBus.subscribe(GameEvent.ON_TOUCH, (data: unknown) => {
-            // TODO: Implement proper data verification  
             this.triggerEffects(EffectTrigger.OnTakeDamage, { data });
         });
     }
 
-    private startUpdateLoop(): void {
-        this.updateConnection = RunService.Heartbeat.Connect((deltaTime) => {
-            this.updateEffects(deltaTime);
-        });
-    }
-
-    private async updateEffects(deltaTime: number): Promise<void> {
+    private async updateEffectsOnTurn(): Promise<void> {
         const promises: Promise<void>[] = [];
 
         for (const [_, instance] of this.activeEffects) {
@@ -279,7 +264,7 @@ export default class StatusEffectManager {
 
             const effect = this.effectRegistry.get(instance.effectId);
             if (effect) {
-                promises.push(effect.update(instance, deltaTime));
+                promises.push(effect.updateOnTurn(instance));
             }
         }
 

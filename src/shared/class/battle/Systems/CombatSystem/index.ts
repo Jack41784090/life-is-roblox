@@ -1,22 +1,27 @@
 import { t } from "@rbxts/t";
 import { ActiveAbility } from "shared/class/battle/Systems/CombatSystem/Ability";
-import { ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { AbilityTriggerCondition, ActiveAbilityState } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { PassiveEffectType } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
 import { calculateRealityValue, uniformRandom } from "shared/utils";
 import Logger from "shared/utils/Logger";
 import { neoClashResultType } from "../../Network/SyncSystem/veri";
 import State from "../../State";
 import Entity from "../../State/Entity";
-import { EntityStance, EntityState } from "../../State/Entity/types";
+import { EntityState } from "../../State/Entity/types";
 import { AttackAction, PlayerID } from "../../types";
 import TriggerModifyIntegrationService from "../Integration/TriggerModifyIntegrationService";
 import { DamageType } from './Ability/types';
 import { NeoClashResult, Reality, StrikeSequence, StrikeSequenceResult, StrikeSequenceRoll, TriggerModify } from "./types";
 
+
+
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
     private gameState: State;
-    private triggerModifyService: TriggerModifyIntegrationService; constructor(gameState: State) {
+    private triggerModifyService: TriggerModifyIntegrationService;
+
+
+    constructor(gameState: State) {
         this.gameState = gameState;
         this.triggerModifyService = new TriggerModifyIntegrationService(gameState, gameState.getStatusEffectSystem());
     }
@@ -34,7 +39,25 @@ export default class CombatSystem {
      * @remarks
      * Strike sequences represent the outcome of dice-based combat encounters.
      * Damage calculation considers both the base ability damage and potential modifiers from attacker and defender.
-     */    public resolveAttack(action: AttackAction): (StrikeSequence | TriggerModify)[] {
+     */
+
+    private collectTriggerEffectsFromEvent(
+        eventName: AbilityTriggerCondition,
+        attacker: EntityState,
+        defender: EntityState,
+        triggerMap?: Record<string, (context: { attacker: EntityState, defender: EntityState }) => TriggerModify[]>,
+    ): TriggerModify[] {
+        if (!triggerMap) {
+            // this.logger.warn(`No trigger map found for event: ${eventName}`);
+            return [];
+        }
+        return triggerMap[eventName]?.({
+            attacker,
+            defender,
+        }) || [];
+    }
+
+    public resolveAttack(action: AttackAction): (StrikeSequence | TriggerModify)[] {
         const [attacker, target] = this.gameState.getAttackerAndDefender(action);
         if (!attacker || !target) {
             this.logger.error("Attacker or target not found", attacker, target);
@@ -55,47 +78,24 @@ export default class CombatSystem {
         const strikeSequences: StrikeSequence[] = [];
 
         // clear out the clash event subscriptions and resubscribe for the new combatants
-
         // EVENT: BEFORE_ATTACK
-        abilityState.triggerMap?.beforeAttack?.({
-            attacker: attackerState,
-            defender: targetState,
-        })
-
-        // Generate TriggerModify objects from ability triggers before attack
-        const beforeAttackTriggers = this.generateTriggerModifiesFromAbility(abilityState, 'beforeAttack', attackerState, targetState);
-        beforeAttackTriggers.forEach(modify => triggerModifies.push(modify));
+        triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeAttack, attackerState, targetState, abilityState.triggerMap));
 
         // Loop through all dices and resolve the strike sequence
         while (dice) {
             // EVENT: BEFORE_SS
-            abilityState.triggerMap?.beforeStrikeSequence?.({
-                attacker: attackerState,
-                defender: targetState,
-                // dice: dice,
-            })
+            triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeStrikeSequence, attackerState, targetState, abilityState.triggerMap));
 
             const result: StrikeSequence = this.resolveStrikeSequence([dice], attackerState, targetState);
             strikeSequences.push(result);
             dice = abilityDices.pop();
 
             // EVENT: AFTER_SS
-            abilityState.triggerMap?.afterStrikeSequence?.({
-                attacker: attackerState,
-                defender: targetState,
-                // sequence: result,
-            });
+            triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterStrikeSequence, attackerState, targetState, abilityState.triggerMap));
         }
 
         // EVENT: AFTER_ATTACK
-        abilityState.triggerMap?.afterAttack?.({
-            attacker: attackerState,
-            defender: targetState,
-        })
-
-        // Generate TriggerModify objects from ability triggers after attack
-        const afterAttackTriggers = this.generateTriggerModifiesFromAbility(abilityState, 'afterAttack', attackerState, targetState);
-        afterAttackTriggers.forEach(modify => triggerModifies.push(modify));
+        triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterAttack, attackerState, targetState, abilityState.triggerMap));
 
         // Generate TriggerModify objects based on combat results (crits, hits, etc.)
         const combatResultTriggers = this.generateTriggerModifiesFromCombatResults(strikeSequences, attackerState, targetState);
@@ -323,56 +323,7 @@ export default class CombatSystem {
         return this.calculateModifiedDamage(getRawDamageTaken(ability.getTotalDamageArray()), attackerState, defenderState);
     }
 
-    private isAttackKills(against: number, clash: NeoClashResult) {
-        const target = this.gameState.getEntity(against);
-        const { result } = clash
-        if (!target) return false;
-
-        if (result.fate === "Miss" || result.fate === "Cling") {
-            return false;
-        }
-
-        const targetHp = target.get('hip') || 0;
-        // const damage = this.calculateDamage({
-        //     against,
-        //     attacker,
-        //     defender,
-        //     ability
-        // });
-        // return targetHp <= damage;
-    } private generateTriggerModifiesFromAbility(
-        abilityState: ActiveAbilityState,
-        triggerType: 'beforeAttack' | 'afterAttack' | 'beforeStrikeSequence' | 'afterStrikeSequence',
-        attackerState: EntityState,
-        targetState: EntityState
-    ): TriggerModify[] {
-        const triggerModifies: TriggerModify[] = [];
-
-        // Generate TriggerModify objects based on ability characteristics
-        // This can be expanded to read from ability configurations or special trigger rules
-
-        if (triggerType === 'beforeAttack') {
-            // Example: Some abilities might boost attacker stats before attacking
-            if (abilityState.name === 'Power Slash') {
-                triggerModifies.push({
-                    mod: 'str',
-                    value: 2
-                });
-            }
-        }
-
-        if (triggerType === 'afterAttack') {
-            // Example: Some abilities might have lingering effects after attacking
-            if (abilityState.direction === EntityStance.High) {
-                triggerModifies.push({
-                    mod: 'pos',
-                    value: -5
-                });
-            }
-        }
-
-        return triggerModifies;
-    } private generateTriggerModifiesFromCombatResults(
+    private generateTriggerModifiesFromCombatResults(
         strikeSequences: StrikeSequence[],
         attackerState: EntityState,
         targetState: EntityState
@@ -382,17 +333,17 @@ export default class CombatSystem {
         // Analyze combat results and generate appropriate TriggerModify objects
         for (const sequence of strikeSequences) {
             for (const clash of sequence) {
-                const { fate, against } = clash.result;
-
-                // Critical hit bonuses - boost attacker's strength
+                const { fate, against } = clash.result;                // Critical hit bonuses - boost attacker's strength
                 if (fate === "CRIT") {
                     triggerModifies.push({
+                        targeting: 'attacker',
                         mod: 'str',
                         value: 3
                     });
 
                     // Target might get stunned effect - reduce posture
                     triggerModifies.push({
+                        targeting: 'defender',
                         mod: 'pos',
                         value: -10
                     });
@@ -401,6 +352,7 @@ export default class CombatSystem {
                 // Successful penetration effects - restore mana
                 if (against === "PV" && fate === "Hit") {
                     triggerModifies.push({
+                        targeting: 'attacker',
                         mod: 'mana',
                         value: 2
                     });
@@ -409,6 +361,7 @@ export default class CombatSystem {
                 // Miss penalties - reduce posture
                 if (fate === "Miss") {
                     triggerModifies.push({
+                        targeting: 'attacker',
                         mod: 'pos',
                         value: -3
                     });

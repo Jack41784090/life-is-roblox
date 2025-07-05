@@ -22,10 +22,20 @@ export const UNIVERSAL_PHYS = new Map<string, ActiveAbilityConfig>([
         },
         range: new NumberRange(1, 1),
         triggerMap: {
-            'beforeAttack': (context) => {
-                const { attacker } = context;
-                attacker.stats.str += 1;
-            }
+            beforeAttack: (context) => [
+                {
+                    targeting: 'attacker',
+                    mod: 'str',
+                    value: 1
+                }
+            ],
+            afterStrikeSequence: (context) => [
+                {
+                    targeting: 'defender',
+                    mod: 'pos',
+                    value: -3
+                }
+            ]
         }
     }]
 ])

@@ -12,7 +12,7 @@ import {
 } from "../types";
 
 export class TriggerModifyBuffEffect extends StatusEffect {
-    constructor(triggerModify: TriggerModify, duration: number = 3.0) {
+    constructor(triggerModify: TriggerModify, duration: number = 3) {
         const modifier: StatusEffectModifier = {
             type: "stat",
             target: triggerModify.mod,
@@ -45,7 +45,7 @@ export class TriggerModifyBuffEffect extends StatusEffect {
         const statName = this.config.modifiers[0].target;
         const value = this.config.modifiers[0].value as number;
 
-        this.logger.info(`Applied ${this.config.name}: ${statName} ${value > 0 ? '+' : ''}${value} for ${instance.remainingDuration}s`);
+        this.logger.info(`Applied ${this.config.name}: ${statName} ${value > 0 ? '+' : ''}${value} for ${instance.remainingTurns} turns`);
     }
 
     protected async onRemove(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
@@ -54,13 +54,13 @@ export class TriggerModifyBuffEffect extends StatusEffect {
         this.logger.info(`Removed ${this.config.name}: ${statName} effect expired`);
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
-        // No special update logic needed for simple stat modifications
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
+        // No special turn update logic needed for simple stat modifications
     }
 }
 
 export class TriggerModifyDebuffEffect extends StatusEffect {
-    constructor(triggerModify: TriggerModify, duration: number = 2.0) {
+    constructor(triggerModify: TriggerModify, duration: number = 2) {
         const modifier: StatusEffectModifier = {
             type: "stat",
             target: triggerModify.mod,
@@ -93,7 +93,7 @@ export class TriggerModifyDebuffEffect extends StatusEffect {
         const statName = this.config.modifiers[0].target;
         const value = this.config.modifiers[0].value as number;
 
-        this.logger.info(`Applied debuff: ${statName} ${value} for ${instance.remainingDuration}s`);
+        this.logger.info(`Applied debuff: ${statName} ${value} for ${instance.remainingTurns} turns`);
     }
 
     protected async onRemove(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
@@ -102,8 +102,8 @@ export class TriggerModifyDebuffEffect extends StatusEffect {
         this.logger.info(`Removed debuff: ${statName} effect expired`);
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
-        // No special update logic needed
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
+        // No special turn update logic needed
     }
 }
 

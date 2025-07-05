@@ -38,7 +38,9 @@ export default class State {
     private teamManager: TeamManager;
     private combatSystem: CombatSystem;
     private turnSystem: TurnSystem;
-    private statusEffectSystem: StatusEffectSystem; public constructor(config: StateConfig) {
+    private statusEffectSystem: StatusEffectSystem;
+
+    public constructor(config: StateConfig) {
         this.eventBus = new EventBus();
         this.gridManager = new GridManager(config, this.eventBus);
         const entitiesInit: EntityConfig[] = this.getEntitiesInitFromTeamMap(config.teamMap);

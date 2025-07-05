@@ -71,72 +71,15 @@ export default class TriggerModifyIntegrationService {
         return success;
     }
 
-    public async applyMultipleTriggerModifies(
-        triggerModifies: TriggerModify[],
-        targetEntityId: number,
-        casterEntityId?: number,
-        config: TriggerModifyApplicationConfig = {}
-    ): Promise<boolean> {
-        let allSuccessful = true;
-
-        for (const triggerModify of triggerModifies) {
-            const success = await this.applyTriggerModify(
-                triggerModify,
-                targetEntityId,
-                casterEntityId,
-                config
-            );
-
-            if (!success) {
-                allSuccessful = false;
-            }
-        }
-
-        return allSuccessful;
-    }
-
-    public hasActiveTriggerModifyEffect(
-        entityId: number,
-        triggerModify: TriggerModify,
-        casterEntityId?: number
-    ): boolean {
-        const effect = createTriggerModifyEffect(triggerModify);
-        const caster = casterEntityId ? this.gameState.getEntityManager().getEntity(casterEntityId) : undefined;
-
-        return this.statusEffectSystem.hasEffect(entityId, effect.config.id, caster);
-    }
-
-    public getActiveTriggerModifyStacks(
-        entityId: number,
-        triggerModify: TriggerModify,
-        casterEntityId?: number
-    ): number {
-        const effect = createTriggerModifyEffect(triggerModify);
-        const caster = casterEntityId ? this.gameState.getEntityManager().getEntity(casterEntityId) : undefined;
-
-        return this.statusEffectSystem.getEffectStacks(entityId, effect.config.id, caster);
-    }
-
-    public async removeTriggerModifyEffect(
-        entityId: number,
-        triggerModify: TriggerModify,
-        casterEntityId?: number
-    ): Promise<number> {
-        const effect = createTriggerModifyEffect(triggerModify);
-        const caster = casterEntityId ? this.gameState.getEntityManager().getEntity(casterEntityId) : undefined;
-
-        return await this.statusEffectSystem.removeEffect(entityId, effect.config.id, caster);
-    }
-
     private getDefaultDuration(triggerModify: TriggerModify): number {
-        const baseDuration = 3.0;
+        const baseTurns = 3;
         const magnitude = math.abs(triggerModify.value);
 
-        if (magnitude >= 10) return baseDuration * 1.5;
-        if (magnitude >= 5) return baseDuration * 1.2;
-        if (magnitude <= 2) return baseDuration * 0.8;
+        if (magnitude >= 10) return math.ceil(baseTurns * 1.5);
+        if (magnitude >= 5) return math.ceil(baseTurns * 1.2);
+        if (magnitude <= 2) return math.ceil(baseTurns * 0.8);
 
-        return baseDuration;
+        return baseTurns;
     }
 
     private async applyImmediateStatChange(triggerModify: TriggerModify, target: Entity): Promise<void> {
@@ -161,35 +104,5 @@ export default class TriggerModifyIntegrationService {
         else {
             this.logger.warn(`Unknown property in TriggerModify: ${property}`);
         }
-    }
-
-    public getTriggerModifyEffectsByEntity(entityId: number): Array<{
-        effect: string;
-        stacks: number;
-        mod: string;
-        value: number;
-        isPositive: boolean;
-    }> {
-        const manager = this.statusEffectSystem.getEntityManager(entityId);
-        if (!manager) return [];
-
-        const effects = manager.getActiveEffects();
-        const triggerModifyEffects = effects.filter(effect =>
-            effect.effectId.find('trigger_modify_')[0] === 1
-        );
-
-        return triggerModifyEffects.map(effect => {
-            const parts = effect.effectId.split('_');
-            const mod = parts[2];
-            const value = tonumber(parts[3]) || 0;
-
-            return {
-                effect: effect.effectId,
-                stacks: effect.stacks,
-                mod,
-                value,
-                isPositive: value > 0
-            };
-        });
     }
 }

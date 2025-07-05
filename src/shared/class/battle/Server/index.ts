@@ -242,6 +242,7 @@ export default class BattleServer {
             const clashes = this.validedClashes.get(access.token!);
             if (clashes) {
                 // this.logger.debug(`Clashes for ${actingPlayer.Name}:`, clashes);
+                this.validedClashes.delete(access.token!); // clear the clashes for this token
                 resolveAttacksAction.results = clashes;
             } else {
                 this.logger.error(`No clashes found for ${actingPlayer.Name} with token ${access.token}.`);

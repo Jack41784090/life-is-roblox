@@ -12,8 +12,8 @@ export class BuffEffect extends StatusEffect {
         // Default buff removal logic
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
-        // Default buff update logic
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
+        // Default buff turn update logic
     }
 }
 
@@ -26,8 +26,8 @@ export class DebuffEffect extends StatusEffect {
         // Default debuff removal logic
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
-        // Default debuff update logic
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
+        // Default debuff turn update logic
     }
 }
 
@@ -40,17 +40,11 @@ export class DamageOverTimeEffect extends StatusEffect {
         // Log total damage dealt for analytics
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
-        const damageInterval = instance.metadata.damageInterval as number || 1.0;
-        const lastDamageTick = instance.metadata.lastDamageTick as number || instance.appliedAt;
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
+        const damage = this.calculateDamage(instance);
+        this.dealDamage(context.target, damage, context.caster);
 
-        if (tick() - lastDamageTick >= damageInterval) {
-            const damage = this.calculateDamage(instance);
-            this.dealDamage(context.target, damage, context.caster);
-
-            instance.metadata.lastDamageTick = tick();
-            instance.metadata.totalDamageDealt = (instance.metadata.totalDamageDealt as number || 0) + damage;
-        }
+        instance.metadata.totalDamageDealt = (instance.metadata.totalDamageDealt as number || 0) + damage;
     }
 
     private calculateDamage(instance: StatusEffectInstance): number {
@@ -76,17 +70,11 @@ export class HealOverTimeEffect extends StatusEffect {
         // Log total healing done for analytics
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
-        const healInterval = instance.metadata.healInterval as number || 1.0;
-        const lastHealTick = instance.metadata.lastHealTick as number || instance.appliedAt;
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
+        const healing = this.calculateHealing(instance);
+        this.heal(context.target, healing);
 
-        if (tick() - lastHealTick >= healInterval) {
-            const healing = this.calculateHealing(instance);
-            this.heal(context.target, healing);
-
-            instance.metadata.lastHealTick = tick();
-            instance.metadata.totalHealingDone = (instance.metadata.totalHealingDone as number || 0) + healing;
-        }
+        instance.metadata.totalHealingDone = (instance.metadata.totalHealingDone as number || 0) + healing;
     }
 
     private calculateHealing(instance: StatusEffectInstance): number {
@@ -115,11 +103,11 @@ export class ShieldEffect extends StatusEffect {
         instance.metadata.currentShield = 0;
     }
 
-    protected async onUpdate(context: StatusEffectContext, instance: StatusEffectInstance, deltaTime: number): Promise<void> {
+    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
         // Check if shield is depleted
         const currentShield = instance.metadata.currentShield as number || 0;
         if (currentShield <= 0) {
-            instance.remainingDuration = 0; // Mark for removal
+            instance.remainingTurns = 0; // Mark for removal
         }
     }
 
