@@ -79,23 +79,31 @@ export default class CombatSystem {
 
         // clear out the clash event subscriptions and resubscribe for the new combatants
         // EVENT: BEFORE_ATTACK
-        triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeAttack, attackerState, targetState, abilityState.triggerMap));
+        this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeAttack, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
+            triggerModifies.push(modify);
+        });
 
         // Loop through all dices and resolve the strike sequence
         while (dice) {
             // EVENT: BEFORE_SS
-            triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeStrikeSequence, attackerState, targetState, abilityState.triggerMap));
+            this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeStrikeSequence, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
+                triggerModifies.push(modify);
+            });
 
             const result: StrikeSequence = this.resolveStrikeSequence([dice], attackerState, targetState);
             strikeSequences.push(result);
             dice = abilityDices.pop();
 
             // EVENT: AFTER_SS
-            triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterStrikeSequence, attackerState, targetState, abilityState.triggerMap));
+            this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterStrikeSequence, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
+                triggerModifies.push(modify);
+            });
         }
 
         // EVENT: AFTER_ATTACK
-        triggerModifies.push(...this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterAttack, attackerState, targetState, abilityState.triggerMap));
+        this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterAttack, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
+            triggerModifies.push(modify);
+        })
 
         // Generate TriggerModify objects based on combat results (crits, hits, etc.)
         const combatResultTriggers = this.generateTriggerModifiesFromCombatResults(strikeSequences, attackerState, targetState);

@@ -3,7 +3,7 @@ import State from "../../State";
 import Entity from "../../State/Entity";
 import { TriggerModify } from "../CombatSystem/types";
 import StatusEffectSystem from "../StatusEffectSystem";
-import { createTriggerModifyEffect } from "../StatusEffectSystem/Effects/TriggerModifyEffects";
+import { createTriggerModifyEffect } from "../StatusEffectSystem/StatusEffect/triggermodify";
 import { StatusEffectContext } from "../StatusEffectSystem/types";
 
 export interface TriggerModifyApplicationConfig {

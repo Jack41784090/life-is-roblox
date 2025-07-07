@@ -1,6 +1,6 @@
+import StatusEffect from ".";
 import { EntityChangeable } from "../../../State/Entity/types";
 import { TriggerModify } from "../../CombatSystem/types";
-import StatusEffect from "../StatusEffect";
 import {
     StackingRule,
     StatusEffectCategory,

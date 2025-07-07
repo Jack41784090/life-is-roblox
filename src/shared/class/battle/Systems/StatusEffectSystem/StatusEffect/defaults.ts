@@ -1,6 +1,6 @@
 import { calculateRealityValue } from "shared/utils";
+import StatusEffect from ".";
 import { Reality } from "../../CombatSystem/types";
-import StatusEffect from "../StatusEffect";
 import { EntityInterface, StatusEffectContext, StatusEffectInstance } from "../types";
 
 export class BuffEffect extends StatusEffect {

@@ -1,6 +1,6 @@
 import Logger from "shared/utils/Logger";
-import { EntityStats } from "../../State/Entity/types";
-import { DamageType } from "../CombatSystem/Ability/types";
+import { EntityStats } from "../../../State/Entity/types";
+import { DamageType } from "../../CombatSystem/Ability/types";
 import {
     EffectTrigger,
     StackingRule,
@@ -8,7 +8,7 @@ import {
     StatusEffectContext,
     StatusEffectInstance,
     StatusEffectModification
-} from "./types";
+} from "../types";
 
 export default abstract class StatusEffect {
     protected logger;;
