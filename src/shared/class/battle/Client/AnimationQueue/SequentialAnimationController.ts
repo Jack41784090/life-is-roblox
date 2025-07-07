@@ -282,7 +282,8 @@ export default class SequentialAnimationController {
         // if (this.currentDefendAnim) {
         //     target.animationHandler.killAnimation(AnimationType.Defend);
         // }
-    } private async pauseWithRollReveal(step: AnimationSequenceStep): Promise<void> {
+    }
+    private async pauseWithRollReveal(step: AnimationSequenceStep): Promise<void> {
         if ("mod" in step.die) {
             await this.wait(step.pauseBeforeNext || this.config.pauseDuration);
             return;

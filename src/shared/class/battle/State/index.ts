@@ -134,7 +134,8 @@ export default class State {
      */
     public getTeamManager(): TeamManager {
         return this.teamManager;
-    } public getEventBus(): EventBus {
+    }
+    public getEventBus(): EventBus {
         return this.eventBus;
     }
 
