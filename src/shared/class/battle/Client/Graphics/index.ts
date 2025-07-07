@@ -109,24 +109,58 @@ export default class Graphics {
         this.logger.info(`Player ${playerID} repositioned from [${oldQR}] to [${newQR}]`);
     }
 
-    public async moveEntity(start: Vector2, dest: Vector2) {
+    public async moveEntity(start: Vector2, dest: Vector2, entityPlayerId?: PlayerID): Promise<void> {
         const context = "during moving entity's graphic"
 
         // Skip if start and destination are the same
         if (start.X === dest.X && start.Y === dest.Y) {
             this.logger.info(`Entity already at destination ${dest}, skipping movement`);
-            return Promise.resolve();
+            return;
         }
 
-        const moverEntityGraphic = this.tupleManager.getEntityGraphics(start);
-        if (!moverEntityGraphic) {
-            this.logger.error(`No entity graphics found at ${start}`, context);
-            return Promise.reject(`No entity graphics found at ${start}, ${context}`);
+        // Validate input positions
+        if (start.X < -100 || start.Y < -100 || dest.X < -100 || dest.Y < -100) {
+            this.logger.error(`Invalid positions for moveEntity: start=${start}, dest=${dest}`, context);
+            throw `Invalid positions: start=${start}, dest=${dest}`;
         }
+
+        let moverEntityGraphic = this.tupleManager.getEntityGraphics(start);
+
+        // If we can't find the entity at the expected position, try to find it by player ID
+        if (!moverEntityGraphic && entityPlayerId !== undefined) {
+            const playerTuple = this.tupleManager.getTupleByPlayerId(entityPlayerId);
+            if (playerTuple && playerTuple.entityGraphics) {
+                const actualStart = playerTuple.cellGraphics.qr;
+                this.logger.warn(`Entity not found at expected position ${start}, but found player ${entityPlayerId} at ${actualStart}. Using actual position.`, context);
+                moverEntityGraphic = playerTuple.entityGraphics;
+                // Update start to the actual position
+                start = actualStart;
+            }
+        }
+
+        // Final fallback: look for any entity graphic
+        if (!moverEntityGraphic) {
+            const allTuples = this.tupleManager.values();
+            const entityTupleByPlayerId = allTuples.find(tuple => {
+                if (!tuple.entityGraphics) return false;
+                const playerId = this.tupleManager.getPlayerIdFromEntityGraphics(tuple.entityGraphics);
+                return playerId !== undefined;
+            });
+
+            if (entityTupleByPlayerId && entityTupleByPlayerId.entityGraphics) {
+                const actualStart = entityTupleByPlayerId.cellGraphics.qr;
+                this.logger.warn(`Entity not found at expected position ${start}, but found at ${actualStart}. Attempting recovery.`, context);
+                return this.moveEntity(actualStart, dest, entityPlayerId);
+            }
+
+            this.logger.error(`No entity graphics found at ${start}`, context);
+            throw `No entity graphics found at ${start}, ${context}`;
+        }
+
         const moversID = this.tupleManager.getPlayerIdFromEntityGraphics(moverEntityGraphic);
         if (!moversID) {
             this.logger.error(`No player ID found for entity graphics at ${start}`, context);
-            return Promise.reject(`No player ID found for entity graphics at ${start}, ${context}`);
+            throw `No player ID found for entity graphics at ${start}, ${context}`;
         }
 
         let tupleUpdateSuccess = false;
@@ -145,17 +179,17 @@ export default class Graphics {
                 return cell;
             });
 
-            return moverEntityGraphic.moveToCell(destinationCell, cellPath).then(() => {
-                // this updates the tuple
-                tupleUpdateSuccess = this.tupleManager.updatePlayerPosition(moversID, start, dest);
-            });
+            await moverEntityGraphic.moveToCell(destinationCell, cellPath);
+            // this updates the tuple
+            tupleUpdateSuccess = this.tupleManager.updatePlayerPosition(moversID, start, dest);
+            this.logger.info(`Successfully moved entity from ${start} to ${dest}`, context);
         } catch (error) {
             this.logger.error(`Error moving entity from ${start} to ${dest}: ${error}`);
 
             // Try to recover by placing the entity back at the start position
             if (tupleUpdateSuccess) this.tupleManager.updatePlayerPosition(moversID, dest, start);
 
-            return Promise.reject(error);
+            throw error;
         }
     }
 

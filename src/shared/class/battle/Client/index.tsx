@@ -134,8 +134,25 @@ export default class BattleClient {
                 this.state.sync({
                     entities: [serverEntityState],
                 })
-                // this.graphics.moveEntity(localEntity.qr, serverEntityState.qr);
-                this.handleMoveAnimation(id, localEntity.qr, serverEntityState.qr);
+            } else {
+                // Ensure graphics and state are synchronized
+                const localPosition = localEntity.qr;
+                const serverPosition = serverEntityState.qr;
+
+                // Only trigger move animation if positions actually differ
+                if (localPosition.X !== serverPosition.X || localPosition.Y !== serverPosition.Y) {
+                    this.logger.info(`Position mismatch detected: local=${localPosition}, server=${serverPosition}. Syncing.`);
+
+                    // Update local state first to ensure consistency
+                    this.state.sync({
+                        entities: [serverEntityState],
+                    });
+
+                    // Then handle the move animation with the corrected positions
+                    this.handleMoveAnimation(id, localPosition, serverPosition);
+                } else {
+                    this.logger.info(`Entity ${id} position already synchronized at ${localPosition}`);
+                }
             }
         })
 
@@ -193,6 +210,10 @@ export default class BattleClient {
                 this.logger.debug("local player access token received, assuming animation is done locally already", context, accessToken);
                 return;
             }
+
+            // Ensure graphics are initialized before processing animations
+            await this.graphicsInitialised;
+
             this.validateAndCommit(accessToken.action);
             switch (accessToken.action.type) {
                 case ActionType.Move:
@@ -305,18 +326,45 @@ export default class BattleClient {
 
         this.animations.handleClashes(attacker, target, clashes);
     }
-
     private handleMoveAnimation(entityId: number, from: Vector2, to: Vector2) {
-        // const mover = this.graphics.findEntityG(entityId);
-        // const fromWorldLocation = this.graphics.findCellG(from)?.worldPosition();
-        // const toWorldLocation = this.graphics.findCellG(to)?.worldPosition();
-        // if (!mover || !fromWorldLocation || !toWorldLocation) {
-        //     this.logger.error(`Cannot find: `, { mover, fromWorldLocation, toWorldLocation })
-        //     return;
-        // }
+        // Validate positions to prevent invalid animations
+        if (!from || !to || from.X < -100 || from.Y < -100 || to.X < -100 || to.Y < -100) {
+            this.logger.error(`Invalid positions for move animation: from=${from}, to=${to}`);
+            return;
+        }
 
-        // this.animations.handleMoveAnimation(mover, fromWorldLocation, toWorldLocation);
-        const [promise, resolver] = promiseWrapper(this.graphics.moveEntity(from, to));
+        // Skip if already at destination
+        if (from.X === to.X && from.Y === to.Y) {
+            this.logger.debug(`Skipping move animation: entity ${entityId} already at destination ${to}`);
+            return;
+        }
+
+        // Verify the entity exists
+        const entity = this.state.getEntity(entityId);
+        if (!entity) {
+            this.logger.error(`Entity with ID ${entityId} not found for move animation`);
+            return;
+        }
+
+        // Check if there's already a pending move animation for this entity
+        const currentAnimations = this.animations.getQueueInfo();
+        const entityMoveAnimationName = `handleMoveAnimation of ${entityId}`;
+        const hasCurrentEntityAnimation = currentAnimations.currentAnimation &&
+            string.find(currentAnimations.currentAnimation, entityMoveAnimationName)[0] !== undefined;
+        const entityAnimationInProgress = hasCurrentEntityAnimation ||
+            this.animations.getQueueSize() > 0; // For now, be conservative and block if any animation is in progress
+
+        if (entityAnimationInProgress) {
+            this.logger.debug(`Skipping duplicate move animation for entity ${entityId} - animation already in progress`);
+            return;
+        }
+
+        // Debug logging to understand position states
+        this.logger.debug(`Move animation: entity ${entityId} state position: ${entity.qr}, graphics from: ${from}, to: ${to}`);
+
+        // Use the provided 'from' parameter as it represents where the graphics currently show the entity
+        // The entity's state may already be updated to the destination by the time this is called
+        const [promise, resolver] = promiseWrapper(this.graphics.moveEntity(from, to, entityId));
         this.animations.queueAnimation({
             name: `handleMoveAnimation of ${entityId} from ${from} to ${to}`,
             promise,
@@ -363,6 +411,9 @@ export default class BattleClient {
     }
 
     private async handleCellEnter(tuple: EntityCellGraphicsTuple) {
+        // Wait for any pending graphics operations to complete before updating UI
+        await this.graphicsInitialised;
+
         const hoveredOverEntity = this.state.getEntity(tuple.cellGraphics.qr);
         const hoveredOverEntityGraphics = tuple.entityGraphics
         const currentActor = this.state.getCurrentActor();
@@ -420,6 +471,12 @@ export default class BattleClient {
             return;
         }
 
+        // Additional protection: check if any animations are processing
+        if (this.animations.isCurrentlyProcessing()) {
+            this.logger.debug("Cell click ignored - animations processing");
+            return;
+        }
+
         this.gui.mountOrUpdateGlow([]); // Clear glowing cells
         if (clickedtuple.entityGraphics) {
             const clickedOnEntity = this.state.getEntity(clickedtuple.cellGraphics.qr); assert(clickedOnEntity, "Clicked on entity is not defined");
@@ -435,12 +492,16 @@ export default class BattleClient {
             return;
         }
 
-        // Lock movement actions to prevent spam
-        this.actionLockService.lock(ActionLockType.MOVEMENT, 1.0, "Movement in progress");
+        // Additional check: prevent action if animations are still processing
+        if (this.animations.isCurrentlyProcessing() || this.animations.getQueueSize() > 0) {
+            this.logger.debug("Movement action denied - animations still processing");
+            return;
+        }
+
+        // Lock movement actions to prevent spam - extend duration to cover animation time
+        this.actionLockService.lock(ActionLockType.MOVEMENT, 3.0, "Movement in progress");
 
         try {
-            // this.logger.debug("Clicked on empty cell", emptyTuple);
-
             const start = this.state.getCurrentActor().qr;
             const dest = emptyTuple.cellGraphics.qr;
 
@@ -457,17 +518,20 @@ export default class BattleClient {
             const ac = await this.submitAction(accessToken.action);
 
             if (ac) {
-                // emit event to this client
+                // commit action to local state first to ensure state consistency
+                this.validateAndCommit(accessToken.action);
+
+                // emit event to this client after state is updated
                 this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
                     entityId: accessToken.userId,
                     from: start,
                     to: dest,
-                })
+                });
 
-                // commit action to local state
-                this.validateAndCommit(accessToken.action);
+                // Wait for ALL animations to complete before allowing next action
+                await this.animations.waitForAllAnimationsToEnd();
 
-                const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd(); const localE = await this.localEntity();
+                const localE = await this.localEntity();
                 if (localE.get('pos') >= 75) {
                     this.logger.debug("Local entity is still ready");
 

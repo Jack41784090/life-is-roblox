@@ -49,7 +49,7 @@ export default class State {
         this.statusEffectSystem = new StatusEffectSystem(this);
         this.combatSystem = new CombatSystem(this);
         this.turnSystem = new TurnSystem({
-            gauntletTickInterval: 0.2,
+            gauntletTickInterval: 0.05,
             readinessAtoms: atom(this.entityManager.getAllEntities().map((entity) => {
                 return atom({
                     id: entity.playerID,
