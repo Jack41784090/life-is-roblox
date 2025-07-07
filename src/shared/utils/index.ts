@@ -113,7 +113,7 @@ export function getDummyStats(): EntityStats {
         str: 1,
         dex: 1,
         acr: 1,
-        spd: 1,
+        spd: 0,
         siz: 1,
         int: 1,
         spr: 1,

@@ -120,9 +120,9 @@ export default class SequentialAnimationController {
             for (const step of this.animationSteps) {
                 await this.executeStep(step);
 
-                if (step.pauseBeforeNext && step.pauseBeforeNext > 0) {
-                    await this.pauseWithRollReveal(step);
-                }
+                // if (step.pauseBeforeNext && step.pauseBeforeNext > 0) {
+                //     await this.pauseWithRollReveal(step);
+                // }
 
                 this.currentStep++;
             }

@@ -1,4 +1,5 @@
 import React, { useState } from "@rbxts/react";
+import { ActionLockService, ActionLockType } from "shared/class/battle/Client/ActionLockService";
 import Entity from "shared/class/battle/State/Entity";
 import { FightingStyleState } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
 
@@ -52,8 +53,13 @@ function FightingStyleSlot({ style, index, isActive, entity, onSelect }: Fightin
     };
 
     const handleClick = () => {
-        if (!isActive) {
-            onSelect(index);
+        const actionLockService = ActionLockService.getInstance();
+
+        if (!isActive && actionLockService.canPerformAction(ActionLockType.STYLE_SWITCH)) {
+            actionLockService.withDebounce(ActionLockType.STYLE_SWITCH, () => {
+                onSelect(index);
+                actionLockService.lock(ActionLockType.STYLE_SWITCH, 0.5, "Style switch cooldown");
+            }, 0.3);
         }
     };
 

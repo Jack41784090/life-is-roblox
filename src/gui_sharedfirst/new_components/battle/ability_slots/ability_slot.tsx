@@ -1,4 +1,6 @@
+import { effect } from "@rbxts/charm";
 import React, { useEffect, useState } from "@rbxts/react";
+import { ActionLockService, ActionLockType } from "shared/class/battle/Client/ActionLockService";
 import Entity from "shared/class/battle/State/Entity";
 import { AbilityConfig, AbilityType, ActiveAbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { onInput } from "shared/utils";
@@ -14,27 +16,49 @@ export function AbilitySlot({ cre, abKey, ability, focus = false }: AbilitySlotP
     const [isFocused, setIsFocused] = useState(focus);
     const [isHovering, setIsHovering] = useState(false);
     const [tooltipPosition, setTooltipPosition] = useState<Vector2>(new Vector2(0, 0));
+    const [isActionLocked, setIsActionLocked] = useState(false);
 
     const tooltipWidth = 250;
     const tooltipHeight = 220;
+    const actionLockService = ActionLockService.getInstance();
 
     const activateAbility = () => {
-        setIsFocused(true);
-        cre.armed = abKey;
+        if (!actionLockService.canPerformAction(ActionLockType.ABILITY_SELECTION)) {
+            return;
+        }
+
+        actionLockService.withDebounce(ActionLockType.ABILITY_SELECTION, () => {
+            setIsFocused(true);
+            cre.armed = abKey;
+
+            // Lock ability selection for a short duration
+            actionLockService.lock(ActionLockType.ABILITY_SELECTION, 0.3, "Ability selection cooldown");
+        }, 0.2);
     };
+
+    useEffect(() => {
+        const lockState = actionLockService.getLockState(ActionLockType.ABILITY_SELECTION);
+        if (lockState) {
+            const cleanup = effect(() => {
+                const state = lockState();
+                setIsActionLocked(state.isLocked);
+            });
+            return cleanup;
+        }
+    }, []);
 
     useEffect(() => {
         const handleKeyPress = (input: InputObject) => {
             if (input.KeyCode.Name === abKey) {
                 activateAbility();
-            } else if (isFocused) {
+            } else if (isFocused && !isActionLocked) {
                 setIsFocused(false);
             }
         };
 
         const connection = onInput(Enum.UserInputType.Keyboard, handleKeyPress);
         return () => connection.Disconnect();
-    }, [abKey, cre, isFocused]);
+    }, [abKey, cre, isFocused, isActionLocked]);
 
     const updateTooltipPosition = () => {
         const mouse = game.GetService("Players").LocalPlayer!.GetMouse();
@@ -388,14 +412,34 @@ export function AbilitySlot({ cre, abKey, ability, focus = false }: AbilitySlotP
                 Size={UDim2.fromScale(isFocused ? 0.25 : 0.2, 1)}
                 Image={ability.icon}
                 SizeConstraint={"RelativeXX"}
+                ImageTransparency={isActionLocked ? 0.6 : 0}
+                Active={!isActionLocked}
                 Event={{
-                    MouseButton1Click: activateAbility,
-                    MouseEnter: handleMouseEnter,
-                    MouseLeave: () => setIsHovering(false),
-                    MouseMoved: handleMouseMove
+                    MouseButton1Click: isActionLocked ? undefined : activateAbility,
+                    MouseEnter: isActionLocked ? undefined : handleMouseEnter,
+                    MouseLeave: isActionLocked ? undefined : (() => setIsHovering(false)),
+                    MouseMoved: isActionLocked ? undefined : handleMouseMove
                 }}
             >
                 <uiaspectratioconstraint AspectRatio={1} />
+                {isActionLocked && (
+                    <frame
+                        Size={UDim2.fromScale(1, 1)}
+                        BackgroundColor3={new Color3(0, 0, 0)}
+                        BackgroundTransparency={0.3}
+                        BorderSizePixel={0}
+                    >
+                        <textlabel
+                            Size={UDim2.fromScale(1, 1)}
+                            BackgroundTransparency={1}
+                            Text="🔒"
+                            TextColor3={new Color3(1, 1, 1)}
+                            TextSize={16}
+                            Font={Enum.Font.SourceSansBold}
+                            TextScaled={true}
+                        />
+                    </frame>
+                )}
             </imagebutton>
 
             {isHovering && (

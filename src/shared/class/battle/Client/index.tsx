@@ -16,6 +16,7 @@ import HexCell from "../State/Hex/Cell";
 import HexCellGraphics from "../State/Hex/Cell/Graphics";
 import { ActiveAbilityState } from "../Systems/CombatSystem/Ability/types";
 import { StrikeSequence, TriggerModify } from "../Systems/CombatSystem/types";
+import { ActionLockService, ActionLockType } from "./ActionLockService";
 import BattleAnimationManager from "./AnimationQueue";
 import BattleCamera from "./BattleCamera";
 import { ClientActionValidator } from "./ClientValidation";
@@ -35,6 +36,7 @@ export default class BattleClient {
     private animations: BattleAnimationManager;
     private networking: NetworkService;
     private validator: ClientActionValidator;
+    private actionLockService: ActionLockService;
 
     private controlLocks: ControlLocks = new Map();
 
@@ -46,6 +48,7 @@ export default class BattleClient {
         const gridMin = new Vector2(worldCenter.X - halfWidth, worldCenter.Z - halfHeight);
         const gridMax = new Vector2(worldCenter.X + halfWidth, worldCenter.Z + halfHeight);
 
+        this.actionLockService = ActionLockService.getInstance();
         this.camera = new BattleCamera(camera, worldCenter, gridMin, gridMax);
         this.state = new State(config);
         this.networking = new NetworkService();
@@ -412,9 +415,13 @@ export default class BattleClient {
     }
 
     private handleCellClick(clickedtuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
-        // this.logger.debug("Cell clicked", clickedtuple);
+        if (this.actionLockService.isGloballyLocked()) {
+            this.logger.debug("Cell click ignored - globally locked");
+            return;
+        }
+
+        this.gui.mountOrUpdateGlow([]); // Clear glowing cells
         if (clickedtuple.entityGraphics) {
-            // this.logger.debug("State", this.state);
             const clickedOnEntity = this.state.getEntity(clickedtuple.cellGraphics.qr); assert(clickedOnEntity, "Clicked on entity is not defined");
             this.clickedOnEntity(clickedOnEntity, accessToken);
         }
@@ -423,36 +430,121 @@ export default class BattleClient {
         }
     }
     private async clickedOnEmptyCell(emptyTuple: EntityCellGraphicsTuple, accessToken: AccessToken) {
-        // this.logger.debug("Clicked on empty cell", emptyTuple);
+        if (!this.actionLockService.canPerformAction(ActionLockType.MOVEMENT)) {
+            this.logger.debug("Movement action denied - locked");
+            return;
+        }
 
-        const start = this.state.getCurrentActor().qr;
-        const dest = emptyTuple.cellGraphics.qr;
+        // Lock movement actions to prevent spam
+        this.actionLockService.lock(ActionLockType.MOVEMENT, 1.0, "Movement in progress");
 
-        // set action
-        accessToken.action = {
-            type: ActionType.Move,
-            executed: false,
-            by: accessToken.userId,
-            to: dest,
-            from: start,
-        } as MoveAction;
+        try {
+            // this.logger.debug("Clicked on empty cell", emptyTuple);
 
-        // commit action to server
-        const ac = await this.submitAction(accessToken.action);
+            const start = this.state.getCurrentActor().qr;
+            const dest = emptyTuple.cellGraphics.qr;
 
-        if (ac) {
-            // emit event to this client
-            this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
-                entityId: accessToken.userId,
-                from: start,
+            // set action
+            accessToken.action = {
+                type: ActionType.Move,
+                executed: false,
+                by: accessToken.userId,
                 to: dest,
-            })
+                from: start,
+            } as MoveAction;
 
-            // commit action to local state
-            this.validateAndCommit(accessToken.action);
+            // commit action to server
+            const ac = await this.submitAction(accessToken.action);
 
-            const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd(); const localE = await this.localEntity();
-            if (localE.get('pos') >= 75) {
+            if (ac) {
+                // emit event to this client
+                this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_MOVE, {
+                    entityId: accessToken.userId,
+                    from: start,
+                    to: dest,
+                })
+
+                // commit action to local state
+                this.validateAndCommit(accessToken.action);
+
+                const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd(); const localE = await this.localEntity();
+                if (localE.get('pos') >= 75) {
+                    this.logger.debug("Local entity is still ready");
+
+                    // Request new access token for subsequent actions
+                    const newAccessToken = await serverRequestRemote.toAct();
+                    if (newAccessToken.allowed) {
+                        // Properly re-enable interaction with the new token
+                        this.setupInteractiveMode(newAccessToken);
+                    }
+                }
+            }
+            else {
+                this.logger.warn("Action not allowed", ac);
+                this.setupInteractiveMode(accessToken);
+            }
+        } finally {
+            // Always unlock movement after action completion or failure
+            this.actionLockService.unlock(ActionLockType.MOVEMENT);
+        }
+    }
+    //#endregion
+
+    //#region Combat
+    private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
+        if (!this.actionLockService.canPerformAction(ActionLockType.ATTACK)) {
+            this.logger.debug("Attack action denied - locked");
+            return;
+        }
+
+        // Lock attack actions to prevent spam
+        this.actionLockService.lock(ActionLockType.ATTACK, 1.5, "Attack in progress");
+
+        try {
+            // this.logger.debug("Clicked on entity", clickedOn);
+            const cre = this.state.getCurrentActor();
+            if (!cre.armed) {
+                this.logger.warn("[clickedOnEntity] Current entity is not armed");
+                return;
+            }
+
+            // set temp attack action
+            const iability = cre.getEquippedAbilitySet()[cre.armed];
+            const attackAction = {
+                type: ActionType.Attack,
+                ability: {
+                    ...iability,
+                    using: cre,
+                    target: clickedOn.state(),
+                } as unknown as ActiveAbilityState,
+                by: cre.playerID,
+                against: clickedOn.playerID,
+                executed: false,
+            } as AttackAction;
+            accessToken.action = attackAction;
+
+            // resolve attack using temp attack action
+            const clashes = await serverRequestRemote.clashes(accessToken);
+
+            // set action back to resolveAttacks
+            const resolveAction: ResolveAttacksAction = {
+                ...attackAction,
+                type: ActionType.ResolveAttacks,
+                results: clashes,
+            }
+            accessToken.action = resolveAction;
+
+            // commit action to server
+            this.submitAction(accessToken.action);
+
+            // emit event to this client
+            this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);        // commit action to local state
+            this.validateAndCommit(resolveAction); const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
+            // this.logger.debug("Animations ended", waitForMoveAnimation!);
+
+            const localEntity = await this.localEntity();
+            // this.logger.debug("Local entity pos", localEntity.get('pos'));
+            if (localEntity.get('pos') >= 75) {
                 // this.logger.debug("Local entity is still ready");
 
                 // Request new access token for subsequent actions
@@ -462,68 +554,9 @@ export default class BattleClient {
                     this.setupInteractiveMode(newAccessToken);
                 }
             }
-        }
-        else {
-            this.logger.warn("Action not allowed", ac);
-            this.setupInteractiveMode(accessToken);
-        }
-    }
-    //#endregion
-
-    //#region Combat
-    private async clickedOnEntity(clickedOn: Entity, accessToken: AccessToken) {
-        // this.logger.debug("Clicked on entity", clickedOn);
-        const cre = this.state.getCurrentActor();
-        if (!cre.armed) {
-            this.logger.warn("[clickedOnEntity] Current entity is not armed");
-            return;
-        }
-
-        // set temp attack action
-        const iability = cre.getEquippedAbilitySet()[cre.armed];
-        const attackAction = {
-            type: ActionType.Attack,
-            ability: {
-                ...iability,
-                using: cre,
-                target: clickedOn.state(),
-            } as unknown as ActiveAbilityState,
-            by: cre.playerID,
-            against: clickedOn.playerID,
-            executed: false,
-        } as AttackAction;
-        accessToken.action = attackAction;
-
-        // resolve attack using temp attack action
-        const clashes = await serverRequestRemote.clashes(accessToken);
-
-        // set action back to resolveAttacks
-        const resolveAction: ResolveAttacksAction = {
-            ...attackAction,
-            type: ActionType.ResolveAttacks,
-            results: clashes,
-        }
-        accessToken.action = resolveAction;
-
-        // commit action to server
-        this.submitAction(accessToken.action);
-
-        // emit event to this client
-        this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);        // commit action to local state
-        this.validateAndCommit(resolveAction); const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
-        // this.logger.debug("Animations ended", waitForMoveAnimation!);
-
-        const localEntity = await this.localEntity();
-        // this.logger.debug("Local entity pos", localEntity.get('pos'));
-        if (localEntity.get('pos') >= 75) {
-            // this.logger.debug("Local entity is still ready");
-
-            // Request new access token for subsequent actions
-            const newAccessToken = await serverRequestRemote.toAct();
-            if (newAccessToken.allowed) {
-                // Properly re-enable interaction with the new token
-                this.setupInteractiveMode(newAccessToken);
-            }
+        } finally {
+            // Always unlock attack after action completion or failure
+            this.actionLockService.unlock(ActionLockType.ATTACK);
         }
     }
 
@@ -539,7 +572,9 @@ export default class BattleClient {
         if (!this.validateLocalAction(action)) {
             this.logger.warn("Action failed local validation and was not sent to server");
             return false;
-        } try {
+        }
+
+        try {
             const accessToken = await serverRequestRemote.toAct();
             if (!accessToken.allowed) {
                 this.logger.warn("Server denied action request");
