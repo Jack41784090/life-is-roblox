@@ -562,7 +562,7 @@ export default class BattleClient {
         }
 
         // Lock attack actions to prevent spam
-        this.actionLockService.lock(ActionLockType.ATTACK, 1.5, "Attack in progress");
+        this.actionLockService.lock(ActionLockType.ATTACK, 3, "Attack in progress");
 
         try {
             // this.logger.debug("Clicked on entity", clickedOn);
@@ -602,8 +602,11 @@ export default class BattleClient {
             this.submitAction(accessToken.action);
 
             // emit event to this client
-            this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);        // commit action to local state
-            this.validateAndCommit(resolveAction); const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
+            this.state.getEventBus().emit(GameEvent.ENTITY_INTEND_ATTACK, clashes, attackAction);
+
+            // commit action to local state
+            this.validateAndCommit(resolveAction);
+            const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd();
             // this.logger.debug("Animations ended", waitForMoveAnimation!);
 
             const localEntity = await this.localEntity();
