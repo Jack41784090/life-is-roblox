@@ -7,8 +7,7 @@ import {
     StatusEffectContext,
     StatusEffectEventData,
     StatusEffectInstance,
-    StatusEffectModification,
-    StatusEffectSystemConfig
+    StatusEffectModification
 } from "./types";
 
 export default class StatusEffectManager {
@@ -17,18 +16,11 @@ export default class StatusEffectManager {
     private eventBus: EventBus;
     private activeEffects: Map<string, StatusEffectInstance> = new Map();
     private effectRegistry: Map<string, StatusEffect> = new Map();
-    private config: StatusEffectSystemConfig;
+    // private config: StatusEffectSystemConfig;
 
-    constructor(entity: EntityInterface, eventBus: EventBus, config: StatusEffectSystemConfig = {}) {
+    constructor(entity: EntityInterface, eventBus: EventBus) {
         this.entity = entity;
         this.eventBus = eventBus;
-        this.config = {
-            maxEffectsPerEntity: 20,
-            updateInterval: 0.1,
-            enableVisualEffects: true,
-            debugMode: false,
-            ...config
-        };
         this.setupEventListeners();
     }
 
@@ -37,20 +29,10 @@ export default class StatusEffectManager {
         this.logger.debug(`Registered effect: ${effect.config.name}`);
     }
 
-    public async applyEffect(effectId: string, context: StatusEffectContext): Promise<boolean> {
-        const effect = this.effectRegistry.get(effectId);
-        if (!effect) {
-            this.logger.warn(`Effect not found: ${effectId}`);
-            return false;
-        }
-
+    public async applyEffect(effect: StatusEffect, context: StatusEffectContext): Promise<boolean> {
+        const effectId = effect.config.id;
         if (!effect.canApply(context)) {
             this.logger.debug(`Effect ${effectId} cannot be applied to ${context.target.name}`);
-            return false;
-        }
-
-        if (this.activeEffects.size() >= this.config.maxEffectsPerEntity!) {
-            this.logger.warn(`Max effects limit reached for ${this.entity.name}`);
             return false;
         }
 
@@ -175,17 +157,14 @@ export default class StatusEffectManager {
     public triggerEffects(trigger: EffectTrigger, triggerData?: Record<string, unknown>): void {
         const context: StatusEffectContext = {
             target: this.entity,
-            triggerData
+            // triggerData
         };
 
-        for (const [_, instance] of this.activeEffects) {
-            if (!instance.isActive) continue;
-
-            const effect = this.effectRegistry.get(instance.effectId);
-            if (effect) {
-                effect.executeTriggers(trigger, context);
+        this.activeEffects.forEach((instance) => {
+            if (instance.isActive) {
+                instance.executeTriggers(trigger, context);
             }
-        }
+        })
     }
 
     public purgeExpiredEffects(): Promise<void> {

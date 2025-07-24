@@ -50,6 +50,11 @@ export enum StackingRule {
 }
 
 export enum EffectTrigger {
+
+    BeforeAttack = 'beforeAttack',
+    AfterAttack = 'afterAttack',
+    BeforeStrikeSequence = 'beforeStrikeSequence',
+    AfterStrikeSequence = 'afterStrikeSequence',
     OnApply = "onApply",
     OnRemove = "onRemove",
     OnTurnStart = "onTurnStart",
@@ -70,7 +75,6 @@ export interface StatusEffectContext {
     target: EntityInterface;
     source?: string;
     potency?: number;
-    triggerData?: Record<string, unknown>;
 }
 
 export interface StatusEffectModifier {

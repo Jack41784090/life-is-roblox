@@ -2,7 +2,6 @@ import { atom, Atom } from "@rbxts/charm";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 // import CombatEffectsService from "../../Client/Effects/CombatEffectsServices";
-import { EventBus } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilitySetDefinition, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
@@ -31,15 +30,15 @@ export default class Entity {
     private stance: EntityStance = EntityStance.High;
     private logger = Logger.createContextLogger("Entity");
 
-    qr: Vector2;
-    armed?: keyof typeof Enum.KeyCode;
-    team: string;
+    public qr: Vector2;
+    public armed?: keyof typeof Enum.KeyCode;
+    public team: string;
 
     // Fighting style properties
     private fightingStyles: FightingStyle[] = [];
     private activeStyleIndex: number = 0;
 
-    constructor(options: EntityConfig, eventBus?: EventBus) {
+    constructor(options: EntityConfig) {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
@@ -71,6 +70,13 @@ export default class Entity {
         this.logger.info(`${this.name} initialized with ${this.fightingStyles.size()} fighting styles`);
     }
 
+    clone(): Entity {
+        return new Entity({
+            ...this.state(),
+            fightingStyles: this.fightingStyles,
+        })
+    }
+
     state(): EntityState {
         return {
             name: this.name,
@@ -93,25 +99,7 @@ export default class Entity {
         }
     }
 
-    // public clone(): Entity {
-    //     const state = this.getState();
-    //     const cloned = new Entity({
-    //         qr: state.qr,
-    //         playerID: state.playerID,
-    //         team: state.team,
-    //         stats: { ...state.stats },
-    //         sta: state.sta,
-    //         hip: state.hip,
-    //         org: state.org,
-    //         pos: state.pos,
-    //         mana: state.mana,
-    //         name: state.name,
-    //         weapon: state.weapon as WeaponConfig,
-    //         armour: state.armour as ArmourConfig,
-    //         fightingStyles: this.fightingStyles.map(style => style.clone()),
-    //     })
-    //     return cloned
-    // }    //#region get stats
+    //#region get stats
     set(property: EntityChangeable, by: number): Atom<number>;
     set(property: EntityStatistics, by: number): void;
     set(property: EntityChangeable | EntityStatistics, by: number): Atom<number> | void {

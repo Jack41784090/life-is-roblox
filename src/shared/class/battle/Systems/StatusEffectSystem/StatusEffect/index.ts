@@ -11,7 +11,7 @@ import {
 } from "../types";
 
 export default abstract class StatusEffect {
-    protected logger;;
+    protected logger;
     public readonly config: StatusEffectConfig;
 
     constructor(config: StatusEffectConfig) {

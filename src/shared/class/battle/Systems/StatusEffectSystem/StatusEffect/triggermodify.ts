@@ -1,5 +1,4 @@
 import StatusEffect from ".";
-import { EntityChangeable } from "../../../State/Entity/types";
 import { TriggerModify } from "../../CombatSystem/types";
 import {
     StackingRule,
@@ -57,72 +56,4 @@ export class TriggerModifyBuffEffect extends StatusEffect {
     protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
         // No special turn update logic needed for simple stat modifications
     }
-}
-
-export class TriggerModifyDebuffEffect extends StatusEffect {
-    constructor(triggerModify: TriggerModify, duration: number = 2) {
-        const modifier: StatusEffectModifier = {
-            type: "stat",
-            target: triggerModify.mod,
-            operation: "add",
-            value: -math.abs(triggerModify.value)
-        };
-
-        const config: StatusEffectConfig = {
-            id: `trigger_modify_debuff_${triggerModify.mod}_${math.abs(triggerModify.value)}`,
-            name: `${string.upper(triggerModify.mod)} Drain`,
-            description: `Decreases ${triggerModify.mod} by ${math.abs(triggerModify.value)}`,
-            type: StatusEffectType.Debuff,
-            category: StatusEffectCategory.Combat,
-            stackingRule: StackingRule.Stack,
-            maxStacks: 3,
-            duration,
-            priority: 90,
-            modifiers: [modifier],
-            triggers: [],
-            visualEffect: {
-                color: new Color3(0.8, 0.2, 0.2),
-                particle: "drain_effect"
-            }
-        };
-
-        super(config);
-    }
-
-    protected async onApply(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
-        const statName = this.config.modifiers[0].target;
-        const value = this.config.modifiers[0].value as number;
-
-        this.logger.info(`Applied debuff: ${statName} ${value} for ${instance.remainingTurns} turns`);
-    }
-
-    protected async onRemove(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
-        const statName = this.config.modifiers[0].target;
-
-        this.logger.info(`Removed debuff: ${statName} effect expired`);
-    }
-
-    protected async onTurnUpdate(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void> {
-        // No special turn update logic needed
-    }
-}
-
-export function createTriggerModifyEffect(triggerModify: TriggerModify, duration?: number): StatusEffect {
-    if (triggerModify.value > 0) {
-        return new TriggerModifyBuffEffect(triggerModify, duration);
-    } else {
-        return new TriggerModifyDebuffEffect(triggerModify, duration);
-    }
-}
-
-export function getEffectNameForTriggerModify(mod: EntityChangeable): string {
-    const nameMap: Record<EntityChangeable, string> = {
-        hip: "Health",
-        pos: "Position",
-        org: "Organization",
-        sta: "Stamina",
-        mana: "Mana"
-    };
-
-    return nameMap[mod] || string.upper(mod);
 }

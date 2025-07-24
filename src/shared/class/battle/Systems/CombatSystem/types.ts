@@ -63,6 +63,7 @@ export interface TriggerModify {
     targeting: 'attacker' | 'defender';
     mod: EntityChangeable | EntityStatistics;
     value: number;
+
 }
 
 

@@ -9,7 +9,7 @@ import State from "../../State";
 import Entity from "../../State/Entity";
 import { EntityState } from "../../State/Entity/types";
 import { AttackAction, PlayerID } from "../../types";
-import TriggerModifyIntegrationService from "../Integration/TriggerModifyIntegrationService";
+import StatusEffectSystem from "../StatusEffectSystem";
 import { DamageType } from './Ability/types';
 import { NeoClashResult, Reality, StrikeSequence, StrikeSequenceResult, StrikeSequenceRoll, TriggerModify } from "./types";
 
@@ -18,12 +18,11 @@ import { NeoClashResult, Reality, StrikeSequence, StrikeSequenceResult, StrikeSe
 export default class CombatSystem {
     private logger = Logger.createContextLogger("CombatSystem");
     private gameState: State;
-    private triggerModifyService: TriggerModifyIntegrationService;
-
+    private statusEffectSystem: StatusEffectSystem;
 
     constructor(gameState: State) {
         this.gameState = gameState;
-        this.triggerModifyService = new TriggerModifyIntegrationService(gameState, gameState.getStatusEffectSystem());
+        this.statusEffectSystem = gameState.getStatusEffectSystem();
     }
 
     /**
@@ -64,65 +63,93 @@ export default class CombatSystem {
             return [];
         }
 
-        const attackerState = attacker.state();
-        const targetState = target.state();
-        const abilityState = action.ability;
+        const _vattacker = attacker.clone();
+        const _vtarget = target.clone();
+        const attackersAbilityState = action.ability;
 
         // Initialize result array to hold both StrikeSequences and TriggerModify objects
-        const results: (StrikeSequence | TriggerModify)[] = [];
         const triggerModifies: TriggerModify[] = [];
+        const strikeSequences: StrikeSequence[] = [];
+        const results: (StrikeSequence | TriggerModify)[] = [];
 
         // initialise the dices
         const abilityDices = action.ability.dices.map(d => d);
         let dice = abilityDices.pop();
-        const strikeSequences: StrikeSequence[] = [];
 
         // clear out the clash event subscriptions and resubscribe for the new combatants
         // EVENT: BEFORE_ATTACK
-        this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeAttack, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
-            triggerModifies.push(modify);
-        });
+        this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeAttack,
+            _vattacker, _vtarget, attackersAbilityState.triggerMap).forEach(modify => {
+                triggerModifies.push(modify);
+                results.push(modify);
+                if (modify.targeting === 'attacker') {
+                    this.statusEffectSystem.applyImmediateStatChange(modify, _vattacker);
+                }
+                else if (modify.targeting === 'defender') {
+                    this.statusEffectSystem.applyImmediateStatChange(modify, _vtarget);
+                }
+            });
 
         // Loop through all dices and resolve the strike sequence
         while (dice) {
-            // EVENT: BEFORE_SS
-            this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeStrikeSequence, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
-                triggerModifies.push(modify);
-            });
+            this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.BeforeStrikeSequence,
+                _vattacker, _vtarget, attackersAbilityState.triggerMap).forEach(modify => {
+                    triggerModifies.push(modify);
+                    results.push(modify);
+                    if (modify.targeting === 'attacker') {
+                        this.statusEffectSystem.applyImmediateStatChange(modify, _vattacker);
+                    }
+                    else if (modify.targeting === 'defender') {
+                        this.statusEffectSystem.applyImmediateStatChange(modify, _vtarget);
+                    }
+                });
 
-            const result: StrikeSequence = this.resolveStrikeSequence([dice], attackerState, targetState);
+            const result: StrikeSequence = this.resolveStrikeSequence([dice], _vattacker, _vtarget);
             strikeSequences.push(result);
+            results.push(result);
             dice = abilityDices.pop();
 
-            // EVENT: AFTER_SS
-            this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterStrikeSequence, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
-                triggerModifies.push(modify);
-            });
+            this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterStrikeSequence,
+                _vattacker, _vtarget, attackersAbilityState.triggerMap).forEach(modify => {
+                    triggerModifies.push(modify);
+                    results.push(modify);
+                    if (modify.targeting === 'attacker') {
+                        this.statusEffectSystem.applyImmediateStatChange(modify, _vattacker);
+                    }
+                    else if (modify.targeting === 'defender') {
+                        this.statusEffectSystem.applyImmediateStatChange(modify, _vtarget);
+                    }
+                });
         }
 
         // EVENT: AFTER_ATTACK
-        this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterAttack, attackerState, targetState, abilityState.triggerMap).forEach(modify => {
-            triggerModifies.push(modify);
-        })
+        this.collectTriggerEffectsFromEvent(AbilityTriggerCondition.AfterAttack,
+            _vattacker, _vtarget, attackersAbilityState.triggerMap).forEach(modify => {
+                triggerModifies.push(modify);
+                results.push(modify);
+                if (modify.targeting === 'attacker') {
+                    this.statusEffectSystem.applyImmediateStatChange(modify, _vattacker);
+                }
+                else if (modify.targeting === 'defender') {
+                    this.statusEffectSystem.applyImmediateStatChange(modify, _vtarget);
+                }
+            });
 
         // Generate TriggerModify objects based on combat results (crits, hits, etc.)
-        const combatResultTriggers = this.generateTriggerModifiesFromCombatResults(strikeSequences, attackerState, targetState);
+        const combatResultTriggers = this.generateTriggerModifiesFromCombatResults(strikeSequences, _vattacker, _vtarget);
         combatResultTriggers.forEach(modify => triggerModifies.push(modify));
 
-        const attackingAbility = this.rebuildAbility(action.ability, action.by, action.against!);
+        const attackingAbility = this.rebuildAbility(attackersAbilityState, action.by, action.against!);
         const processedStrikeSequences = strikeSequences.map(ss => {
             return ss.map(clash => {
                 const damage = this.calculateDamage(attackingAbility);
-                clash.result.damage = this.calculateModifiedDamage(damage, attackerState, targetState);
+                clash.result.damage = this.calculateModifiedDamage(damage, _vattacker, _vtarget);
                 // clash.clashKills = this.isAttackKills(target.playerID, clash);
                 return clash;
             });
         });
 
-        // Add all processed strike sequences to results
         processedStrikeSequences.forEach(sequence => results.push(sequence));
-
-        // Add all generated TriggerModify objects to results
         triggerModifies.forEach(modify => results.push(modify));
 
         return results;
@@ -282,26 +309,27 @@ export default class CombatSystem {
         return ability;
     }
 
-    public applyAttack(strikeSequences: (StrikeSequence | TriggerModify)[], ability: ActiveAbility) {
+    public applyAttack(strikeSequencesOrImmStatusEffect: (StrikeSequence | TriggerModify)[], ability: ActiveAbility) {
         const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
         if (!attacker || !defender) {
             this.logger.error("Attacker or defender not found", attacker, defender);
             return;
         }
 
-        for (const sequence of strikeSequences) {
-            if (t.array(neoClashResultType)(sequence)) {
+        for (const item of strikeSequencesOrImmStatusEffect) {
+            if (t.array(neoClashResultType)(item)) {
                 // Handle regular strike sequence
-                for (const clash of sequence) {
+                for (const clash of item) {
                     const { against, fate } = clash.result;
                     if (against === "PV" && fate === "Hit") {
                         defender.damage(clash.result.damage || 0);
                     }
                 }
-            } else {
+            }
+            else {
                 // Handle TriggerModify object through the integration service
-                const triggerModify = sequence as TriggerModify;
-                this.triggerModifyService.applyTriggerModify(triggerModify, defender.playerID, attacker.playerID);
+                const triggerModify = item as TriggerModify;
+                this.statusEffectSystem.applyImmediateStatChange(triggerModify, triggerModify.targeting === 'attacker' ? attacker : defender);
             }
         }
 

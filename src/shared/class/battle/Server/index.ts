@@ -96,16 +96,13 @@ export default class BattleServer {
                 this.logger.error(`Invalid token for attack action: ${accessToken.token}`);
                 return [];
             }
-            const clashes = (() => {
-                if (this.validedClashes.has(accessToken.token)) {
-                    return this.validedClashes.get(accessToken.token)!;
-                }
-                const res = this.state.getCombatSystem().resolveAttack(attackAction);
-                this.validedClashes.set(accessToken.token, res);
-                return res;
-            })();
 
-            return clashes;
+            if (this.validedClashes.has(accessToken.token)) {
+                return this.validedClashes.get(accessToken.token)!;
+            }
+            const res = this.state.getCombatSystem().resolveAttack(attackAction);
+            this.validedClashes.set(accessToken.token, res);
+            return res;
         });
         this.networkService.onServerRequestOf('actor', (p, id) => {
             // this.logger.debug(`Received actor request from ${p.Name}`);
