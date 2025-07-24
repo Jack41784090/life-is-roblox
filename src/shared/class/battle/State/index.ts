@@ -552,9 +552,7 @@ export default class State {
                 cleanup();
                 resolve(id === -4178 ? undefined : winningClient);
             });
-        }).then((p) => {
-            return p;
-        });
+        }).then(p => p);
     }
 
     private checkGameOver(): boolean {
