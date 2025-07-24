@@ -49,7 +49,7 @@ export enum StackingRule {
     Unique = "unique"
 }
 
-export enum EffectTrigger {
+export enum EffectTriggerCondition {
 
     BeforeAttack = 'beforeAttack',
     AfterAttack = 'afterAttack',
@@ -86,7 +86,7 @@ export interface StatusEffectModifier {
 }
 
 export interface StatusEffectTriggerHandler {
-    trigger: EffectTrigger;
+    trigger: EffectTriggerCondition;
     handler: (context: StatusEffectContext) => void | Promise<void>;
     condition?: (context: StatusEffectContext) => boolean;
 }

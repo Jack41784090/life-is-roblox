@@ -2,7 +2,7 @@ import Logger from "shared/utils/Logger";
 import { EntityStats } from "../../../State/Entity/types";
 import { DamageType } from "../../CombatSystem/Ability/types";
 import {
-    EffectTrigger,
+    EffectTriggerCondition,
     StackingRule,
     StatusEffectConfig,
     StatusEffectContext,
@@ -80,7 +80,7 @@ export default abstract class StatusEffect {
             await this.config.onApply(context);
         }
 
-        this.executeTriggers(EffectTrigger.OnApply, context);
+        this.executeTriggers(EffectTriggerCondition.OnApply, context);
 
         return instance;
     }
@@ -102,7 +102,7 @@ export default abstract class StatusEffect {
             await this.config.onRemove(context);
         }
 
-        this.executeTriggers(EffectTrigger.OnRemove, context);
+        this.executeTriggers(EffectTriggerCondition.OnRemove, context);
     }
 
     public async updateOnTurn(instance: StatusEffectInstance): Promise<void> {
@@ -202,7 +202,7 @@ export default abstract class StatusEffect {
         return modifications;
     }
 
-    public executeTriggers(trigger: EffectTrigger, context: StatusEffectContext): void {
+    public executeTriggers(trigger: EffectTriggerCondition, context: StatusEffectContext): void {
         const triggerHandlers = this.config.triggers.filter(t => t.trigger === trigger);
 
         for (const triggerHandler of triggerHandlers) {

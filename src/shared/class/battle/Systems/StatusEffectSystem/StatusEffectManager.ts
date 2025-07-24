@@ -2,7 +2,7 @@ import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
 import StatusEffect from "./StatusEffect";
 import {
-    EffectTrigger,
+    EffectTriggerCondition,
     EntityInterface,
     StatusEffectContext,
     StatusEffectEventData,
@@ -154,7 +154,7 @@ export default class StatusEffectManager {
         return combined;
     }
 
-    public triggerEffects(trigger: EffectTrigger, triggerData?: Record<string, unknown>): void {
+    public triggerEffects(trigger: EffectTriggerCondition, triggerData?: Record<string, unknown>): void {
         const context: StatusEffectContext = {
             target: this.entity,
             // triggerData
@@ -215,23 +215,23 @@ export default class StatusEffectManager {
     private setupEventListeners(): void {
         this.eventBus.subscribe(GameEvent.TURN_STARTED, (playerId: unknown) => {
             if (this.entity.playerID === playerId) {
-                this.triggerEffects(EffectTrigger.OnTurnStart);
+                this.triggerEffects(EffectTriggerCondition.OnTurnStart);
                 this.updateEffectsOnTurn();
             }
         });
 
         this.eventBus.subscribe(GameEvent.TURN_ENDED, (playerId: unknown) => {
             if (this.entity.playerID === playerId) {
-                this.triggerEffects(EffectTrigger.OnTurnEnd);
+                this.triggerEffects(EffectTriggerCondition.OnTurnEnd);
             }
         });
 
         this.eventBus.subscribe(GameEvent.ON_DEAL_DAMAGE, (data: unknown) => {
-            this.triggerEffects(EffectTrigger.OnDealDamage, { data });
+            this.triggerEffects(EffectTriggerCondition.OnDealDamage, { data });
         });
 
         this.eventBus.subscribe(GameEvent.ON_TOUCH, (data: unknown) => {
-            this.triggerEffects(EffectTrigger.OnTakeDamage, { data });
+            this.triggerEffects(EffectTriggerCondition.OnTakeDamage, { data });
         });
     }
 
