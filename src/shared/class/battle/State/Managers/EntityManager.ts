@@ -12,9 +12,9 @@ import { GridManager } from "./GridManager";
 export class EntityManager {
     private logger = Logger.createContextLogger("EntityManager");
     private entities: Map<number, Entity> = new Map();
-    private eventBus?: EventBus;
+    private eventBus: EventBus;
 
-    constructor(entities: EntityConfig[], gridManager: GridManager, eventBus?: EventBus) {
+    constructor(entities: EntityConfig[], gridManager: GridManager, eventBus: EventBus) {
         this.logger.info("EntityManager initialized", entities);
         this.eventBus = eventBus;
         if (this.eventBus) {
@@ -55,6 +55,14 @@ export class EntityManager {
     public createEntities(configs: EntityConfig[]): Entity[] {
         this.logger.info(`Creating ${configs.size()} entities in bulk`);
         return configs.map(config => this.createEntity(config));
+    }
+
+    private setUpListeners() {
+        this.eventBus.subscribe(GameEvent.ENTITY_DIES, (entity: unknown) => {
+            if (entity instanceof Entity) {
+                this.removeEntity(entity.playerID);
+            }
+        })
     }
 
     //#endregion

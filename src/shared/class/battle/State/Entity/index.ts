@@ -2,6 +2,7 @@ import { atom, Atom } from "@rbxts/charm";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 // import CombatEffectsService from "../../Client/Effects/CombatEffectsServices";
+import { EventBus, GameEvent } from "../../Events/EventBus";
 import { UNIVERSAL_PHYS } from "../../Systems/CombatSystem/Ability/const";
 import { AbilityConfig, AbilitySet, AbilitySetDefinition, AbilityType, ActiveAbilityConfig, ActiveAbilityState } from "../../Systems/CombatSystem/Ability/types";
 import Armour from "../../Systems/CombatSystem/Armour";
@@ -34,11 +35,13 @@ export default class Entity {
     public armed?: keyof typeof Enum.KeyCode;
     public team: string;
 
+    private eventBus: EventBus;
+
     // Fighting style properties
     private fightingStyles: FightingStyle[] = [];
     private activeStyleIndex: number = 0;
 
-    constructor(options: EntityConfig) {
+    constructor(options: EntityConfig, eventBus: EventBus) {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
@@ -51,6 +54,8 @@ export default class Entity {
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
+
+        this.eventBus = eventBus;
 
         // Initialize with default fighting styles
         this.initializeFightingStyles(options.fightingStyles);
@@ -74,7 +79,7 @@ export default class Entity {
         return new Entity({
             ...this.state(),
             fightingStyles: this.fightingStyles,
-        })
+        }, this.eventBus)
     }
 
     state(): EntityState {
@@ -294,8 +299,13 @@ export default class Entity {
         const oldHip = this.hip();
         this.hip(this.hip() + num);
         const maxHP = calculateRealityValue(Reality.HP, this.stats);
+
         const hpPercentage = 0.9 - math.clamp((this.hip() / maxHP) * .9, 0, .9);
         // this.logger.debug(`HP percentage: ${hpPercentage}`);
+
+        if (this.hip() <= 0) {
+            this.eventBus.emit(GameEvent.ENTITY_DIES, this);
+        }
     }
 
     public heal(num: number) {

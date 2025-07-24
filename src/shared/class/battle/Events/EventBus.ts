@@ -29,6 +29,7 @@ export enum GameEvent {
     // Grid Events
     GRID_UPDATED = "grid:updated",
     GRID_CELL_UPDATED = "grid:cell:updated",
+    ENTITY_DIES = "ENTITY_DIES",
 }
 
 export class EventBus {
