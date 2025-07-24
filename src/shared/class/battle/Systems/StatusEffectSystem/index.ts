@@ -43,7 +43,7 @@ export default class StatusEffectSystem {
                 continue;
             }
 
-            const manager = new StatusEffectManager(entity);
+            const manager = new StatusEffectManager(entity, this.gameState.getEventBus());
             this.globalEffectRegistry.forEach((effect) => {
                 manager.registerEffect(effect);
             });
