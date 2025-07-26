@@ -47,7 +47,7 @@ export default class BattleServer {
         })
         this.syncSystem = new SyncSystem({ players });
         this.validator = new ServerActionValidator(this.state, this.givenTokens);
-        this.setUpRemotes();
+        this.setUpAlwaysAvailableRemotes();
         this.setUpEventListeners();
         this.state.StartLoop();
     }
@@ -75,7 +75,7 @@ export default class BattleServer {
         })
     }
 
-    private setUpRemotes() {
+    private setUpAlwaysAvailableRemotes() {
         this.networkService.onServerRequestOf('state', (p) => {
             // this.logger.debug(`Received state request from ${p.Name}`);
             return this.state.getState();
@@ -86,23 +86,32 @@ export default class BattleServer {
         })
         this.networkService.onServerRequestOf('clashes', (p, accessToken) => {
             const attackAction = accessToken.action;
+
+            // 1. Verifiy the attack action as formatted
             const veri = attackActionRefVerification(attackAction);
             if (!veri) {
                 this.logger.error(`Invalid attack action reference:`, attackAction);
                 return [];
             }
+
+            // 2. Verify the token provided is not forged
             const veriToken = accessToken.token && this.givenTokens.some(t => t === accessToken.token);
             if (!veriToken) {
                 this.logger.error(`Invalid token for attack action: ${accessToken.token}`);
                 return [];
             }
 
+            // 3. return clash
             if (this.validedClashes.has(accessToken.token)) {
+                // 3.1. We've previously calculated the clash, so return it
                 return this.validedClashes.get(accessToken.token)!;
             }
-            const res = this.state.getCombatSystem().resolveAttack(attackAction);
-            this.validedClashes.set(accessToken.token, res);
-            return res;
+            else {
+                // 3.2. Not calculated before, so we make a new one
+                const res = this.state.getCombatSystem().resolveAttack(attackAction);
+                this.validedClashes.set(accessToken.token, res);
+                return res;
+            }
         });
         this.networkService.onServerRequestOf('actor', (p, id) => {
             // this.logger.debug(`Received actor request from ${p.Name}`);
