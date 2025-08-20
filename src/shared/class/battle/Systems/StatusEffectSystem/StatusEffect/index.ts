@@ -1,6 +1,7 @@
 import Logger from "shared/utils/Logger";
 import { EntityStats } from "../../../State/Entity/types";
 import { DamageType } from "../../CombatSystem/Ability/types";
+import { TriggerModify } from "../../CombatSystem/types";
 import {
     EffectTriggerCondition,
     StackingRule,
@@ -216,6 +217,27 @@ export default abstract class StatusEffect {
                 this.logger.error(`Error executing trigger ${trigger}:`, error as defined);
             }
         }
+    }
+
+    public simulateTriggers(trigger: EffectTriggerCondition, context: StatusEffectContext, instance: StatusEffectInstance): TriggerModify[] {
+        const triggerModifies: TriggerModify[] = [];
+        const triggerHandlers = this.config.triggers.filter(t => t.trigger === trigger);
+
+        for (const triggerHandler of triggerHandlers) {
+            if (triggerHandler.condition && !triggerHandler.condition(context)) {
+                continue;
+            }
+
+            const simulatedEffects = this.simulateTriggerHandler(triggerHandler, context, instance).forEach(mod => {
+                triggerModifies.push(mod);
+            });
+        }
+
+        return triggerModifies;
+    }
+
+    protected simulateTriggerHandler(triggerHandler: any, context: StatusEffectContext, instance: StatusEffectInstance): TriggerModify[] {
+        return [];
     }
 
     protected abstract onApply(context: StatusEffectContext, instance: StatusEffectInstance): Promise<void>;

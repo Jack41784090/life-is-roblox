@@ -7,6 +7,7 @@ import { registerDefaultStatusEffects } from "./registry";
 import StatusEffect from "./StatusEffect";
 import StatusEffectManager from "./StatusEffectManager";
 import {
+    StatusEffectConfig,
     StatusEffectSystemConfig
 } from "./types";
 
@@ -51,6 +52,10 @@ export default class StatusEffectSystem {
             this.entityManagers.set(entity.playerID, manager);
             this.logger.debug(`Created status effect manager for entity: ${entity.name}`);
         }
+    }
+
+    public registerEffect(config: StatusEffectConfig, effectInstance: StatusEffect): Map<string, StatusEffect> {
+        return this.globalEffectRegistry.set(config.id, effectInstance);
     }
 
     public getEntityManager(entityId: number): StatusEffectManager | undefined {

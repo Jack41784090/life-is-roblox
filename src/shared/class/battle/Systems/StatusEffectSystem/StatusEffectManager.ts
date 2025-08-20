@@ -1,5 +1,6 @@
 import Logger from "shared/utils/Logger";
 import { EventBus, GameEvent } from "../../Events/EventBus";
+import { TriggerModify } from "../CombatSystem/types";
 import StatusEffect from "./StatusEffect";
 import {
     EffectTriggerCondition,
@@ -160,14 +161,47 @@ export default class StatusEffectManager {
             // triggerData
         };
 
-        this.activeEffects.forEach((instance) => {
-            if (instance.isActive) {
-                instance.executeTriggers(trigger, context);
+        this.activeEffects.forEach((seinstance, key) => {
+            if (seinstance.isActive) {
+                const effect = this.effectRegistry.get(seinstance.effectId);
+                if (effect) {
+                    effect.executeTriggers(trigger, context);
+                }
+                else {
+                    this.logger.error(`Invalid seinstance: ${seinstance.effectId}`, seinstance);
+                    this.activeEffects.delete(seinstance.effectId);
+                }
             }
         })
     }
 
-    public purgeExpiredEffects(): Promise<void> {
+    public simulateTriggerEffect(trigger: EffectTriggerCondition, simulationContext?: Record<string, unknown>): TriggerModify[] {
+        const context: StatusEffectContext = {
+            target: this.entity,
+            ...simulationContext
+        };
+
+        const triggerModifies: TriggerModify[] = [];
+
+        this.activeEffects.forEach((seinstance, key) => {
+            if (seinstance.isActive) {
+                const effect = this.effectRegistry.get(seinstance.effectId);
+                if (effect) {
+                    const effectTriggers = effect.simulateTriggers(trigger, context, seinstance).forEach(mod => {
+                        triggerModifies.push(mod);
+                    });
+                }
+                else {
+                    this.logger.error(`Invalid seinstance: ${seinstance.effectId}`, seinstance);
+                    this.activeEffects.delete(seinstance.effectId);
+                }
+            }
+        });
+
+        return triggerModifies;
+    }
+
+    public async purgeExpiredEffects(): Promise<void> {
         const expiredEffects: string[] = [];
 
         for (const [instanceId, instance] of this.activeEffects) {
@@ -259,9 +293,5 @@ export default class StatusEffectManager {
         };
 
         this.eventBus.emit(`status_effect:${eventType}`, eventData);
-
-        if (this.config.debugMode) {
-            this.logger.debug(`Status effect ${eventType}: ${effect.config.name} on ${this.entity.name}`);
-        }
     }
 }

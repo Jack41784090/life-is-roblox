@@ -1,3 +1,4 @@
+import StatusEffectSystem from ".";
 import {
     BerserkEffect,
     BurnEffect,
@@ -14,9 +15,11 @@ import {
     WeaknessEffect
 } from "./StatusEffect/defaults";
 import {
+    EffectTriggerCondition,
     StackingRule,
     StatusEffectCategory,
     StatusEffectConfig,
+    StatusEffectContext,
     StatusEffectType
 } from "./types";
 
@@ -32,7 +35,21 @@ export const BURN_CONFIG: StatusEffectConfig = {
     duration: 3,
     priority: 100,
     modifiers: [],
-    triggers: [],
+    triggers: [
+        {
+            trigger: EffectTriggerCondition.OnTurnStart,
+            handler: (context: StatusEffectContext) => {
+                // Deal burn damage at start of each turn
+                const target = context.target;
+                const currentHealth = target.get('hip');
+                const damage = 8; // Base burn damage
+                target.set('hip', math.max(0, currentHealth - damage));
+
+                // TODO: Add visual effect and damage event
+                // TODO: Check for spread to nearby enemies
+            }
+        }
+    ],
     visualEffect: {
         color: new Color3(1, 0.4, 0),
         particle: "Fire"
@@ -50,7 +67,18 @@ export const POISON_CONFIG: StatusEffectConfig = {
     duration: 4,
     priority: 90,
     modifiers: [],
-    triggers: [],
+    triggers: [
+        {
+            trigger: EffectTriggerCondition.OnTurnStart,
+            handler: (context: StatusEffectContext) => {
+                // Deal poison damage
+                const target = context.target;
+                const currentHealth = target.get('hip');
+                const damage = 5; // Base poison damage
+                target.set('hip', math.max(0, currentHealth - damage));
+            }
+        }
+    ],
     visualEffect: {
         color: new Color3(0.5, 1, 0.2),
         particle: "Poison"
@@ -68,7 +96,26 @@ export const REGENERATION_CONFIG: StatusEffectConfig = {
     duration: 5,
     priority: 85,
     modifiers: [],
-    triggers: [],
+    triggers: [
+        {
+            trigger: EffectTriggerCondition.OnTurnStart,
+            handler: (context: StatusEffectContext) => {
+                // Heal at start of turn
+                const target = context.target;
+                const currentHealth = target.get('hip');
+                const maxHealth = target.stats.end * 5; // Simplified HP calculation
+                let healing = 12; // Base healing
+
+                // Bonus healing at low health
+                const healthPercentage = currentHealth / maxHealth;
+                if (healthPercentage < 0.3) {
+                    healing *= 2;
+                }
+
+                target.set('hip', math.min(maxHealth, currentHealth + healing));
+            }
+        }
+    ],
     visualEffect: {
         color: new Color3(0.2, 1, 0.2),
         particle: "Heal"
@@ -85,7 +132,14 @@ export const HASTE_CONFIG: StatusEffectConfig = {
     maxStacks: 1,
     duration: 3,
     priority: 110,
-    modifiers: [],
+    modifiers: [
+        {
+            type: "stat",
+            target: "spd",
+            operation: "add",
+            value: 25
+        }
+    ],
     triggers: [],
     visualEffect: {
         color: new Color3(1, 1, 0.2),
@@ -121,7 +175,14 @@ export const STRENGTH_CONFIG: StatusEffectConfig = {
     maxStacks: 5,
     duration: 6,
     priority: 95,
-    modifiers: [],
+    modifiers: [
+        {
+            type: "stat",
+            target: "str",
+            operation: "add",
+            value: 15
+        }
+    ],
     triggers: [],
     visualEffect: {
         color: new Color3(1, 0.2, 0.2),
@@ -256,7 +317,7 @@ export const SHIELD_CONFIG: StatusEffectConfig = {
 };
 
 // Registry setup function
-export function registerDefaultStatusEffects(statusEffectSystem: any) {
+export function registerDefaultStatusEffects(statusEffectSystem: StatusEffectSystem): void {
     // Register all default status effects
     statusEffectSystem.registerEffect(BURN_CONFIG, new BurnEffect(BURN_CONFIG));
     statusEffectSystem.registerEffect(POISON_CONFIG, new PoisonEffect(POISON_CONFIG));

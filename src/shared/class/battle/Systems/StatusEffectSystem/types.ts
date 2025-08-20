@@ -67,7 +67,11 @@ export enum EffectTriggerCondition {
     OnMiss = "onMiss",
     OnCrit = "onCrit",
     OnBlock = "onBlock",
-    OnDodge = "onDodge"
+    OnDodge = "onDodge",
+    AfterPVCheck = "AfterPVCheck",
+    BeforePVCheck = "BeforePVCheck",
+    BeforeDVCheck = "BeforeDVCheck",
+    AfterDVCheck = "AfterDVCheck"
 }
 
 export interface StatusEffectContext {

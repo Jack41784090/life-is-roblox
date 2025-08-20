@@ -44,7 +44,7 @@ export interface NeoClashResult {
     clashKills: boolean,
 }
 
-export type StrikeSequence = Array<NeoClashResult>
+export type StrikeSequence = Array<(NeoClashResult | TriggerModify)>
 
 export interface StrikeSequenceRoll {
     rollResult: NeoClashResult;
