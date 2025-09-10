@@ -20,7 +20,7 @@ export default class FightingStyleSelector extends React.Component<FightingStyle
     constructor(props: FightingStyleSelectorProps) {
         super(props);
 
-        const entityState = this.props.entity.state();
+        const entityState = this.props.entity.getChangeableStatNum();
 
         this.setState({
             styles: entityState.fightingStyles,

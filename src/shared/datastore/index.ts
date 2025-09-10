@@ -2,7 +2,7 @@ import { atom, effect } from "@rbxts/charm";
 import { Collection, createCollection } from "@rbxts/lapis";
 import { Players } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { EntityStats } from "shared/class/battle/State/Entity/types";
+import { EntityBaseStats } from "shared/class/battle/State/Entity/types";
 import { PlayerData } from "shared/class/battle/types";
 import { flattenAtoms, getDummyStats } from "shared/utils";
 import logger from "shared/utils/Logger";
@@ -26,7 +26,7 @@ export class Database {
         })
     }
 
-    private Characters: Collection<EntityStats>;
+    private Characters: Collection<EntityBaseStats>;
     private Players: Collection<PlayerData>;
 
     private constructor() {
@@ -153,7 +153,7 @@ const atoms = Database.GlobalAtoms();
 export type GlobalAtoms = typeof atoms;
 
 type CharacterStatsMap = {
-    readonly [K in string]?: EntityStats;
+    readonly [K in string]?: EntityBaseStats;
 };
 
 type PlayerDataMap = {

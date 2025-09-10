@@ -15,6 +15,8 @@ export default class CombatSystem {
         this.gameState = gameState;
     }
 
+    //#region Main parts of the combat system
+
     /**
      * Resolves an attack action and returns an array of strike sequences.
      * 
@@ -51,14 +53,13 @@ export default class CombatSystem {
         }
 
         const attackingAbility = this.rebuildAbility(action.ability, action.by, action.against!);
-        return strikeSequences.map(ss => {
-            return ss.map(clash => {
-                const damage = this.calculateDamage(attackingAbility);
-                clash.result.damage = this.calculateModifiedDamage(damage, attacker, target);
+        return strikeSequences.map(
+            ss => ss.map(clash => {
+                clash.result.damage = this.calculateModifiedDamage(this.calculateDamage(attackingAbility), attacker, target);
                 // clash.clashKills = this.isAttackKills(target.playerID, clash);
                 return clash;
-            });
-        });
+            })
+        );
     }
 
     /**
@@ -100,67 +101,6 @@ export default class CombatSystem {
         sequenceToPenetrateResult.sequence.forEach(sequenceRoll => rollHistory.push(sequenceRoll.rollResult));
 
         return rollHistory;
-    }
-
-    private tireAttacker(attacker: Entity, ability: ActiveAbilityState) {
-        for (const [stat, modifier] of pairs(ability.cost)) {
-            attacker.set(stat, attacker.get(stat) - modifier);
-        }
-    }
-
-    private tireDefender(defender: Entity, ability: ActiveAbilityState) {
-        // defender.set('pos', defender.get('pos') - ability.cost.pos);
-    }
-
-    private getPassiveEffectValue(entity: Entity, effectType: PassiveEffectType): number {
-        // Safely checks if an entity has a fighting style and returns the passive effect value
-        if (entity.getActiveStyle !== undefined) {
-            try {
-                const style = entity.getActiveStyle();
-                return style.getPassiveEffectValue(effectType);
-            } catch (err) {
-                this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.name}:`, err as defined);
-            }
-        }
-        return 0;
-    }
-
-    private calculateModifiedDamage(damage: number, attacker: Entity, target: Entity): number {
-        const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
-        const damageReduction = this.getPassiveEffectValue(target, PassiveEffectType.ReduceDamageReceived);
-        let modifiedDamage = damage + damageIncrease - damageReduction;
-        modifiedDamage = math.max(1, modifiedDamage);
-        return modifiedDamage;
-    }
-
-    private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
-        const allEntities = this.gameState.getEntityManager().getAllEntities();
-        const ability = new ActiveAbility({
-            ...abilityState,
-            using: allEntities.find((e: Entity) => e.playerID === by),
-            target: allEntities.find((e: Entity) => e.playerID === against),
-        });
-        return ability;
-    }
-
-    public applyAttack(strikeSequences: StrikeSequence[], ability: ActiveAbility) {
-        const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
-        if (!attacker || !defender) {
-            this.logger.error("Attacker or defender not found", attacker, defender);
-            return;
-        }
-        for (const sequence of strikeSequences) {
-            for (const clash of sequence) {
-                const { against, fate } = clash.result;
-                if (against === "PV" && fate === "Hit") {
-                    defender.damage(clash.result.damage || 0);
-                }
-            }
-        }
-
-        this.tireAttacker(attacker, ability.getState());
-        this.tireDefender(defender, ability.getState());
-
     }
 
     private performRoll(
@@ -225,7 +165,61 @@ export default class CombatSystem {
             this.logger.error("Attacker or defender not found", attacker, defender);
             return 0;
         }
-        return this.calculateModifiedDamage(defender.armour.getRawDamageTaken(ability.getTotalDamageArray()), attacker, defender);
+        return this.calculateModifiedDamage(
+            defender.armour.getRawDamageTaken(ability.getTotalDamageArray()), attacker, defender);
+    }
+
+    //#endregion
+
+    private getPassiveEffectValue(entity: Entity, effectType: PassiveEffectType): number {
+        // Safely checks if an entity has a fighting style and returns the passive effect value
+        if (entity.getActiveStyle !== undefined) {
+            try {
+                const style = entity.getActiveStyle();
+                return style.getPassiveEffectValue(effectType);
+            } catch (err) {
+                this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.displayName}:`, err as defined);
+            }
+        }
+        return 0;
+    }
+
+    private calculateModifiedDamage(damage: number, attacker: Entity, target: Entity): number {
+        const damageIncrease = this.getPassiveEffectValue(attacker, PassiveEffectType.IncreaseDamageDealt);
+        const damageReduction = this.getPassiveEffectValue(target, PassiveEffectType.ReduceDamageReceived);
+        let modifiedDamage = damage + damageIncrease - damageReduction;
+        modifiedDamage = math.max(1, modifiedDamage);
+        return modifiedDamage;
+    }
+
+    private rebuildAbility(abilityState: ActiveAbilityState, by: PlayerID, against: PlayerID) {
+        const allEntities = this.gameState.getEntityManager().getAllEntities();
+        const ability = new ActiveAbility({
+            ...abilityState,
+            using: allEntities.find((e: Entity) => e.playerID === by),
+            target: allEntities.find((e: Entity) => e.playerID === against),
+        });
+        return ability;
+    }
+
+    public applyAttack(strikeSequences: StrikeSequence[], ability: ActiveAbility) {
+        const [attacker, defender] = this.gameState.getAttackerAndDefender(ability);
+        if (!attacker || !defender) {
+            this.logger.error("Attacker or defender not found", attacker, defender);
+            return;
+        }
+        for (const sequence of strikeSequences) {
+            for (const clash of sequence) {
+                const { against, fate } = clash.result;
+                if (against === "PV" && fate === "Hit") {
+                    defender.damage(clash.result.damage || 0);
+                }
+            }
+        }
+
+        this.tireAttacker(attacker, ability.getState());
+        this.tireDefender(defender, ability.getState());
+
     }
 
     private isAttackKills(against: number, clash: NeoClashResult) {
@@ -237,7 +231,7 @@ export default class CombatSystem {
             return false;
         }
 
-        const targetHp = target.get('hip') || 0;
+        const targetHp = target.getChangeableStatNum('hip') || 0;
         // const damage = this.calculateDamage({
         //     against,
         //     attacker,

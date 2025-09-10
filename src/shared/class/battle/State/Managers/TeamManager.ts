@@ -107,7 +107,7 @@ export class TeamManager {
     public getTeamStates(): TeamState[] {
         return this.teams.map(team => ({
             name: team.name,
-            members: team.members.map(entity => entity.state()),
+            members: team.members.map(entity => entity.getChangeableStatNum()),
         }));
     }
     private updateExistingTeam(existingTeam: Team, teamState: TeamState, entityManager: EntityManager): void {

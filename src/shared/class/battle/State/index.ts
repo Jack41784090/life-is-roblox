@@ -10,7 +10,7 @@ import { ClashResult, Reality } from "../Systems/CombatSystem/types";
 import { TurnSystem } from "../Systems/TurnSystem";
 import { ActionType, AttackAction, BattleAction, MoveAction, ResolveAttacksAction, StateConfig, StateState, StyleSwitchAction, TeamMap } from "../types";
 import Entity from "./Entity";
-import { EntityConfig, EntityState, EntityStats, EntityUpdate, ReadonlyEntityState } from "./Entity/types";
+import { EntityBaseStats, EntityConfig, EntityState, EntityUpdate, ReadonlyEntityState } from "./Entity/types";
 import HexCell from "./Hex/Cell";
 import { ReadonlyGridState } from "./Hex/types";
 import { EntityManager } from "./Managers/EntityManager";
@@ -50,8 +50,8 @@ export default class State {
             readinessAtoms: atom(this.entityManager.getAllEntities().map((entity) => {
                 return atom({
                     id: entity.playerID,
-                    pos: entity.getState('pos'),
-                    spd: atom(entity.stats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
+                    pos: entity.getChangeableStatNum('pos'),
+                    spd: atom(entity.baseStats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
                 })
             }))
         });
@@ -59,7 +59,7 @@ export default class State {
     }
 
     //#region Initialisation
-    private getEntityNumbers(qr: Vector2, player: Player, teamName: string, characterStats: EntityStats) {
+    private getEntityNumbers(qr: Vector2, player: Player, teamName: string, characterStats: EntityBaseStats) {
         return {
             playerID: player.UserId,
             stats: characterStats,
@@ -89,7 +89,7 @@ export default class State {
             for (const player of playerList) {
                 // const characterID = player.Character ? player.Character.Name : "default_character";
                 const characterID = 'entity_adalbrecht'; // TODO: temp
-                const characterStats = requestData(player, "characterStats", characterID) as EntityStats;
+                const characterStats = requestData(player, "characterStats", characterID) as EntityBaseStats;
 
                 const i = math.random(0, vacantCells.size() - 1)
                 const randomCell = vacantCells[i];
@@ -341,8 +341,8 @@ export default class State {
                     }
                     return {
                         id: m.playerID,
-                        pos: entity.getState('pos'),
-                        spd: atom(entity.stats.spd),
+                        pos: entity.getChangeableStatNum('pos'),
+                        spd: atom(entity.baseStats.spd),
                     }
                 })
             })
@@ -369,8 +369,8 @@ export default class State {
                     }
                     return {
                         id: m.playerID,
-                        pos: entity.getState('pos'),
-                        spd: atom(entity.stats.spd),
+                        pos: entity.getChangeableStatNum('pos'),
+                        spd: atom(entity.baseStats.spd),
                     }
                 })
             })
@@ -388,7 +388,7 @@ export default class State {
         if (!entity) {
             throw `[State] Entity with id ${id} not found`;
         }
-        return entity.state();
+        return entity.getChangeableStatNum();
     }
 
     /**
@@ -525,7 +525,7 @@ export default class State {
         const costOfMovement = distance * MOVEMENT_COST;
 
         fromCell.entity = undefined;
-        entity.set('pos', entity.get('pos') - costOfMovement);
+        entity.setChangeableStat('pos', entity.getChangeableStatNum('pos') - costOfMovement);
         this.setCell(entity, toCell);
 
         // No need to emit here as setCell already does it
@@ -558,7 +558,7 @@ export default class State {
 
         for (const team of teams) {
             const hasAliveMembers = team.members.some((member: Entity) => {
-                return member.get('hip') > 0;
+                return member.getChangeableStatNum('hip') > 0;
             });
 
             if (hasAliveMembers) {
@@ -581,7 +581,7 @@ export default class State {
 
         for (const team of teams) {
             const hasAliveMembers = team.members.some((member: Entity) => {
-                return member.get('pos') > 0;
+                return member.getChangeableStatNum('pos') > 0;
             });
             if (hasAliveMembers) {
                 activeTeams.push(team);
@@ -619,7 +619,7 @@ export default class State {
 
         // 2. Turn start; Waiting for response
         this.eventBus.emit(GameEvent.TURN_STARTED, currentActor.UserId);
-        this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.name})`);
+        this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.displayName})`);
         const playerEndingTurn = await this.waitForResponse(currentActor);
         if (playerEndingTurn) {
             this.logger.info(`Turn action phase concluded by ${playerEndingTurn.Name}.`);

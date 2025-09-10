@@ -104,7 +104,7 @@ export default class BattleServer {
         });
         this.networkService.onServerRequestOf('actor', (p, id) => {
             // this.logger.debug(`Received actor request from ${p.Name}`);
-            return this.state.getEntity(id)?.state();
+            return this.state.getEntity(id)?.getChangeableStatNum();
         })
     }    //#region Server-Side Loop
     //#region Validations
@@ -248,7 +248,7 @@ export default class BattleServer {
 
         // posture check to see if turn will end
         const currentActor = this.state.getCurrentActor();
-        const posture = currentActor.get('pos');
+        const posture = currentActor.getChangeableStatNum('pos');
         // this.logger.debug(`Posture for ${actingPlayer.Name} after action: ${posture}.`);
         if (posture < BattleServer.MIN_POSTURE_TO_CONTINUE_TURN) {
             this.logger.info(`Turn ended for ${actingPlayer.Name}: Posture (${posture}) fell below ${BattleServer.MIN_POSTURE_TO_CONTINUE_TURN}.`);

@@ -122,7 +122,7 @@ export class EntityManager {
         const id = updates.playerID;
         const entity = this.getEntity(id);
         if (entity) {
-            this.logger.info(`Updating entity ${entity.name} (${id})`, updates);
+            this.logger.info(`Updating entity ${entity.displayName} (${id})`, updates);
             const changed = entity.update(updates);
             if (this.eventBus) {
                 this.eventBus.emit(GameEvent.ENTITY_UPDATED, entity, updates);
@@ -138,7 +138,7 @@ export class EntityManager {
     public removeEntity(id: number): boolean {
         const entity = this.getEntity(id);
         if (entity) {
-            this.logger.info(`Removing entity ${entity.name} (${id})`);
+            this.logger.info(`Removing entity ${entity.displayName} (${id})`);
         } else {
             this.logger.warn(`Attempted to remove non-existent entity with ID ${id}`);
         }
@@ -183,7 +183,7 @@ export class EntityManager {
                     entity.setCell(cell.qr());
                     // this.logger.debug(`Mapped entity ${entity.name} (${entity.playerID}) to cell (${cell.qr().X}, ${cell.qr().Y})`);
                 } else {
-                    this.logger.warn(`Failed to map entity ${entity.name} (${entity.playerID}) to invalid cell (${entity.qr.X}, ${entity.qr.Y})`);
+                    this.logger.warn(`Failed to map entity ${entity.displayName} (${entity.playerID}) to invalid cell (${entity.qr.X}, ${entity.qr.Y})`);
                 }
             }
         });

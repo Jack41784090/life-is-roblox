@@ -107,7 +107,7 @@ export function getDummyClashResult(): ClashResult {
     }
 }
 
-export function getDummyStats(): EntityStats {
+export function getDummyStats(): EntityBaseStats {
     return {
         id: "entity_adalbrecht",
         str: 1,
@@ -188,17 +188,17 @@ export function saveAbility(...ability: AbilityConfig[]) {
     if (!success) logger.error(fail as defined, "DataStoreUtils");
 }
 
-export function getCharacterStats(id: string): EntityStats | undefined {
+export function getCharacterStats(id: string): EntityBaseStats | undefined {
     const ds = getDatastore("characterStats");
     const [success, data] = pcall(() => ds.GetAsync(id));
-    if (success) return data as EntityStats;
+    if (success) return data as EntityBaseStats;
     else {
         logger.error(data as defined, "DataStoreUtils");
         return undefined;
     }
 }
 
-export function saveCharacterStats(character: EntityStats, overwrite = false) {
+export function saveCharacterStats(character: EntityBaseStats, overwrite = false) {
     const [success, fail] = pcall(() => {
         const ds = getDatastore("characterStats");
         if (overwrite) {
@@ -512,7 +512,7 @@ export class PriorityQueue<T extends defined> {
 // REALITY CALCULATIONS
 //===========================================================================
 
-export function calculateRealityValue(reality: Reality, stats: EntityStats): number {
+export function calculateRealityValue(reality: Reality, stats: EntityBaseStats): number {
     switch (reality) {
         case Reality.HP:
             return (stats.end * 5) + (stats.siz * 2);
@@ -686,7 +686,7 @@ export function flattenAtoms(maps: NestedAtomMap): FlattenNestedAtoms<NestedAtom
 
 import { SyncPayload } from "@rbxts/charm-sync";
 import { setTimeout } from "@rbxts/set-timeout";
-import { EntityStats } from "shared/class/battle/State/Entity/types";
+import { EntityBaseStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { ClashResult, Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { GlobalAtoms } from "shared/datastore";

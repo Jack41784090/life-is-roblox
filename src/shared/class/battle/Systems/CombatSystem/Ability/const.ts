@@ -1,4 +1,4 @@
-import { EntityStance, EntityStats } from "../../../State/Entity/types";
+import { EntityBaseStats, EntityStance } from "../../../State/Entity/types";
 import { AbilityType, ActiveAbilityConfig, DamageType, Potency } from "./types";
 
 export const UNIVERSAL_PHYS = new Map<string, ActiveAbilityConfig>([
@@ -24,7 +24,7 @@ export const UNIVERSAL_PHYS = new Map<string, ActiveAbilityConfig>([
     }]
 ])
 
-export const potencyMap: Record<Potency, [keyof EntityStats, number][]> = {
+export const potencyMap: Record<Potency, [keyof EntityBaseStats, number][]> = {
     [Potency.Strike]: [
         ['str', 1]
     ],

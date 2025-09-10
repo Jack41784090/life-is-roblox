@@ -451,7 +451,7 @@ export default class BattleClient {
             this.validateAndCommit(accessToken.action);
 
             const waitForMoveAnimation = await this.animations.waitForAllAnimationsToEnd(); const localE = await this.localEntity();
-            if (localE.get('pos') >= 75) {
+            if (localE.getChangeableStatNum('pos') >= 75) {
                 // this.logger.debug("Local entity is still ready");
 
                 // Request new access token for subsequent actions
@@ -485,7 +485,7 @@ export default class BattleClient {
             ability: {
                 ...iability,
                 using: cre,
-                target: clickedOn.state(),
+                target: clickedOn.getChangeableStatNum(),
             } as unknown as ActiveAbilityState,
             by: cre.playerID,
             against: clickedOn.playerID,
@@ -514,7 +514,7 @@ export default class BattleClient {
 
         const localEntity = await this.localEntity();
         // this.logger.debug("Local entity pos", localEntity.get('pos'));
-        if (localEntity.get('pos') >= 75) {
+        if (localEntity.getChangeableStatNum('pos') >= 75) {
             // this.logger.debug("Local entity is still ready");
 
             // Request new access token for subsequent actions

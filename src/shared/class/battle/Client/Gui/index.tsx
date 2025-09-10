@@ -1,6 +1,7 @@
 import { Atom } from "@rbxts/charm";
 import React from "@rbxts/react";
-import { OPTElement } from "gui_sharedfirst";
+import { AbilitySetElement, FightingStyleSelector, OPTElement } from "gui_sharedfirst";
+import AbilitySlots from "gui_sharedfirst/components/ability-slots";
 import AbilityControlPanel from "gui_sharedfirst/new_components/battle/ability_control_panel";
 import CellGlowingSurface from "gui_sharedfirst/new_components/battle/cell/glow";
 import MainFrame from "gui_sharedfirst/new_components/battle/main-frame";
@@ -45,9 +46,9 @@ export default class BattleGui {
         // Always create all components in the unified UI
         const playerPortrait = entity ? (
             <PlayerPortrait
-                entityId={entity.stats.id}
-                hp={entity.getState('hip')}
-                maxHP={calculateRealityValue(Reality.HP, entity.stats)}
+                entityId={entity.baseStats.id}
+                hp={entity.getChangeableStatNum('hip')}
+                maxHP={calculateRealityValue(Reality.HP, entity.baseStats)}
             />
         ) : undefined;
 

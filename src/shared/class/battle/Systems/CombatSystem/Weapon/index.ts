@@ -29,22 +29,22 @@ export default class Weapon {
     }
 
     public getTotalPenetrationValue(attacker: Entity): number {
-        const force = calculateRealityValue(Reality.Force, attacker.stats);
-        const pre = calculateRealityValue(Reality.Precision, attacker.stats);
+        const force = calculateRealityValue(Reality.Force, attacker.baseStats);
+        const pre = calculateRealityValue(Reality.Precision, attacker.baseStats);
         const result = this.penetrationBonus + force * 0.67 + pre * 0.33;
         return result;
     }
 
     public getTotalHitValue(attacker: Entity): number {
-        const man = calculateRealityValue(Reality.Maneuver, attacker.stats);
-        const pre = calculateRealityValue(Reality.Precision, attacker.stats);
+        const man = calculateRealityValue(Reality.Maneuver, attacker.baseStats);
+        const pre = calculateRealityValue(Reality.Precision, attacker.baseStats);
         const result = this.hitBonus + man / 2 + pre / 2;
         return result;
     }
 
     public getPotencyArrayDamage(attacker: Entity): Record<Potency, number> {
         const damagePotencies = this.damageTranslation.reduce((acc, [reality, damagePotencies]) => {
-            const warriorsReality = calculateRealityValue(reality, attacker.stats);
+            const warriorsReality = calculateRealityValue(reality, attacker.baseStats);
             for (const [potency, value] of damagePotencies) {
                 const potencyDamage = value * warriorsReality;
                 acc[potency] = (acc[potency] || 0) + potencyDamage;
@@ -62,7 +62,7 @@ export default class Weapon {
             return 0;
         }
         const damage = damagePotencies.reduce((dmgAcc, [reality, damagePotencies]) => {
-            const warriorsReality = calculateRealityValue(reality, attacker.stats);
+            const warriorsReality = calculateRealityValue(reality, attacker.baseStats);
             const potencyDmg = damagePotencies.reduce((potAcc, [potency, value]) => {
                 const dmg = value * warriorsReality;
                 return potAcc + dmg;
@@ -74,7 +74,7 @@ export default class Weapon {
 
     public getRawWeaponDamage(attacker: Entity): number {
         const damage = this.damageTranslation.reduce((dmgAcc, [reality, damagePotencies]) => {
-            const warriorsReality = calculateRealityValue(reality, attacker.stats);
+            const warriorsReality = calculateRealityValue(reality, attacker.baseStats);
             const realityDmg = damagePotencies.reduce((potAcc, [potency, value]) => {
                 const dmg = value * warriorsReality;
                 return potAcc + dmg;

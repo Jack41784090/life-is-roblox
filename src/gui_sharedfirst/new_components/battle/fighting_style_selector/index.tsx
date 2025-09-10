@@ -14,7 +14,7 @@ function FightingStyleSelector({ entity, onStyleSelect }: FightingStyleSelectorP
     const [activeStyleIndex, setActiveStyleIndex] = useState<number>(0);
 
     useEffect(() => {
-        const entityState = entity.state();
+        const entityState = entity.getChangeableStatNum();
         setStyles(entityState.fightingStyles);
         setActiveStyleIndex(entityState.activeStyleIndex);
     }, [entity]);
