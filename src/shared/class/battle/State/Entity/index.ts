@@ -1,4 +1,4 @@
-import { atom, Atom } from "@rbxts/charm";
+import { Atom } from "@rbxts/charm";
 import { calculateRealityValue, extractMapValues } from "shared/utils";
 import Logger from "shared/utils/Logger";
 // import CombatEffectsService from "../../Client/Effects/CombatEffectsServices";
@@ -11,7 +11,7 @@ import { AGGRESSIVE_STANCE, BASIC_STANCE, DEFENSIVE_STANCE } from "../../Systems
 import { Reality } from "../../Systems/CombatSystem/types";
 import Weapon from "../../Systems/CombatSystem/Weapon";
 import { WeaponConfig } from "../../Systems/CombatSystem/Weapon/types";
-import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityConfig, EntityState, EntityUpdate } from "./types";
+import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityChangeableStatsState, EntityConfig, EntityState, EntityUpdate } from "./types";
 
 export default class Entity {
     private logger = Logger.createContextLogger("Entity");
@@ -20,7 +20,7 @@ export default class Entity {
     public displayName: string;
 
     // base stats
-    public readonly baseStats: EntityBaseStats;
+    public baseStats: EntityBaseStats;
 
     // changeable stats
     public readonly changeableStats: EntityChangeableStats;
@@ -30,11 +30,11 @@ export default class Entity {
     public weapon: Weapon;
 
 
-    private qr: Vector2;
-    private armed?: keyof typeof Enum.KeyCode;
-    private team: string;
+    public qr: Vector2;
+    public armed?: keyof typeof Enum.KeyCode;
+    public team: string;
 
-    constructor(options: EntityConfig) {
+    constructor(options: EntityConfig, eventBus?: any) {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
@@ -108,13 +108,13 @@ export default class Entity {
         const switchCost = newStyle.getSwitchCost();
 
         // Check if entity has enough posture to switch
-        if (this.POS() < switchCost) {
-            this.logger.warn(`${this.displayName} cannot switch to ${newStyle.getName()}: not enough posture (${this.POS()} < ${switchCost})`);
+        if (this.changeableStats.POS() < switchCost) {
+            this.logger.warn(`${this.displayName} cannot switch to ${newStyle.getName()}: not enough posture (${this.changeableStats.POS()} < ${switchCost})`);
             return false;
         }
 
         // Pay the posture cost
-        this.setChangeableStat('pos', this.POS() - switchCost);
+        this.setChangeableStat('POS', this.changeableStats.POS() - switchCost);
 
         // Switch to new style
         this.activeStyleIndex = styleIndex;
@@ -157,7 +157,7 @@ export default class Entity {
         // Apply ability costs
         const abilityCost = ability.getState().cost;
         for (const [stat, cost] of pairs(abilityCost)) {
-            if (this[stat]) {
+            if (this.changeableStats[stat as EntityChangeable]) {
                 this.setChangeableStat(stat as EntityChangeable, this.getChangeableStatNum(stat as EntityChangeable) - cost);
             }
         }
@@ -359,8 +359,14 @@ export default class Entity {
             } else if (key === 'armour') {
                 this.armour = new Armour(value as ArmourConfig);
             }
-            else if (key === 'hip' || key === 'sta' || key === 'org' || key === 'pos' || key === 'mana') {
-                this[key] = atom(value as number);
+            else if (key === 'changeableStats') {
+                // Handle changeable stats updates
+                const newChangeableStats = value as EntityChangeableStatsState;
+                for (const [statKey, statValue] of pairs(newChangeableStats)) {
+                    if (this.changeableStats[statKey as EntityChangeable]) {
+                        this.changeableStats[statKey as EntityChangeable](statValue);
+                    }
+                }
             }
             else if (key === 'activeStyleIndex') {
                 const newIndex = value as number;
@@ -387,10 +393,10 @@ export default class Entity {
     public changeHP(num: number) {
         // this.logger.debug(`${this.name}: Changing HP by ${num}`);
 
-        const oldHip = this.HP();
-        this.HP(this.HP() + num);
+        const oldHp = this.changeableStats.HP();
+        this.changeableStats.HP(this.changeableStats.HP() + num);
         const maxHP = calculateRealityValue(Reality.HP, this.baseStats);
-        const hpPercentage = 0.9 - math.clamp((this.HP() / maxHP) * .9, 0, .9);
+        const hpPercentage = 0.9 - math.clamp((this.changeableStats.HP() / maxHP) * .9, 0, .9);
         // this.logger.debug(`HP percentage: ${hpPercentage}`);
     }
 

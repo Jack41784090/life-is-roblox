@@ -55,11 +55,13 @@ const mockEntityConfig: EntityConfig = {
     team: "PlayerTeam",
     qr: new Vector2(0, 0),
     stats: getDummyStats(),
-    hip: 100,
-    sta: 100,
-    org: 100,
-    pos: 100,
-    mana: 50
+    changeableStats: {
+        HP: atom(100),
+        STA: atom(100),
+        ORG: atom(100),
+        POS: atom(100),
+        MAG: atom(50)
+    }
 };
 
 const mockEntity = new Entity(mockEntityConfig);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "@rbxts/react";
+import React, { useState } from "@rbxts/react";
 import Entity from "shared/class/battle/State/Entity";
 import { FightingStyleState } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
 import StyleAbilities from "./abilities";
@@ -13,11 +13,11 @@ function FightingStyleSelector({ entity, onStyleSelect }: FightingStyleSelectorP
     const [styles, setStyles] = useState<FightingStyleState[]>([]);
     const [activeStyleIndex, setActiveStyleIndex] = useState<number>(0);
 
-    useEffect(() => {
-        const entityState = entity.getChangeableStatNum();
-        setStyles(entityState.fightingStyles);
-        setActiveStyleIndex(entityState.activeStyleIndex);
-    }, [entity]);
+    // useEffect(() => {
+    //     const entityState = entity.getChangeableStatNum();
+    //     setStyles(entityState.fightingStyles);
+    //     setActiveStyleIndex(entityState.activeStyleIndex);
+    // }, [entity]);
 
     const handleStyleSelect = (styleIndex: number) => {
         setActiveStyleIndex(styleIndex);

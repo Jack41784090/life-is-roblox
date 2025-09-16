@@ -1,3 +1,4 @@
+import { atom } from "@rbxts/charm";
 import { config, SpringOptions } from "@rbxts/ripple";
 import { DataStoreService, Players, ReplicatedStorage, RunService, TweenService, UserInputService, Workspace } from "@rbxts/services";
 import { modelFolder, portraitsFolder } from "shared/const/assets";
@@ -136,11 +137,13 @@ export function createDummyEntityStats(qr: Vector2) {
     return {
         stats: getDummyStats(),
         playerID: -4178,
-        hip: 0,
-        pos: 0,
-        org: 999,
-        mana: 999,
-        sta: 999,
+        changeableStats: {
+            HP: atom(0),
+            POS: atom(0),
+            ORG: atom(999),
+            MAG: atom(999),
+            STA: atom(999),
+        },
         qr,
         team: "Dummy",
     }

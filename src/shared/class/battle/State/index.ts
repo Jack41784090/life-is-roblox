@@ -50,7 +50,7 @@ export default class State {
             readinessAtoms: atom(this.entityManager.getAllEntities().map((entity) => {
                 return atom({
                     id: entity.playerID,
-                    pos: entity.getChangeableStatNum('pos'),
+                    pos: entity.getChangeableStatAtom('POS'),
                     spd: atom(entity.baseStats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
                 })
             }))
@@ -63,11 +63,13 @@ export default class State {
         return {
             playerID: player.UserId,
             stats: characterStats,
-            pos: calculateRealityValue(Reality.Maneuver, characterStats),
-            org: calculateRealityValue(Reality.Bravery, characterStats),
-            hip: calculateRealityValue(Reality.HP, characterStats),
-            sta: calculateRealityValue(Reality.HP, characterStats),
-            mana: calculateRealityValue(Reality.Mana, characterStats),
+            changeableStats: {
+                POS: atom(calculateRealityValue(Reality.Maneuver, characterStats)),
+                ORG: atom(calculateRealityValue(Reality.Bravery, characterStats)),
+                HP: atom(calculateRealityValue(Reality.HP, characterStats)),
+                STA: atom(calculateRealityValue(Reality.HP, characterStats)),
+                MAG: atom(calculateRealityValue(Reality.Mana, characterStats)),
+            },
             name: player.Name,
             team: teamName,
             qr,
@@ -341,7 +343,7 @@ export default class State {
                     }
                     return {
                         id: m.playerID,
-                        pos: entity.getChangeableStatNum('pos'),
+                        pos: entity.getChangeableStatAtom('POS'),
                         spd: atom(entity.baseStats.spd),
                     }
                 })
@@ -369,7 +371,7 @@ export default class State {
                     }
                     return {
                         id: m.playerID,
-                        pos: entity.getChangeableStatNum('pos'),
+                        pos: entity.getChangeableStatAtom('POS'),
                         spd: atom(entity.baseStats.spd),
                     }
                 })
@@ -388,7 +390,7 @@ export default class State {
         if (!entity) {
             throw `[State] Entity with id ${id} not found`;
         }
-        return entity.getChangeableStatNum();
+        return entity.getState();
     }
 
     /**
@@ -525,7 +527,7 @@ export default class State {
         const costOfMovement = distance * MOVEMENT_COST;
 
         fromCell.entity = undefined;
-        entity.setChangeableStat('pos', entity.getChangeableStatNum('pos') - costOfMovement);
+        entity.setChangeableStat('POS', entity.getChangeableStatNum('POS') - costOfMovement);
         this.setCell(entity, toCell);
 
         // No need to emit here as setCell already does it
@@ -558,7 +560,7 @@ export default class State {
 
         for (const team of teams) {
             const hasAliveMembers = team.members.some((member: Entity) => {
-                return member.getChangeableStatNum('hip') > 0;
+                return member.getChangeableStatNum('HP') > 0;
             });
 
             if (hasAliveMembers) {
@@ -581,7 +583,7 @@ export default class State {
 
         for (const team of teams) {
             const hasAliveMembers = team.members.some((member: Entity) => {
-                return member.getChangeableStatNum('pos') > 0;
+                return member.getChangeableStatNum('POS') > 0;
             });
             if (hasAliveMembers) {
                 activeTeams.push(team);

@@ -56,8 +56,8 @@ class Ability {
 
         return {
             ... this,
-            using: this.using?.getChangeableStatNum(),
-            target: this.target?.getChangeableStatNum(),
+            using: this.using?.getState(),
+            target: this.target?.getState(),
         } as unknown as AbilityState;
     }
 }

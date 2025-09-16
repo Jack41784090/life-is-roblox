@@ -22,9 +22,9 @@ function FightingStyleSlots({ entity, onStyleSelect, LayoutOrder = 0 }: Fighting
     const [activeStyleIndex, setActiveStyleIndex] = useState<number>(0);
 
     useEffect(() => {
-        const entityState = entity.getChangeableStatNum();
-        setStyles(entityState.fightingStyles);
-        setActiveStyleIndex(entityState.activeStyleIndex);
+        // const entityState = entity.getChangeableStatNum();
+        // setStyles(entityState.fightingStyles);
+        // setActiveStyleIndex(entityState.activeStyleIndex);
     }, [entity]);
 
     const handleStyleSelect = (styleIndex: number) => {

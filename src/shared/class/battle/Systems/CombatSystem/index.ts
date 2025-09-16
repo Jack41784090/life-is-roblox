@@ -217,8 +217,9 @@ export default class CombatSystem {
             }
         }
 
-        this.tireAttacker(attacker, ability.getState());
-        this.tireDefender(defender, ability.getState());
+        // TODO: Implement tireAttacker and tireDefender methods
+        // this.tireAttacker(attacker, ability.getState());
+        // this.tireDefender(defender, ability.getState());
 
     }
 
@@ -231,7 +232,7 @@ export default class CombatSystem {
             return false;
         }
 
-        const targetHp = target.getChangeableStatNum('hip') || 0;
+        const targetHp = target.getChangeableStatNum('HP') || 0;
         // const damage = this.calculateDamage({
         //     against,
         //     attacker,

@@ -94,7 +94,7 @@ export const BASIC_STANCE = () => new FightingStyle({
                     },
                     using: {
                         playerID: us.playerID,
-                        pos: (us.pos || 0) - 5,
+                        pos: (us.changeableStats.POS || 0) - 5,
                     }
                 };
             },

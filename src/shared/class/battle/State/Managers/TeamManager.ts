@@ -1,3 +1,4 @@
+import { atom } from "@rbxts/charm";
 import { TeamState } from "shared/class/battle/types";
 import Logger from "shared/utils/Logger";
 import FightingStyle from "../../Systems/CombatSystem/FightingStyle";
@@ -29,11 +30,13 @@ export class TeamManager {
             playerID: entityState.playerID,
             stats: { ...entityState.stats },
             qr: entityState.qr,
-            hip: entityState.hip,
-            pos: entityState.pos,
-            org: entityState.org,
-            sta: entityState.sta,
-            mana: entityState.mana,
+            changeableStats: {
+                HP: atom(entityState.changeableStats.HP),
+                POS: atom(entityState.changeableStats.POS),
+                ORG: atom(entityState.changeableStats.ORG),
+                STA: atom(entityState.changeableStats.STA),
+                MAG: atom(entityState.changeableStats.MAG),
+            },
             name: entityState.name,
             team: entityState.team,
             weapon: entityState.weapon,
@@ -107,7 +110,7 @@ export class TeamManager {
     public getTeamStates(): TeamState[] {
         return this.teams.map(team => ({
             name: team.name,
-            members: team.members.map(entity => entity.getChangeableStatNum()),
+            members: team.members.map(entity => entity.getState()),
         }));
     }
     private updateExistingTeam(existingTeam: Team, teamState: TeamState, entityManager: EntityManager): void {

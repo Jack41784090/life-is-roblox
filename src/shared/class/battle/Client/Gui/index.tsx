@@ -19,6 +19,7 @@ import { GuiConfig } from "./types";
 export default class BattleGui {
     private logger = Logger.createContextLogger("BattleGUI");
     private readinessFragments: Atom<Atom<ReadinessFragment>[]>;
+    private mode = () => 'withSensitiveCells' as 'withSensitiveCells' | 'simple'; // TODO: to remove
 
     static Connect(config: GuiConfig) {
         const ui = new BattleGui(config);
@@ -47,7 +48,7 @@ export default class BattleGui {
         const playerPortrait = entity ? (
             <PlayerPortrait
                 entityId={entity.baseStats.id}
-                hp={entity.getChangeableStatNum('hip')}
+                hp={entity.getChangeableStatAtom('HP')}
                 maxHP={calculateRealityValue(Reality.HP, entity.baseStats)}
             />
         ) : undefined;
@@ -93,7 +94,7 @@ export default class BattleGui {
         }
         GuiMothership.Mount(GuiTag.AbilitySlot,
             <AbilitySetElement>
-                <AbilitySlots cre={cre} abilitySet={mountingAbilitySet} />
+                <AbilitySlots gui={this} cre={cre} abilitySet={mountingAbilitySet} />
             </AbilitySetElement>
         );
     }
