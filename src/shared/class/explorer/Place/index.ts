@@ -49,7 +49,7 @@ export default class Place {
             NPCs: [
                 {
                     id: 'entity_adalbrecht',
-                    displayName: 'NPC 1',
+                    name: 'NPC 1',
                     spawnLocation: spawnLocation.Position,
                 },
             ],
@@ -278,7 +278,7 @@ export default class Place {
     public spawnExplorer(model: string) {
         const pc = new PC({
             id: model,
-            displayName: model,
+            name: model,
             spawnLocation: new Vector3(0, 0, 0),
         }, this);
         this.explorer = pc;

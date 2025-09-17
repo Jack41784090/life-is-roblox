@@ -47,9 +47,9 @@ export default class BattleGui {
         // Always create all components in the unified UI
         const playerPortrait = entity ? (
             <PlayerPortrait
-                entityId={entity.baseStats.id}
+                entityId={entity.stats.id}
                 hp={entity.getChangeableStatAtom('HP')}
-                maxHP={calculateRealityValue(Reality.HP, entity.baseStats)}
+                maxHP={calculateRealityValue(Reality.HP, entity.stats)}
             />
         ) : undefined;
 

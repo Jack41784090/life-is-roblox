@@ -12,7 +12,7 @@ export default class Team {
 
     addMembers(...members: Entity[]) {
         for (const member of members) {
-            if (this.members.every(m => m.baseStats && m.baseStats.id !== member.baseStats.id)) {
+            if (this.members.every(m => m.stats && m.stats.id !== member.stats.id)) {
                 this.members.push(member);
             }
         }

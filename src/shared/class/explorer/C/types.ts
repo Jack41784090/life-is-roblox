@@ -1,6 +1,6 @@
 export interface CConfig {
     id: string;
-    displayName: string;
+    name: string;
     spawnLocation: Vector3;
     movementConfig?: MovementConfig;
 }

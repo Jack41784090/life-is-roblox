@@ -6,7 +6,7 @@ import Place from "../Place";
 
 export type PCConfig = {
     id: string;
-    displayName: string;
+    name: string;
     spawnLocation: Vector3;
 }
 

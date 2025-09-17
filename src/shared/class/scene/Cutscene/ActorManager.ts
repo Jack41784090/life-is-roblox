@@ -27,7 +27,7 @@ export class ActorManager {
         this.actorInitPositions.forEach((position, actorName) => {
             actorConfigs.push({
                 id: actorName,
-                displayName: actorName,
+                name: actorName,
                 spawnLocation: position,
             });
         });

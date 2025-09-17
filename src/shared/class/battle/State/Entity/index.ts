@@ -17,10 +17,10 @@ export default class Entity {
     private logger = Logger.createContextLogger("Entity");
     public readonly playerID: number;
 
-    public displayName: string;
+    public name: string;
 
     // base stats
-    public baseStats: EntityBaseStats;
+    public stats: EntityBaseStats;
 
     // changeable stats
     public readonly changeableStats: EntityChangeableStats;
@@ -38,9 +38,9 @@ export default class Entity {
         this.qr = options.qr;
         this.playerID = options.playerID;
         this.team = options.team;
-        this.baseStats = { ...options.stats, id: options.stats.id };
+        this.stats = { ...options.stats, id: options.stats.id };
         this.changeableStats = { ...options.changeableStats }
-        this.displayName = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
+        this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
 
@@ -50,12 +50,12 @@ export default class Entity {
 
     public getState(): EntityState {
         return {
-            name: this.displayName,
+            name: this.name,
             playerID: this.playerID,
             qr: this.qr,
             team: this.team,
             stats: {
-                ...this.baseStats,
+                ...this.stats,
             },
             changeableStats: {
                 HP: this.changeableStats.HP(),
@@ -87,7 +87,7 @@ export default class Entity {
             this.fightingStyles = configStyles;
         }
 
-        this.logger.info(`${this.displayName} initialized with ${this.fightingStyles.size()} fighting styles`);
+        this.logger.info(`${this.name} initialized with ${this.fightingStyles.size()} fighting styles`);
     }
 
     public getActiveStyle(): FightingStyle {
@@ -100,7 +100,7 @@ export default class Entity {
 
     public switchFightingStyle(styleIndex: number): boolean {
         if (styleIndex < 0 || styleIndex >= this.fightingStyles.size() || styleIndex === this.activeStyleIndex) {
-            this.logger.warn(`${this.displayName} cannot switch to fighting style ${styleIndex}: invalid index`);
+            this.logger.warn(`${this.name} cannot switch to fighting style ${styleIndex}: invalid index`);
             return false;
         }
 
@@ -109,7 +109,7 @@ export default class Entity {
 
         // Check if entity has enough posture to switch
         if (this.changeableStats.POS() < switchCost) {
-            this.logger.warn(`${this.displayName} cannot switch to ${newStyle.getName()}: not enough posture (${this.changeableStats.POS()} < ${switchCost})`);
+            this.logger.warn(`${this.name} cannot switch to ${newStyle.getName()}: not enough posture (${this.changeableStats.POS()} < ${switchCost})`);
             return false;
         }
 
@@ -118,7 +118,7 @@ export default class Entity {
 
         // Switch to new style
         this.activeStyleIndex = styleIndex;
-        this.logger.info(`${this.displayName} switched to fighting style: ${newStyle.getName()}`);
+        this.logger.info(`${this.name} switched to fighting style: ${newStyle.getName()}`);
 
         // // Create visual effect for style switching
         // if (game.GetService("RunService").IsClient()) {
@@ -150,7 +150,7 @@ export default class Entity {
         const ability = activeStyle.useAbility(abilityName);
 
         if (!ability) {
-            this.logger.warn(`${this.displayName} failed to use ability ${abilityName}`);
+            this.logger.warn(`${this.name} failed to use ability ${abilityName}`);
             return undefined;
         }
 
@@ -191,14 +191,14 @@ export default class Entity {
             // Show ability effect at the top portion of the screen
             const abilityPosition = new UDim2(0.5, 0, 0.2, 0);
 
-            // Just use the ability name directly since displayName doesn't exist
-            const displayName = abilityState.name || abilityName;
+            // Just use the ability name directly since name doesn't exist
+            const name = abilityState.name || abilityName;
 
             // Show ability use effect
-            // CombatEffectsService.getInstance().showAbilityUse(abilityPosition, effectColor, displayName);
+            // CombatEffectsService.getInstance().showAbilityUse(abilityPosition, effectColor, name);
         }
 
-        this.logger.info(`${this.displayName} used ability ${abilityName}`);
+        this.logger.info(`${this.name} used ability ${abilityName}`);
         return ability;
     }
 
@@ -210,7 +210,7 @@ export default class Entity {
     public recycleAbilities(): void {
         const activeStyle = this.getActiveStyle();
         activeStyle.recycleAbilities();
-        this.logger.info(`${this.displayName} recycled all abilities for style: ${activeStyle.getName()}`);
+        this.logger.info(`${this.name} recycled all abilities for style: ${activeStyle.getName()}`);
     }
     //#endregion
 
@@ -299,11 +299,11 @@ export default class Entity {
         const { direction: hittingDirection, using, target, type: abilityType } = incomingAbility;
         assert(abilityType === AbilityType.Active, `Ability ${incomingAbility.name} is not an active ability`);
         if (using === undefined) {
-            this.logger.warn(`${this.displayName} is not able to react to ${incomingAbility.name} because it has no user`);
+            this.logger.warn(`${this.name} is not able to react to ${incomingAbility.name} because it has no user`);
             return;
         }
         if (target?.playerID !== this.playerID) {
-            this.logger.warn(`${this.displayName} is not able to react to ${incomingAbility.name} because it is not the target`);
+            this.logger.warn(`${this.name} is not able to react to ${incomingAbility.name} because it is not the target`);
             return;
         }
 
@@ -349,10 +349,13 @@ export default class Entity {
     public update(updates: EntityUpdate) {
         // this.logger.debug(`${this.name}: Updating entity with ${updates}`);
         for (const [key, value] of pairs(updates)) {
+            if (this[key] === value) {
+                return;
+            }
             if (key === 'qr') {
                 this.setCell(value as Vector2);
             } else if (key === 'stats') {
-                this.baseStats = { ...this.baseStats, ...value as EntityBaseStats };
+                this.stats = { ...this.stats, ...value as EntityBaseStats };
             }
             else if (key === 'weapon') {
                 this.weapon = new Weapon(value as WeaponConfig);
@@ -373,7 +376,7 @@ export default class Entity {
                 if (newIndex >= 0 && newIndex < this.fightingStyles.size()) {
                     this.activeStyleIndex = newIndex;
                 } else {
-                    this.logger.warn(`${this.displayName} tried to set active style index to ${newIndex}, but it's out of bounds`);
+                    this.logger.warn(`${this.name} tried to set active style index to ${newIndex}, but it's out of bounds`);
                 }
             }
             else {
@@ -395,7 +398,7 @@ export default class Entity {
 
         const oldHp = this.changeableStats.HP();
         this.changeableStats.HP(this.changeableStats.HP() + num);
-        const maxHP = calculateRealityValue(Reality.HP, this.baseStats);
+        const maxHP = calculateRealityValue(Reality.HP, this.stats);
         const hpPercentage = 0.9 - math.clamp((this.changeableStats.HP() / maxHP) * .9, 0, .9);
         // this.logger.debug(`HP percentage: ${hpPercentage}`);
     }

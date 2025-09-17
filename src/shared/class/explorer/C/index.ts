@@ -172,7 +172,7 @@ export default class C {
             assert(template.IsA('Model'), `Model '${this.id}' not found`);
             this.model = template.Clone();
             this.model.Parent = this.associatedPlace ? this.associatedPlace.getModel() : Workspace;
-            this.model.Name = config.displayName;
+            this.model.Name = config.name;
             this.model.PrimaryPart!.CFrame = new CFrame(config.spawnLocation);
             this.nameTag = this.model.FindFirstChild('nametag')?.FindFirstChildOfClass('BillboardGui') as BillboardGui;
             this.nameTagLabel = this.nameTag?.FindFirstChildOfClass('TextBox') as TextBox;

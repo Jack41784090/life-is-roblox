@@ -51,7 +51,7 @@ export default class State {
                 return atom({
                     id: entity.playerID,
                     pos: entity.getChangeableStatAtom('POS'),
-                    spd: atom(entity.baseStats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
+                    spd: atom(entity.stats.spd), // TODO: speed should be affected by buffs and debuffs so spd stat should be an atom
                 })
             }))
         });
@@ -344,7 +344,7 @@ export default class State {
                     return {
                         id: m.playerID,
                         pos: entity.getChangeableStatAtom('POS'),
-                        spd: atom(entity.baseStats.spd),
+                        spd: atom(entity.stats.spd),
                     }
                 })
             })
@@ -372,7 +372,7 @@ export default class State {
                     return {
                         id: m.playerID,
                         pos: entity.getChangeableStatAtom('POS'),
-                        spd: atom(entity.baseStats.spd),
+                        spd: atom(entity.stats.spd),
                     }
                 })
             })
@@ -621,7 +621,7 @@ export default class State {
 
         // 2. Turn start; Waiting for response
         this.eventBus.emit(GameEvent.TURN_STARTED, currentActor.UserId);
-        this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.displayName})`);
+        this.logger.info(`New turn starting for: ${currentActor.Name} (Entity: ${actingEntity.name})`);
         const playerEndingTurn = await this.waitForResponse(currentActor);
         if (playerEndingTurn) {
             this.logger.info(`Turn action phase concluded by ${playerEndingTurn.Name}.`);

@@ -1,6 +1,6 @@
 export type NPCConfig = {
     id: string;
-    displayName: string;
+    name: string;
     spawnLocation: Vector3;
     // npcwant: NPCWant;
     // npcbevr: NPCBehaviorProfile;

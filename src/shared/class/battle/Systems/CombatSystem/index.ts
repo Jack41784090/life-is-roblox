@@ -178,7 +178,7 @@ export default class CombatSystem {
                 const style = entity.getActiveStyle();
                 return style.getPassiveEffectValue(effectType);
             } catch (err) {
-                this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.displayName}:`, err as defined);
+                this.logger.warn(`Error getting passive effect ${effectType} from entity ${entity.name}:`, err as defined);
             }
         }
         return 0;
