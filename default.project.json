@@ -8,13 +8,13 @@
 		"$className": "DataModel",
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
-			"TS": {
+			"TS-Server": {
 				"$path": "out/server"
 			}
 		},
 		"ReplicatedFirst": {
 			"$className": "ReplicatedFirst",
-			"TS": {
+			"TS-Gui-SharedFirst": {
 				"$path": "out/gui_sharedfirst"
 			}
 		},
@@ -29,8 +29,11 @@
 					}
 				}
 			},
-			"TS": {
+			"TS-Shared": {
 				"$path": "out/shared"
+			},
+			"SquadBattle": {
+				"$path": "out/squad-battle"
 			}
 		},
 		"StarterPlayer": {
