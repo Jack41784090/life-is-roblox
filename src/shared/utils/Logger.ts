@@ -75,7 +75,7 @@ export class Logger {
             parts.push(`[${ctx}]`);
         }
 
-        return parts.join(" ");
+        return parts.join(" ") + "\n | ";
     }
 
     public debug(...messages: (defined | undefined)[]): void {
