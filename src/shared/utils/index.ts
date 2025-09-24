@@ -108,6 +108,17 @@ export function getDummyClashResult(): ClashResult {
     }
 }
 
+export function getDummyChangeableStats(): EntityChangeableStats {
+    return {
+        STA: atom(100),
+        HP: atom(100),
+        ORG: atom(100),
+        POS: atom(100),
+        MAG: atom(100),
+        LOC: atom(1 as SquadEntityInSquadLocation),
+    }
+}
+
 export function getDummyStats(): EntityBaseStats {
     return {
         id: "entity_adalbrecht",
@@ -693,6 +704,7 @@ import { EntityBaseStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { ClashResult, Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { GlobalAtoms } from "shared/datastore";
+import { EntityChangeableStats, SquadEntityInSquadLocation } from "squad-battle/type";
 
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {
     if (payload.type === "init") {
