@@ -106,3 +106,18 @@ export type EntityStatsUpdate = Partial<EntityStatsNoID>;
 export type ReadonlyEntityState = Readonly<EntityState>;
 export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & { playerID: Readonly<number> };
 export type EntityChangeable = keyof EntityChangeableStats;
+
+export enum SquadLocation {
+    front = 1,
+    back,
+}
+
+export type SquadConfig = {
+    entities: EntityConfig[];
+    name: string;
+    team?: string;
+}
+
+export type SquadBattleConfig = {
+    squads: Record<string, SquadConfig[]>;
+}

@@ -1,5 +1,5 @@
-import { Squad } from "squad-battle";
+// import { Squad } from "squad-battle";
 
-export function frontlineLogic(enemySquad: Squad) {
+// export function frontlineLogic(enemySquad: Squad) {
 
-}
+// }
