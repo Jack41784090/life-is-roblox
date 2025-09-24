@@ -209,11 +209,11 @@ clientRemotes.ui.startRoom.connect(s => {
     />)
 })
 
-// testArrayATom([4, 5, 6]);
+
 
 // mainMenuCameraSetup();
 // mainMenuSetup();
-enterBattle();
+// enterBattle();
 // enterStory();
 // enterPlayground();
 //#endregion
