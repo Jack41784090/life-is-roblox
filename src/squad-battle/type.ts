@@ -51,7 +51,7 @@ export type EntityBaseAttributes = {
     playerID: number,
     stats: EntityBaseStats,
     changeableStats: EntityChangeableStats,
-    qr: Vector2,
+    // qr: Vector2,
 };
 
 /**
