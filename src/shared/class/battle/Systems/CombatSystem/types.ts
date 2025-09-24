@@ -14,6 +14,7 @@ export enum Reality {
     Maneuver = 'maneuver',
     Convince = 'convince',
     Bravery = 'bravery',
+    Guts = "Guts",
 }
 
 export interface ClashResult {
