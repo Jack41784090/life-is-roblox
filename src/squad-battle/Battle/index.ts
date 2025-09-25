@@ -3,11 +3,6 @@ import { uniformRandom } from '../../shared/utils/index';
 import { Squad } from "../Squad";
 import { SquadBattleConfig } from "../type";
 
-
-
-
-
-
 export class SquadBattle {
     logger = Logger.createContextLogger("SquadBattle");
     teamsAndSquads: Record<string, Squad[]> = {};
@@ -130,14 +125,6 @@ export class SquadBattle {
                     squad.recovery();
                 }
             }
-        }
-    }
-
-    autoBattle() {
-        while (this.checkVictory() === false && this.roundCount < 100) {
-            print(`--- Round ${this.roundCount + 1} ---`);
-            this.round();
-            print('')
         }
     }
 }
