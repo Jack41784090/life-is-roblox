@@ -1,4 +1,3 @@
-
 import { Atom } from "@rbxts/charm";
 import { DamageType } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import FightingStyle from "shared/class/battle/Systems/CombatSystem/FightingStyle";
