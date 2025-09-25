@@ -129,11 +129,11 @@ export function getDummyStats(): EntityBaseStats {
         siz: 1,
         int: 1,
         spr: 1,
-        fai: 1,
+        fai: 10,
         cha: 1,
         beu: 1,
-        wil: 1,
-        end: 1,
+        wil: 10,
+        end: 10,
     }
 }
 
