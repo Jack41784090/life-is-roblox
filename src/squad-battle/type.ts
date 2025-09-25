@@ -1,7 +1,6 @@
 import { Atom } from "@rbxts/charm";
 import { DamageType } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import FightingStyle from "shared/class/battle/Systems/CombatSystem/FightingStyle";
-import { FightingStyleState } from "shared/class/battle/Systems/CombatSystem/FightingStyle/type";
 import { ReadinessIcon } from "shared/class/battle/types";
 
 export type DamageRecord = Partial<Record<DamageType, number>>;
@@ -90,13 +89,13 @@ export type EntityConfig =
     };
 
 export type EntityState =
-    Omit<EntityBaseAttributes, 'changeableStats'> & { changeableStats: EntityChangeableStatsState }
+    Omit<EntityBaseAttributes, 'changeableStats'> & { changeableStats: Partial<EntityChangeableStatsState> }
     & {
         name: string;
         team: string;
-        armed?: keyof typeof Enum.KeyCode;
-        activeStyleIndex: number;
-        fightingStyles: FightingStyleState[];
+        // armed?: keyof typeof Enum.KeyCode;
+        // activeStyleIndex: number;
+        // fightingStyles: FightingStyleState[];
     };
 
 // Utility types
@@ -118,5 +117,9 @@ export type SquadConfig = {
 }
 
 export type SquadBattleConfig = {
-    squads: Record<string, SquadConfig[]>;
+    teams: Record<string, SquadConfig[]>;
+}
+
+export type SquadUpdate = {
+    entityUpdates?: EntityUpdate[];
 }
