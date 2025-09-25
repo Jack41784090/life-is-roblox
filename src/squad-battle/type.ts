@@ -81,7 +81,7 @@ export type EntityBaseAttributes = {
  * ```
  */
 export type EntityConfig =
-    EntityBaseAttributes // base attributes that include base, changeable stats, qr pos, player id
+    Omit<EntityBaseAttributes, 'changeableStats'> // base attributes that include base, changeable stats, qr pos, player id
     & {
         name?: string;
         team: string;

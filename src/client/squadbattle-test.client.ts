@@ -1,4 +1,4 @@
-import { getDummyChangeableStats, getDummyStats } from "shared/utils";
+import { getDummyStats } from "shared/utils";
 import { SquadBattle } from "squad-battle";
 
 const sb = new SquadBattle({
@@ -8,7 +8,6 @@ const sb = new SquadBattle({
                 {
                     playerID: 1,
                     stats: getDummyStats(),
-                    changeableStats: getDummyChangeableStats(),
                     team: 'team1',
                 }
             ],
@@ -19,7 +18,6 @@ const sb = new SquadBattle({
                 {
                     playerID: 2,
                     stats: getDummyStats(),
-                    changeableStats: getDummyChangeableStats(),
                     team: 'team2'
                 }
             ],
