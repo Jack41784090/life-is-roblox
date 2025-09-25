@@ -1,7 +1,7 @@
 import { getDummyStats } from "shared/utils";
-import { SquadBattle } from "squad-battle/Battle";
+import { SquadBattleInstance } from "squad-battle";
 
-const sb = new SquadBattle({
+const sb = new SquadBattleInstance({
     squads: {
         'team1': [{
             entities: [
