@@ -41,23 +41,27 @@ export class SquadEntity {
             case 'HP': return this.calculateRealityValue(Reality.HP);
             case 'ORG': return this.calculateRealityValue(Reality.Guts);
             case 'LOC': return SquadEntityInSquadLocation.back;
-            default: return 1000;
+            default: return 100;
         }
     }
 
     public mod_changeableStat(property: EntityChangeable, by: number) {
-        // this.logger.debug(`${this.name}: Changing ${property} by ${by}`);
         const changeable = this.changeableStats;
         const oldValue = changeable[property]();
-        changeable[property](math.clamp(oldValue + by, 0, this.getCeiling_changeableStat(property)));
+        const newValue = math.clamp(oldValue + by, 0, this.getCeiling_changeableStat(property))
+        changeable[property](newValue);
+
+        this.logger.debug(`${property}: ${oldValue} =mod=> ${newValue}`);
         return oldValue;
     }
 
     public set_changeableStat(property: EntityChangeable, to: number) {
-        // this.logger.debug(`${this.name}: Changing ${property} by ${by}`);
         const changeable = this.changeableStats;
         const oldValue = changeable[property]();
-        changeable[property](math.clamp(to, 0, this.getCeiling_changeableStat(property)))
+        const newValue = math.clamp(to, 0, this.getCeiling_changeableStat(property));
+        changeable[property](newValue)
+
+        this.logger.debug(`${property}: ${oldValue} =set=> ${newValue}`);
         return oldValue;
     }
 
