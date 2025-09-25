@@ -3,7 +3,7 @@ import GuiMothership from "gui_sharedfirst/new_components/main";
 import BattleField from 'gui_sharedfirst/squad-battle/BattleField';
 import { SquadBattle } from "squad-battle/Battle";
 
-class SquadBattleGraphics {
+export class SquadBattleGraphics {
     squadBattle: SquadBattle;
     // guimothership = GuiMothership.Get();
 
