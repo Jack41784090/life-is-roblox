@@ -6,7 +6,7 @@ import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityConfig,
 
 // ENTITY //
 
-type EnemySquadMetadata = Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>;
+type SquadMetadata = Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>;
 
 export class SquadEntity {
     private logger: ContextLogger;
@@ -84,8 +84,13 @@ export class SquadEntity {
     }
 
     public heal(num: number) {
-        if (num < 0) return;
-        this.mod_changeableStat('HP', num)
+        if (num < 0) return { playerID: this.playerID };
+        return this.mod_changeableStat('HP', num)
+    }
+
+    public boost(num: number) {
+        if (num < 0) return { playerID: this.playerID };
+        return this.mod_changeableStat('ORG', num)
     }
 
     private _deorgAfterDamage(dm: number): EntityUpdate {
@@ -143,9 +148,13 @@ export class SquadEntity {
         }
     }
 
-    public attack(enemySquad: EnemySquadMetadata): EntityUpdate[] {
+    public attack(ourSquad: SquadMetadata, enemySquad: SquadMetadata): EntityUpdate[] {
         const updates: EntityUpdate[] = [];
-        const logic = new Frontline(this, enemySquad);
+        const logic = new Frontline({
+            entity: this,
+            enemy_squad: enemySquad,
+            our_squad: ourSquad
+        });
         const action = logic.choose_action();
         switch (action) {
             case 'attack': {
@@ -173,6 +182,16 @@ export class SquadEntity {
                 this.logger.debug("idling")
                 break;
             }
+
+            case 'heal': {
+                const physicalheal = 5;
+                const spiritheal = 7;
+                const samelineallies = ourSquad[this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation];
+                if (samelineallies?.size()) {
+                    const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
+                    updates.push(ally.heal(physicalheal), ally.boost(spiritheal));
+                }
+            }
         }
 
         return updates;
@@ -186,10 +205,18 @@ type SquadEntityAction = |
     'idle' |
     'forward' |
     'retreat' |
-    'attack'
+    'attack' |
+    'heal';
 
 type SquadBattleSituation = {
     myLocation: SquadEntityInSquadLocation;
+    frontlineAllies: SquadEntity[] | undefined;
+    frontlineAlliesNumbers: number | undefined;
+    midlineAllies: SquadEntity[] | undefined;
+    midlineAlliesNumbers: number | undefined;
+    backlineAllies: SquadEntity[] | undefined;
+    backlineAlliesNumbers: number | undefined;
+
     frontLineEnemies: SquadEntity[] | undefined;
     frontlineNumbers: number;
     midlineEnemies: SquadEntity[] | undefined;
@@ -198,29 +225,51 @@ type SquadBattleSituation = {
     backlineNumbers: number | undefined;
 }
 
+type LogicContext = {
+    entity: SquadEntity;
+    enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>;
+    our_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>;
+}
+
 class Logic {
     protected logger: ContextLogger;
     protected entity: SquadEntity;
     protected situation: SquadBattleSituation;
-    protected constructor(entity: SquadEntity, enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>) {
-        this.entity = entity;
+    protected context: LogicContext;
+    protected constructor(context: LogicContext) {
+        this.context = context;
+        this.entity = context.entity;
         this.logger = Logger.createContextLogger(this.entity.name + "--logic")
-        this.situation = this.accessSituation(enemy_squad);
+        this.situation = this.accessSituation(context);
     }
 
-    protected accessSituation(enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>): SquadBattleSituation {
+    protected accessSituation(context: LogicContext): SquadBattleSituation {
         // 1. Where am I right now?
         const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
         // 2. Where are my enemies right now? and how are they doing?
-        const frontLineEnemies = enemy_squad[SquadEntityInSquadLocation.front];
+        const frontLineEnemies = context.enemy_squad[SquadEntityInSquadLocation.front];
         const frontlineNumbers = frontLineEnemies?.size() || 0;
-        const midlineEnemies = enemy_squad[SquadEntityInSquadLocation.middle];
+        const midlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.middle];
         const midlineNumbers = midlineEnemies?.size();
-        const backlineEnemies = enemy_squad[SquadEntityInSquadLocation.back];
+        const backlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.back];
         const backlineNumbers = backlineEnemies?.size();
+
+        // 3. Where are my allies right now? and how are they doing?
+        const frontlineAllies = context.our_squad[SquadEntityInSquadLocation.front];
+        const frontlineAlliesNumbers = frontlineAllies?.size();
+        const midlineAllies = context.our_squad[SquadEntityInSquadLocation.middle];
+        const midlineAlliesNumbers = midlineAllies?.size();
+        const backlineAllies = context.our_squad[SquadEntityInSquadLocation.back];
+        const backlineAlliesNumbers = backlineAllies?.size();
 
         return this.situation = {
             myLocation,
+            frontlineAllies,
+            frontlineAlliesNumbers,
+            midlineAllies,
+            midlineAlliesNumbers,
+            backlineAllies,
+            backlineAlliesNumbers,
             frontLineEnemies,
             frontlineNumbers,
             midlineEnemies,
@@ -236,11 +285,27 @@ class Logic {
 }
 
 class Frontline extends Logic {
-    constructor(entity: SquadEntity, enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>) {
-        super(entity, enemy_squad);
+
+    constructor(context: LogicContext) {
+        super(context);
     }
 
-    // private
+    private forwardIfBrave(): SquadEntityAction | undefined {
+        if (this.entity.get_changeableStat_num('ORG') / this.entity.getCeiling_changeableStat('ORG') > 0.5) {
+            return 'forward' as SquadEntityAction;
+        }
+        return undefined;
+    }
+
+    private healOthersIfAround(): SquadEntityAction | undefined {
+        const mylocation = this.situation.myLocation;
+        let allies: SquadEntity[] | undefined;
+        this.context.our_squad[mylocation] && (allies = this.context.our_squad[mylocation]);
+        if (allies?.size()) {
+            return 'heal';
+        }
+        return undefined;
+    }
 
     public choose_action() {
         const { myLocation } = this.situation;
@@ -248,12 +313,7 @@ class Frontline extends Logic {
             case SquadEntityInSquadLocation.front:
                 return 'attack' as SquadEntityAction;
             default:
-                if (this.entity.get_changeableStat_num('ORG') / this.entity.getCeiling_changeableStat('ORG') > 0.3) {
-                    return 'forward' as SquadEntityAction;
-                }
-                else {
-                    return 'idle' as SquadEntityAction;
-                }
+                return this.forwardIfBrave() || this.healOthersIfAround() || 'idle';
         }
     }
 
@@ -278,4 +338,8 @@ class Frontline extends Logic {
         this.logger.debug(`chosetarget: ${myTarget?.name || "cannot"}`);
         return myTarget;
     }
+}
+
+class Backline extends Logic {
+
 }

@@ -47,7 +47,7 @@ export class Squad {
         // from.entities.sort((a, b))
         for (let i = 0; i < squadsize; i++) {
             const attackingEntity = from.entities[i];
-            const attackUpdates = attackingEntity.attack(this.get_allEntities());
+            const attackUpdates = attackingEntity.attack(from.get_allEntities(), this.get_allEntities());
             attackUpdates.forEach(au => entityUpdates.push(au));
         }
 
