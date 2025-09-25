@@ -1,7 +1,7 @@
 import Logger from "shared/utils/Logger";
 import { uniformRandom } from '../../shared/utils/index';
 import { Squad } from "../Squad";
-import { SquadBattleConfig } from "../type";
+import { SquadBattleConfig, SquadUpdate } from "../type";
 
 export class SquadBattle {
     logger = Logger.createContextLogger("SquadBattle");
@@ -9,13 +9,9 @@ export class SquadBattle {
     private teamNames: string[] = [];
 
     constructor(config: SquadBattleConfig) {
-        for (const [tn, sc] of pairs(config.squads)) {
+        for (const [tn, sc] of pairs(config.teams)) {
             this.teamsAndSquads[tn] = sc.map(sc => new Squad(sc));
-        }
-        // Cache team names for efficient lookup
-        this.teamNames = [];
-        for (const [teamName] of pairs(this.teamsAndSquads)) {
-            this.teamNames.push(teamName);
+            this.teamNames.push(tn);
         }
     }
 
@@ -28,6 +24,7 @@ export class SquadBattle {
     private getAllEnemySquads(currentTeamName: string): Squad[] {
         const enemySquads: Squad[] = [];
         for (const teamName of this.teamNames) {
+
             if (teamName !== currentTeamName) {
                 this.teamsAndSquads[teamName].forEach(s => {
                     enemySquads.push(s);
@@ -107,12 +104,15 @@ export class SquadBattle {
         this.roundCount++;
 
         // 1. All squads make their moves
+        const squadUpdateRecords: Record<string, SquadUpdate[]> = {};
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
             const targetSquads = this.getAllEnemySquads(teamName);
             for (let i = 0; i < squadsCount; i++) {
                 const squad = squads[i];
-                squad.round(targetSquads, this.roundCount);
+                const squadUpdate = squad.round(targetSquads, this.roundCount);
+                squadUpdateRecords[teamName] = squadUpdateRecords[teamName] || [];
+                if (squadUpdate) squadUpdateRecords[teamName].push(squadUpdate);
             }
         }
 
@@ -126,5 +126,10 @@ export class SquadBattle {
                 }
             }
         }
+
+
+        print(`--- Round ${this.roundCount} Updates ---`);
+        print(squadUpdateRecords);
+        print('------------------------------');
     }
 }

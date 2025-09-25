@@ -1,7 +1,7 @@
 import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import { SquadEntity } from "squad-battle/Entity";
-import { SquadConfig, SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityUpdate, SquadConfig, SquadEntityInSquadLocation, SquadUpdate } from "squad-battle/type";
 
 export class Squad {
     team: string = '';
@@ -40,14 +40,20 @@ export class Squad {
     }
 
     private _lastRoundReceivedAttack: number = -1;
-    receiveAttack(from: Squad, roundCount: number) {
+    receiveAttack(from: Squad, roundCount: number): SquadUpdate {
         this._lastRoundReceivedAttack = roundCount;
         const squadsize = from.entities.size();
+        const entityUpdates: EntityUpdate[] = [];
         // from.entities.sort((a, b))
         for (let i = 0; i < squadsize; i++) {
             const attackingEntity = from.entities[i];
-            attackingEntity.encounter(this.get_allEntities());
+            const attackUpdates = attackingEntity.attack(this.get_allEntities());
+            attackUpdates.forEach(au => entityUpdates.push(au));
         }
+
+        return {
+            entityUpdates,
+        };
     }
 
     get_lastAttackedAtRound() {
@@ -57,12 +63,12 @@ export class Squad {
     private chooseEnemySquad(enemySquads: Squad[]): Squad | undefined {
         let chosenSquad: Squad | undefined = undefined;
         if (enemySquads.size() > 0) {
-            chosenSquad = enemySquads[uniformRandom(0, enemySquads.size() - 1)];
+            chosenSquad = enemySquads[uniformRandom(0, enemySquads.size() - 1, true)];
         }
         return chosenSquad;
     }
 
-    private act_attackRandom(targetableSquads: Squad[], roundCount: number) {
+    private act_attackRandom(targetableSquads: Squad[], roundCount: number): SquadUpdate | undefined {
         // 1. Choose enemy squad
         const enemySquad = this.chooseEnemySquad(targetableSquads);
 
@@ -70,21 +76,25 @@ export class Squad {
         if (enemySquad) {
             this._lastRoundReceivedAttack = roundCount;
             this.logger.debug("Attacking " + enemySquad.name);
-            enemySquad.receiveAttack(this, roundCount);
+            return enemySquad.receiveAttack(this, roundCount);
         }
     }
 
-    private act_idle() {
+    private act_idle(): SquadUpdate | undefined {
         this.logger.debug("idling")
+        return undefined;
+        // return this.recovery();
     }
 
     round(enemySquads: Squad[], roundCount: number) {
         const random = math.random();
-        if (random >= .5) {
-            this.act_attackRandom(enemySquads, roundCount);
-        }
-        else {
-            this.act_idle();
-        }
+        // if (random >= .5) {
+        //     return this.act_attackRandom(enemySquads, roundCount);
+        // }
+        // else {
+        //     return this.act_idle();
+        // }
+        return this.act_attackRandom(enemySquads, roundCount);
+
     }
 }
