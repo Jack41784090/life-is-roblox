@@ -45,7 +45,7 @@ export class Squad {
         const squadsize = from.entities.size();
         for (let i = 0; i < squadsize; i++) {
             const attackingEntity = from.entities[i];
-            const targetEntity = attackingEntity.chooseTarget(this);
+            const targetEntity = attackingEntity.chooseTarget(this.get_allEntities());
             if (targetEntity) {
                 targetEntity.damage(10);
             }

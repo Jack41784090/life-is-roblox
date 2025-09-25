@@ -100,12 +100,12 @@ export class SquadEntity {
     }
 
     // squad-based chooser functions
-    public chooseTarget(enemy_squad: Squad) {
+    public chooseTarget(enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>) {
         // Thinking process:
         // 1. Where am I right now?
         const myLocation = this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
         // 2. Where are my enemies right now? and how are they doing?
-        const squadEnemies = enemy_squad.get_allEntities();
+        const squadEnemies = enemy_squad;
         const frontLineEnemies = squadEnemies[SquadEntityInSquadLocation.front];
         const frontlineNumbers = frontLineEnemies?.size() || 0;
         // 3. Who is the easy target? What is defined as a "easy target"?
@@ -122,7 +122,7 @@ export class SquadEntity {
         return myTarget;
     }
 
-    calculateRealityValue(reality: Reality): number {
+    private calculateRealityValue(reality: Reality): number {
         const stats = this.stats;
         switch (reality) {
             case Reality.HP:
