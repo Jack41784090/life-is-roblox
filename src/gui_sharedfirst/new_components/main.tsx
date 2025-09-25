@@ -26,15 +26,17 @@ class GuiMothership {
         return GuiMothership.instance;
     }
 
-    public static Mount(key: string, element: React.Element) {
+    public static Mount(key: string, element: React.Element, overwrite = true): void {
         // print("Mounting", key, element);
         if (!GuiMothership.instance) {
             GuiMothership.instance = new GuiMothership();
         }
         const instance = GuiMothership.instance;
-        instance.children.delete(key);
-        instance.children.set(key, element);
-        instance.root.render(instance.element());
+        if (overwrite || !instance.children.has(key)) {
+            instance.children.delete(key);
+            instance.children.set(key, element);
+            instance.root.render(instance.element());
+        }
         // print("Mounting", key, instance.children);
     }
 
