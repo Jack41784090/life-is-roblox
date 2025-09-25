@@ -1,7 +1,7 @@
 import Logger from "shared/utils/Logger";
-import { uniformRandom } from '../shared/utils/index';
-import { Squad } from "./Squad";
-import { SquadBattleConfig } from "./type";
+import { uniformRandom } from '../../shared/utils/index';
+import { Squad } from "../Squad";
+import { SquadBattleConfig } from "../type";
 
 
 

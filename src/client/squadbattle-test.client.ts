@@ -1,5 +1,5 @@
 import { getDummyStats } from "shared/utils";
-import { SquadBattle } from "squad-battle";
+import { SquadBattle } from "squad-battle/Battle";
 
 const sb = new SquadBattle({
     squads: {
