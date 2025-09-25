@@ -1,4 +1,4 @@
-import { Atom } from "@rbxts/charm";
+import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
@@ -22,7 +22,14 @@ export class SquadEntity {
         this.playerID = options.playerID;
         this.team = options.team;
         this.stats = { ...options.stats, id: options.stats.id };
-        this.changeableStats = { ...options.changeableStats }
+        this.changeableStats = {
+            HP: atom(this.getCeiling_changeableStat('HP')),
+            STA: atom(this.getCeiling_changeableStat('STA')),
+            ORG: atom(this.getCeiling_changeableStat('ORG')),
+            POS: atom(this.getCeiling_changeableStat('POS')),
+            MAG: atom(this.getCeiling_changeableStat('MAG')),
+            LOC: atom(this.getCeiling_changeableStat('LOC')),
+        }
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.logger = Logger.createContextLogger(`Entity:${this.name}[${this.playerID}]`)
         // this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
