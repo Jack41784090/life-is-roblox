@@ -114,29 +114,6 @@ export class SquadEntity {
         this._deorgAfterDamage(num);
     }
 
-    // squad-based chooser functions
-    public chooseTarget(enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>) {
-        // Thinking process:
-        // 1. Where am I right now?
-        const myLocation = this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
-        // 2. Where are my enemies right now? and how are they doing?
-        const squadEnemies = enemy_squad;
-        const frontLineEnemies = squadEnemies[SquadEntityInSquadLocation.front];
-        const frontlineNumbers = frontLineEnemies?.size() || 0;
-        // 3. Who is the easy target? What is defined as a "easy target"?
-        let myTarget: SquadEntity | undefined;
-        switch (myLocation) {
-            // I am at the frontlines, so my priority should be those in front of me
-            case SquadEntityInSquadLocation.front:
-                myTarget = frontLineEnemies?.[uniformRandom(0, frontlineNumbers - 1)];
-                break;
-            // case
-        }
-
-        this.logger.debug(`chosetarget: ${myTarget?.name || "cannot"}`);
-        return myTarget;
-    }
-
     private calculateRealityValue(reality: Reality): number {
         const stats = this.stats;
         switch (reality) {
@@ -164,5 +141,132 @@ export class SquadEntity {
                 this.logger.warn(`Reality value for ${reality} not found`, "RealityCalculations");
                 return 0;
         }
+    }
+
+    public encounter(enemySquad: EnemySquadMetadata) {
+        const logic = new Frontline(this, enemySquad);
+        const action = logic.choose_action();
+        switch (action) {
+            case 'attack': {
+                const target = logic.choose_target();
+                if (target) {
+                    const dm = 10;
+                    target.damage(dm);
+                    this.logger.debug(`Attacked ${target.name} for ${dm} damage`)
+                }
+                break;
+            }
+
+            case 'forward': {
+                this.mod_changeableStat('LOC', -1);
+                break;
+            }
+
+            case 'retreat': {
+                this.mod_changeableStat('LOC', 1);
+                break;
+            }
+
+            case 'idle': {
+                this.logger.debug("idling")
+                break;
+            }
+        }
+    }
+}
+
+
+// LOGIC //
+
+type SquadEntityAction = |
+    'idle' |
+    'forward' |
+    'retreat' |
+    'attack'
+
+type SquadBattleSituation = {
+    myLocation: SquadEntityInSquadLocation;
+    frontLineEnemies: SquadEntity[] | undefined;
+    frontlineNumbers: number;
+    midlineEnemies: SquadEntity[] | undefined;
+    midlineNumbers: number | undefined;
+    backlineEnemies: SquadEntity[] | undefined;
+    backlineNumbers: number | undefined;
+}
+
+class Logic {
+    protected logger: ContextLogger;
+    protected entity: SquadEntity;
+    protected situation: SquadBattleSituation;
+    protected constructor(entity: SquadEntity, enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>) {
+        this.entity = entity;
+        this.logger = Logger.createContextLogger(this.entity.name + "--logic")
+        this.situation = this.accessSituation(enemy_squad);
+    }
+
+    protected accessSituation(enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>): SquadBattleSituation {
+        // 1. Where am I right now?
+        const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
+        // 2. Where are my enemies right now? and how are they doing?
+        const frontLineEnemies = enemy_squad[SquadEntityInSquadLocation.front];
+        const frontlineNumbers = frontLineEnemies?.size() || 0;
+        const midlineEnemies = enemy_squad[SquadEntityInSquadLocation.middle];
+        const midlineNumbers = midlineEnemies?.size();
+        const backlineEnemies = enemy_squad[SquadEntityInSquadLocation.back];
+        const backlineNumbers = backlineEnemies?.size();
+
+        return this.situation = {
+            myLocation,
+            frontLineEnemies,
+            frontlineNumbers,
+            midlineEnemies,
+            midlineNumbers,
+            backlineEnemies,
+            backlineNumbers
+        }
+    }
+
+    public choose_target(): SquadEntity | undefined {
+        return undefined;
+    }
+}
+
+class Frontline extends Logic {
+    constructor(entity: SquadEntity, enemy_squad: Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>) {
+        super(entity, enemy_squad);
+    }
+
+    // private
+
+    public choose_action() {
+        const { myLocation } = this.situation;
+        switch (myLocation) {
+            case SquadEntityInSquadLocation.front:
+                return 'attack' as SquadEntityAction;
+            default:
+                return 'forward' as SquadEntityAction;
+        }
+    }
+
+    public override choose_target() {
+        // Thinking process:
+        const { myLocation, frontLineEnemies, frontlineNumbers, midlineEnemies, midlineNumbers, backlineEnemies, backlineNumbers } = this.situation;
+
+        let myTarget: SquadEntity | undefined;
+        switch (myLocation) {
+            // I am at the frontlines, so my priority should be those in front of me
+            case SquadEntityInSquadLocation.front:
+                myTarget = frontLineEnemies?.[uniformRandom(0, frontlineNumbers - 1)] ||
+                    midlineEnemies?.[uniformRandom(0, (midlineNumbers || 1) - 1)] ||
+                    backlineEnemies?.[uniformRandom(0, (backlineNumbers || 1) - 1)];
+                break;
+
+            // i should be at the frontline!
+            default:
+                break;
+        }
+
+        this.logger.debug(`chosetarget: ${myTarget?.name || "cannot"}`);
+        return myTarget;
     }
 }
