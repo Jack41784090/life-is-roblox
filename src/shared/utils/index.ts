@@ -350,8 +350,9 @@ export function get2DEuclidDistance(a: Vector2 | Vector3, b: Vector2 | Vector3):
     }
 }
 
-export function uniformRandom(min: number, max: number): number {
-    return math.random() * (max - min) + min;
+export function uniformRandom(min: number, max: number, round = false): number {
+    const r = math.random() * (max - min) + min
+    return round ? math.round(r) : r;
 }
 
 //===========================================================================
@@ -704,7 +705,7 @@ import { EntityBaseStats } from "shared/class/battle/State/Entity/types";
 import { AbilityConfig } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { ClashResult, Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { GlobalAtoms } from "shared/datastore";
-import { EntityChangeableStats, SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
 
 export function filterPayload(player: Player, payload: SyncPayload<GlobalAtoms>) {
     if (payload.type === "init") {
@@ -751,4 +752,31 @@ export async function getPromiseStatus<T>(promise: Promise<T>): Promise<'pending
         }
         return 'rejected';
     }
+}
+
+export function combineEntityUpdates(entityUpdates: EntityUpdate[]) {
+    if (entityUpdates.size() === 0) return;
+    const ogupdate = {
+        ...entityUpdates[0]
+    }
+    for (let i = 1; i < entityUpdates.size(); i++) {
+        const u = entityUpdates[i];
+        if (u.playerID === ogupdate.playerID) {
+            for (const [k, v] of pairs(u)) {
+                switch (k) {
+                    case 'changeableStats':
+                        ogupdate.changeableStats = {
+                            ...ogupdate.changeableStats,
+                            ...u.changeableStats
+                        }
+                        break;
+                    default:
+                        ogupdate[k] = v as never;
+                    // case 
+                }
+            }
+        }
+    }
+
+    return ogupdate
 }
