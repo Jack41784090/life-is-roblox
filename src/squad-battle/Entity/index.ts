@@ -143,16 +143,18 @@ export class SquadEntity {
         }
     }
 
-    public encounter(enemySquad: EnemySquadMetadata) {
+    public attack(enemySquad: EnemySquadMetadata): EntityUpdate[] {
+        const updates: EntityUpdate[] = [];
         const logic = new Frontline(this, enemySquad);
         const action = logic.choose_action();
         switch (action) {
             case 'attack': {
                 const target = logic.choose_target();
                 if (target) {
-                    const dm = 10;
-                    target.damage(dm);
-                    this.logger.debug(`Attacked ${target.name} for ${dm} damage`)
+                    const dm = 5;
+                    const damageUpdate = target.damage(dm);
+                    updates.push(damageUpdate);
+                    this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
                 }
                 break;
             }
@@ -172,6 +174,8 @@ export class SquadEntity {
                 break;
             }
         }
+
+        return updates;
     }
 }
 
@@ -244,7 +248,12 @@ class Frontline extends Logic {
             case SquadEntityInSquadLocation.front:
                 return 'attack' as SquadEntityAction;
             default:
-                return 'forward' as SquadEntityAction;
+                if (this.entity.get_changeableStat_num('ORG') / this.entity.getCeiling_changeableStat('ORG') > 0.3) {
+                    return 'forward' as SquadEntityAction;
+                }
+                else {
+                    return 'idle' as SquadEntityAction;
+                }
         }
     }
 
@@ -256,9 +265,9 @@ class Frontline extends Logic {
         switch (myLocation) {
             // I am at the frontlines, so my priority should be those in front of me
             case SquadEntityInSquadLocation.front:
-                myTarget = frontLineEnemies?.[uniformRandom(0, frontlineNumbers - 1)] ||
-                    midlineEnemies?.[uniformRandom(0, (midlineNumbers || 1) - 1)] ||
-                    backlineEnemies?.[uniformRandom(0, (backlineNumbers || 1) - 1)];
+                myTarget = frontLineEnemies?.[uniformRandom(0, frontlineNumbers - 1, true)] ||
+                    midlineEnemies?.[uniformRandom(0, (midlineNumbers || 1) - 1, true)] ||
+                    backlineEnemies?.[uniformRandom(0, (backlineNumbers || 1) - 1, true)];
                 break;
 
             // i should be at the frontline!
