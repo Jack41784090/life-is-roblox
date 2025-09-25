@@ -88,12 +88,17 @@ export class SquadEntity {
         this.mod_changeableStat('HP', num)
     }
 
-    private _deorgAfterDamage(dm: number) {
-        this.mod_changeableStat('ORG', -(dm * 1.5));
+    private _deorgAfterDamage(dm: number): EntityUpdate {
+        const baseDamageDeorg = -(dm * 1.5);
+        const closeToDeathDeorg = -(this.get_changeableStat_num('HP') / this.getCeiling_changeableStat('HP')) * 10;
+        let update1 = this.mod_changeableStat('ORG', baseDamageDeorg + closeToDeathDeorg);
         if (this.get_changeableStat_num('ORG') <= 0) {
-            this.mod_changeableStat('LOC', 1);
-            this.set_changeableStat('ORG', this.getCeiling_changeableStat('ORG') * 0.1)
+            const update2 = this.mod_changeableStat('LOC', 1);
+            const update3 = this.set_changeableStat('ORG', this.getCeiling_changeableStat('ORG') * 0.1)
+            update1 = combineEntityUpdates([update1, update2, update3])!;
         }
+
+        return update1;
     }
 
     public recover() {
@@ -101,11 +106,12 @@ export class SquadEntity {
         this.heal(1);
     }
 
-    public damage(num: number) {
-        if (num < 0) return;
+    public damage(num: number): EntityUpdate {
+        if (num < 0) return { playerID: this.playerID };
         this.logger.debug("taking damage: " + num);
-        this.mod_changeableStat('HP', -num);
-        this._deorgAfterDamage(num);
+        const update1 = this.mod_changeableStat('HP', -num);
+        const update2 = this._deorgAfterDamage(num);
+        return combineEntityUpdates([update1, update2])!;
     }
 
     private calculateRealityValue(reality: Reality): number {
