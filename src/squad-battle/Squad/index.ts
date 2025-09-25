@@ -43,12 +43,10 @@ export class Squad {
     receiveAttack(from: Squad, roundCount: number) {
         this._lastRoundReceivedAttack = roundCount;
         const squadsize = from.entities.size();
+        // from.entities.sort((a, b))
         for (let i = 0; i < squadsize; i++) {
             const attackingEntity = from.entities[i];
-            const targetEntity = attackingEntity.chooseTarget(this.get_allEntities());
-            if (targetEntity) {
-                targetEntity.damage(10);
-            }
+            attackingEntity.encounter(this.get_allEntities());
         }
     }
 

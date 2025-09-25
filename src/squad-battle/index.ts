@@ -134,8 +134,10 @@ export class SquadBattle {
     }
 
     autoBattle() {
-        while (this.checkVictory() === false) {
+        while (this.checkVictory() === false && this.roundCount < 100) {
+            print(`--- Round ${this.roundCount + 1} ---`);
             this.round();
+            print('')
         }
     }
 }
