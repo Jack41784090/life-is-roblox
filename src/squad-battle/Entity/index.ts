@@ -1,8 +1,8 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
-import { uniformRandom } from "shared/utils";
+import { combineEntityUpdates, uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
-import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityConfig, SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityConfig, EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
 
 // ENTITY //
 
@@ -56,19 +56,11 @@ export class SquadEntity {
         }
     }
 
-    public mod_changeableStat(property: EntityChangeable, by: number) {
-        const changeable = this.changeableStats;
-        const oldValue = changeable[property]();
-        const newValue = math.clamp(oldValue + by,
-            this.getFloor_changeableStat(property),
-            this.getCeiling_changeableStat(property))
-        changeable[property](newValue);
-
-        this.logger.debug(`${property}: ${oldValue} =mod=> ${newValue}`);
-        return oldValue;
+    public mod_changeableStat(property: EntityChangeable, by: number): EntityUpdate {
+        return this.set_changeableStat(property, this.get_changeableStat_num(property) + by);
     }
 
-    public set_changeableStat(property: EntityChangeable, to: number) {
+    public set_changeableStat(property: EntityChangeable, to: number): EntityUpdate {
         const changeable = this.changeableStats;
         const oldValue = changeable[property]();
         const newValue = math.clamp(to,
@@ -76,8 +68,10 @@ export class SquadEntity {
             this.getCeiling_changeableStat(property));
         changeable[property](newValue)
 
-        this.logger.debug(`${property}: ${oldValue} =set=> ${newValue}`);
-        return oldValue;
+        this.logger.debug(`${property}: ${oldValue} ==> ${newValue}`);
+        const update = { playerID: this.playerID, changeableStats: {} as Partial<Record<EntityChangeable, number>> };
+        update.changeableStats[property as EntityChangeable] = newValue;
+        return update;
     }
 
     public get_changeableStat_num(property: EntityChangeable): number {
