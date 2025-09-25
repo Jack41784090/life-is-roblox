@@ -4,6 +4,10 @@ import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityConfig, SquadEntityInSquadLocation } from "squad-battle/type";
 
+// ENTITY //
+
+type EnemySquadMetadata = Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>>;
+
 export class SquadEntity {
     private logger: ContextLogger;
     public readonly playerID: number;
@@ -45,10 +49,19 @@ export class SquadEntity {
         }
     }
 
+    public getFloor_changeableStat(property: EntityChangeable) {
+        switch (property) {
+            case 'LOC': return SquadEntityInSquadLocation.front;
+            default: return 0;
+        }
+    }
+
     public mod_changeableStat(property: EntityChangeable, by: number) {
         const changeable = this.changeableStats;
         const oldValue = changeable[property]();
-        const newValue = math.clamp(oldValue + by, 0, this.getCeiling_changeableStat(property))
+        const newValue = math.clamp(oldValue + by,
+            this.getFloor_changeableStat(property),
+            this.getCeiling_changeableStat(property))
         changeable[property](newValue);
 
         this.logger.debug(`${property}: ${oldValue} =mod=> ${newValue}`);
@@ -58,7 +71,9 @@ export class SquadEntity {
     public set_changeableStat(property: EntityChangeable, to: number) {
         const changeable = this.changeableStats;
         const oldValue = changeable[property]();
-        const newValue = math.clamp(to, 0, this.getCeiling_changeableStat(property));
+        const newValue = math.clamp(to,
+            this.getFloor_changeableStat(property),
+            this.getCeiling_changeableStat(property));
         changeable[property](newValue)
 
         this.logger.debug(`${property}: ${oldValue} =set=> ${newValue}`);
