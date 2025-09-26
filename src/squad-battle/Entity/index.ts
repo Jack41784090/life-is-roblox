@@ -57,11 +57,11 @@ export class SquadEntity {
         }
     }
 
-    public mod_changeableStat(property: EntityChangeable, by: number): EntityUpdate {
+    public mod_changeableStat(property: EntityChangeable, by: number): EntityChange {
         return this.set_changeableStat(property, this.get_changeableStat_num(property) + by);
     }
 
-    public set_changeableStat(property: EntityChangeable, to: number): EntityUpdate {
+    public set_changeableStat(property: EntityChangeable, to: number): EntityChange {
         const changeable = this.changeableStats;
         const oldValue = changeable[property]();
         const newValue = math.clamp(to,
@@ -70,9 +70,12 @@ export class SquadEntity {
         changeable[property](newValue)
 
         this.logger.debug(`${property}: ${oldValue} ==> ${newValue}`);
-        const update = { playerID: this.playerID, changeableStats: {} as Partial<Record<EntityChangeable, number>> };
-        update.changeableStats[property as EntityChangeable] = newValue;
-        return update;
+
+        return {
+            from: oldValue,
+            to: newValue,
+            property,
+        };
     }
 
     public get_changeableStat_num(property: EntityChangeable): number {
@@ -84,27 +87,35 @@ export class SquadEntity {
         return changeable[property];
     }
 
-    public heal(num: number) {
-        if (num < 0) return { playerID: this.playerID };
+    public heal(num: number): EntityChange | undefined {
+        if (num < 0) return;
         return this.mod_changeableStat('HP', num)
     }
 
-    public boost(num: number) {
-        if (num < 0) return { playerID: this.playerID };
+    public boost(num: number): EntityChange | undefined {
+        if (num < 0) return;
         return this.mod_changeableStat('ORG', num)
     }
 
-    private _deorgAfterDamage(dm: number): EntityUpdate {
+    private _deorgAfterDamage(dm: number, source: number): EntityUpdate[] {
+        const affected = this.playerID;
         const baseDamageDeorg = -(dm * 1.5);
         const closeToDeathDeorg = -(this.get_changeableStat_num('HP') / this.getCeiling_changeableStat('HP')) * 10;
-        let update1 = this.mod_changeableStat('ORG', baseDamageDeorg + closeToDeathDeorg);
+        const changes: EntityUpdate[] = [
+            {
+                source,
+                affected,
+                change: this.mod_changeableStat('ORG', baseDamageDeorg + closeToDeathDeorg)
+            }
+        ]
         if (this.get_changeableStat_num('ORG') <= 0) {
-            const update2 = this.mod_changeableStat('LOC', 1);
-            const update3 = this.set_changeableStat('ORG', this.getCeiling_changeableStat('ORG') * 0.1)
-            update1 = combineEntityUpdates([update1, update2, update3])!;
+            changes.push(
+                { source: affected, affected, change: this.mod_changeableStat('LOC', 1) },
+                { source: affected, affected, change: this.set_changeableStat('ORG', this.getCeiling_changeableStat('ORG') * 0.1) }
+            )
         }
 
-        return update1;
+        return changes;
     }
 
     public recover() {
@@ -112,12 +123,28 @@ export class SquadEntity {
         this.heal(1);
     }
 
-    public damage(num: number): EntityUpdate {
-        if (num < 0) return { playerID: this.playerID };
-        this.logger.debug("taking damage: " + num);
-        const update1 = this.mod_changeableStat('HP', -num);
-        const update2 = this._deorgAfterDamage(num);
-        return combineEntityUpdates([update1, update2])!;
+    public damage(num: number, source: number): EntityUpdate[] {
+        const oldHP = this.get_changeableStat_num('HP');
+        const affected = this.playerID
+        if (num <= 0) {
+            return [{
+                source,
+                affected,
+                change: {
+                    property: 'HP',
+                    from: oldHP,
+                    to: oldHP,
+                }
+            }]
+        }
+        else {
+            this.logger.debug("taking damage: " + num);
+            const x = [
+                { source, affected, change: this.mod_changeableStat('HP', -num) },
+            ]
+            this._deorgAfterDamage(num, source).forEach(u => x.push(u));
+            return x;
+        }
     }
 
     private calculateRealityValue(reality: Reality): number {
@@ -162,8 +189,9 @@ export class SquadEntity {
                 const target = logic.choose_target();
                 if (target) {
                     const dm = 5;
-                    const damageUpdate = target.damage(dm);
-                    updates.push(damageUpdate);
+                    const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
+                    damageUpdate.forEach(eu => updates.push(eu))
+                    // updates.push(damageUpdate);
                     this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
                 }
                 break;
@@ -190,7 +218,23 @@ export class SquadEntity {
                 const samelineallies = ourSquad[this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation];
                 if (samelineallies?.size()) {
                     const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
-                    updates.push(ally.heal(physicalheal), ally.boost(spiritheal));
+
+                    let heal;
+                    if (heal = ally.heal(physicalheal)) {
+                        updates.push({
+                            source: this.playerID,
+                            affected: ally.playerID,
+                            change: heal,
+                        });
+                    }
+                    let boost;
+                    if (boost = ally.boost(spiritheal)) {
+                        updates.push({
+                            source: this.playerID,
+                            affected: ally.playerID,
+                            change: boost
+                        })
+                    }
                 }
             }
         }
