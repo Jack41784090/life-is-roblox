@@ -121,7 +121,7 @@ export type SquadBattleConfig = {
 }
 
 export type EntityChange = {
-    property: EntityChangeable;
+    property: EntityChangeable | 'LEAVE' | 'DIE';
     from: number;
     to: number;
 };
