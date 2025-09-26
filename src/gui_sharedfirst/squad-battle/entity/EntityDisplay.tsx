@@ -112,8 +112,6 @@ function PlayerPortrait(props: Props) {
 
     // Find portrait using utility function
     const portraitImage = findEntityPortrait(props.entity.stats.id, 'neutral');
-
-    const circleSize = 0.25; // Size of the circle (25% of the screen size)
     return (
         <frame
             key={"PlayerPortrait-" + props.entity.stats.id}
