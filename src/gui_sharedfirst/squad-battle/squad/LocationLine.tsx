@@ -47,9 +47,7 @@ function LocationLine(props: LocationLineProps) {
                     return (
                         <PlayerPortrait
                             key={`${props.location}-${entity.playerID}`}
-                            entityId={`entity_${entity.playerID}`}
-                            hp={entity.changeableStats.HP}
-                            maxHP={entity.changeableStats.HP()}
+                            entity={entity}
                             entityUpdates={relevantUpdates}
                         />
                     );
