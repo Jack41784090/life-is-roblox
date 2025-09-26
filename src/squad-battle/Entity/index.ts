@@ -181,7 +181,7 @@ export class SquadEntity {
         }
     }
 
-    public attack(ourSquad: SquadMetadata, enemySquad: SquadMetadata): EntityUpdate[] {
+    public action(ourSquad: SquadMetadata, enemySquad: SquadMetadata): EntityUpdate[] {
         const updates: EntityUpdate[] = [];
         const logic = new Frontline({
             entity: this,
@@ -196,24 +196,17 @@ export class SquadEntity {
                     const dm = 5;
                     const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
                     damageUpdate.forEach(eu => updates.push(eu))
-                    // updates.push(damageUpdate);
-                    this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
+                    // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
                 }
                 break;
             }
 
             case 'forward': {
-                this.mod_changeableStat('LOC', -1);
-                break;
-            }
-
-            case 'retreat': {
-                this.mod_changeableStat('LOC', 1);
-                break;
-            }
-
-            case 'idle': {
-                this.logger.debug("idling")
+                updates.push({
+                    source: this.playerID,
+                    affected: this.playerID,
+                    change: this.mod_changeableStat('LOC', -1)
+                });
                 break;
             }
 
@@ -221,6 +214,70 @@ export class SquadEntity {
                 const physicalheal = 5;
                 const spiritheal = 7;
                 const samelineallies = ourSquad[this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation];
+                if (samelineallies?.size()) {
+                    const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
+
+                    let heal;
+                    if (heal = ally.heal(physicalheal)) {
+                        updates.push({
+                            source: this.playerID,
+                            affected: ally.playerID,
+                            change: heal,
+                        });
+                    }
+                    let boost;
+                    if (boost = ally.boost(spiritheal)) {
+                        updates.push({
+                            source: this.playerID,
+                            affected: ally.playerID,
+                            change: boost
+                        })
+                    }
+                }
+            }
+
+            case 'idle': {
+                // this.logger.debug("idling")
+                break;
+            }
+        }
+
+        return updates;
+    }
+
+    public reaction(our_squad: SquadMetadata, enemy_squad: SquadMetadata): EntityUpdate[] {
+        const updates: EntityUpdate[] = [];
+        const logic = new Frontline({
+            entity: this,
+            our_squad,
+            enemy_squad
+        })
+        const reaction = logic.choose_reaction();
+        switch (reaction) {
+            case 'attack': {
+                const target = logic.choose_target();
+                if (target) {
+                    const dm = 5;
+                    const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
+                    damageUpdate.forEach(eu => updates.push(eu))
+                    // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
+                }
+                break;
+            }
+
+            case 'forward': {
+                updates.push({
+                    source: this.playerID,
+                    affected: this.playerID,
+                    change: this.mod_changeableStat('LOC', -1)
+                });
+                break;
+            }
+
+            case 'heal': {
+                const physicalheal = 5;
+                const spiritheal = 7;
+                const samelineallies = our_squad[this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation];
                 if (samelineallies?.size()) {
                     const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
 
