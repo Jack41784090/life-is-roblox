@@ -299,6 +299,32 @@ export class SquadEntity {
                     }
                 }
             }
+
+            case 'idle': {
+                // this.logger.debug("idling")
+                break;
+            }
+
+            case 'retreat': {
+                updates.push({
+                    source: this.playerID,
+                    affected: this.playerID,
+                    change: this.mod_changeableStat('LOC', 1)
+                });
+                break;
+            }
+
+            case 'capitulate': {
+                updates.push({
+                    source: this.playerID,
+                    affected: this.playerID,
+                    change: {
+                        property: 'LEAVE',
+                        from: -1,
+                        to: -1
+                    }
+                })
+            }
         }
 
         return updates;
@@ -313,7 +339,8 @@ type SquadEntityAction = |
     'forward' |
     'retreat' |
     'attack' |
-    'heal';
+    'heal' |
+    'capitulate'
 
 type SquadBattleSituation = {
     myLocation: SquadEntityInSquadLocation;
