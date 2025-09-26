@@ -71,7 +71,7 @@ class GuiMothership {
         return (
             createPortal(
                 <screengui
-                    key={`MAIN-${childrenArray.size()}`}
+                    key={`MAIN`}
                     ResetOnSpawn={false}
                     ZIndexBehavior={Enum.ZIndexBehavior.Sibling}
                     IgnoreGuiInset={true}
