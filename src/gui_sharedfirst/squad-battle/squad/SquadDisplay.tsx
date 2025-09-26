@@ -2,13 +2,12 @@ import React from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
 import { SquadEntityInSquadLocation } from "squad-battle/type";
 import LocationLine from "./LocationLine";
-import SquadHeader from "./SquadHeader";
 
 interface SquadDisplayProps {
     name: string;
     team: string;
     entities: SquadEntity[];
-    position?: UDim2;
+    teamSize: number;
 }
 
 function SquadDisplay(props: SquadDisplayProps) {
@@ -30,47 +29,62 @@ function SquadDisplay(props: SquadDisplayProps) {
     };
 
     const entitiesByLocation = getEntitiesByLocation();
-    const totalHeight = 300;
-    const squadWidth = 400;
+    // const totalHeight = 300;
+    // const squadWidth = 400;
+
+    const headerYSize = .17;
+    const bodyYSize = 1 - headerYSize;
 
     return (
         <frame
-            Position={props.position || new UDim2(0, 0, 0, 0)}
-            Size={new UDim2(0, squadWidth, 0, totalHeight)}
+            // Position={props.position || new UDim2(0, 0, 0, 0)}
+            Position={UDim2.fromScale(0, .5)}
+            Size={UDim2.fromScale(math.min(0.6, 1 / props.teamSize * .8), 1)}
             BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
             BackgroundTransparency={0.3}
             BorderColor3={new Color3(0.6, 0.6, 0.6)}
             BorderSizePixel={2}
+        // SizeConstraint={'RelativeXX'}
         >
-            <SquadHeader name={props.name} team={props.team} />
+            {/* <uiaspectratioconstraint AspectRatio={1} /> */}
+            {/* <textlabel
+                Size={new UDim2(1, 0, headerYSize, 0)}
+                // Position={new UDim2(0, 0, 0, 0)}
+                BackgroundTransparency={1}
+                Text={`${props.name} (${props.team})`}
+                TextColor3={new Color3(1, 1, 1)}
+                TextScaled={true}
+                Font={Enum.Font.GothamBold}
+
+            /> */}
 
             <frame
-                Size={new UDim2(1, 0, 1, -25)}
-                Position={new UDim2(0, 0, 0, 25)}
-                BackgroundTransparency={1}
+                Size={UDim2.fromScale(1, 1)}
+                // Position={UDim2.fromScale(0, headerYSize)}
+                BackgroundTransparency={0.65}
             >
+                <uilistlayout
+                    FillDirection={Enum.FillDirection.Vertical}
+                    SortOrder={Enum.SortOrder.LayoutOrder}
+                    HorizontalAlignment={Enum.HorizontalAlignment.Center}
+                    VerticalAlignment={Enum.VerticalAlignment.Top}
+                />
                 <LocationLine
                     title="FRONT LINE"
                     entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
                     location={SquadEntityInSquadLocation.front}
-                    yPosition={0}
-                    isScrollable={false}
                 />
 
                 <LocationLine
                     title="MIDDLE LINE"
                     entities={entitiesByLocation[SquadEntityInSquadLocation.middle]}
                     location={SquadEntityInSquadLocation.middle}
-                    yPosition={85}
-                    isScrollable={true}
                 />
 
                 <LocationLine
                     title="BACK LINE"
                     entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
                     location={SquadEntityInSquadLocation.back}
-                    yPosition={170}
-                    isScrollable={true}
                 />
             </frame>
         </frame>
