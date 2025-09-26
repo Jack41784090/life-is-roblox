@@ -385,20 +385,21 @@ class Logic {
     protected accessSituation(context: LogicContext): SquadBattleSituation {
         // 1. Where am I right now?
         const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
+
         // 2. Where are my enemies right now? and how are they doing?
-        const frontLineEnemies = context.enemy_squad[SquadEntityInSquadLocation.front];
+        const frontLineEnemies = context.enemy_squad[SquadEntityInSquadLocation.front]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const frontlineNumbers = frontLineEnemies?.size() || 0;
-        const midlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.middle];
+        const midlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.middle]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const midlineNumbers = midlineEnemies?.size();
-        const backlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.back];
+        const backlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.back]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const backlineNumbers = backlineEnemies?.size();
 
         // 3. Where are my allies right now? and how are they doing?
-        const frontlineAllies = context.our_squad[SquadEntityInSquadLocation.front];
+        const frontlineAllies = context.our_squad[SquadEntityInSquadLocation.front]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const frontlineAlliesNumbers = frontlineAllies?.size();
-        const midlineAllies = context.our_squad[SquadEntityInSquadLocation.middle];
+        const midlineAllies = context.our_squad[SquadEntityInSquadLocation.middle]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const midlineAlliesNumbers = midlineAllies?.size();
-        const backlineAllies = context.our_squad[SquadEntityInSquadLocation.back];
+        const backlineAllies = context.our_squad[SquadEntityInSquadLocation.back]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const backlineAlliesNumbers = backlineAllies?.size();
 
         return this.situation = {
