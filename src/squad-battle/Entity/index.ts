@@ -138,11 +138,16 @@ export class SquadEntity {
             }]
         }
         else {
-            this.logger.debug("taking damage: " + num);
+            // this.logger.debug("taking damage: " + num);
             const x = [
                 { source, affected, change: this.mod_changeableStat('HP', -num) },
             ]
-            this._deorgAfterDamage(num, source).forEach(u => x.push(u));
+            if (this.get_changeableStat_num('HP') === 0) {
+                x.push({ source, affected, change: { property: 'DIE', from: -1, to: -1 } })
+            }
+            else {
+                this._deorgAfterDamage(num, source).forEach(u => x.push(u));
+            }
             return x;
         }
     }
