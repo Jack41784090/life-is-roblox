@@ -1,14 +1,17 @@
 // filepath: c:\Users\tszmi\Documents\Code\roblox-game\src\gui_sharedfirst\new_components\battle\statusBar\playerPortrait\index.tsx
 import { Atom } from "@rbxts/charm";
 import { useMotion, useViewport } from "@rbxts/pretty-react-hooks";
-import React, { useEffect } from "@rbxts/react";
+import React, { useEffect, useState } from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
 import { findEntityPortrait, springs } from "shared/utils";
+import { EntityUpdate } from "squad-battle/type";
+import DamageIndicator from "../../new_components/effects/DamageIndicator";
 
 interface Props {
     entityId: string;
     hp: Atom<number>;
     maxHP: number;
+    entityUpdates?: EntityUpdate[];
 }
 
 /**
@@ -19,10 +22,44 @@ function PlayerPortrait(props: Props) {
     const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);
     const hp = useAtom(props.hp);
+    const [damageIndicators, setDamageIndicators] = useState<Array<{ id: number, damage: number, position: UDim2 }>>([]);
 
     useEffect(() => {
         hpMotion.spring(hp / props.maxHP, springs.slow);
     }, [hp]);
+
+    // Process entity updates to create damage indicators
+    useEffect(() => {
+        if (!props.entityUpdates || props.entityUpdates.size() === 0) return;
+
+        const newIndicators: Array<{ id: number, damage: number, position: UDim2 }> = [];
+
+        props.entityUpdates.forEach((update, index) => {
+            // Check if this is an HP change
+            if (update.change.property === "HP") {
+                const damage = update.change.from - update.change.to;
+                if (damage > 0) { // Only show positive damage (health loss)
+                    // Generate random position around the portrait
+                    const randomX = 0.3 + math.random() * 0.4; // Between 0.3 and 0.7
+                    const randomY = 0.2 + math.random() * 0.6; // Between 0.2 and 0.8
+
+                    newIndicators.push({
+                        id: tick() * 1000 + index, // Unique ID
+                        damage: damage,
+                        position: UDim2.fromScale(randomX, randomY)
+                    });
+                }
+            }
+        });
+
+        if (newIndicators.size() > 0) {
+            setDamageIndicators(prev => [...prev, ...newIndicators]);
+        }
+    }, [props.entityUpdates]);
+
+    const removeDamageIndicator = (id: number) => {
+        setDamageIndicators(prev => prev.filter(indicator => indicator.id !== id));
+    };
 
     // Find portrait using utility function
     const portraitImage = findEntityPortrait(props.entityId, 'neutral');
@@ -107,6 +144,16 @@ function PlayerPortrait(props: Props) {
             >
                 <uicorner CornerRadius={new UDim(1, 0)} />
             </imagelabel>
+
+            {/* Damage Indicators */}
+            {damageIndicators.map((indicator) => (
+                <DamageIndicator
+                    key={indicator.id}
+                    damage={indicator.damage}
+                    position={indicator.position}
+                    onComplete={() => removeDamageIndicator(indicator.id)}
+                />
+            ))}
         </frame>
     );
 }
