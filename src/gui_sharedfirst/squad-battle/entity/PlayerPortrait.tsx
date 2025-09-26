@@ -13,7 +13,8 @@ import EntityCircleBar from "./EntityCircleBar";
 enum IndicatorType {
     Damage,
     Heal,
-    Retreat
+    Retreat,
+    Death,
 }
 
 interface ProtoIndicator {
@@ -58,6 +59,16 @@ function PlayerPortrait(props: Props) {
         const newIndicators: Array<ProtoIndicator> = [];
         props.entityUpdates.forEach((update, index) => {
             switch (update.change.property) {
+                case 'DIE':
+                case 'LEAVE': {
+                    newIndicators.push({
+                        T: update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat,
+                        id: tick() * 1000 + index,
+                        value: 0,
+                        position: UDim2.fromScale(.5, .5)
+                    });
+                    break;
+                }
                 case "HP": {
                     const dHP = update.change.to - update.change.from;
                     const randomX = 0.3 + math.random() * 0.4; // Between 0.3 and 0.7
@@ -124,20 +135,20 @@ function PlayerPortrait(props: Props) {
                 ZIndex={0} // Above the HP bar
             >
                 <uicorner CornerRadius={new UDim(1, 0)} />
+                {/* Player Portrait */}
+                <imagelabel
+                    Image={portraitImage}
+                    AnchorPoint={new Vector2(0.5, 0.5)}
+                    Position={UDim2.fromScale(0.5, 0.5)}
+                    Size={UDim2.fromScale(0.85, 0.85)}
+                    BackgroundTransparency={1}
+                    ZIndex={0} // Above the background
+                    ScaleType={Enum.ScaleType.Crop}
+                >
+                    <uicorner CornerRadius={new UDim(1, 0)} />
+                </imagelabel>
             </frame>
 
-            {/* Player Portrait */}
-            <imagelabel
-                Image={portraitImage}
-                AnchorPoint={new Vector2(0.5, 0.5)}
-                Position={UDim2.fromScale(0.5, 0.5)}
-                Size={UDim2.fromScale(0.85, 0.85)}
-                BackgroundTransparency={1}
-                ZIndex={0} // Above the background
-                ScaleType={Enum.ScaleType.Crop}
-            >
-                <uicorner CornerRadius={new UDim(1, 0)} />
-            </imagelabel>
 
             {/* Damage Indicators */}
             {damageIndicators.map((indicator) => {
@@ -152,9 +163,10 @@ function PlayerPortrait(props: Props) {
                                 onComplete={() => removeIndicator(indicator.id)}
                             />)
                     case IndicatorType.Retreat:
+                    case IndicatorType.Death:
                         return (
                             <ClashFateEffect
-                                fate={'🏳️'}
+                                fate={indicator.T === IndicatorType.Death ? "💀" : "🏳️"}
                                 position={indicator.position}
                                 onComplete={() => removeIndicator(indicator.id)}
                             />
