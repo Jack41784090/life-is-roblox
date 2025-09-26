@@ -69,7 +69,7 @@ export class SquadEntity {
             this.getCeiling_changeableStat(property));
         changeable[property](newValue)
 
-        this.logger.debug(`${property}: ${oldValue} ==> ${newValue}`);
+        // this.logger.debug(`${property}: ${oldValue} ==> ${newValue}`);
 
         return {
             from: oldValue,
@@ -380,7 +380,7 @@ class Frontline extends Logic {
                 break;
         }
 
-        this.logger.debug(`chosetarget: ${myTarget?.name || "cannot"}`);
+        // this.logger.debug(`chosetarget: ${myTarget?.name || "cannot"}`);
         return myTarget;
     }
 }
