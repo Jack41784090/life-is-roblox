@@ -1,66 +1,22 @@
 import React from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
 import { SquadEntityInSquadLocation } from "squad-battle/type";
-import EntityDisplay from "../entity/EntityDisplay";
+import PlayerPortrait from "../entity/PlayerPortrait";
 import { getLocationColor } from "../shared/utils";
 
 interface LocationLineProps {
     title: string;
     entities: SquadEntity[];
     location: SquadEntityInSquadLocation;
-    yPosition: number;
-    isScrollable?: boolean;
 }
 
 function LocationLine(props: LocationLineProps) {
     const lineColor = getLocationColor(props.location);
 
-    if (props.isScrollable) {
-        return (
-            <>
-                <textlabel
-                    Size={new UDim2(1, 0, 0, 20)}
-                    Position={new UDim2(0, 0, 0, props.yPosition)}
-                    BackgroundTransparency={1}
-                    Text={props.title}
-                    TextColor3={lineColor}
-                    TextScaled={true}
-                    Font={Enum.Font.GothamBold}
-                />
-
-                <scrollingframe
-                    Size={new UDim2(1, 0, 0, 60)}
-                    Position={new UDim2(0, 0, 0, props.yPosition + 20)}
-                    BackgroundTransparency={1}
-                    ScrollingDirection={Enum.ScrollingDirection.X}
-                    CanvasSize={new UDim2(0, props.entities.size() * 130, 0, 0)}
-                >
-                    <uilistlayout
-                        FillDirection={Enum.FillDirection.Horizontal}
-                        SortOrder={Enum.SortOrder.LayoutOrder}
-                        Padding={new UDim(0, 10)}
-                    />
-
-                    {props.entities.map((entity) => (
-                        <EntityDisplay
-                            key={`${props.location}-${entity.playerID}`}
-                            name={entity.name}
-                            playerID={entity.playerID}
-                            team={entity.team}
-                            baseStats={entity.stats}
-                            changeableStats={entity.changeableStats}
-                        />
-                    ))}
-                </scrollingframe>
-            </>
-        );
-    }
-
     return (
-        <>
+        <frame Size={UDim2.fromScale(1, 1 / 3)} BackgroundTransparency={1}>
             <textlabel
-                Size={new UDim2(1, 0, 0, 20)}
-                Position={new UDim2(0, 0, 0, props.yPosition)}
+                Size={UDim2.fromScale(1, 0.1)}
                 BackgroundTransparency={1}
                 Text={props.title}
                 TextColor3={lineColor}
@@ -69,29 +25,28 @@ function LocationLine(props: LocationLineProps) {
             />
 
             <frame
-                Size={new UDim2(1, 0, 1, 0)}
-                Position={new UDim2(0, 0, 0, props.yPosition + 20)}
-                BackgroundTransparency={1}
+                Position={UDim2.fromScale(0, 0.1)}
+                Size={UDim2.fromScale(1, 0.9)}
+                BackgroundTransparency={0}
             >
                 <uilistlayout
                     FillDirection={Enum.FillDirection.Horizontal}
                     SortOrder={Enum.SortOrder.LayoutOrder}
-                    Padding={new UDim(0, 10)}
+                    // Padding={new UDim(0, 10)}
                     HorizontalAlignment={Enum.HorizontalAlignment.Center}
+                    VerticalAlignment={Enum.VerticalAlignment.Center}
                 />
 
                 {props.entities.map((entity) => (
-                    <EntityDisplay
+                    <PlayerPortrait
                         key={`${props.location}-${entity.playerID}`}
-                        name={entity.name}
-                        playerID={entity.playerID}
-                        team={entity.team}
-                        baseStats={entity.stats}
-                        changeableStats={entity.changeableStats}
+                        entityId={`entity_${entity.playerID}`}
+                        hp={entity.changeableStats.HP}
+                        maxHP={entity.changeableStats.HP()}
                     />
                 ))}
             </frame>
-        </>
+        </frame>
     );
 }
 
