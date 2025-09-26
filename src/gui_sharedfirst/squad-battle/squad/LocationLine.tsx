@@ -27,7 +27,7 @@ function LocationLine(props: LocationLineProps) {
             <frame
                 Position={UDim2.fromScale(0, 0.1)}
                 Size={UDim2.fromScale(1, 0.9)}
-                BackgroundTransparency={0}
+                BackgroundTransparency={1}
             >
                 <uilistlayout
                     FillDirection={Enum.FillDirection.Horizontal}

@@ -42,22 +42,11 @@ function SquadDisplay(props: SquadDisplayProps) {
             Position={UDim2.fromScale(0, .5)}
             Size={UDim2.fromScale(math.min(0.6, 1 / props.teamSize * .8), 1)}
             BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
-            BackgroundTransparency={0.3}
+            BackgroundTransparency={0}
             BorderColor3={new Color3(0.6, 0.6, 0.6)}
             BorderSizePixel={2}
         // SizeConstraint={'RelativeXX'}
         >
-            {/* <uiaspectratioconstraint AspectRatio={1} /> */}
-            {/* <textlabel
-                Size={new UDim2(1, 0, headerYSize, 0)}
-                // Position={new UDim2(0, 0, 0, 0)}
-                BackgroundTransparency={1}
-                Text={`${props.name} (${props.team})`}
-                TextColor3={new Color3(1, 1, 1)}
-                TextScaled={true}
-                Font={Enum.Font.GothamBold}
-
-            /> */}
 
             <frame
                 Size={UDim2.fromScale(1, 1)}
