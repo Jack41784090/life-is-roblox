@@ -41,15 +41,24 @@ function BattleField(props: BattleFieldProps) {
                     VerticalAlignment={'Top'}
                 />
 
-                {teamNames.map((teamName, teamIndex) => (
-                    <TeamContainer
-                        key={teamName}
-                        teamName={teamName}
-                        squads={props.squads[teamName]}
-                        teamColor={getTeamColor(teamName)}
-                        teamIndex={teamIndex}
-                    />
-                ))}
+                <TeamContainer
+                    key="THEM"
+                    teamName="THEM"
+                    squads={(() => {
+                        const whoisthem: Squad[] = [];
+                        for (const [k, v] of pairs(props.squads)) {
+                            if (k !== props.us) v.forEach(s => whoisthem.push(s));
+                        }
+                        return whoisthem
+                    })()}
+                    upsideDown={true}
+                />
+
+                <TeamContainer
+                    key="US"
+                    teamName={props.us}
+                    squads={props.squads[props.us]}
+                />
             </frame>
 
             <BattleInfoPanel
