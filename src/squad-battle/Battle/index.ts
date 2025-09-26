@@ -1,7 +1,7 @@
 import Logger from "shared/utils/Logger";
 import { uniformRandom } from '../../shared/utils/index';
 import { Squad } from "../Squad";
-import { SquadBattleConfig, SquadUpdate } from "../type";
+import { EntityUpdate, SquadBattleConfig } from "../type";
 
 export class SquadBattle {
     logger = Logger.createContextLogger("SquadBattle");
@@ -100,11 +100,12 @@ export class SquadBattle {
     }
 
     roundCount: number = -1;
-    round() {
+    round(): EntityUpdate[] {
         this.roundCount++;
 
         // 1. All squads make their moves
-        const squadUpdateRecords: Record<string, SquadUpdate[]> = {};
+        const updates: EntityUpdate[] = []
+        const squadUpdateRecords: Record<string, EntityUpdate[][]> = {};
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
             const targetSquads = this.getAllEnemySquads(teamName);
@@ -112,7 +113,10 @@ export class SquadBattle {
                 const squad = squads[i];
                 const squadUpdate = squad.round(targetSquads, this.roundCount);
                 squadUpdateRecords[teamName] = squadUpdateRecords[teamName] || [];
-                if (squadUpdate) squadUpdateRecords[teamName].push(squadUpdate);
+                if (squadUpdate) {
+                    squadUpdateRecords[teamName].push(squadUpdate);
+                    squadUpdate.forEach(u => updates.push(u))
+                }
             }
         }
 
@@ -131,5 +135,6 @@ export class SquadBattle {
         print(`--- Round ${this.roundCount} Updates ---`);
         print(squadUpdateRecords);
         print('------------------------------');
+        return updates;
     }
 }

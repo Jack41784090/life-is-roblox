@@ -1,7 +1,7 @@
 import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import { SquadEntity } from "squad-battle/Entity";
-import { EntityUpdate, SquadConfig, SquadEntityInSquadLocation, SquadUpdate } from "squad-battle/type";
+import { EntityUpdate, SquadConfig, SquadEntityInSquadLocation } from "squad-battle/type";
 
 export class Squad {
     team: string = '';
@@ -40,7 +40,7 @@ export class Squad {
     }
 
     private _lastRoundReceivedAttack: number = -1;
-    receiveAttack(from: Squad, roundCount: number): SquadUpdate {
+    receiveAttack(from: Squad, roundCount: number): EntityUpdate[] {
         this._lastRoundReceivedAttack = roundCount;
         const squadsize = from.entities.size();
         const entityUpdates: EntityUpdate[] = [];
@@ -51,9 +51,7 @@ export class Squad {
             attackUpdates.forEach(au => entityUpdates.push(au));
         }
 
-        return {
-            entityUpdates,
-        };
+        return entityUpdates;
     }
 
     get_lastAttackedAtRound() {
@@ -68,7 +66,7 @@ export class Squad {
         return chosenSquad;
     }
 
-    private act_attackRandom(targetableSquads: Squad[], roundCount: number): SquadUpdate | undefined {
+    private act_attackRandom(targetableSquads: Squad[], roundCount: number): EntityUpdate[] | undefined {
         // 1. Choose enemy squad
         const enemySquad = this.chooseEnemySquad(targetableSquads);
 
@@ -80,7 +78,7 @@ export class Squad {
         }
     }
 
-    private act_idle(): SquadUpdate | undefined {
+    private act_idle(): undefined {
         this.logger.debug("idling")
         return undefined;
         // return this.recovery();
