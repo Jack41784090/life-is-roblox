@@ -1,7 +1,17 @@
 
 export { default as BattleField } from "./BattleField";
-export { default as EntityDisplay } from "./EntityDisplay";
-export { default as EntityStats } from "./EntityStats";
-export { default as Example } from "./Example";
-export { default as SquadDisplay } from "./SquadDisplay";
-export { default as SquadStats } from "./SquadStats";
+export { default as BattleHeader } from "./BattleHeader";
+export { default as BattleInfoPanel } from "./BattleInfoPanel";
+
+// Entity components
+export { EntityDisplay, EntityInfo, EntityStats } from "./entity";
+
+// Squad components  
+export { LocationLine, SquadDisplay, SquadHeader, SquadStats } from "./squad";
+
+// Team components
+export { SquadContainer, TeamContainer, TeamHeader } from "./team";
+
+// Shared utilities
+export * from "./shared";
+
