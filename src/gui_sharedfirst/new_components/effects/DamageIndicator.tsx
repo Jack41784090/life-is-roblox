@@ -1,13 +1,14 @@
 import React, { useBinding } from "@rbxts/react";
 import { CONDOR_BLOOD_RED, TWEEN_TIME } from "shared/const";
+import { signedNumString } from "shared/utils";
 
 interface DamageIndicatorProps {
-    damage: number;
+    value: number;
     position: UDim2;
     onComplete?: () => void;
 }
 
-export default function DamageIndicator({ damage, position, onComplete }: DamageIndicatorProps) {
+export default function DamageIndicator({ value, position, onComplete }: DamageIndicatorProps) {
     const [positionBinding, setPosition] = useBinding(position);
     const [transparency, setTransparency] = useBinding(0);
     const [textSize, setTextSize] = useBinding(28);
@@ -49,20 +50,21 @@ export default function DamageIndicator({ damage, position, onComplete }: Damage
     return (
         <frame
             Position={positionBinding}
-            Size={new UDim2(0, 100, 0, 50)}
+            Size={UDim2.fromScale(0.5, 0.5)}
             BackgroundTransparency={1}
         >
             <textlabel
                 Size={new UDim2(1, 0, 1, 0)}
                 BackgroundTransparency={1}
                 TextTransparency={transparency}
-                Text={`-${damage}`}
-                TextColor3={CONDOR_BLOOD_RED}
+                Text={signedNumString(value)}
+                TextColor3={value < 0 ? CONDOR_BLOOD_RED : Color3.fromRGB(0, 255, 33)}
                 TextStrokeColor3={new Color3(0, 0, 0)}
                 TextStrokeTransparency={transparency.map(t => math.clamp(t - 0.3, 0, 1))}
                 Font={Enum.Font.GothamBold}
                 TextSize={textSize}
                 TextScaled={false}
+                LayoutOrder={10}
             />
         </frame>
     );
