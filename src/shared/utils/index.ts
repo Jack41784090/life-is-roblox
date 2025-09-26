@@ -297,6 +297,11 @@ export function getDirectionFromKeyCode(keycode: Enum.KeyCode, relativeCam: Came
 // MATH UTILITIES
 //===========================================================================
 
+export function signedNumString(num: number) {
+    if (num === 0) return "0"
+    return `${num > 0 ? "+" : "-"}${math.abs(num)}`
+}
+
 export function formatVector3(vector: Vector3): string {
     return `(${math.floor(vector.X * 100) / 100}, ${math.floor(vector.Y * 100) / 100}, ${math.floor(vector.Z * 100) / 100})`;
 }
@@ -753,3 +758,4 @@ export async function getPromiseStatus<T>(promise: Promise<T>): Promise<'pending
         return 'rejected';
     }
 }
+
