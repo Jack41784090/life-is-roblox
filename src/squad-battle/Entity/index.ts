@@ -147,7 +147,7 @@ export class SquadEntity {
         }
     }
 
-    private calculateRealityValue(reality: Reality): number {
+    public calculateRealityValue(reality: Reality): number {
         const stats = this.stats;
         switch (reality) {
             case Reality.HP:
