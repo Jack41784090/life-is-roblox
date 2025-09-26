@@ -103,6 +103,19 @@ export class SquadBattle {
     round(): EntityUpdate[] {
         this.roundCount++;
 
+        // 0. remove killed units from last round
+        for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
+            const squadsCount = squads.size();
+            for (let i = 0; i < squadsCount; i++) {
+                const squad = squads[i];
+                squad.entities.forEach((se, i) => {
+                    if (se.get_changeableStat_num('HP') === 0) {
+                        squad.entities.remove(i);
+                    }
+                });
+            }
+        }
+
         // 1. All squads make their moves
         const updates: EntityUpdate[] = []
         const squadUpdateRecords: Record<string, EntityUpdate[][]> = {};
@@ -120,7 +133,8 @@ export class SquadBattle {
             }
         }
 
-        // 2. Recovery for those who didn't attack
+
+        // 2. Remove killed units + Recovery for those who didn't attack
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
             for (let i = 0; i < squadsCount; i++) {

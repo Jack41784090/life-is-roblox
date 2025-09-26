@@ -75,9 +75,9 @@ export class Squad {
             const ourBoy = this.entities[i];
             ourBoy.action(our_squad, enemy_squad)
                 .forEach(r => {
-                    if (r.change.property === 'LEAVE' || r.change.property === 'DIE') {
-                        this.entities.remove(this.entities.findIndex(e => e.playerID === r.affected))
-                    }
+                    // if (r.change.property === 'LEAVE' || r.change.property === 'DIE') {
+                    //     this.entities.remove(this.entities.findIndex(e => e.playerID === r.affected))
+                    // }
                     updatesAfterAttack.push(r)
                 }
                 );
@@ -86,9 +86,6 @@ export class Squad {
             const enemy = enemySquad.entities[i];
             enemy.reaction(enemy_squad, our_squad)
                 .forEach(r => {
-                    if (r.change.property === 'LEAVE' || r.change.property === 'DIE') {
-                        this.entities.remove(this.entities.findIndex(e => e.playerID === r.affected))
-                    }
                     updatesAfterAttack.push(r)
                 }
                 );
