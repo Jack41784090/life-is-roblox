@@ -70,11 +70,21 @@ function SquadDisplay(props: SquadDisplayProps) {
                     HorizontalAlignment={Enum.HorizontalAlignment.Center}
                     VerticalAlignment={Enum.VerticalAlignment.Top}
                 />
-                <LocationLine
-                    title="FRONT LINE"
-                    entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
-                    location={SquadEntityInSquadLocation.front}
-                />
+
+                {props.upsideDown &&
+                    <LocationLine
+                        title="BACK LINE"
+                        entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
+                        location={SquadEntityInSquadLocation.back}
+                    />}
+
+                {!props.upsideDown &&
+                    <LocationLine
+                        title="FRONT LINE"
+                        entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
+                        location={SquadEntityInSquadLocation.front}
+                    />
+                }
 
                 <LocationLine
                     title="MIDDLE LINE"
@@ -82,11 +92,21 @@ function SquadDisplay(props: SquadDisplayProps) {
                     location={SquadEntityInSquadLocation.middle}
                 />
 
-                <LocationLine
-                    title="BACK LINE"
-                    entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
-                    location={SquadEntityInSquadLocation.back}
-                />
+                {!props.upsideDown &&
+                    <LocationLine
+                        title="BACK LINE"
+                        entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
+                        location={SquadEntityInSquadLocation.back}
+                    />}
+
+                {props.upsideDown &&
+                    <LocationLine
+                        title="FRONT LINE"
+                        entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
+                        location={SquadEntityInSquadLocation.front}
+                    />
+                }
+
             </frame>
         </frame>
     );
