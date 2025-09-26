@@ -16,7 +16,7 @@ export class SquadBattleInstance {
             print(`--- Round ${this.battle.roundCount + 1} ---`);
             const entityUpdates = this.battle.round();
             this.graphics.render(entityUpdates);
-            wait(0.5)
+            wait(1.5)
             print('')
         }
     }
