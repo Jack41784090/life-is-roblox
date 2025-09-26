@@ -1,6 +1,6 @@
 import React from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
-import { SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
 import LocationLine from "./LocationLine";
 
 interface SquadDisplayProps {
@@ -9,6 +9,7 @@ interface SquadDisplayProps {
     entities: SquadEntity[];
     teamSize: number;
     upsideDown?: boolean;
+    entityUpdates?: EntityUpdate[];
 }
 
 function SquadDisplay(props: SquadDisplayProps) {
@@ -65,6 +66,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                         title="BACK LINE"
                         entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
                         location={SquadEntityInSquadLocation.back}
+                        entityUpdates={props.entityUpdates}
                     />}
 
                 {!props.upsideDown &&
@@ -72,6 +74,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                         title="FRONT LINE"
                         entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
                         location={SquadEntityInSquadLocation.front}
+                        entityUpdates={props.entityUpdates}
                     />
                 }
 
@@ -79,6 +82,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                     title="MIDDLE LINE"
                     entities={entitiesByLocation[SquadEntityInSquadLocation.middle]}
                     location={SquadEntityInSquadLocation.middle}
+                    entityUpdates={props.entityUpdates}
                 />
 
                 {!props.upsideDown &&
@@ -86,6 +90,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                         title="BACK LINE"
                         entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
                         location={SquadEntityInSquadLocation.back}
+                        entityUpdates={props.entityUpdates}
                     />}
 
                 {props.upsideDown &&
@@ -93,6 +98,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                         title="FRONT LINE"
                         entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
                         location={SquadEntityInSquadLocation.front}
+                        entityUpdates={props.entityUpdates}
                     />
                 }
 

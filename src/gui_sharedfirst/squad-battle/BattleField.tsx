@@ -1,5 +1,6 @@
 import React from "@rbxts/react";
 import { Squad } from "squad-battle/Squad";
+import { EntityUpdate } from "squad-battle/type";
 import BattleHeader from "./BattleHeader";
 import BattleInfoPanel from "./BattleInfoPanel";
 import TeamContainer from "./team/TeamContainer";
@@ -8,6 +9,7 @@ interface BattleFieldProps {
     squads: Record<string, Squad[]>;
     us: string;
     currentRound?: number;
+    entityUpdates?: EntityUpdate[];
 }
 
 function BattleField(props: BattleFieldProps) {
@@ -52,12 +54,14 @@ function BattleField(props: BattleFieldProps) {
                         return whoisthem
                     })()}
                     upsideDown={true}
+                    entityUpdates={props.entityUpdates}
                 />
 
                 <TeamContainer
                     key="US"
                     teamName={props.us}
                     squads={props.squads[props.us]}
+                    entityUpdates={props.entityUpdates}
                 />
             </frame>
 

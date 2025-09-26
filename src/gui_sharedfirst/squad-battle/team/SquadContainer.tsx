@@ -1,5 +1,6 @@
 import React from "@rbxts/react";
 import { Squad } from "squad-battle/Squad";
+import { EntityUpdate } from "squad-battle/type";
 import SquadDisplay from "../squad/SquadDisplay";
 
 interface SquadContainerProps {
@@ -7,6 +8,7 @@ interface SquadContainerProps {
     teamName: string;
     Size?: UDim2;
     upsideDown?: boolean;
+    entityUpdates?: EntityUpdate[];
 }
 
 function SquadContainer(props: SquadContainerProps) {
@@ -33,7 +35,7 @@ function SquadContainer(props: SquadContainerProps) {
                     entities={squad.entities}
                     teamSize={props.squads.size()}
                     upsideDown={props.upsideDown}
-                // position={new UDim2(0, 0, 0, 0)}
+                    entityUpdates={props.entityUpdates}
                 />
             ))}
         </frame>

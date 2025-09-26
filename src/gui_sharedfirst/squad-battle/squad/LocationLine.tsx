@@ -1,6 +1,6 @@
 import React from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
-import { SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
 import PlayerPortrait from "../entity/PlayerPortrait";
 import { getLocationColor } from "../shared/utils";
 
@@ -8,6 +8,7 @@ interface LocationLineProps {
     title: string;
     entities: SquadEntity[];
     location: SquadEntityInSquadLocation;
+    entityUpdates?: EntityUpdate[];
 }
 
 function LocationLine(props: LocationLineProps) {
@@ -37,14 +38,22 @@ function LocationLine(props: LocationLineProps) {
                     VerticalAlignment={Enum.VerticalAlignment.Center}
                 />
 
-                {props.entities.map((entity) => (
-                    <PlayerPortrait
-                        key={`${props.location}-${entity.playerID}`}
-                        entityId={`entity_${entity.playerID}`}
-                        hp={entity.changeableStats.HP}
-                        maxHP={entity.changeableStats.HP()}
-                    />
-                ))}
+                {props.entities.map((entity) => {
+                    // Filter updates relevant to this entity
+                    const relevantUpdates = props.entityUpdates?.filter(update =>
+                        update.affected === entity.playerID
+                    ) || [];
+
+                    return (
+                        <PlayerPortrait
+                            key={`${props.location}-${entity.playerID}`}
+                            entityId={`entity_${entity.playerID}`}
+                            hp={entity.changeableStats.HP}
+                            maxHP={entity.changeableStats.HP()}
+                            entityUpdates={relevantUpdates}
+                        />
+                    );
+                })}
             </frame>
         </frame>
     );

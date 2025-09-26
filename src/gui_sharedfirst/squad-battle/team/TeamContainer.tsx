@@ -1,11 +1,13 @@
 import React from "@rbxts/react";
 import { Squad } from "squad-battle/Squad";
+import { EntityUpdate } from "squad-battle/type";
 import SquadContainer from "./SquadContainer";
 
 interface TeamContainerProps {
     teamName: string;
     squads: Squad[];
     upsideDown?: boolean;
+    entityUpdates?: EntityUpdate[];
 }
 
 function TeamContainer(props: TeamContainerProps) {
@@ -21,6 +23,7 @@ function TeamContainer(props: TeamContainerProps) {
                 squads={props.squads}
                 teamName={props.teamName}
                 upsideDown={props.upsideDown}
+                entityUpdates={props.entityUpdates}
             />
         </frame>
     );
