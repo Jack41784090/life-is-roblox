@@ -16,24 +16,29 @@ function BattleField(props: BattleFieldProps) {
         teamNames.push(teamName);
     }
 
+    const headerYSize = 0.1;
+    const bodyYSize = 1 - headerYSize;
+
     return (
         <frame
             Size={new UDim2(1, 0, 1, 0)}
             BackgroundColor3={new Color3(0.05, 0.05, 0.1)}
             BorderSizePixel={0}
         >
-            <BattleHeader currentRound={props.currentRound} />
+            <BattleHeader
+                Size={UDim2.fromScale(1, headerYSize)}
+                currentRound={props.currentRound} />
 
             <frame
-                Size={new UDim2(1, 0, .8, 0)}
-                Position={new UDim2(0, 0, .2, 0)}
+                Size={UDim2.fromScale(1, bodyYSize)}
+                Position={new UDim2(0, 0, headerYSize, 0)}
                 BackgroundTransparency={1}
             >
                 <uilistlayout
                     FillDirection={Enum.FillDirection.Vertical}
                     SortOrder={Enum.SortOrder.LayoutOrder}
-                    HorizontalAlignment={"Center"}
-                // Padding={new UDim(0, 20)}
+                    HorizontalAlignment={'Center'}
+                    VerticalAlignment={'Top'}
                 />
 
                 {teamNames.map((teamName, teamIndex) => (
