@@ -41,6 +41,10 @@ export class SquadEntity {
         // this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
     }
 
+    public isDead(): boolean {
+        return this.get_changeableStat_num('HP') <= 0;
+    }
+
     public getCeiling_changeableStat(property: EntityChangeable) {
         switch (property) {
             case 'HP': return this.calculateRealityValue(Reality.HP);
