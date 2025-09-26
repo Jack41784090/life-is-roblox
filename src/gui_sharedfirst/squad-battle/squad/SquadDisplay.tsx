@@ -8,6 +8,7 @@ interface SquadDisplayProps {
     team: string;
     entities: SquadEntity[];
     teamSize: number;
+    upsideDown?: boolean;
 }
 
 function SquadDisplay(props: SquadDisplayProps) {

@@ -6,6 +6,7 @@ interface SquadContainerProps {
     squads: Squad[];
     teamName: string;
     Size?: UDim2;
+    upsideDown?: boolean;
 }
 
 function SquadContainer(props: SquadContainerProps) {
@@ -31,6 +32,7 @@ function SquadContainer(props: SquadContainerProps) {
                     team={squad.team}
                     entities={squad.entities}
                     teamSize={props.squads.size()}
+                    upsideDown={props.upsideDown}
                 // position={new UDim2(0, 0, 0, 0)}
                 />
             ))}
