@@ -39,6 +39,7 @@ function PlayerPortrait(props: Props) {
     const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);
     const [orgRatio, orgMotion] = useMotion(1);
+    const [isDying, setIsDying] = useState(false);
     const hp = props.entity.changeableStats.HP();
     const org = entity.changeableStats.ORG();
     const maxHP = props.entity.calculateRealityValue(Reality.HP);
@@ -62,6 +63,9 @@ function PlayerPortrait(props: Props) {
             switch (update.change.property) {
                 case 'DIE':
                 case 'LEAVE': {
+                    if (update.change.property === 'DIE') {
+                        setIsDying(true);
+                    }
                     newIndicators.push({
                         T: update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat,
                         id: tick() * 1000 + index,
@@ -124,7 +128,7 @@ function PlayerPortrait(props: Props) {
         >
             <EntityCircleBar hpRatio={orgRatio} />
             <Bar progress={hpRatio} />
-            <EntityPortrait portraitImage={portraitImage} />
+            <EntityPortrait portraitImage={portraitImage} isDying={isDying} />
 
 
             {/* Damage Indicators */}
