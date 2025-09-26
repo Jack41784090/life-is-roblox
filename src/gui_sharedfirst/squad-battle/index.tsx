@@ -4,7 +4,7 @@ export { default as BattleHeader } from "./BattleHeader";
 export { default as BattleInfoPanel } from "./BattleInfoPanel";
 
 // Entity components
-export { EntityDisplay, EntityInfo, EntityStats } from "./entity";
+export { EntityInfo, EntityStats } from "./entity";
 
 // Squad components  
 export { LocationLine, SquadDisplay, SquadHeader, SquadStats } from "./squad";
