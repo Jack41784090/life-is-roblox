@@ -2,6 +2,7 @@ import React from "@rbxts/react";
 import GuiMothership from "gui_sharedfirst/new_components/main";
 import BattleField from 'gui_sharedfirst/squad-battle/BattleField';
 import { SquadBattle } from "squad-battle/Battle";
+import { EntityUpdate } from "squad-battle/type";
 
 export class SquadBattleGraphics {
     squadBattle: SquadBattle;
@@ -11,11 +12,12 @@ export class SquadBattleGraphics {
         this.squadBattle = squadBattle;
     }
 
-    render() {
+    render(entityUpdates: EntityUpdate[]) {
         GuiMothership.Mount('SquadBattle',
             <BattleField
                 us={'team1'}
                 squads={this.squadBattle.teamsAndSquads}
+                entityUpdates={entityUpdates}
             />
         );
     }

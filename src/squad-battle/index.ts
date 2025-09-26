@@ -14,8 +14,8 @@ export class SquadBattleInstance {
     autoBattle() {
         while (this.battle.checkVictory() === false && this.battle.roundCount < 100) {
             print(`--- Round ${this.battle.roundCount + 1} ---`);
-            const update = this.battle.round();
-            this.graphics.render();
+            const entityUpdates = this.battle.round();
+            this.graphics.render(entityUpdates);
             wait(0.5)
             print('')
         }
