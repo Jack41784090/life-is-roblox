@@ -413,6 +413,40 @@ class Logic {
         }
     }
 
+    protected healOthersIfAround(): SquadEntityAction | undefined {
+        const mylocation = this.situation.myLocation;
+        let allies: SquadEntity[] | undefined;
+        this.context.our_squad[mylocation] && (allies = this.context.our_squad[mylocation]);
+        if (allies?.size()) {
+            return 'heal';
+        }
+        return undefined;
+    }
+
+    public choose_reaction(): SquadEntityAction {
+        const { myLocation, backlineAllies, backlineAlliesNumbers } = this.situation;
+        switch (myLocation) {
+            case SquadEntityInSquadLocation.back:
+                if (this.entity.get_changeableStat_num('ORG') === 0) {
+                    return 'capitulate'
+                }
+            default:
+                return this.healOthersIfAround() || 'idle'
+        }
+    }
+
+    public choose_action(): SquadEntityAction {
+        const { myLocation, backlineAllies, backlineAlliesNumbers } = this.situation;
+        switch (myLocation) {
+            case SquadEntityInSquadLocation.back:
+                if (this.entity.get_changeableStat_num('ORG') === 0) {
+                    return 'idle'
+                }
+            default:
+                return this.healOthersIfAround() || 'idle'
+        }
+    }
+
     public choose_target(): SquadEntity | undefined {
         return undefined;
     }
@@ -431,23 +465,23 @@ class Frontline extends Logic {
         return undefined;
     }
 
-    private healOthersIfAround(): SquadEntityAction | undefined {
-        const mylocation = this.situation.myLocation;
-        let allies: SquadEntity[] | undefined;
-        this.context.our_squad[mylocation] && (allies = this.context.our_squad[mylocation]);
-        if (allies?.size()) {
-            return 'heal';
-        }
-        return undefined;
-    }
-
-    public choose_action() {
+    public override choose_action() {
         const { myLocation } = this.situation;
         switch (myLocation) {
             case SquadEntityInSquadLocation.front:
                 return 'attack' as SquadEntityAction;
             default:
-                return this.forwardIfBrave() || this.healOthersIfAround() || 'idle';
+                return this.forwardIfBrave() || super.choose_action();
+        }
+    }
+
+    public override choose_reaction() {
+        const { myLocation } = this.situation;
+        switch (myLocation) {
+            case SquadEntityInSquadLocation.front:
+                return 'attack' as SquadEntityAction;
+            default:
+                return this.forwardIfBrave() || super.choose_action();
         }
     }
 
