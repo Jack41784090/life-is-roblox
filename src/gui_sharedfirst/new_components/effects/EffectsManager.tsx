@@ -174,7 +174,7 @@ export default function EffectsManager({ maxEffects = 10 }: EffectsManagerProps)
                 return (
                     <DamageIndicator
                         key={effect.id}
-                        damage={effect.damage!}
+                        value={effect.damage!}
                         position={effect.position}
                         onComplete={() => removeEffect(effect.id)}
                     />
