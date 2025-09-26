@@ -1,8 +1,9 @@
 import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
-import { combineEntityUpdates, uniformRandom } from "shared/utils";
+import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityConfig, EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityChange } from '../type';
 
 // ENTITY //
 
