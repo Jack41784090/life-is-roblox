@@ -14,6 +14,7 @@ export class SquadBattleGraphics {
     render() {
         GuiMothership.Mount('SquadBattle',
             <BattleField
+                us={'team1'}
                 squads={this.squadBattle.teamsAndSquads}
             />
         );

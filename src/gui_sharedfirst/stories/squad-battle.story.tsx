@@ -77,6 +77,7 @@ const story = CreateReactStory({
                 'Team2': team2Squads,
                 // 'Team3': [],
             }}
+            us="Team1"
             currentRound={10}
         />
     </>

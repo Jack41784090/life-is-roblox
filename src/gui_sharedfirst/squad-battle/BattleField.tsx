@@ -2,11 +2,11 @@ import React from "@rbxts/react";
 import { Squad } from "squad-battle/Squad";
 import BattleHeader from "./BattleHeader";
 import BattleInfoPanel from "./BattleInfoPanel";
-import { getTeamColor } from "./shared/utils";
 import TeamContainer from "./team/TeamContainer";
 
 interface BattleFieldProps {
     squads: Record<string, Squad[]>;
+    us: string;
     currentRound?: number;
 }
 
