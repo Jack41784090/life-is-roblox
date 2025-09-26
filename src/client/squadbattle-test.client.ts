@@ -59,7 +59,7 @@ for (let tc = 0; tc < team_count; tc++) {
     const squads = config.teams[`team${tc + 1}`];
     for (let sc = 0; sc < squad_count; sc++) {
         const squad_config: SquadConfig = {
-            name: `t${tc + 1}+squad${sc}`,
+            name: `squad${tc + 1}-${string.char(65 + sc)}`,
             entities: []
         };
         for (let sn = 0; sn < squad_numbers; sn++) {
