@@ -40,22 +40,61 @@ export class Squad {
     }
 
     private _lastRoundReceivedAttack: number = -1;
-    receiveAttack(from: Squad, roundCount: number): EntityUpdate[] {
-        this._lastRoundReceivedAttack = roundCount;
-        const squadsize = from.entities.size();
-        const entityUpdates: EntityUpdate[] = [];
-        // from.entities.sort((a, b))
-        for (let i = 0; i < squadsize; i++) {
-            const attackingEntity = from.entities[i];
-            const attackUpdates = attackingEntity.attack(from.get_allEntities(), this.get_allEntities());
-            attackUpdates.forEach(au => entityUpdates.push(au));
-        }
+    // public receiveAttack(from: Squad, roundCount: number): EntityUpdate[] {
+    //     this._lastRoundReceivedAttack = roundCount;
+    //     const squadsize = from.entities.size();
+    //     const entityUpdates: EntityUpdate[] = [];
+    //     // from.entities.sort((a, b))
+    //     for (let i = 0; i < squadsize; i++) {
+    //         const attackingEntity = from.entities[i];
+    //         const attackUpdates = attackingEntity.action(from.get_allEntities(), this.get_allEntities());
+    //         attackUpdates.forEach(au => entityUpdates.push(au));
+    //     }
 
-        return entityUpdates;
-    }
+    //     return entityUpdates;
+    // }
 
     get_lastAttackedAtRound() {
         return this._lastRoundReceivedAttack;
+    }
+
+    private squadAttack(enemySquad: Squad, roundCount: number) {
+        this.logger.debug(`${this.name} ⚔️ ${enemySquad.name}`)
+        const updatesAfterAttack: EntityUpdate[] = [];
+
+        this._lastRoundReceivedAttack = roundCount;
+        // this.logger.debug("Attacking " + enemySquad.name);
+        const ourSquad_size = this.entities.size();
+        const our_squad = this.get_allEntities();
+        const enemySquad_size = enemySquad.entities.size();
+        const enemy_squad = enemySquad.get_allEntities()
+
+        // TODO: tactics effects activate before attack
+        // TODO: action + reaction depends on stats
+        for (let i = 0; i < ourSquad_size; i++) {
+            const ourBoy = this.entities[i];
+            ourBoy.action(our_squad, enemy_squad)
+                .forEach(r => {
+                    if (r.change.property === 'LEAVE' || r.change.property === 'DIE') {
+                        this.entities.remove(this.entities.findIndex(e => e.playerID === r.affected))
+                    }
+                    updatesAfterAttack.push(r)
+                }
+                );
+        }
+        for (let i = 0; i < enemySquad_size; i++) {
+            const enemy = enemySquad.entities[i];
+            enemy.reaction(enemy_squad, our_squad)
+                .forEach(r => {
+                    if (r.change.property === 'LEAVE' || r.change.property === 'DIE') {
+                        this.entities.remove(this.entities.findIndex(e => e.playerID === r.affected))
+                    }
+                    updatesAfterAttack.push(r)
+                }
+                );
+        }
+
+        return updatesAfterAttack;
     }
 
     private chooseEnemySquad(enemySquads: Squad[]): Squad | undefined {
@@ -71,11 +110,7 @@ export class Squad {
         const enemySquad = this.chooseEnemySquad(targetableSquads);
 
         // 2. Attack enemy squad
-        if (enemySquad) {
-            this._lastRoundReceivedAttack = roundCount;
-            this.logger.debug("Attacking " + enemySquad.name);
-            return enemySquad.receiveAttack(this, roundCount);
-        }
+        return enemySquad ? this.squadAttack(enemySquad, roundCount) : undefined;
     }
 
     private act_idle(): undefined {
