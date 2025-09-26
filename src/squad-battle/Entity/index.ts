@@ -92,12 +92,12 @@ export class SquadEntity {
     }
 
     public heal(num: number): EntityChange | undefined {
-        if (num < 0) return;
+        if (num < 0 || this.isDead()) return;
         return this.mod_changeableStat('HP', num)
     }
 
     public boost(num: number): EntityChange | undefined {
-        if (num < 0) return;
+        if (num < 0 || this.isDead()) return;
         return this.mod_changeableStat('ORG', num)
     }
 
@@ -123,6 +123,7 @@ export class SquadEntity {
     }
 
     public recover() {
+        if (this.isDead()) return;
         this.mod_changeableStat('ORG', 7)
         this.heal(1);
     }
