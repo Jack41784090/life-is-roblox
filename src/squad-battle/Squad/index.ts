@@ -121,12 +121,12 @@ export class Squad {
 
     round(enemySquads: Squad[], roundCount: number) {
         const random = math.random();
-        // if (random >= .5) {
-        //     return this.act_attackRandom(enemySquads, roundCount);
-        // }
-        // else {
-        //     return this.act_idle();
-        // }
+        if (random >= .5) {
+            return this.act_attackRandom(enemySquads, roundCount);
+        }
+        else {
+            return this.act_idle();
+        }
         return this.act_attackRandom(enemySquads, roundCount);
 
     }
