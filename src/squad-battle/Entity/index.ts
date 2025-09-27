@@ -23,6 +23,10 @@ export class SquadEntity {
     // public weapon: Weapon;
     public team: string;
 
+
+    // misc.
+    private _isRetreating: boolean = false;
+
     constructor(options: EntityConfig) {
         this.playerID = options.playerID;
         this.team = options.team;
@@ -39,6 +43,10 @@ export class SquadEntity {
         this.logger = Logger.createContextLogger(`Entity:${this.name}[${this.playerID}]`)
         // this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         // this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
+    }
+
+    public newRoundReset() {
+        this._isRetreating = false;
     }
 
     public isDead(): boolean {
