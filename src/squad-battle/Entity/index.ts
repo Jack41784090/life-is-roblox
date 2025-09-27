@@ -110,6 +110,10 @@ export class SquadEntity {
     }
 
     private _deorgAfterDamage(dm: number, source: number): EntityUpdate[] {
+        if (dm <= 0) return [];
+        if (this.isDead()) return [];
+        // Deorg = base damage * 1.5 + (current HP / max HP) * 10
+        // Minimum deorg is 5
         const affected = this.playerID;
         const baseDamageDeorg = -(dm * 1.5);
         const closeToDeathDeorg = -(this.get_changeableStat_num('HP') / this.getCeiling_changeableStat('HP')) * 10;
@@ -121,22 +125,25 @@ export class SquadEntity {
             }
         ]
         if (this.get_changeableStat_num('ORG') <= 0) {
-            changes.push(
-                { source: affected, affected, change: this.mod_changeableStat('LOC', 1) },
-                { source: affected, affected, change: this.set_changeableStat('ORG', this.getCeiling_changeableStat('ORG') * 0.1) }
-            )
+            if (this._isRetreating === false) {
+                this._isRetreating = true;
+                changes.push({ source: affected, affected, change: this.mod_changeableStat('LOC', 1) });
+            }
         }
 
         return changes;
     }
 
-    public recover() {
-        if (this.isDead()) return;
-        this.mod_changeableStat('ORG', 7)
-        this.heal(1);
+    public recover(): EntityChange[] {
+        if (this.isDead()) return [];
+        return [
+            this.mod_changeableStat('ORG', 7),
+            this.heal(1)
+        ].filterUndefined();
     }
 
     public damage(num: number, source: number): EntityUpdate[] {
+        if (this.isDead()) return [];
         const oldHP = this.get_changeableStat_num('HP');
         const affected = this.playerID
         if (num <= 0) {
