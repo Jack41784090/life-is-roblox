@@ -274,62 +274,32 @@ export class SquadEntity {
         });
         const action = logic.choose_action();
         switch (action) {
-            case 'attack': {
-                const target = logic.choose_target();
-                if (target) {
-                    const dm = 5;
-                    const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
-                    damageUpdate.forEach(eu => updates.push(eu))
-                    // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
-                }
+            case 'attack':
+                this.action_attack(logic)?.forEach(eu => updates.push(eu))
                 break;
-            }
 
-            case 'forward': {
-                updates.push({
+            case 'forward':
+                this.action_forward(logic).forEach(eu => updates.push(eu))
+                break;
+
+            case 'heal':
+                this.action_heal(logic)?.forEach(eu => updates.push(eu))
+                break;
+
+            case 'idle':
+                this.action_idle().forEach(c => updates.push({
                     source: this.playerID,
                     affected: this.playerID,
-                    change: this.mod_changeableStat('LOC', -1)
-                });
+                    change: c
+                }))
                 break;
-            }
-
-            case 'heal': {
-                const physicalheal = 5;
-                const spiritheal = 7;
-                const samelineallies = ourSquad[this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation];
-                if (samelineallies?.size()) {
-                    const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
-
-                    let heal;
-                    if (heal = ally.heal(physicalheal)) {
-                        updates.push({
-                            source: this.playerID,
-                            affected: ally.playerID,
-                            change: heal,
-                        });
-                    }
-                    let boost;
-                    if (boost = ally.boost(spiritheal)) {
-                        updates.push({
-                            source: this.playerID,
-                            affected: ally.playerID,
-                            change: boost
-                        })
-                    }
-                }
-            }
-
-            case 'idle': {
-                // this.logger.debug("idling")
-                break;
-            }
         }
 
         return updates;
     }
 
     public reaction(our_squad: SquadMetadata, enemy_squad: SquadMetadata): EntityUpdate[] {
+        if (this.isDead()) return [];
         const updates: EntityUpdate[] = [];
         const logic = new Frontline({
             entity: this,
@@ -338,77 +308,33 @@ export class SquadEntity {
         })
         const reaction = logic.choose_reaction();
         switch (reaction) {
-            case 'attack': {
-                const target = logic.choose_target();
-                if (target) {
-                    const dm = 5;
-                    const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
-                    damageUpdate.forEach(eu => updates.push(eu))
-                    // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
-                }
+            case 'attack':
+                this.action_attack(logic)?.forEach(eu => updates.push(eu))
                 break;
-            }
 
-            case 'forward': {
-                updates.push({
+            case 'forward':
+                this.action_forward(logic).forEach(eu => updates.push(eu))
+                break;
+
+            case 'heal':
+                this.action_heal(logic)?.forEach(eu => updates.push(eu))
+                break;
+
+            case 'idle':
+                this.action_idle().forEach(c => updates.push({
                     source: this.playerID,
                     affected: this.playerID,
-                    change: this.mod_changeableStat('LOC', -1)
-                });
+                    change: c
+                }))
                 break;
-            }
 
-            case 'heal': {
-                const physicalheal = 5;
-                const spiritheal = 7;
-                const samelineallies = our_squad[this.get_changeableStat_num('LOC') as SquadEntityInSquadLocation];
-                if (samelineallies?.size()) {
-                    const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
-
-                    let heal;
-                    if (heal = ally.heal(physicalheal)) {
-                        updates.push({
-                            source: this.playerID,
-                            affected: ally.playerID,
-                            change: heal,
-                        });
-                    }
-                    let boost;
-                    if (boost = ally.boost(spiritheal)) {
-                        updates.push({
-                            source: this.playerID,
-                            affected: ally.playerID,
-                            change: boost
-                        })
-                    }
-                }
-            }
-
-            case 'idle': {
-                // this.logger.debug("idling")
+            case 'retreat':
+                this.action_retreat().forEach(eu => updates.push(eu))
                 break;
-            }
 
-            case 'retreat': {
-                updates.push({
-                    source: this.playerID,
-                    affected: this.playerID,
-                    change: this.mod_changeableStat('LOC', 1)
-                });
+            case 'capitulate':
+                this.action_capitulate().forEach(eu => updates.push(eu))
                 break;
-            }
-
-            case 'capitulate': {
-                updates.push({
-                    source: this.playerID,
-                    affected: this.playerID,
-                    change: {
-                        property: 'LEAVE',
-                        from: -1,
-                        to: -1
-                    }
-                })
-            }
         }
 
         return updates;
