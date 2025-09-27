@@ -43,9 +43,9 @@ function SquadDisplay(props: SquadDisplayProps) {
             Position={UDim2.fromScale(0, .5)}
             Size={UDim2.fromScale(math.min(0.6, 1 / props.teamSize * .8), 1)}
             BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
-            BackgroundTransparency={0}
+            BackgroundTransparency={0.95}
             BorderColor3={new Color3(0.6, 0.6, 0.6)}
-            BorderSizePixel={2}
+            BorderSizePixel={1}
         // SizeConstraint={'RelativeXX'}
         >
 
