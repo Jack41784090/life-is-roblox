@@ -45,7 +45,7 @@ function PlayerPortrait(props: Props) {
     const org = entity.changeableStats.ORG();
     const maxHP = props.entity.calculateRealityValue(Reality.HP);
     const maxORG = entity.calculateRealityValue(Reality.Guts);
-    const [damageIndicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
+    const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
 
     useEffect(() => {
         hpMotion.spring(hp / maxHP, springs.slow);
@@ -63,13 +63,14 @@ function PlayerPortrait(props: Props) {
         props.entityUpdates.forEach((update, index) => {
             switch (update.change.property) {
                 case 'DIE':
+                case 'RETREAT':
                 case 'LEAVE': {
                     if (update.change.property === 'DIE') {
                         setIsDying(true);
                     }
-                    // else if (update.change.property === 'LEAVE') {
-                    //     setIsRetreating(true);
-                    // }
+                    else if (update.change.property === 'LEAVE') {
+                        setIsRetreating(true);
+                    }
                     newIndicators.push({
                         T: update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat,
                         id: tick() * 1000 + index,
@@ -94,13 +95,13 @@ function PlayerPortrait(props: Props) {
                 case 'LOC': {
                     const dloc = update.change.to - update.change.from;
                     if (dloc > 0) { // Retreating
-                        setIsRetreating(true);
-                        newIndicators.push({
-                            T: IndicatorType.Retreat,
-                            id: tick() * 1000 + index,
-                            value: dloc,
-                            position: UDim2.fromScale(.5, .5)
-                        });
+                        // setIsRetreating(true);
+                        // newIndicators.push({
+                        //     T: IndicatorType.Retreat,
+                        //     id: tick() * 1000 + index,
+                        //     value: dloc,
+                        //     position: UDim2.fromScale(.5, .5)
+                        // });
                     }
                     else {
                         setIsRetreating(false);
@@ -145,7 +146,7 @@ function PlayerPortrait(props: Props) {
 
 
             {/* Damage Indicators */}
-            {damageIndicators.map((indicator) => {
+            {indicators.map((indicator) => {
                 switch (indicator.T) {
                     case IndicatorType.Damage:
                     case IndicatorType.Heal:
