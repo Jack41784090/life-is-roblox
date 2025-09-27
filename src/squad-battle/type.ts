@@ -86,6 +86,7 @@ export type EntityConfig =
         iconURL?: ReadinessIcon;
         model?: Model;
         fightingStyles?: FightingStyle[];
+        logicType?: 'Frontline' | 'Backline' | 'Absurd'; // Logic type hint for factory
     };
 
 export type EntityState =
@@ -111,7 +112,7 @@ export enum SquadLocation {
 }
 
 export type SquadConfig = {
-    entities: EntityConfig[];
+    entities: (EntityConfig)[];
     name: string;
     team?: string;
 }
