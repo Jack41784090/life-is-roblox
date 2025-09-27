@@ -24,6 +24,17 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }
             });
         }
     }, [isDying]);
+
+    useEffect(() => {
+        if (isRetreating) {
+            scaleMotion.tween(0, {
+                time: 1,
+                style: Enum.EasingStyle.Exponential,
+                direction: Enum.EasingDirection.In,
+            });
+        }
+    }, [isRetreating]);
+
     return (
         <frame
             AnchorPoint={new Vector2(0.5, 0.5)}
@@ -50,7 +61,7 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }
             >
                 <uicorner CornerRadius={new UDim(1, 0)} />
             </imagelabel>
-            {
+            {/* {
                 isRetreating ?
                     <textlabel
                         AnchorPoint={new Vector2(1, 0)}
@@ -61,7 +72,7 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }
                         ZIndex={1}
                     /> :
                     <></>
-            }
+            } */}
         </frame >);
 }
 
