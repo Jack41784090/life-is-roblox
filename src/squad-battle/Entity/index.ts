@@ -127,7 +127,8 @@ export class SquadEntity {
         if (this.get_changeableStat_num('ORG') <= 0) {
             if (this._isRetreating === false) {
                 this._isRetreating = true;
-                changes.push({ source: affected, affected, change: this.mod_changeableStat('LOC', 1) });
+                changes.push({ source: affected, affected, change: this.mod_changeableStat('LOC', 1) },
+                    { source: affected, affected, change: this.mod_changeableStat('ORG', this.calculateRealityValue(Reality.Guts) * .1) });
             }
         }
 
@@ -136,10 +137,20 @@ export class SquadEntity {
 
     public recover(): EntityChange[] {
         if (this.isDead()) return [];
-        return [
-            this.mod_changeableStat('ORG', 7),
-            this.heal(1)
-        ].filterUndefined();
+        const recoverUpdates: EntityChange[] = [];
+        const logic = new Frontline({ entity: this, enemy_squad: {}, our_squad: {} });
+        const idle_logic = logic.choose_action();
+        switch (idle_logic) {
+            case 'forward':
+                recoverUpdates.push(this.mod_changeableStat('LOC', -1));
+                break;
+            case 'retreat':
+                recoverUpdates.push(this.mod_changeableStat('LOC', 1));
+                break;
+        }
+        recoverUpdates.push(this.mod_changeableStat('HP', 3));
+        recoverUpdates.push(this.mod_changeableStat('ORG', 5));
+        return recoverUpdates;
     }
 
     public damage(num: number, source: number): EntityUpdate[] {
@@ -329,10 +340,21 @@ export class SquadEntity {
                 break;
 
             case 'retreat':
+                this.logger.warn("retreating!");
                 this.action_retreat().forEach(eu => updates.push(eu))
+                updates.push({
+                    source: this.playerID,
+                    affected: this.playerID,
+                    change: {
+                        property: 'RETREAT' as EntityChangeable,
+                        from: -1,
+                        to: -1
+                    }
+                })
                 break;
 
             case 'capitulate':
+                this.logger.warn("capitulating!");
                 this.action_capitulate().forEach(eu => updates.push(eu))
                 break;
         }
@@ -536,6 +558,16 @@ class Frontline extends Logic {
     }
 }
 
-class Backline extends Logic {
+class Absurd extends Logic {
+    constructor(context: LogicContext) {
+        super(context);
+    }
 
+    public override choose_action() {
+        return 'forward' as SquadEntityAction;
+    }
+
+    public override choose_reaction() {
+        return 'retreat' as SquadEntityAction;
+    }
 }
