@@ -1,9 +1,11 @@
 import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import { SquadEntity } from "squad-battle/Entity";
+import { createLogic } from "squad-battle/Entity/Logic/factory";
 import { EntityUpdate, SquadConfig, SquadEntityInSquadLocation } from "squad-battle/type";
+import { iSquad } from "./type.d";
 
-export class Squad {
+export class Squad implements iSquad {
     team: string = '';
     logger: ContextLogger;
     entities: SquadEntity[];
@@ -14,7 +16,14 @@ export class Squad {
     // antiair: number;
 
     constructor(configs: SquadConfig) {
-        this.entities = configs.entities.map(c => new SquadEntity(c))
+        this.entities = configs.entities.map(c => {
+            const entity = new SquadEntity({
+                ...c,
+            });
+            // Update the logic to reference the actual entity
+            entity.setLogic(createLogic(entity, c.logicType || 'Frontline'));
+            return entity;
+        });
         this.name = configs.name;
         this.logger = Logger.createContextLogger(`Squad:${configs.name}`);
         this.team = configs.team || '';
