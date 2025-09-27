@@ -376,6 +376,10 @@ type LogicContext = {
 }
 
 class Logic {
+    get_samelineAllies() {
+        const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
+        return this.context.our_squad[myLocation];
+    }
     protected logger: ContextLogger;
     protected entity: SquadEntity;
     protected situation: SquadBattleSituation;
@@ -434,6 +438,19 @@ class Logic {
         return undefined;
     }
 
+    protected retreatIfOutnumbered(): SquadEntityAction | undefined {
+        const { myLocation, frontlineAlliesNumbers, frontlineNumbers, midlineAlliesNumbers, midlineNumbers, backlineAlliesNumbers, backlineNumbers } = this.situation;
+        let myAllies = (frontlineAlliesNumbers || 0) + (midlineAlliesNumbers || 0) + (backlineAlliesNumbers || 0);
+        let myEnemies = (frontlineNumbers || 0) + (midlineNumbers || 0) + (backlineNumbers || 0);
+        if (myEnemies > myAllies * 2) {
+            if (myLocation === SquadEntityInSquadLocation.back) {
+                return 'capitulate';
+            }
+            return 'retreat';
+        }
+        return undefined;
+    }
+
     public choose_reaction(): SquadEntityAction {
         const { myLocation, backlineAllies, backlineAlliesNumbers } = this.situation;
         switch (myLocation) {
@@ -442,7 +459,7 @@ class Logic {
                     return 'capitulate'
                 }
             default:
-                return this.healOthersIfAround() || 'idle'
+                return this.retreatIfOutnumbered() || this.healOthersIfAround() || 'idle'
         }
     }
 
@@ -492,7 +509,7 @@ class Frontline extends Logic {
             case SquadEntityInSquadLocation.front:
                 return 'attack' as SquadEntityAction;
             default:
-                return this.forwardIfBrave() || super.choose_action();
+                return this.forwardIfBrave() || super.choose_reaction();
         }
     }
 
