@@ -132,10 +132,47 @@ export class SquadBattle {
     }
 
     roundCount: number = -1;
-    round(): EntityUpdate[] {
-        this.roundCount++;
 
-        // 0. remove killed units from last round
+    public squadRecoveries() {
+        for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
+            const squadsCount = squads.size();
+            for (let i = 0; i < squadsCount; i++) {
+                const squad = squads[i];
+                if (squad.get_lastAttackedAtRound() < this.roundCount) {
+                    squad.recovery();
+                }
+            }
+        }
+    }
+
+    public squadActions() {
+        const updates: EntityUpdate[] = [];
+        const squadUpdateRecords: Record<string, EntityUpdate[][]> = {};
+        for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
+            const squadsCount = squads.size();
+            const targetSquads = this.getAllEnemySquads(teamName);
+            for (let i = 0; i < squadsCount; i++) {
+                const squad = squads[i];
+                const squadUpdate = squad.round(targetSquads, this.roundCount);
+
+
+                // === === 
+                squadUpdateRecords[teamName] = squadUpdateRecords[teamName] || [];
+                if (squadUpdate) {
+                    squadUpdateRecords[teamName].push(squadUpdate);
+                    squadUpdate.forEach(u => updates.push(u));
+                }
+            }
+        }
+
+        print(`--- Round ${this.roundCount} Updates ---`);
+        print(squadUpdateRecords);
+        print('------------------------------');
+
+        return updates;
+    }
+
+    public removeDeadEntities() {
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
             for (let i = 0; i < squadsCount; i++) {
@@ -147,40 +184,5 @@ export class SquadBattle {
                 });
             }
         }
-
-        // 1. All squads make their moves
-        const updates: EntityUpdate[] = []
-        const squadUpdateRecords: Record<string, EntityUpdate[][]> = {};
-        for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
-            const squadsCount = squads.size();
-            const targetSquads = this.getAllEnemySquads(teamName);
-            for (let i = 0; i < squadsCount; i++) {
-                const squad = squads[i];
-                const squadUpdate = squad.round(targetSquads, this.roundCount);
-                squadUpdateRecords[teamName] = squadUpdateRecords[teamName] || [];
-                if (squadUpdate) {
-                    squadUpdateRecords[teamName].push(squadUpdate);
-                    squadUpdate.forEach(u => updates.push(u))
-                }
-            }
-        }
-
-
-        // 2. Remove killed units + Recovery for those who didn't attack
-        for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
-            const squadsCount = squads.size();
-            for (let i = 0; i < squadsCount; i++) {
-                const squad = squads[i];
-                if (squad.get_lastAttackedAtRound() < this.roundCount) {
-                    squad.recovery();
-                }
-            }
-        }
-
-
-        print(`--- Round ${this.roundCount} Updates ---`);
-        print(squadUpdateRecords);
-        print('------------------------------');
-        return updates;
     }
 }
