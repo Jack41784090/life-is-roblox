@@ -49,7 +49,7 @@ function BattleField(props: BattleFieldProps) {
                     squads={(() => {
                         const whoisthem: Squad[] = [];
                         for (const [k, v] of pairs(props.squads)) {
-                            if (k !== props.us) v.forEach(s => whoisthem.push(s));
+                            if (k !== props.us) v.forEach(s => { if (!s.isCrippled()) whoisthem.push(s); });
                         }
                         return whoisthem
                     })()}
@@ -60,7 +60,7 @@ function BattleField(props: BattleFieldProps) {
                 <TeamContainer
                     key="US"
                     teamName={props.us}
-                    squads={props.squads[props.us]}
+                    squads={props.squads[props.us].filter(s => !s.isCrippled())}
                     entityUpdates={props.entityUpdates}
                 />
             </frame>
