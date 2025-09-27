@@ -3,8 +3,9 @@ import { SquadEntity } from "squad-battle/Entity";
 import { uniformRandom } from '../../shared/utils/index';
 import { Squad } from "../Squad";
 import { EntityUpdate, SquadBattleConfig } from "../type";
+import { iSquadBattle } from "./type.d";
 
-export class SquadBattle {
+export class SquadBattle implements iSquadBattle {
     getEntityByID(affected: number): SquadEntity {
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
