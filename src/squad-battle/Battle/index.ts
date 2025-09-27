@@ -1,9 +1,41 @@
 import Logger from "shared/utils/Logger";
+import { SquadEntity } from "squad-battle/Entity";
 import { uniformRandom } from '../../shared/utils/index';
 import { Squad } from "../Squad";
 import { EntityUpdate, SquadBattleConfig } from "../type";
 
 export class SquadBattle {
+    getEntityByID(affected: number): SquadEntity {
+        for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
+            const squadsCount = squads.size();
+            for (let i = 0; i < squadsCount; i++) {
+                const squad = squads[i];
+                for (let j = 0; j < squad.entities.size(); j++) {
+                    const entity = squad.entities[j];
+                    if (entity.playerID === affected) {
+                        return entity;
+                    }
+                }
+            }
+        }
+        throw `Entity with ID ${affected} not found!`;
+    }
+    removeCapitulatedEntities(_lastRoundCapitulatedEntities: Set<SquadEntity>) {
+        _lastRoundCapitulatedEntities.forEach(e => {
+            for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
+                const squadsCount = squads.size();
+                for (let i = 0; i < squadsCount; i++) {
+                    const squad = squads[i];
+                    squad.entities.forEach((se, i) => {
+                        if (se.playerID === e.playerID) {
+                            squad.entities.remove(i);
+                            this.logger.warn(`Entity ${se.playerID} has capitulated and left the battle!`);
+                        }
+                    });
+                }
+            }
+        })
+    }
     logger = Logger.createContextLogger("SquadBattle");
     teamsAndSquads: Record<string, Squad[]> = {};
     private teamNames: string[] = [];
