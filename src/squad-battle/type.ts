@@ -120,8 +120,13 @@ export type SquadBattleConfig = {
     teams: Record<string, SquadConfig[]>;
 }
 
+export type EntityChange_Special = |
+    'LEAVE' |
+    'DIE' |
+    'RETREAT';
+
 export type EntityChange = {
-    property: EntityChangeable | 'LEAVE' | 'DIE';
+    property: EntityChangeable | EntityChange_Special;
     from: number;
     to: number;
 };
