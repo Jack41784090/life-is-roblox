@@ -20,6 +20,10 @@ export class Squad {
         this.team = configs.team || '';
     }
 
+    public isCrippled(): boolean {
+        return this.entities.size() === 0;;
+    }
+
     get_allEntities(): Partial<Record<SquadEntityInSquadLocation, SquadEntity[]>> {
         return this.entities.reduce((A, se) => {
             const loc = se.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
@@ -75,9 +79,6 @@ export class Squad {
             const ourBoy = this.entities[i];
             ourBoy.action(our_squad, enemy_squad)
                 .forEach(r => {
-                    // if (r.change.property === 'LEAVE' || r.change.property === 'DIE') {
-                    //     this.entities.remove(this.entities.findIndex(e => e.playerID === r.affected))
-                    // }
                     updatesAfterAttack.push(r)
                 }
                 );
@@ -118,6 +119,7 @@ export class Squad {
 
     round(enemySquads: Squad[], roundCount: number) {
         const random = math.random();
+        this.entities.forEach(e => e.newRoundReset());
         if (random >= .5) {
             return this.act_attackRandom(enemySquads, roundCount);
         }
