@@ -201,7 +201,71 @@ export class SquadEntity {
         }
     }
 
+    private action_attack(logic: Logic) {
+        const target = logic.choose_target();
+        if (target) {
+            const dm = 5;
+            const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
+            return damageUpdate
+            // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
+        }
+    }
+
+    private action_forward(logic: Logic) {
+        return [{
+            source: this.playerID,
+            affected: this.playerID,
+            change: this.mod_changeableStat('LOC', -1)
+        }]
+    }
+
+    private action_heal(logic: Logic) {
+        const physicalheal = 5;
+        const spiritheal = 7;
+        const samelineallies = logic.get_samelineAllies();
+        if (samelineallies?.size()) {
+            const ally = samelineallies[uniformRandom(0, samelineallies.size() - 1, true)];
+
+            const h = ally.heal(physicalheal);
+            const b = ally.boost(spiritheal);
+            const updates: EntityUpdate[] = [];
+            h ? updates.push({ source: this.playerID, affected: ally.playerID, change: h }) : undefined;
+            b ? updates.push({ source: this.playerID, affected: ally.playerID, change: b }) : undefined;
+            return updates;
+        }
+    }
+
+    private action_retreat() {
+        if (this._isRetreating === false) {
+            this._isRetreating = true;
+            return [{
+                source: this.playerID,
+                affected: this.playerID,
+                change: this.mod_changeableStat('LOC', 1)
+            }];
+        }
+        return [];
+    }
+
+    private action_capitulate() {
+        return [{
+            source: this.playerID,
+            affected: this.playerID,
+            change: {
+                property: 'LEAVE' as EntityChangeable,
+                from: -1,
+                to: -1
+            }
+        }];
+    }
+
+    private action_idle() {
+        // this.logger.debug("idling")
+        return this.recover()
+    }
+
     public action(ourSquad: SquadMetadata, enemySquad: SquadMetadata): EntityUpdate[] {
+        if (this.isDead()) return [];
         const updates: EntityUpdate[] = [];
         const logic = new Frontline({
             entity: this,
