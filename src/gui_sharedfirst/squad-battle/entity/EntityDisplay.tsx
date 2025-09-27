@@ -39,6 +39,7 @@ function PlayerPortrait(props: Props) {
     const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);
     const [orgRatio, orgMotion] = useMotion(1);
+    const [isRetreating, setIsRetreating] = useState(false);
     const [isDying, setIsDying] = useState(false);
     const hp = props.entity.changeableStats.HP();
     const org = entity.changeableStats.ORG();
@@ -66,6 +67,9 @@ function PlayerPortrait(props: Props) {
                     if (update.change.property === 'DIE') {
                         setIsDying(true);
                     }
+                    // else if (update.change.property === 'LEAVE') {
+                    //     setIsRetreating(true);
+                    // }
                     newIndicators.push({
                         T: update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat,
                         id: tick() * 1000 + index,
@@ -90,12 +94,16 @@ function PlayerPortrait(props: Props) {
                 case 'LOC': {
                     const dloc = update.change.to - update.change.from;
                     if (dloc > 0) { // Retreating
+                        setIsRetreating(true);
                         newIndicators.push({
                             T: IndicatorType.Retreat,
                             id: tick() * 1000 + index,
                             value: dloc,
                             position: UDim2.fromScale(.5, .5)
                         });
+                    }
+                    else {
+                        setIsRetreating(false);
                     }
                 }
             }
@@ -133,7 +141,7 @@ function PlayerPortrait(props: Props) {
                         </>
                     )
             }
-            <EntityPortrait portraitImage={portraitImage} isDying={isDying} />
+            <EntityPortrait portraitImage={portraitImage} isDying={isDying} isRetreating={isRetreating} />
 
 
             {/* Damage Indicators */}

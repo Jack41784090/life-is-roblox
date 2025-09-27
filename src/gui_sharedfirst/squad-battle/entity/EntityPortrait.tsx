@@ -6,9 +6,10 @@ import { springs } from "shared/utils";
 interface EntityPortraitProps {
     portraitImage: string;
     isDying?: boolean;
+    isRetreating?: boolean;
 }
 
-function EntityPortrait({ portraitImage, isDying = false }: EntityPortraitProps) {
+function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }: EntityPortraitProps) {
     const [rotation, rotationMotion] = useMotion(0);
     const [scale, scaleMotion] = useMotion(1);
 
@@ -49,6 +50,18 @@ function EntityPortrait({ portraitImage, isDying = false }: EntityPortraitProps)
             >
                 <uicorner CornerRadius={new UDim(1, 0)} />
             </imagelabel>
+            {
+                isRetreating ?
+                    <textlabel
+                        AnchorPoint={new Vector2(1, 0)}
+                        Position={UDim2.fromScale(1, 0)}
+                        Size={UDim2.fromScale(0.3, 0.3)}
+                        BackgroundTransparency={1}
+                        Text="🏳️"
+                        ZIndex={1}
+                    /> :
+                    <></>
+            }
         </frame >);
 }
 
