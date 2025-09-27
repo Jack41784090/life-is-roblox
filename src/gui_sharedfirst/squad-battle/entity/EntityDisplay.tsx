@@ -124,8 +124,15 @@ function PlayerPortrait(props: Props) {
                     : Enum.SizeConstraint.RelativeXX
             }
         >
-            <EntityCircleBar hpRatio={orgRatio} />
-            <Bar progress={hpRatio} />
+            {
+                isDying ?
+                    <></> : (
+                        <>
+                            <EntityCircleBar hpRatio={orgRatio} />
+                            <Bar progress={hpRatio} />
+                        </>
+                    )
+            }
             <EntityPortrait portraitImage={portraitImage} isDying={isDying} />
 
 
