@@ -42,13 +42,14 @@ function BattleField(props: BattleFieldProps) {
                     SortOrder={Enum.SortOrder.LayoutOrder}
                     HorizontalAlignment={'Center'}
                     VerticalAlignment={'Top'}
+                    Padding={new UDim(0, 5)}
                 />
 
 
                 <TeamContainer
                     key="THEM"
                     teamName="THEM"
-                    Size={UDim2.fromScale(1, 1)}
+                    Size={UDim2.fromScale(1, .5)}
                     squads={(() => {
                         const whoisthem: Squad[] = [];
                         for (const [k, v] of pairs(props.squads)) {
@@ -65,7 +66,7 @@ function BattleField(props: BattleFieldProps) {
                 <TeamContainer
                     key="US"
                     teamName={props.us}
-                    Size={UDim2.fromScale(1, 1)}
+                    Size={UDim2.fromScale(1, .5)}
                     squads={props.squads[props.us].filter(s => !s.isCrippled())}
                     entityUpdates={props.entityUpdates?.map((u, i) => {
                         return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
