@@ -10,6 +10,7 @@ interface BattleFieldProps {
     us: string;
     currentRound?: number;
     entityUpdates?: EntityUpdate[];
+    delayBetweenIndicatorsInSeconds: number
 }
 
 function BattleField(props: BattleFieldProps) {
@@ -54,14 +55,18 @@ function BattleField(props: BattleFieldProps) {
                         return whoisthem
                     })()}
                     upsideDown={true}
-                    entityUpdates={props.entityUpdates}
+                    entityUpdates={props.entityUpdates?.map((u, i) => {
+                        return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
+                    })}
                 />
 
                 <TeamContainer
                     key="US"
                     teamName={props.us}
                     squads={props.squads[props.us].filter(s => !s.isCrippled())}
-                    entityUpdates={props.entityUpdates}
+                    entityUpdates={props.entityUpdates?.map((u, i) => {
+                        return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
+                    })}
                 />
             </frame>
 
