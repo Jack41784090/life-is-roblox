@@ -1,6 +1,6 @@
 import React from "@rbxts/react";
 import { Squad } from "squad-battle/Squad";
-import { EntityUpdate } from "squad-battle/type";
+import { EntityUpdateIndicator } from "../entity/types";
 import SquadDisplay from "../squad/SquadDisplay";
 
 interface SquadContainerProps {
@@ -8,7 +8,7 @@ interface SquadContainerProps {
     teamName: string;
     Size?: UDim2;
     upsideDown?: boolean;
-    entityUpdates?: EntityUpdate[];
+    entityUpdates?: EntityUpdateIndicator[];
 }
 
 function SquadContainer(props: SquadContainerProps) {

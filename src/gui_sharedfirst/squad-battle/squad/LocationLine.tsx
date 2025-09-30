@@ -1,14 +1,15 @@
 import React from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
-import { EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
+import { SquadEntityInSquadLocation } from "squad-battle/type";
 import PlayerPortrait from "../entity/EntityDisplay";
+import { EntityUpdateIndicator } from "../entity/types";
 import { getLocationColor } from "../shared/utils";
 
 interface LocationLineProps {
     title: string;
     entities: SquadEntity[];
     location: SquadEntityInSquadLocation;
-    entityUpdates?: EntityUpdate[];
+    entityUpdates?: EntityUpdateIndicator[];
 }
 
 function LocationLine(props: LocationLineProps) {

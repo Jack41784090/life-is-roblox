@@ -1,6 +1,7 @@
 import React from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
-import { EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
+import { SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityUpdateIndicator } from "../entity/types";
 import LocationLine from "./LocationLine";
 
 interface SquadDisplayProps {
@@ -9,7 +10,7 @@ interface SquadDisplayProps {
     entities: SquadEntity[];
     teamSize: number;
     upsideDown?: boolean;
-    entityUpdates?: EntityUpdate[];
+    entityUpdates?: EntityUpdateIndicator[];
 }
 
 function SquadDisplay(props: SquadDisplayProps) {
