@@ -17,7 +17,7 @@ export default function TeamContainer(props: SquadContainerProps) {
             Size={props.Size || UDim2.fromScale(.9, .5)}
             Position={UDim2.fromScale(0, 1)}
             AnchorPoint={new Vector2(0, 1)}
-            BackgroundTransparency={.8}
+            BackgroundTransparency={1}
         >
             <uilistlayout
                 FillDirection={Enum.FillDirection.Horizontal}
