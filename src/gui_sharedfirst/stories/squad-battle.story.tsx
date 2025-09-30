@@ -79,6 +79,7 @@ const story = CreateReactStory({
             }}
             us="Team1"
             currentRound={10}
+            delayBetweenIndicatorsInSeconds={0.1}
         />
     </>
 })
