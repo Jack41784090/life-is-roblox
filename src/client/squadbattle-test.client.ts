@@ -48,7 +48,7 @@ import { SquadBattleConfig, SquadConfig } from "squad-battle/type";
 // })
 
 const team_count = 2;
-const squad_count = 2
+const squad_count = 1
 const squad_numbers = 5;
 const config: SquadBattleConfig = {
     teams: {}
