@@ -32,78 +32,69 @@ function SquadDisplay(props: SquadDisplayProps) {
     };
 
     const entitiesByLocation = getEntitiesByLocation();
-    // const totalHeight = 300;
-    // const squadWidth = 400;
 
-    const headerYSize = .17;
-    const bodyYSize = 1 - headerYSize;
+    const topsection = (<>
+        {props.upsideDown &&
+            <LocationLine
+                title="BACK LINE"
+                entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
+                location={SquadEntityInSquadLocation.back}
+                entityUpdates={props.entityUpdates}
+            />}
+
+        {!props.upsideDown &&
+            <LocationLine
+                title="FRONT LINE"
+                entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
+                location={SquadEntityInSquadLocation.front}
+                entityUpdates={props.entityUpdates}
+            />
+        }
+    </>)
+
+    const bottomSection = (<>
+        {!props.upsideDown &&
+            <LocationLine
+                title="BACK LINE"
+                entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
+                location={SquadEntityInSquadLocation.back}
+                entityUpdates={props.entityUpdates}
+            />}
+
+        {props.upsideDown &&
+            <LocationLine
+                title="FRONT LINE"
+                entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
+                location={SquadEntityInSquadLocation.front}
+                entityUpdates={props.entityUpdates}
+            />
+        }
+    </>);
 
     return (
         <frame
             // Position={props.position || new UDim2(0, 0, 0, 0)}
             Position={UDim2.fromScale(0, .5)}
             Size={UDim2.fromScale(math.min(0.6, 1 / props.teamSize * .8), 1)}
-            BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
-            BackgroundTransparency={0.95}
+            // BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
+            BackgroundTransparency={.90}
             BorderColor3={new Color3(0.6, 0.6, 0.6)}
             BorderSizePixel={1}
-        // SizeConstraint={'RelativeXX'}
         >
-
-            <frame
-                Size={UDim2.fromScale(1, 1)}
-                // Position={UDim2.fromScale(0, headerYSize)}
-                BackgroundTransparency={0.65}
-            >
-                <uilistlayout
-                    FillDirection={Enum.FillDirection.Vertical}
-                    SortOrder={Enum.SortOrder.LayoutOrder}
-                    HorizontalAlignment={Enum.HorizontalAlignment.Center}
-                    VerticalAlignment={Enum.VerticalAlignment.Top}
-                />
-
-                {props.upsideDown &&
-                    <LocationLine
-                        title="BACK LINE"
-                        entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
-                        location={SquadEntityInSquadLocation.back}
-                        entityUpdates={props.entityUpdates}
-                    />}
-
-                {!props.upsideDown &&
-                    <LocationLine
-                        title="FRONT LINE"
-                        entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
-                        location={SquadEntityInSquadLocation.front}
-                        entityUpdates={props.entityUpdates}
-                    />
-                }
-
-                <LocationLine
-                    title="MIDDLE LINE"
-                    entities={entitiesByLocation[SquadEntityInSquadLocation.middle]}
-                    location={SquadEntityInSquadLocation.middle}
-                    entityUpdates={props.entityUpdates}
-                />
-
-                {!props.upsideDown &&
-                    <LocationLine
-                        title="BACK LINE"
-                        entities={entitiesByLocation[SquadEntityInSquadLocation.back]}
-                        location={SquadEntityInSquadLocation.back}
-                        entityUpdates={props.entityUpdates}
-                    />}
-
-                {props.upsideDown &&
-                    <LocationLine
-                        title="FRONT LINE"
-                        entities={entitiesByLocation[SquadEntityInSquadLocation.front]}
-                        location={SquadEntityInSquadLocation.front}
-                        entityUpdates={props.entityUpdates}
-                    />
-                }
-
-            </frame>
+            <uilistlayout
+                FillDirection={Enum.FillDirection.Vertical}
+                SortOrder={Enum.SortOrder.LayoutOrder}
+                HorizontalAlignment={Enum.HorizontalAlignment.Center}
+                VerticalAlignment={Enum.VerticalAlignment.Top}
+            />
+            {topsection}
+            <LocationLine
+                title="MIDDLE LINE"
+                entities={entitiesByLocation[SquadEntityInSquadLocation.middle]}
+                location={SquadEntityInSquadLocation.middle}
+                entityUpdates={props.entityUpdates}
+            />
+            {bottomSection}
         </frame>
     );
 }
