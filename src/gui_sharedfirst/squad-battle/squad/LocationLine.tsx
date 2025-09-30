@@ -17,15 +17,6 @@ function LocationLine(props: LocationLineProps) {
 
     return (
         <frame Size={UDim2.fromScale(1, 1 / 3)} BackgroundTransparency={1}>
-            <textlabel
-                Size={UDim2.fromScale(1, 0.1)}
-                BackgroundTransparency={1}
-                Text={props.title}
-                TextColor3={lineColor}
-                TextScaled={true}
-                Font={Enum.Font.GothamBold}
-            />
-
             <frame
                 Position={UDim2.fromScale(0, 0.1)}
                 Size={UDim2.fromScale(1, 0.9)}
