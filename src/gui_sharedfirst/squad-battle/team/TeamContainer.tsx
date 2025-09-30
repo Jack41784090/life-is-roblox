@@ -1,32 +1,45 @@
 import React from "@rbxts/react";
 import { Squad } from "squad-battle/Squad";
 import { EntityUpdateIndicator } from "../entity/types";
-import SquadContainer from "./SquadContainer";
+import SquadDisplay from "../squad/SquadDisplay";
 
-interface TeamContainerProps {
-    teamName: string;
+interface SquadContainerProps {
     squads: Squad[];
+    teamName: string;
+    Size?: UDim2;
     upsideDown?: boolean;
     entityUpdates?: EntityUpdateIndicator[];
 }
 
-function TeamContainer(props: TeamContainerProps) {
+export default function TeamContainer(props: SquadContainerProps) {
     return (
         <frame
-            key={props.teamName}
-            Size={new UDim2(.9, 0, .5, 0)}
-            BackgroundTransparency={0.8}
-            BorderSizePixel={2}
+            Size={props.Size || UDim2.fromScale(.9, .5)}
+            Position={UDim2.fromScale(0, 1)}
+            AnchorPoint={new Vector2(0, 1)}
+            BackgroundTransparency={.8}
         >
-            <SquadContainer
-                Size={UDim2.fromScale(1, 1)}
-                squads={props.squads}
-                teamName={props.teamName}
-                upsideDown={props.upsideDown}
-                entityUpdates={props.entityUpdates}
+            <uilistlayout
+                FillDirection={Enum.FillDirection.Horizontal}
+                SortOrder={Enum.SortOrder.LayoutOrder}
+                HorizontalAlignment={Enum.HorizontalAlignment.Center}
+                VerticalAlignment={Enum.VerticalAlignment.Center}
+                // ItemLineAlignment={Enum.ItemLineAlignment.Center}
+                Padding={new UDim(0, 10)}
             />
+
+            {props.squads.map((squad, squadIndex) => (
+                <SquadDisplay
+                    name={squad.name}
+                    team={squad.team}
+                    entities={squad.entities}
+                    teamSize={props.squads.size()}
+                    upsideDown={props.upsideDown}
+                    entityUpdates={props.entityUpdates}
+                />
+            ))}
         </frame>
     );
 }
 
-export = TeamContainer;
+// export = SquadContainer;

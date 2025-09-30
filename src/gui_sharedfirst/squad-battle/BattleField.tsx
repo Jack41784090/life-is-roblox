@@ -3,7 +3,7 @@ import { Squad } from "squad-battle/Squad";
 import { EntityUpdate } from "squad-battle/type";
 import BattleHeader from "./BattleHeader";
 import BattleInfoPanel from "./BattleInfoPanel";
-import { SquadContainer } from "./team";
+import { TeamContainer } from "./team";
 
 interface BattleFieldProps {
     squads: Record<string, Squad[]>;
@@ -45,7 +45,7 @@ function BattleField(props: BattleFieldProps) {
                 />
 
 
-                <SquadContainer
+                <TeamContainer
                     key="THEM"
                     teamName="THEM"
                     Size={UDim2.fromScale(1, 1)}
@@ -62,7 +62,7 @@ function BattleField(props: BattleFieldProps) {
                     })}
                 />
 
-                <SquadContainer
+                <TeamContainer
                     key="US"
                     teamName={props.us}
                     Size={UDim2.fromScale(1, 1)}

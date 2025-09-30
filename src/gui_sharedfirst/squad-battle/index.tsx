@@ -10,7 +10,7 @@ export { EntityInfo, EntityStats } from "./entity";
 export { LocationLine, SquadDisplay, SquadHeader, SquadStats } from "./squad";
 
 // Team components
-export { SquadContainer, TeamHeader } from "./team";
+export { TeamContainer as SquadContainer, TeamHeader } from "./team";
 
 // Shared utilities
 export * from "./shared";
