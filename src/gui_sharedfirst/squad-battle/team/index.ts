@@ -1,3 +1,6 @@
-export { default as TeamContainer } from "./TeamContainer";
-// export { default as TeamContainer } from "./TeamContainer";
-export { default as TeamHeader } from "./TeamHeader";
+import TeamContainer from "./TeamContainer";
+import TeamHeader from "./TeamHeader";
+export {
+    TeamContainer,
+    TeamHeader
+};
