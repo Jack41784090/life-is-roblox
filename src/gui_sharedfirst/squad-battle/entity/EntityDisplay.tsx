@@ -1,33 +1,20 @@
 // filepath: c:\Users\tszmi\Documents\Code\roblox-game\src\gui_sharedfirst\new_components\battle\statusBar\playerPortrait\index.tsx
 import { useMotion, useViewport } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useState } from "@rbxts/react";
-import ClashFateEffect from "gui_sharedfirst/new_components/effects/ClashFateEffect";
 import Bar from "gui_sharedfirst/new_components/loading/components/bar";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { findEntityPortrait, springs } from "shared/utils";
 import { SquadEntity } from "squad-battle/Entity";
-import { EntityUpdate } from "squad-battle/type";
-import DamageIndicator from "../../new_components/effects/DamageIndicator";
 import EntityCircleBar from "./EntityCircleBar";
+import EntityIndicators from "./EntityIndicators";
 import EntityPortrait from "./EntityPortrait";
+import { EntityUpdateIndicator } from "./types";
 
-enum IndicatorType {
-    Damage,
-    Heal,
-    Retreat,
-    Death,
-}
 
-interface ProtoIndicator {
-    T: IndicatorType;
-    id: number;
-    value: number;
-    position: UDim2;
-}
 
 interface Props {
     entity: SquadEntity;
-    entityUpdates?: EntityUpdate[];
+    entityUpdates?: EntityUpdateIndicator[];
 }
 
 /**
@@ -45,7 +32,6 @@ function PlayerPortrait(props: Props) {
     const org = entity.changeableStats.ORG();
     const maxHP = props.entity.calculateRealityValue(Reality.HP);
     const maxORG = entity.calculateRealityValue(Reality.Guts);
-    const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
 
     useEffect(() => {
         hpMotion.spring(hp / maxHP, springs.slow);
@@ -58,8 +44,6 @@ function PlayerPortrait(props: Props) {
     // Process entity updates to create damage indicators
     useEffect(() => {
         if (!props.entityUpdates || props.entityUpdates.size() === 0) return;
-
-        const newIndicators: Array<ProtoIndicator> = [];
         props.entityUpdates.forEach((update, index) => {
             switch (update.change.property) {
                 case 'DIE':
@@ -71,37 +55,12 @@ function PlayerPortrait(props: Props) {
                     else if (update.change.property === 'LEAVE') {
                         setIsRetreating(true);
                     }
-                    newIndicators.push({
-                        T: update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat,
-                        id: tick() * 1000 + index,
-                        value: 0,
-                        position: UDim2.fromScale(.5, .5)
-                    });
-                    break;
-                }
-                case "HP": {
-                    const dHP = update.change.to - update.change.from;
-                    const randomX = 0.3 + math.random() * 0.4; // Between 0.3 and 0.7
-                    const randomY = 0.2 + math.random() * 0.6; // Between 0.2 and 0.8
-                    newIndicators.push({
-                        T: dHP > 0 ? IndicatorType.Heal : IndicatorType.Damage,
-                        id: tick() * 1000 + index,
-                        value: dHP,
-                        position: UDim2.fromScale(randomX, randomY)
-                    });
                     break;
                 }
 
                 case 'LOC': {
                     const dloc = update.change.to - update.change.from;
                     if (dloc > 0) { // Retreating
-                        // setIsRetreating(true);
-                        // newIndicators.push({
-                        //     T: IndicatorType.Retreat,
-                        //     id: tick() * 1000 + index,
-                        //     value: dloc,
-                        //     position: UDim2.fromScale(.5, .5)
-                        // });
                     }
                     else {
                         setIsRetreating(false);
@@ -109,15 +68,7 @@ function PlayerPortrait(props: Props) {
                 }
             }
         });
-
-        if (newIndicators.size() > 0) {
-            setIndicators(prev => [...prev, ...newIndicators]);
-        }
     }, [props.entityUpdates]);
-
-    const removeIndicator = (id: number) => {
-        setIndicators(prev => prev.filter(indicator => indicator.id !== id));
-    };
 
     // Find portrait using utility function
     const portraitImage = findEntityPortrait(props.entity.stats.id, 'neutral');
@@ -134,7 +85,7 @@ function PlayerPortrait(props: Props) {
             }
         >
             {
-                isDying ?
+                isDying || isRetreating ?
                     <></> : (
                         <>
                             <EntityCircleBar hpRatio={orgRatio} />
@@ -143,31 +94,7 @@ function PlayerPortrait(props: Props) {
                     )
             }
             <EntityPortrait portraitImage={portraitImage} isDying={isDying} isRetreating={isRetreating} />
-
-
-            {/* Damage Indicators */}
-            {indicators.map((indicator) => {
-                switch (indicator.T) {
-                    case IndicatorType.Damage:
-                    case IndicatorType.Heal:
-                        return (
-                            <DamageIndicator
-                                key={indicator.id}
-                                value={indicator.value}
-                                position={indicator.position}
-                                onComplete={() => removeIndicator(indicator.id)}
-                            />)
-                    case IndicatorType.Retreat:
-                    case IndicatorType.Death:
-                        return (
-                            <ClashFateEffect
-                                fate={indicator.T === IndicatorType.Death ? "💀" : "🏳️"}
-                                position={indicator.position}
-                                onComplete={() => removeIndicator(indicator.id)}
-                            />
-                        )
-                }
-            })}
+            <EntityIndicators updates={props.entityUpdates ?? []} />
         </frame>
     );
 }
