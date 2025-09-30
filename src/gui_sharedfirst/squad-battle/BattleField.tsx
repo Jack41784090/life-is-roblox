@@ -3,7 +3,7 @@ import { Squad } from "squad-battle/Squad";
 import { EntityUpdate } from "squad-battle/type";
 import BattleHeader from "./BattleHeader";
 import BattleInfoPanel from "./BattleInfoPanel";
-import TeamContainer from "./team/TeamContainer";
+import { SquadContainer } from "./team";
 
 interface BattleFieldProps {
     squads: Record<string, Squad[]>;
@@ -44,9 +44,11 @@ function BattleField(props: BattleFieldProps) {
                     VerticalAlignment={'Top'}
                 />
 
-                <TeamContainer
+
+                <SquadContainer
                     key="THEM"
                     teamName="THEM"
+                    Size={UDim2.fromScale(1, 1)}
                     squads={(() => {
                         const whoisthem: Squad[] = [];
                         for (const [k, v] of pairs(props.squads)) {
@@ -60,9 +62,10 @@ function BattleField(props: BattleFieldProps) {
                     })}
                 />
 
-                <TeamContainer
+                <SquadContainer
                     key="US"
                     teamName={props.us}
+                    Size={UDim2.fromScale(1, 1)}
                     squads={props.squads[props.us].filter(s => !s.isCrippled())}
                     entityUpdates={props.entityUpdates?.map((u, i) => {
                         return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
