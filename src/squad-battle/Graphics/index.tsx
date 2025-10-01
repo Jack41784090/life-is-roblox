@@ -18,7 +18,7 @@ export class SquadBattleGraphics {
                 us={'team1'}
                 squads={this.squadBattle.teamsAndSquads}
                 entityUpdates={entityUpdates}
-                delayBetweenIndicatorsInSeconds={0.1}
+                delayBetweenIndicatorsInSeconds={.1}
             />
         );
     }

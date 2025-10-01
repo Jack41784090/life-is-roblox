@@ -21,7 +21,7 @@ export class Squad implements iSquad {
                 ...c,
             });
             // Update the logic to reference the actual entity
-            entity.setLogic(createLogic(entity, c.logicType || 'Frontline'));
+            entity.setLogic(createLogic(entity, c.logicType));
             return entity;
         });
         this.name = configs.name;

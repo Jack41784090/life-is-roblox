@@ -14,6 +14,8 @@ export class SquadBattleInstance {
 
     _lastRoundCapitulatedEntities = new Set<SquadEntity>();
     autoBattle() {
+        this.graphics.render([]);
+        wait(1)
         while (this.battle.checkVictory() === false && this.battle.roundCount < 100) {
             print(`--- Round ${this.battle.roundCount + 1} ---`);
             const battle = this.battle;
@@ -36,7 +38,7 @@ export class SquadBattleInstance {
                 }
             })
 
-            wait(1.5)
+            wait(2)
             print('')
         }
     }

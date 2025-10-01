@@ -3,7 +3,7 @@ import Frontline from "./Classes/Frontliner";
 import { Absurd, Logic } from "./index";
 import { iLogic, LogicContext } from "./type.d";
 
-export function createLogic(entity: iSquadEntity, logicType: 'Frontline' | 'Backline' | 'Absurd' = 'Frontline'): iLogic {
+export function createLogic(entity: iSquadEntity, logicType: 'Frontline' | 'Backline' | 'Absurd' = 'Absurd'): iLogic {
     const context: LogicContext = {
         entity,
         enemy_squad: {},
