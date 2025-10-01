@@ -61,6 +61,7 @@ function BattleField(props: BattleFieldProps) {
                     entityUpdates={props.entityUpdates?.map((u, i) => {
                         return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
                     })}
+                    syncAfterSecond={props.entityUpdates ? (props.entityUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1 : 0}
                 />
 
                 <TeamContainer
@@ -71,6 +72,7 @@ function BattleField(props: BattleFieldProps) {
                     entityUpdates={props.entityUpdates?.map((u, i) => {
                         return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
                     })}
+                    syncAfterSecond={props.entityUpdates ? (props.entityUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1 : 0}
                 />
             </frame>
 

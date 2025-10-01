@@ -5,6 +5,7 @@ import Bar from "gui_sharedfirst/new_components/loading/components/bar";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { findEntityPortrait, springs } from "shared/utils";
 import { SquadEntity } from "squad-battle/Entity";
+import { SquadEntityInSquadLocation } from "squad-battle/type";
 import EntityCircleBar from "./EntityCircleBar";
 import EntityIndicators from "./EntityIndicators";
 import EntityPortrait from "./EntityPortrait";
@@ -15,6 +16,8 @@ import { EntityUpdateIndicator } from "./types";
 interface Props {
     entity: SquadEntity;
     entityUpdates?: EntityUpdateIndicator[];
+    upsideDown?: boolean;
+    transferFunction: (entity: SquadEntity, newLocation: SquadEntityInSquadLocation) => void;
 }
 
 /**
@@ -60,7 +63,9 @@ function PlayerPortrait(props: Props) {
 
                 case 'LOC': {
                     const dloc = update.change.to - update.change.from;
-                    if (dloc > 0) { // Retreating
+                    // props.transferFunction(props.entity, update.change.to as SquadEntityInSquadLocation);
+                    if (dloc > 0) {
+                        setIsRetreating(true);
                     }
                     else {
                         setIsRetreating(false);
@@ -76,14 +81,16 @@ function PlayerPortrait(props: Props) {
         <frame
             key={"PlayerPortrait-" + props.entity.stats.id}
             Size={UDim2.fromScale(.8, .8)}
-            // Size={UDim2.fromScale(1, 1)}
             BackgroundTransparency={1}
-            SizeConstraint={
-                viewport.getValue().Y < viewport.getValue().X
-                    ? Enum.SizeConstraint.RelativeYY
-                    : Enum.SizeConstraint.RelativeXX
-            }
         >
+            <uiaspectratioconstraint AspectRatio={1} />
+            <textlabel
+                Size={UDim2.fromScale(1, 0.2)}
+                Text={props.entity.name}
+                BackgroundTransparency={1}
+                TextColor3={isDying ? new Color3(1, 0, 0) : new Color3(1, 1, 1)}
+                TextScaled={true}
+            />
             {
                 isDying || isRetreating ?
                     <></> : (
@@ -93,7 +100,7 @@ function PlayerPortrait(props: Props) {
                         </>
                     )
             }
-            <EntityPortrait portraitImage={portraitImage} isDying={isDying} isRetreating={isRetreating} />
+            <EntityPortrait portraitImage={portraitImage} isDying={isDying} isRetreating={isRetreating} upsideDown={props.upsideDown} />
             <EntityIndicators updates={props.entityUpdates ?? []} />
         </frame>
     );

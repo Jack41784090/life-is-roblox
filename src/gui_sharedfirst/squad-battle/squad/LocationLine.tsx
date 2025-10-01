@@ -10,6 +10,8 @@ interface LocationLineProps {
     entities: SquadEntity[];
     location: SquadEntityInSquadLocation;
     entityUpdates?: EntityUpdateIndicator[];
+    upsideDown?: boolean;
+    transferFunction: (entity: SquadEntity, newLocation: SquadEntityInSquadLocation) => void;
 }
 
 function LocationLine(props: LocationLineProps) {
@@ -34,13 +36,26 @@ function LocationLine(props: LocationLineProps) {
                     // Filter updates relevant to this entity
                     const relevantUpdates = props.entityUpdates?.filter(update =>
                         update.affected === entity.playerID
-                    ) || [];
+                    ).map(u => {
+                        if (u.change.property === 'LOC') {
+                            print(`${entity.playerID}: moving to ${u.change.to}`);
+                            return {
+                                ...u,
+                                onComplete: () => {
+                                    props.transferFunction(entity, u.change.to);
+                                }
+                            };
+                        }
+                        return u;
+                    }) || [];
 
                     return (
                         <PlayerPortrait
                             key={`${props.location}-${entity.playerID}`}
                             entity={entity}
                             entityUpdates={relevantUpdates}
+                            upsideDown={props.upsideDown}
+                            transferFunction={props.transferFunction}
                         />
                     );
                 })}

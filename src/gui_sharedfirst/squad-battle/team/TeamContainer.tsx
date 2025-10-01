@@ -9,6 +9,7 @@ interface SquadContainerProps {
     Size?: UDim2;
     upsideDown?: boolean;
     entityUpdates?: EntityUpdateIndicator[];
+    syncAfterSecond: number;
 }
 
 export default function TeamContainer(props: SquadContainerProps) {
@@ -36,6 +37,7 @@ export default function TeamContainer(props: SquadContainerProps) {
                     teamSize={props.squads.size()}
                     upsideDown={props.upsideDown}
                     entityUpdates={props.entityUpdates}
+                    syncAfterSecond={props.syncAfterSecond}
                 />
             ))}
         </frame>
