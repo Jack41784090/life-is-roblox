@@ -7,9 +7,10 @@ interface EntityPortraitProps {
     portraitImage: string;
     isDying?: boolean;
     isRetreating?: boolean;
+    upsideDown?: boolean;
 }
 
-function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }: EntityPortraitProps) {
+function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false }: EntityPortraitProps) {
     const [rotation, rotationMotion] = useMotion(0);
     const [scale, scaleMotion] = useMotion(1);
 
@@ -26,23 +27,23 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }
     }, [isDying]);
 
     useEffect(() => {
-        if (isRetreating) {
-            scaleMotion.tween(0, {
-                time: 1,
-                style: Enum.EasingStyle.Exponential,
-                direction: Enum.EasingDirection.In,
-            });
-        }
+        scaleMotion.tween(isRetreating ? 0 : 1, {
+            time: 1,
+            style: Enum.EasingStyle.Exponential,
+            direction: Enum.EasingDirection.In,
+        });
     }, [isRetreating]);
 
     return (
         <frame
             AnchorPoint={new Vector2(0.5, 0.5)}
-            Position={scale.map(s => UDim2.fromScale(0.5, .5 * s))}
+            Position={scale.map(s => UDim2.fromScale(0.5, upsideDown ?
+                .5 - .5 * (1 - s) :
+                .5 + .5 * (1 - s)))}
             // Size={scale.map(s => UDim2.fromScale(0.9 * s, 0.9 * s))}
             Size={UDim2.fromScale(.8, .8)}
             BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
-            BackgroundTransparency={0}
+            // BackgroundTransparency={scale.map(s => 1 - s)}
             ZIndex={0} // Above the HP bar
             Rotation={rotation}
             Transparency={isDying ? 1 : 0}
@@ -57,7 +58,7 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false }
                 BackgroundTransparency={1}
                 ZIndex={0} // Above the background
                 ScaleType={Enum.ScaleType.Crop}
-                ImageTransparency={scale.map(s => 1 - s)}
+            // ImageTransparency={scale.map(s => 1 - s)}
             >
                 <uicorner CornerRadius={new UDim(1, 0)} />
             </imagelabel>
