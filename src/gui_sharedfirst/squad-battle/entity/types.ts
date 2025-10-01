@@ -4,6 +4,7 @@ export enum IndicatorType {
     Heal,
     Retreat,
     Death,
+    Advance,
 }
 
 export interface ProtoIndicator {
@@ -12,7 +13,11 @@ export interface ProtoIndicator {
     value: number;
     position: UDim2;
     atSecond: number;
+    onComplete?: () => void;
 }
 
 export type EntityUpdateIndicator =
-    EntityUpdate & { atSecond: number };
+    EntityUpdate & {
+        atSecond: number,
+        onComplete?: () => void
+    };
