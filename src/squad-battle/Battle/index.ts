@@ -167,7 +167,34 @@ export class SquadBattle implements iSquadBattle {
         }
 
         print(`--- Round ${this.roundCount} Updates ---`);
-        print(squadUpdateRecords);
+        for (const [teamName, sur] of pairs(squadUpdateRecords)) {
+            print(`Team: ${teamName}`);
+            for (let i = 0; i < sur.size(); i++) {
+                const su = sur[i];
+                print(` Squad ${i + 1}:`);
+                for (let j = 0; j < su.size(); j++) {
+                    const u = su[j];
+                    let changeStr = "";
+                    let valueStr = "";
+                    switch (u.change.property) {
+                        case 'HP':
+                        case 'ORG':
+                            changeStr = `${u.change.property} ${u.change.from} -> ${u.change.to}`;
+
+                            break;
+                        case 'DIE':
+                        case 'RETREAT':
+                        case 'LEAVE':
+                            changeStr = u.change.property;
+                            break;
+                        case 'LOC':
+                            changeStr = `LOC ${u.change.from} -> ${u.change.to}`;
+                            break;
+                    }
+                    print(`  - ${u.source} -> ${u.affected}: ${changeStr}`);
+                }
+            }
+        }
         print('------------------------------');
 
         return updates;
