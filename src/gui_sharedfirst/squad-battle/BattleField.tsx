@@ -1,30 +1,52 @@
+import Object from "@rbxts/object-utils";
 import React from "@rbxts/react";
+import { iSquadEntity } from "squad-battle/Entity/type";
 import { Squad } from "squad-battle/Squad";
-import { EntityUpdate } from "squad-battle/type";
 import BattleHeader from "./BattleHeader";
 import BattleInfoPanel from "./BattleInfoPanel";
 import { TeamContainer } from "./team";
-
-interface BattleFieldProps {
-    squads: Record<string, Squad[]>;
-    us: string;
-    currentRound?: number;
-    entityUpdates?: EntityUpdate[];
-    delayBetweenIndicatorsInSeconds: number
-}
+import { BattleFieldProps } from "./type";
 
 function BattleField(props: BattleFieldProps) {
     const teamNames: string[] = [];
-    for (const [teamName] of pairs(props.squads)) {
+    const allSquads: Squad[] = [];
+    for (const [teamName, squads] of pairs(props.squads)) {
         teamNames.push(teamName);
+        squads.forEach(s => allSquads.push(s));
     }
+
+    const allEntities = allSquads.reduce(
+        (acc, squad) => [...acc, ...squad.entities], [] as iSquadEntity[]
+    );
 
     const headerYSize = 0.1;
     const bodyYSize = 1 - headerYSize;
 
+    const capableSquads = allSquads.filter(s => !s.isCrippled());
+    const usSquads: Squad[] = []; const themSquads: Squad[] = [];
+    capableSquads.forEach(s => {
+        if (s.team === props.playerTeamName) {
+            usSquads.push(s);
+        }
+        else {
+            themSquads.push(s);
+        }
+    });
+
+    const themUpdates = props.entityUpdates?.filter(u => {
+        const affectedEntity = allEntities.find(e => e.playerID === u.affected);
+        return affectedEntity?.team !== props.playerTeamName;
+    }
+    ) || [];
+    const usUpdates = props.entityUpdates?.filter(u => {
+        const affectedEntity = allEntities.find(e => e.playerID === u.affected);
+        return affectedEntity?.team === props.playerTeamName;
+    }
+    ) || [];
+
     return (
         <frame
-            Size={new UDim2(1, 0, 1, 0)}
+            Size={UDim2.fromScale(1, 1)}
             BackgroundColor3={new Color3(0.05, 0.05, 0.1)}
             BorderSizePixel={0}
         >
@@ -44,35 +66,23 @@ function BattleField(props: BattleFieldProps) {
                     VerticalAlignment={'Top'}
                     Padding={new UDim(0, 5)}
                 />
-
-
                 <TeamContainer
                     key="THEM"
                     teamName="THEM"
                     Size={UDim2.fromScale(1, .5)}
-                    squads={(() => {
-                        const whoisthem: Squad[] = [];
-                        for (const [k, v] of pairs(props.squads)) {
-                            if (k !== props.us) v.forEach(s => { if (!s.isCrippled()) whoisthem.push(s); });
-                        }
-                        return whoisthem
-                    })()}
+                    squads={themSquads}
                     upsideDown={true}
-                    entityUpdates={props.entityUpdates?.map((u, i) => {
-                        return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
-                    })}
-                    syncAfterSecond={props.entityUpdates ? (props.entityUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1 : 0}
+                    entityUpdates={themUpdates.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds }))}
+                    syncAfterSecond={(themUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1}
                 />
 
                 <TeamContainer
                     key="US"
-                    teamName={props.us}
+                    teamName={props.playerTeamName}
                     Size={UDim2.fromScale(1, .5)}
-                    squads={props.squads[props.us].filter(s => !s.isCrippled())}
-                    entityUpdates={props.entityUpdates?.map((u, i) => {
-                        return { ...u, atSecond: i * props.delayBetweenIndicatorsInSeconds };
-                    })}
-                    syncAfterSecond={props.entityUpdates ? (props.entityUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1 : 0}
+                    squads={usSquads}
+                    entityUpdates={usUpdates.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds }))}
+                    syncAfterSecond={(usUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1}
                 />
             </frame>
 

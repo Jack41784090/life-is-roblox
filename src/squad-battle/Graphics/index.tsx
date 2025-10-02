@@ -15,7 +15,7 @@ export class SquadBattleGraphics {
     render(entityUpdates: EntityUpdate[]) {
         GuiMothership.Mount('SquadBattle',
             <BattleField
-                us={'team1'}
+                playerTeamName={'team1'}
                 squads={this.squadBattle.teamsAndSquads}
                 entityUpdates={entityUpdates}
                 delayBetweenIndicatorsInSeconds={.1}
