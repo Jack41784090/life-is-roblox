@@ -13,10 +13,12 @@ function test_simpleautobattle() {
     }
 
     for (let tc = 0; tc < team_count; tc++) {
-        config.teams[`team${tc + 1}`] = []
-        const squads = config.teams[`team${tc + 1}`];
+        const teamTag = `team${tc + 1}`;
+        config.teams[teamTag] = []
+        const squads = config.teams[teamTag];
         for (let sc = 0; sc < squad_count; sc++) {
             const squad_config: SquadConfig = {
+                team: teamTag,
                 name: `squad${tc + 1}-${string.char(65 + sc)}`,
                 entities: []
             };
@@ -24,7 +26,7 @@ function test_simpleautobattle() {
                 squad_config.entities.push({
                     playerID: tc + 1 + math.random(),
                     stats: getDummyStats(),
-                    team: `team${tc + 1}`,
+                    team: teamTag,
                     name: `tc${tc + 1}_${sc + 1}_${sn + 1}`,
                     logicType: 'Frontline'
                 })
