@@ -1,24 +1,21 @@
 import React from "@rbxts/react";
-import { SquadEntity } from "squad-battle/Entity";
-import { SquadEntityInSquadLocation } from "squad-battle/type";
 import PlayerPortrait from "../entity/EntityDisplay";
-import { EntityUpdateIndicator } from "../entity/types";
 import { getLocationColor } from "../shared/utils";
-
-interface LocationLineProps {
-    title: string;
-    entities: SquadEntity[];
-    location: SquadEntityInSquadLocation;
-    entityUpdates?: EntityUpdateIndicator[];
-    upsideDown?: boolean;
-    transferFunction: (entity: SquadEntity, newLocation: SquadEntityInSquadLocation) => void;
-}
+import { LocationLineProps } from "../type";
 
 function LocationLine(props: LocationLineProps) {
     const lineColor = getLocationColor(props.location);
 
     return (
         <frame Size={UDim2.fromScale(1, 1 / 3)} BackgroundTransparency={1}>
+            <textlabel
+                Text={props.title}
+                Size={UDim2.fromScale(1, 0.2)}
+                BackgroundTransparency={1}
+                TextColor3={lineColor}
+                Font={Enum.Font.SourceSansBold}
+                TextScaled={true}
+            />
             <frame
                 Position={UDim2.fromScale(0, 0.1)}
                 Size={UDim2.fromScale(1, 0.9)}

@@ -1,12 +1,6 @@
 import React from "@rbxts/react";
-import { Squad } from "squad-battle/Squad";
 import { getTeamColor } from "./shared/utils";
-
-interface BattleInfoPanelProps {
-    teamNames: string[];
-    squads: Record<string, Squad[]>;
-    currentRound?: number;
-}
+import { BattleInfoPanelProps } from "./type";
 
 function BattleInfoPanel(props: BattleInfoPanelProps) {
     const totalSquads = props.teamNames.reduce((total: number, teamName: string) => total + props.squads[teamName].size(), 0);

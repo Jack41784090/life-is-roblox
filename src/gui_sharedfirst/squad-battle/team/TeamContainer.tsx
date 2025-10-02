@@ -1,16 +1,6 @@
 import React from "@rbxts/react";
-import { Squad } from "squad-battle/Squad";
-import { EntityUpdateIndicator } from "../entity/types";
 import SquadDisplay from "../squad/SquadDisplay";
-
-interface SquadContainerProps {
-    squads: Squad[];
-    teamName: string;
-    Size?: UDim2;
-    upsideDown?: boolean;
-    entityUpdates?: EntityUpdateIndicator[];
-    syncAfterSecond: number;
-}
+import { SquadContainerProps } from "../type";
 
 export default function TeamContainer(props: SquadContainerProps) {
     return (

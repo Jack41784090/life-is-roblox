@@ -4,27 +4,16 @@ import React, { useEffect, useState } from "@rbxts/react";
 import Bar from "gui_sharedfirst/new_components/loading/components/bar";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { findEntityPortrait, springs } from "shared/utils";
-import { SquadEntity } from "squad-battle/Entity";
-import { SquadEntityInSquadLocation } from "squad-battle/type";
+import { EntityDisplayProps } from "../type";
 import EntityCircleBar from "./EntityCircleBar";
 import EntityIndicators from "./EntityIndicators";
 import EntityPortrait from "./EntityPortrait";
-import { EntityUpdateIndicator } from "./types";
-
-
-
-interface Props {
-    entity: SquadEntity;
-    entityUpdates?: EntityUpdateIndicator[];
-    upsideDown?: boolean;
-    transferFunction: (entity: SquadEntity, newLocation: SquadEntityInSquadLocation) => void;
-}
 
 /**
  * Circular player portrait with HP bar surrounding it.
  * The HP bar is a circular arc that surrounds 25% of the portrait in the top-right quadrant when full.
  */
-function PlayerPortrait(props: Props) {
+function PlayerPortrait(props: EntityDisplayProps) {
     const { entity } = props;
     const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);

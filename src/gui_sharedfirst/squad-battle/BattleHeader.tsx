@@ -1,9 +1,5 @@
 import React from "@rbxts/react";
-
-interface BattleHeaderProps {
-    Size?: UDim2;
-    currentRound?: number;
-}
+import { BattleHeaderProps } from "./type";
 
 function BattleHeader(props: BattleHeaderProps) {
     return (

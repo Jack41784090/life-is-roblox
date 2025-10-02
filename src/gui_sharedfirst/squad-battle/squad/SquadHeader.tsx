@@ -1,9 +1,5 @@
 import React from "@rbxts/react";
-
-interface SquadHeaderProps {
-    name: string;
-    team: string;
-}
+import { SquadHeaderProps } from "../type";
 
 function SquadHeader(props: SquadHeaderProps) {
     return (

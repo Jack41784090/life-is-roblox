@@ -1,13 +1,7 @@
 import React from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
-import { EntityChangeableStats } from "squad-battle/type";
 import { getLocationText } from "../shared/utils";
-
-interface EntityInfoProps {
-    name: string;
-    playerID: number;
-    changeableStats: EntityChangeableStats;
-}
+import { EntityInfoProps } from "../type";
 
 function EntityInfo(props: EntityInfoProps) {
     const loc = useAtom(props.changeableStats.LOC);

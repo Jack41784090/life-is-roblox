@@ -1,16 +1,5 @@
 import React from "@rbxts/react";
-import { SquadEntity } from "squad-battle/Entity";
-
-interface Squad {
-    name: string;
-    team: string;
-    entities: SquadEntity[];
-}
-
-interface SquadStatsProps {
-    squad: Squad;
-    position?: UDim2;
-}
+import { SquadStatsProps } from "../type";
 
 function SquadStats(props: SquadStatsProps) {
     const getSquadHealth = (): { current: number; max: number } => {

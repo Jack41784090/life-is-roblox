@@ -1,18 +1,8 @@
 import React, { useCallback, useEffect, useState } from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
 import { SquadEntityInSquadLocation } from "squad-battle/type";
-import { EntityUpdateIndicator } from "../entity/types";
+import { SquadDisplayProps } from "../type";
 import LocationLine from "./LocationLine";
-
-interface SquadDisplayProps {
-    name: string;
-    team: string;
-    entities: SquadEntity[];
-    teamSize: number;
-    upsideDown?: boolean;
-    entityUpdates?: EntityUpdateIndicator[];
-    syncAfterSecond: number;
-}
 
 function SquadDisplay(props: SquadDisplayProps) {
     // warn(`SquadDisplay re-rendered for team: ${props.name}`);

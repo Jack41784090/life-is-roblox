@@ -2,13 +2,7 @@ import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect } from "@rbxts/react";
 // import * from "@rbxts/ripple"
 import { springs } from "shared/utils";
-
-interface EntityPortraitProps {
-    portraitImage: string;
-    isDying?: boolean;
-    isRetreating?: boolean;
-    upsideDown?: boolean;
-}
+import { EntityPortraitProps } from "../type";
 
 function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false }: EntityPortraitProps) {
     const [rotation, rotationMotion] = useMotion(0);

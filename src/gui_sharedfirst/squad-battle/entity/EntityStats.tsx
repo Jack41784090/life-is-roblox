@@ -1,10 +1,6 @@
 import React from "@rbxts/react";
 import { useAtom } from "@rbxts/react-charm";
-import { EntityChangeableStats } from "squad-battle/type";
-
-interface EntityStatsProps {
-    changeableStats: EntityChangeableStats;
-}
+import { EntityStatsProps } from "../type";
 
 function EntityStats(props: EntityStatsProps) {
     const hp = useAtom(props.changeableStats.HP);

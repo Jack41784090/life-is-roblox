@@ -1,10 +1,5 @@
 import React from "@rbxts/react";
-
-interface TeamHeaderProps {
-    teamName: string;
-    squadCount: number;
-    Size?: UDim2;
-}
+import { TeamHeaderProps } from "../type";
 
 function TeamHeader(props: TeamHeaderProps) {
     return (
