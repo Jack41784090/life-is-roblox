@@ -35,7 +35,7 @@ function LocationLine(props: LocationLineProps) {
                         update.affected === entity.playerID
                     ).map(u => {
                         if (u.change.property === 'LOC') {
-                            print(`${entity.playerID}: moving to ${u.change.to}`);
+                            // print(`${entity.playerID}: moving to ${u.change.to}`);
                             return {
                                 ...u,
                                 onComplete: () => {

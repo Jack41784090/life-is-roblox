@@ -92,7 +92,7 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
 
         // Prevent duplicate processing
         if (processedUpdatesRef.current.has(updatesKey)) {
-            warn(`Skipping duplicate updates: ${updatesKey.sub(1, 100)}...`);
+            // warn(`Skipping duplicate updates: ${updatesKey.sub(1, 100)}...`);
             return;
         }
         processedUpdatesRef.current.add(updatesKey);
@@ -102,7 +102,7 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
             processedUpdatesRef.current.clear();
         }
 
-        // warn(`Processing ${updates.size()} updates`);
+        warn(`Processing ${updates.size()} updates`);
         const newIndicators: Array<ProtoIndicator> = [];
         updates.forEach((update, index) => {
             const r = categoriseUpdate(update);
@@ -152,7 +152,7 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
             while (currentQueue.size() > 0 && adt >= currentQueue[0].atSecond) {
                 const indicatorToShow = currentQueue.shift()!;
                 indicatorsToShow.push(indicatorToShow);
-                // warn(`Showing timed indicator: ${indicatorToShow.T} at ${adt}s`);
+                warn(`Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${adt}s`);
             }
 
             // Add all indicators that should show this frame
