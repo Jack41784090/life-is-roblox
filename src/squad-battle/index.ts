@@ -38,7 +38,7 @@ export class SquadBattleInstance {
                 }
             })
 
-            wait(2)
+            wait(10)
             print('')
         }
     }
