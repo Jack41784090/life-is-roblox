@@ -4,6 +4,7 @@ import { getLocationColor } from "../shared/utils";
 import { LocationLineProps } from "../type";
 
 function LocationLine(props: LocationLineProps) {
+    warn(` | | | LocationLine ${math.random() * 100 / 100}`);
     const lineColor = getLocationColor(props.location);
 
     return (

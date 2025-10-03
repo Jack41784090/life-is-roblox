@@ -3,6 +3,7 @@ import SquadDisplay from "../squad/SquadDisplay";
 import { SquadContainerProps } from "../type";
 
 export default function TeamContainer(props: SquadContainerProps) {
+    warn(` | TeamContainer ${math.random() * 100 / 100}`);
     return (
         <frame
             Size={props.Size || UDim2.fromScale(.9, .5)}

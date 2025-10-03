@@ -5,7 +5,7 @@ import { SquadDisplayProps } from "../type";
 import LocationLine from "./LocationLine";
 
 function SquadDisplay(props: SquadDisplayProps) {
-    // warn(`SquadDisplay re-rendered for team: ${props.name}`);
+    warn(` | | SquadDisplay ${math.random() * 100 / 100}`);
 
     const getEntitiesByRealLocation = () => {
         const locations: Record<SquadEntityInSquadLocation, SquadEntity[]> = {
@@ -35,18 +35,19 @@ function SquadDisplay(props: SquadDisplayProps) {
         // Use functional updates to work with current state, not stale captured state
         const removeFromAll = (prev: SquadEntity[]) => {
             const filtered = prev.filter(e => e.playerID !== entity.playerID);
-            warn(` |  | removeFromAll: ${prev.size()} -> ${filtered.size()}`);
+            warn(` || ${prev.map(e => e.playerID).join(',')} || ${filtered.size() !== prev.size() ? `\n || ${filtered.map(e => e.playerID).join(',')} ||` : ''}`);
             return filtered;
         };
         const addToLocation = (prev: SquadEntity[]) => {
             // Check if entity is already in this location
             if (prev.some(e => e.playerID === entity.playerID)) {
-                warn(` |  | addToLocation: already here ${prev.size()} -> ${prev.size()}`);
+                // warn(` |  | addToLocation: already here ${prev.size()} -> ${prev.size()}`);
+                warn(` || ${prev.map(e => e.playerID).join(',')} ||`);
                 return prev;
             }
             const filtered = prev.filter(e => e.playerID !== entity.playerID);
             const result = [...filtered, entity];
-            warn(` |  | addToLocation: ${prev.size()} -> ${result.size()}`);
+            warn(` || ${prev.map(e => e.playerID).join(',')} + ${entity.playerID} || \n || ${result.map(e => e.playerID).join(',')} ||`);
             return result;
         };
 

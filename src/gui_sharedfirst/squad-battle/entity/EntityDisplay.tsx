@@ -14,6 +14,8 @@ import EntityPortrait from "./EntityPortrait";
  * The HP bar is a circular arc that surrounds 25% of the portrait in the top-right quadrant when full.
  */
 function PlayerPortrait(props: EntityDisplayProps) {
+    warn(` | | | | EntityDisplay ${math.random() * 100 / 100}`);
+
     const { entity } = props;
     const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);

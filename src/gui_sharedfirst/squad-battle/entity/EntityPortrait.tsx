@@ -5,6 +5,7 @@ import { springs } from "shared/utils";
 import { EntityPortraitProps } from "../type";
 
 function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false }: EntityPortraitProps) {
+    warn(` | | | | | EntityPortrait ${math.random() * 100 / 100}`);
     const [rotation, rotationMotion] = useMotion(0);
     const [scale, scaleMotion] = useMotion(1);
 

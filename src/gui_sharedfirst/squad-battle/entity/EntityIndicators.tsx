@@ -71,6 +71,7 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
 
     // Create a stable reference for updates to prevent infinite loops
     const updatesKey = useMemo(() => {
+        warn("| | | | | updating key")
         if (!updates || updates.size() === 0) return "";
         // Sort updates to ensure consistent ordering regardless of array order
         const sortedUpdates = [...updates].sort((a, b) => {
@@ -102,7 +103,7 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
             processedUpdatesRef.current.clear();
         }
 
-        warn(`Processing ${updates.size()} updates`);
+        warn(`Processing updates: ${updatesKey.sub(1, 100)}...`);
         const newIndicators: Array<ProtoIndicator> = [];
         updates.forEach((update, index) => {
             const r = categoriseUpdate(update);
