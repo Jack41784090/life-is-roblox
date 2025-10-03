@@ -105,6 +105,7 @@ export class Squad implements iSquad {
     }
 
     private chooseEnemySquad(enemySquads: Squad[]): Squad | undefined {
+        // this.logger.debug("Choosing enemy squad");
         let chosenSquad: Squad | undefined = undefined;
         if (enemySquads.size() > 0) {
             chosenSquad = enemySquads[uniformRandom(0, enemySquads.size() - 1, true)];
@@ -113,6 +114,7 @@ export class Squad implements iSquad {
     }
 
     private act_attackRandom(targetableSquads: Squad[], roundCount: number): EntityUpdate[] | undefined {
+        this.logger.debug("attacking random enemy")
         // 1. Choose enemy squad
         const enemySquad = this.chooseEnemySquad(targetableSquads);
 
@@ -127,6 +129,7 @@ export class Squad implements iSquad {
     }
 
     round(enemySquads: Squad[], roundCount: number) {
+        this.logger.debug(`--- Round ${roundCount} ---`)
         const random = math.random();
         this.entities.forEach(e => e.newRoundReset());
         if (random >= .5) {

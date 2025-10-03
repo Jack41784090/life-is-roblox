@@ -31,6 +31,7 @@ export default class Frontline extends Logic {
         const { myLocation } = this.situation;
         switch (myLocation) {
             case SquadEntityInSquadLocation.front:
+                this.logger.debug("At frontline, will attack")
                 return 'attack' as SquadEntityAction;
             default:
                 return this.forwardIfBrave() || super.choose_reaction();

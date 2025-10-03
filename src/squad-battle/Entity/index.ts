@@ -87,6 +87,10 @@ export class SquadEntity implements iSquadEntity {
 
         // this.logger.debug(`${property}: ${oldValue} ==> ${newValue}`);
 
+
+        // /// temp log:
+        // if (property === 'LOC' && to === 1) this.logger.warn("entity shfited to frontlines")
+
         return {
             from: oldValue,
             to: newValue,
@@ -284,6 +288,8 @@ export class SquadEntity implements iSquadEntity {
 
     public action(ourSquad: SquadMetadata, enemySquad: SquadMetadata): EntityUpdate[] {
         if (this.isDead()) return [];
+
+        this.logger.debug("deciding action...")
         const updates: EntityUpdate[] = [];
         const logic = this.logic.updateSituation({
             entity: this,
@@ -291,6 +297,8 @@ export class SquadEntity implements iSquadEntity {
             our_squad: ourSquad
         });
         const action = logic.choose_action();
+
+        this.logger.debug(`|| Chose action: ${action}`)
         switch (action) {
             case 'attack':
                 this.action_attack(logic)?.forEach(eu => updates.push(eu))
@@ -318,6 +326,8 @@ export class SquadEntity implements iSquadEntity {
 
     public reaction(our_squad: SquadMetadata, enemy_squad: SquadMetadata): EntityUpdate[] {
         if (this.isDead()) return [];
+
+        this.logger.debug("deciding reaction...")
         const updates: EntityUpdate[] = [];
         const logic = this.logic.updateSituation({
             entity: this,
@@ -325,6 +335,7 @@ export class SquadEntity implements iSquadEntity {
             enemy_squad
         })
         const reaction = logic.choose_reaction();
+        this.logger.debug(`|| Chose reaction: ${reaction}`)
         switch (reaction) {
             case 'attack':
                 this.action_attack(logic)?.forEach(eu => updates.push(eu))
