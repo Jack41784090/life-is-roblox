@@ -20,6 +20,7 @@ function PlayerPortrait(props: EntityDisplayProps) {
     const viewport = useViewport();
     const [hpRatio, hpMotion] = useMotion(1);
     const [orgRatio, orgMotion] = useMotion(1);
+    const [isAttacking, setIsAttacking] = useState(false);
     const [isRetreating, setIsRetreating] = useState(false);
     const [isDying, setIsDying] = useState(false);
     const hp = props.entity.changeableStats.HP();
@@ -50,6 +51,23 @@ function PlayerPortrait(props: EntityDisplayProps) {
                         setIsRetreating(true);
                     }
                     break;
+                }
+
+                case 'HP': {
+                    const dhp = update.change.to - update.change.from;
+                    if (update.source === props.entity.playerID) {
+                        if (dhp < 0) {
+                            update.onComplete = () => {
+                                warn("Oncomplete called")
+                                setIsAttacking(true);
+                                update.done = true;
+                            }
+                        }
+                        else if (dhp > 0) {
+                            // update.onComplete = () => {
+
+                        }
+                    }
                 }
 
                 case 'LOC': {
@@ -91,8 +109,15 @@ function PlayerPortrait(props: EntityDisplayProps) {
                         </>
                     )
             }
-            <EntityPortrait portraitImage={portraitImage} isDying={isDying} isRetreating={isRetreating} upsideDown={props.upsideDown} />
-            <EntityIndicators updates={props.entityUpdates ?? []} />
+            <EntityPortrait
+                portraitImage={portraitImage}
+                isDying={isDying}
+                isRetreating={isRetreating}
+                isAttacking={isAttacking}
+                upsideDown={props.upsideDown}
+                setAttacking={setIsAttacking}
+            />
+            <EntityIndicators updates={props.entityUpdates ?? []} myID={props.entity.playerID} />
         </frame>
     );
 }

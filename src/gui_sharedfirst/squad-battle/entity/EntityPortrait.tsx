@@ -1,13 +1,64 @@
 import { useMotion } from "@rbxts/pretty-react-hooks";
-import React, { useEffect } from "@rbxts/react";
+import React, { useEffect, useRef } from "@rbxts/react";
 // import * from "@rbxts/ripple"
 import { springs } from "shared/utils";
 import { EntityPortraitProps } from "../type";
 
-function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false }: EntityPortraitProps) {
-    warn(` | | | | | EntityPortrait ${math.random() * 100 / 100}`);
+function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false, isAttacking = false, setAttacking }: EntityPortraitProps) {
     const [rotation, rotationMotion] = useMotion(0);
     const [scale, scaleMotion] = useMotion(1);
+    const animationCleanupRef = useRef<thread | undefined>();
+    const isAnimatingRef = useRef(false);
+
+    // Attack animation - elegant one-shot animation with proper cleanup
+    useEffect(() => {
+        if (isAttacking && !isAnimatingRef.current) {
+            isAnimatingRef.current = true;
+
+            // Cancel any existing animation
+            if (animationCleanupRef.current) {
+                task.cancel(animationCleanupRef.current);
+            }
+
+            // Ensure clean starting state
+            scaleMotion.set(1);
+
+            // Start animation sequence
+            animationCleanupRef.current = task.spawn(() => {
+                // Phase 1: Scale up (attack forward)
+                scaleMotion.tween(1.6, {
+                    time: 0.1,
+                    style: Enum.EasingStyle.Back,
+                    direction: Enum.EasingDirection.Out,
+                });
+
+                task.wait(0.1);
+
+                // Phase 2: Scale back (recoil)
+                scaleMotion.tween(1, {
+                    time: 0.15,
+                    style: Enum.EasingStyle.Back,
+                    direction: Enum.EasingDirection.In,
+                });
+
+                task.wait(0.15);
+
+                // Reset animation state
+                isAnimatingRef.current = false;
+                animationCleanupRef.current = undefined;
+                setAttacking?.(false);
+            });
+        }
+    }, [isAttacking]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (animationCleanupRef.current) {
+                task.cancel(animationCleanupRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (isDying) {
@@ -35,10 +86,8 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, 
             Position={scale.map(s => UDim2.fromScale(0.5, upsideDown ?
                 .5 - .5 * (1 - s) :
                 .5 + .5 * (1 - s)))}
-            // Size={scale.map(s => UDim2.fromScale(0.9 * s, 0.9 * s))}
-            Size={UDim2.fromScale(.8, .8)}
+            Size={scale.map(s => UDim2.fromScale(0.8 * s, 0.8 * s))}
             BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
-            // BackgroundTransparency={scale.map(s => 1 - s)}
             ZIndex={0} // Above the HP bar
             Rotation={rotation}
             Transparency={isDying ? 1 : 0}

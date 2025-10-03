@@ -68,6 +68,8 @@ export interface SyncProps {
 export interface EntityPortraitStateProps {
     isDying?: boolean;
     isRetreating?: boolean;
+    isAttacking?: boolean;
+    setAttacking?: (val: boolean) => void;
 }
 
 // Composed prop types using intersection
