@@ -4,10 +4,13 @@ import { iSquadEntity } from "squad-battle/Entity/type";
 import { Squad } from "squad-battle/Squad";
 import BattleHeader from "./BattleHeader";
 import BattleInfoPanel from "./BattleInfoPanel";
+import { EntityUpdateIndicator } from "./entity/types";
 import { TeamContainer } from "./team";
 import { BattleFieldProps } from "./type";
 
 function BattleField(props: BattleFieldProps) {
+    warn(`Battlefield: ${math.random() * 100 / 100}`)
+
     const teamNames: string[] = [];
     const allSquads: Squad[] = [];
     for (const [teamName, squads] of pairs(props.squads)) {
@@ -33,12 +36,14 @@ function BattleField(props: BattleFieldProps) {
         }
     });
 
-    const themUpdates = props.entityUpdates?.filter(u => {
+    const updateIndicators: EntityUpdateIndicator[] =
+        props.entityUpdates?.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds })) || [];
+    const themUpdates = updateIndicators.filter(u => {
         const affectedEntity = allEntities.find(e => e.playerID === u.affected);
         return affectedEntity?.team !== props.playerTeamName;
     }
     ) || [];
-    const usUpdates = props.entityUpdates?.filter(u => {
+    const usUpdates = updateIndicators.filter(u => {
         const affectedEntity = allEntities.find(e => e.playerID === u.affected);
         return affectedEntity?.team === props.playerTeamName;
     }
@@ -72,7 +77,7 @@ function BattleField(props: BattleFieldProps) {
                     Size={UDim2.fromScale(1, .5)}
                     squads={themSquads}
                     upsideDown={true}
-                    entityUpdates={themUpdates.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds }))}
+                    entityUpdates={themUpdates}
                     syncAfterSecond={(themUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1}
                 />
 
@@ -81,7 +86,7 @@ function BattleField(props: BattleFieldProps) {
                     teamName={props.playerTeamName}
                     Size={UDim2.fromScale(1, .5)}
                     squads={usSquads}
-                    entityUpdates={usUpdates.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds }))}
+                    entityUpdates={usUpdates}
                     syncAfterSecond={(usUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1}
                 />
             </frame>
