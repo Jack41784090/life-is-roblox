@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "@rbxts/react";
 import { springs } from "shared/utils";
 import { EntityPortraitProps } from "../type";
 
-function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false, isAttacking = false, setAttacking }: EntityPortraitProps) {
+function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, upsideDown = false, isAttacking = false }: EntityPortraitProps) {
     const [rotation, rotationMotion] = useMotion(0);
     const [scale, scaleMotion] = useMotion(1);
     const animationCleanupRef = useRef<thread | undefined>();
@@ -32,8 +32,6 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, 
                     direction: Enum.EasingDirection.Out,
                 });
 
-                task.wait(0.1);
-
                 // Phase 2: Scale back (recoil)
                 scaleMotion.tween(1, {
                     time: 0.15,
@@ -41,12 +39,9 @@ function EntityPortrait({ portraitImage, isRetreating = false, isDying = false, 
                     direction: Enum.EasingDirection.In,
                 });
 
-                task.wait(0.15);
-
                 // Reset animation state
                 isAnimatingRef.current = false;
                 animationCleanupRef.current = undefined;
-                setAttacking?.(false);
             });
         }
     }, [isAttacking]);
