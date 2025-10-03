@@ -34,17 +34,22 @@ function LocationLine(props: LocationLineProps) {
                     const relevantUpdates = props.entityUpdates?.filter(update =>
                         update.affected === entity.playerID
                     ).map(u => {
+                        if (u.done) {
+                            print(`done: ${entity.playerID}: ${u.change.property}:${u.change.from}->${u.change.to}`);
+                            return undefined;
+                        }
                         if (u.change.property === 'LOC') {
                             // print(`${entity.playerID}: moving to ${u.change.to}`);
                             return {
                                 ...u,
                                 onComplete: () => {
+                                    u.done = true;
                                     props.transferFunction(entity, u.change.to);
                                 }
                             };
                         }
                         return u;
-                    }) || [];
+                    }).filterUndefined() || [];
 
                     return (
                         <PlayerPortrait
