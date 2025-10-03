@@ -148,7 +148,6 @@ export class SquadBattle implements iSquadBattle {
 
     public squadActions() {
         const updates: EntityUpdate[] = [];
-        const squadUpdateRecords: Record<string, EntityUpdate[][]> = {};
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
             const targetSquads = this.getAllEnemySquads(teamName);
@@ -158,43 +157,33 @@ export class SquadBattle implements iSquadBattle {
 
 
                 // === === 
-                squadUpdateRecords[teamName] = squadUpdateRecords[teamName] || [];
                 if (squadUpdate) {
-                    squadUpdateRecords[teamName].push(squadUpdate);
+                    // (squadUpdateRecords[teamName] = squadUpdateRecords[teamName] || []).push(squadUpdate);
                     squadUpdate.forEach(u => updates.push(u));
                 }
             }
         }
 
         print(`--- Round ${this.roundCount} Updates ---`);
-        for (const [teamName, sur] of pairs(squadUpdateRecords)) {
-            print(`Team: ${teamName}`);
-            for (let i = 0; i < sur.size(); i++) {
-                const su = sur[i];
-                print(` Squad ${i + 1}:`);
-                for (let j = 0; j < su.size(); j++) {
-                    const u = su[j];
-                    let changeStr = "";
-                    let valueStr = "";
-                    switch (u.change.property) {
-                        case 'HP':
-                        case 'ORG':
-                            changeStr = `${u.change.property} ${u.change.from} -> ${u.change.to}`;
-
-                            break;
-                        case 'DIE':
-                        case 'RETREAT':
-                        case 'LEAVE':
-                            changeStr = u.change.property;
-                            break;
-                        case 'LOC':
-                            changeStr = `LOC ${u.change.from} -> ${u.change.to}`;
-                            break;
-                    }
-                    print(`  - ${u.source} -> ${u.affected}: ${changeStr}`);
-                }
+        updates.forEach(u => {
+            let changeStr = "";
+            let valueStr = "";
+            switch (u.change.property) {
+                case 'HP':
+                case 'ORG':
+                    changeStr = `${u.change.property} ${u.change.from} -> ${u.change.to}`;
+                    break;
+                case 'DIE':
+                case 'RETREAT':
+                case 'LEAVE':
+                    changeStr = u.change.property;
+                    break;
+                case 'LOC':
+                    changeStr = `LOC ${u.change.from} -> ${u.change.to}`;
+                    break;
             }
-        }
+            print(`  - ${u.source} -> ${u.affected}: ${changeStr}`);
+        });
         print('------------------------------');
 
         return updates;
