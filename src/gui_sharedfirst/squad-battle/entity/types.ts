@@ -5,6 +5,7 @@ export enum IndicatorType {
     Retreat,
     Death,
     Advance,
+    Null,
 }
 
 export interface ProtoIndicator {

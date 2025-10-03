@@ -4,7 +4,7 @@ import { DamageIndicator } from "gui_sharedfirst/new_components/effects";
 import ClashFateEffect from "gui_sharedfirst/new_components/effects/ClashFateEffect";
 import { EntityUpdateIndicator, IndicatorType, ProtoIndicator } from "./types";
 
-function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
+function EntityIndicators({ updates, myID }: { updates: EntityUpdateIndicator[], myID: number }) {
     const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
     const [pendingIndicators, setPendingIndicators] = useState<Array<ProtoIndicator>>([]);
     const runnerRef = useRef<RBXScriptConnection | undefined>();
@@ -25,16 +25,29 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
                 }
             }
             case "HP": {
-                const dHP = update.change.to - update.change.from;
-                const randomX = 0.3 + math.random() * 0.4; // Between 0.3 and 0.7
-                const randomY = 0.2 + math.random() * 0.6; // Between 0.2 and 0.8
-                return {
-                    T: dHP > 0 ? IndicatorType.Heal : IndicatorType.Damage,
-                    id: tick() * 1000,
-                    value: dHP,
-                    position: UDim2.fromScale(randomX, randomY),
-                    atSecond: update.atSecond,
-                    onComplete: update.onComplete,
+                if (update.affected === myID) {
+                    const dHP = update.change.to - update.change.from;
+                    const randomX = 0.3 + math.random() * 0.4; // Between 0.3 and 0.7
+                    const randomY = 0.2 + math.random() * 0.6; // Between 0.2 and 0.8
+                    return {
+                        T: dHP > 0 ? IndicatorType.Heal : IndicatorType.Damage,
+                        id: tick() * 1000,
+                        value: dHP,
+                        position: UDim2.fromScale(randomX, randomY),
+                        atSecond: update.atSecond,
+                        onComplete: update.onComplete,
+                    }
+                }
+                else if (update.source === myID) {
+                    // warn('|||| Heal/Damage indicator for my action on others ignored');
+                    return {
+                        T: IndicatorType.Null,
+                        id: tick() * 1000,
+                        value: -1,
+                        position: UDim2.fromScale(0, 0),
+                        atSecond: update.atSecond,
+                        onComplete: update.onComplete,
+                    }
                 }
             }
 
@@ -235,6 +248,15 @@ function EntityIndicators({ updates, }: { updates: EntityUpdateIndicator[], }) {
                                 }}
                             />
                         )
+
+                    case IndicatorType.Null:
+                        // Just call onComplete immediately
+                        if (indicator.onComplete) {
+                            indicator.onComplete();
+                        }
+                        // Remove immediately
+                        removeIndicator(indicator.id);
+                        return undefined;
                 }
             })}
         </frame>
