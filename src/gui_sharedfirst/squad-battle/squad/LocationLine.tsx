@@ -1,5 +1,5 @@
 import React from "@rbxts/react";
-import PlayerPortrait from "../entity/EntityDisplay";
+import EntityDisplay from "../entity/EntityDisplay";
 import { getLocationColor } from "../shared/utils";
 import { LocationLineProps } from "../type";
 
@@ -55,7 +55,7 @@ function LocationLine(props: LocationLineProps) {
                     }).filterUndefined() || [];
 
                     return (
-                        <PlayerPortrait
+                        <EntityDisplay
                             key={`${props.location}-${entity.playerID}`}
                             entity={entity}
                             entityUpdates={relevantUpdates}
