@@ -135,5 +135,6 @@ export type EntityChange = {
 export type EntityUpdate = {
     source: number,
     affected: number,
-    change: EntityChange
+    change: EntityChange,
+    done?: boolean
 }
