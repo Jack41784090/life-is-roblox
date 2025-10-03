@@ -12,13 +12,13 @@ export class SquadBattleGraphics {
         this.squadBattle = squadBattle;
     }
 
-    render(entityUpdates: EntityUpdate[]) {
+    render(entityUpdates: EntityUpdate[], delayBetweenIndicatorsInSeconds = .1) {
         GuiMothership.Mount('SquadBattle',
             <BattleField
                 playerTeamName={'team1'}
                 squads={this.squadBattle.teamsAndSquads}
                 entityUpdates={entityUpdates}
-                delayBetweenIndicatorsInSeconds={.1}
+                delayBetweenIndicatorsInSeconds={delayBetweenIndicatorsInSeconds}
             />
         );
     }

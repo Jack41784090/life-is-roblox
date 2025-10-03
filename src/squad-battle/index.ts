@@ -13,7 +13,7 @@ export class SquadBattleInstance {
     }
 
     _lastRoundCapitulatedEntities = new Set<SquadEntity>();
-    autoBattle() {
+    autoBattle(delayBetweenIndicator = .1) {
         this.graphics.render([]);
         wait(1)
         while (this.battle.checkVictory() === false && this.battle.roundCount < 100) {
@@ -30,7 +30,7 @@ export class SquadBattleInstance {
 
             const recovery_update = battle.squadRecoveries();
             // this.graphics.render(recovery_update);
-            this.graphics.render(updates);
+            this.graphics.render(updates, delayBetweenIndicator);
 
             updates.forEach(u => {
                 if (u.change.property === 'LEAVE') {
@@ -38,7 +38,7 @@ export class SquadBattleInstance {
                 }
             })
 
-            wait(10)
+            wait(delayBetweenIndicator * (updates.size()));
             print('')
         }
     }
