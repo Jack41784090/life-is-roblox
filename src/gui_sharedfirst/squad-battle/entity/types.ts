@@ -15,6 +15,7 @@ export interface ProtoIndicator {
     position: UDim2;
     atSecond: number;
     onComplete?: () => void;
+    animationTrigger?: string;
 }
 
 export type EntityUpdateIndicator =
