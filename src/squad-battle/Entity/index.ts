@@ -146,19 +146,19 @@ export class SquadEntity implements iSquadEntity {
     public recover(): EntityChange[] {
         if (this.isDead()) return [];
         const recoverUpdates: EntityChange[] = [];
-        const idle_logic = this.logic.updateSituation({
-            entity: this,
-            enemy_squad: {},
-            our_squad: {},
-        }).choose_action();
-        switch (idle_logic) {
-            case 'forward':
-                recoverUpdates.push(this.mod_changeableStat('LOC', -1));
-                break;
-            case 'retreat':
-                recoverUpdates.push(this.mod_changeableStat('LOC', 1));
-                break;
-        }
+        // const idle_logic = this.logic.updateSituation({
+        //     entity: this,
+        //     enemy_squad: {},
+        //     our_squad: {},
+        // }).choose_action();
+        // switch (idle_logic) {
+        //     case 'forward':
+        //         recoverUpdates.push(this.mod_changeableStat('LOC', -1));
+        //         break;
+        //     case 'retreat':
+        //         recoverUpdates.push(this.mod_changeableStat('LOC', 1));
+        //         break;
+        // }
         recoverUpdates.push(this.mod_changeableStat('HP', 3));
         recoverUpdates.push(this.mod_changeableStat('ORG', 5));
         return recoverUpdates;
