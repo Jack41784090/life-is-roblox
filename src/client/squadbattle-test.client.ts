@@ -7,7 +7,7 @@ import { EntityUpdate, SquadBattleConfig, SquadConfig } from "squad-battle/type"
 function test_simpleautobattle() {
     const team_count = 2;
     const squad_count = 1
-    const squad_numbers = 5;
+    const squad_numbers = 2;
     const config: SquadBattleConfig = {
         teams: {}
     }
@@ -24,7 +24,7 @@ function test_simpleautobattle() {
             };
             for (let sn = 0; sn < squad_numbers; sn++) {
                 squad_config.entities.push({
-                    playerID: tc + 1 + math.random(),
+                    playerID: (tc + 1) * 100 + (sc) * 10 + sn + 1,
                     stats: getDummyStats(),
                     team: teamTag,
                     name: `tc${tc + 1}_${sc + 1}_${sn + 1}`,
@@ -37,7 +37,7 @@ function test_simpleautobattle() {
     }
 
     const sb = new SquadBattleInstance(config);
-    sb.autoBattle();
+    sb.autoBattle(1);
 }
 
 function test_fixedsequence() {
