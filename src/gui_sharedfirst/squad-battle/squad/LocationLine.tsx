@@ -33,13 +33,15 @@ function LocationLine(props: LocationLineProps) {
                 {props.entities.map((entity) => {
                     // Filter updates relevant to this entity
                     const relevantUpdates = props.entityUpdates?.filter(update =>
-                        update.affected === entity.playerID
+                        update.affected === entity.playerID ||
+                        update.source === entity.playerID
                     ).map(u => {
                         if (u.done) {
                             print(`done: ${entity.playerID}: ${u.change.property}:${u.change.from}->${u.change.to}`);
                             return undefined;
                         }
-                        if (u.change.property === 'LOC') {
+                        // if (u)
+                        if (u.affected === entity.playerID && u.change.property === 'LOC') {
                             // print(`${entity.playerID}: moving to ${u.change.to}`);
                             return {
                                 ...u,

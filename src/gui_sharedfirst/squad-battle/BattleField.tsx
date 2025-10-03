@@ -39,13 +39,15 @@ function BattleField(props: BattleFieldProps) {
     const updateIndicators: EntityUpdateIndicator[] =
         props.entityUpdates?.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds })) || [];
     const themUpdates = updateIndicators.filter(u => {
+        const sourceEntity = allEntities.find(e => e.playerID === u.source);
         const affectedEntity = allEntities.find(e => e.playerID === u.affected);
-        return affectedEntity?.team !== props.playerTeamName;
+        return sourceEntity?.team !== props.playerTeamName || affectedEntity?.team !== props.playerTeamName;
     }
     ) || [];
     const usUpdates = updateIndicators.filter(u => {
+        const sourceEntity = allEntities.find(e => e.playerID === u.source);
         const affectedEntity = allEntities.find(e => e.playerID === u.affected);
-        return affectedEntity?.team === props.playerTeamName;
+        return sourceEntity?.team === props.playerTeamName || affectedEntity?.team === props.playerTeamName;
     }
     ) || [];
 
