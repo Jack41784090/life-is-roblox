@@ -23,10 +23,6 @@ export class Logic implements iLogic {
         return this as iLogic;
     }
 
-    public choose_weapon(): iWeapon {
-        return this.entity.weapon;
-    }
-
     public get_sameLineAllies() {
         const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
         return this.context.our_squad[myLocation];
@@ -53,7 +49,7 @@ export class Logic implements iLogic {
         const backlineAllies = context.our_squad[SquadEntityInSquadLocation.back]?.filter(e => e.get_changeableStat_num('HP') > 0);
         const backlineAlliesNumbers = backlineAllies?.size();
 
-        return this.situation = {
+        this.situation = {
             myLocation,
             frontlineAllies,
             frontlineAlliesNumbers,
@@ -66,8 +62,31 @@ export class Logic implements iLogic {
             midlineEnemies,
             midlineNumbers,
             backlineEnemies,
-            backlineNumbers
-        }
+            backlineNumbers,
+            [SquadEntityInSquadLocation.front]: {
+                allies: frontlineAllies,
+                alliesNumbers: frontlineAlliesNumbers,
+                enemies: frontLineEnemies,
+                enemiesNumbers: frontlineNumbers,
+            },
+            [SquadEntityInSquadLocation.middle]: {
+                allies: midlineAllies,
+                alliesNumbers: midlineAlliesNumbers,
+                enemies: midlineEnemies,
+                enemiesNumbers: midlineNumbers,
+            },
+            [SquadEntityInSquadLocation.back]: {
+                allies: backlineAllies,
+                alliesNumbers: backlineAlliesNumbers,
+                enemies: backlineEnemies,
+                enemiesNumbers: backlineNumbers,
+            },
+        };
+        // this.logger.debug(
+        //     `Situation:\n`
+        // );
+        // print(this.situation);
+        return this.situation;
     }
 
     protected healOthersIfAround(): SquadEntityAction | undefined {
@@ -93,6 +112,56 @@ export class Logic implements iLogic {
         return undefined;
     }
 
+    protected readjustWeapon() {
+        const { myLocation } = this.situation;
+        const weapon = this.choose_weapon();
+        const frontOptions = weapon.getRangeAtLocation(SquadEntityInSquadLocation.front);
+        const midOptions = weapon.getRangeAtLocation(SquadEntityInSquadLocation.middle);
+        const backOptions = weapon.getRangeAtLocation(SquadEntityInSquadLocation.back);
+        const frontOptionsTotalCount = frontOptions.reduce((a, b) => a + (this.situation[SquadEntityInSquadLocation.front]?.enemiesNumbers ?? 0), 0);
+        const midOptionsTotalCount = midOptions.reduce((a, b) => a + (this.situation[SquadEntityInSquadLocation.middle]?.enemiesNumbers ?? 0), 0);
+        const backOptionsTotalCount = backOptions.reduce((a, b) => a + (this.situation[SquadEntityInSquadLocation.back]?.enemiesNumbers ?? 0), 0);
+        this.logger.debug(
+            `My location: ${myLocation}\n` +
+            `Weapon options total count: front ${frontOptionsTotalCount}, mid ${midOptionsTotalCount}, back ${backOptionsTotalCount}`
+        )
+
+        if (math.max(frontOptionsTotalCount, midOptionsTotalCount, backOptionsTotalCount) === weapon.getRangeAtLocation(myLocation).size()) {
+            this.logger.debug("No need to change weapon range");
+            return;
+        }
+
+        switch (myLocation) {
+            case SquadEntityInSquadLocation.front:
+                if (midOptionsTotalCount > frontOptionsTotalCount) {
+                    return 'retreat' as SquadEntityAction;
+                }
+                break;
+
+            case SquadEntityInSquadLocation.middle:
+                const max = math.max(frontOptionsTotalCount, backOptionsTotalCount)
+                if (max === frontOptionsTotalCount) {
+                    return 'forward' as SquadEntityAction;
+                }
+                if (max === backOptionsTotalCount) {
+                    return 'retreat' as SquadEntityAction;
+                }
+                break;
+
+            case SquadEntityInSquadLocation.back:
+                if (midOptionsTotalCount > backOptionsTotalCount) {
+                    return 'forward' as SquadEntityAction;
+                }
+                break;
+        }
+
+        return undefined
+    }
+
+    public choose_weapon(): iWeapon {
+        return this.entity.weapon;
+    }
+
     public choose_reaction(): SquadEntityAction {
         const { myLocation, backlineAllies, backlineAlliesNumbers } = this.situation;
         switch (myLocation) {
@@ -101,7 +170,7 @@ export class Logic implements iLogic {
                     return 'capitulate'
                 }
             default:
-                return this.retreatIfOutnumbered() || this.healOthersIfAround() || 'idle'
+                return this.retreatIfOutnumbered() || this.readjustWeapon() || this.healOthersIfAround() || 'idle'
         }
     }
 
@@ -113,11 +182,12 @@ export class Logic implements iLogic {
                     return 'idle'
                 }
             default:
-                return this.healOthersIfAround() || 'idle'
+                return this.healOthersIfAround() || this.readjustWeapon() || 'idle'
         }
     }
 
     public choose_target(): iSquadEntity | undefined {
+        // return this.context.enemy_squad[uniformRandom(0, 2, true) as SquadEntityInSquadLocation].;
         return undefined;
     }
 }
@@ -133,5 +203,18 @@ export class Absurd extends Logic {
 
     public override choose_reaction() {
         return 'retreat' as SquadEntityAction;
+    }
+}
+
+export class AdjustWeaponTest extends Logic {
+    constructor(context: LogicContext) {
+        super(context);
+    }
+
+    public override choose_action() {
+        return (this.readjustWeapon() || 'idle') as SquadEntityAction;
+    }
+    public override choose_reaction() {
+        return (this.readjustWeapon() || 'idle') as SquadEntityAction;
     }
 }

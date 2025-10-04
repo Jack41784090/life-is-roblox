@@ -12,6 +12,13 @@ export type SquadEntityAction = |
 
 export type SquadBattleSituation = {
     myLocation: SquadEntityInSquadLocation;
+    [location: number]: {
+        allies: iSquadEntity[] | undefined;
+        alliesNumbers: number | undefined;
+        enemies: iSquadEntity[] | undefined;
+        enemiesNumbers: number | undefined;
+    }
+
     frontlineAllies: iSquadEntity[] | undefined;
     frontlineAlliesNumbers: number | undefined;
     midlineAllies: iSquadEntity[] | undefined;
@@ -33,10 +40,17 @@ export type LogicContext = {
     our_squad: Partial<Record<SquadEntityInSquadLocation, iSquadEntity[]>>;
 }
 
+export type LogicType = |
+    'Frontline' |
+    'Backline' |
+    'Absurd' |
+    'Adjust_Weapon_Test' |
+    'Default'
+
 export interface iLogic {
-    choose_weapon(): iWeapon;
     updateSituation(context: LogicContext): iLogic;
     get_sameLineAllies(): iSquadEntity[] | undefined;
+    choose_weapon(): iWeapon;
     choose_reaction(): SquadEntityAction;
     choose_action(): SquadEntityAction;
     choose_target(): iSquadEntity | undefined;
