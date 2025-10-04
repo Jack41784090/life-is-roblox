@@ -115,6 +115,7 @@ function SquadDisplay(props: SquadDisplayProps) {
     const topsection = (<>
         {props.upsideDown &&
             <LocationLine
+                key={`LocationLine-TopSection`}
                 title="BACK LINE"
                 entities={backlineLocal}
                 location={SquadEntityInSquadLocation.back}
@@ -124,6 +125,7 @@ function SquadDisplay(props: SquadDisplayProps) {
             />}
         {!props.upsideDown &&
             <LocationLine
+                key={`LocationLine-TopSection`}
                 title="FRONT LINE"
                 entities={frontlineLocal}
                 location={SquadEntityInSquadLocation.front}
@@ -136,6 +138,7 @@ function SquadDisplay(props: SquadDisplayProps) {
 
     const middlesection = (<>
         <LocationLine
+            key={`LocationLine-MiddleSection`}
             title="MIDDLE LINE"
             entities={middleLocal}
             location={SquadEntityInSquadLocation.middle}
@@ -148,6 +151,7 @@ function SquadDisplay(props: SquadDisplayProps) {
     const bottomSection = (<>
         {!props.upsideDown &&
             <LocationLine
+                key={`LocationLine-BottomSection`}
                 title="BACK LINE"
                 entities={backlineLocal}
                 location={SquadEntityInSquadLocation.back}
@@ -157,6 +161,7 @@ function SquadDisplay(props: SquadDisplayProps) {
             />}
         {props.upsideDown &&
             <LocationLine
+                key={`LocationLine-BottomSection`}
                 title="FRONT LINE"
                 entities={frontlineLocal}
                 location={SquadEntityInSquadLocation.front}
