@@ -80,6 +80,7 @@ const LocationLine = React.memo((props: LocationLineProps) => {
 
                     return (
                         <EntityDisplay
+                            getTimer={props.getTimer}
                             key={entity.playerID}
                             entity={entity}
                             entityUpdates={relevantUpdates}

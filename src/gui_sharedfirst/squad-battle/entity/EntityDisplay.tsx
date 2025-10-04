@@ -39,6 +39,7 @@ function EntityDisplay(props: EntityDisplayProps) {
                 TextScaled={true}
             />
             <EntityVisuals
+                getTimer={props.getTimer}
                 key={`${props.entity.playerID}-visuals`}
                 portraitImage={portraitImage}
                 upsideDown={props.upsideDown}
