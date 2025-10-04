@@ -1,6 +1,8 @@
 import { Atom } from "@rbxts/charm";
 import { DamageType } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { ArmourConfig } from "shared/class/battle/Systems/CombatSystem/Armour/types";
 import FightingStyle from "shared/class/battle/Systems/CombatSystem/FightingStyle";
+import { WeaponConfig } from "shared/class/battle/Systems/CombatSystem/Weapon/types";
 import { ReadinessIcon } from "shared/class/battle/types";
 
 export type DamageRecord = Partial<Record<DamageType, number>>;
@@ -81,6 +83,8 @@ export type EntityBaseAttributes = {
 export type EntityConfig =
     Omit<EntityBaseAttributes, 'changeableStats'> // base attributes that include base, changeable stats, qr pos, player id
     & {
+        weapon?: WeaponConfig,
+        armour?: ArmourConfig,
         name?: string;
         team: string;
         iconURL?: ReadinessIcon;
