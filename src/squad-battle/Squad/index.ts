@@ -132,12 +132,12 @@ export class Squad implements iSquad {
         this.logger.debug(`--- Round ${roundCount} ---`)
         const random = math.random();
         this.entities.forEach(e => e.newRoundReset());
-        if (random >= .5) {
-            return this.act_attackRandom(enemySquads, roundCount);
-        }
-        else {
-            return this.act_idle();
-        }
+        // if (random >= .5) {
+        //     return this.act_attackRandom(enemySquads, roundCount);
+        // }
+        // else {
+        //     return this.act_idle();
+        // }
         return this.act_attackRandom(enemySquads, roundCount);
 
     }

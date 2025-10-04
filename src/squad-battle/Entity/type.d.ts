@@ -1,10 +1,10 @@
 import { Atom } from "@rbxts/charm";
 import { ArmourConfig } from "shared/class/battle/Systems/CombatSystem/Armour/types";
 import { iArmour } from "squad-battle/Armour/type";
-import { iWeapon, WeaponConfig } from "squad-battle/Weapon/type";
+import { iWeapon } from "squad-battle/Weapon/type";
 import { Reality } from "../../shared/class/battle/Systems/CombatSystem/types";
-import { EntityBaseStats, EntityChange, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation } from "../type";
-import { iLogic } from "./Logic/type.d";
+import { EntityBaseStats, EntityChange, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation, WeaponConfig } from "../type";
+import { iLogic, LogicType } from "./Logic/type.d";
 
 export type SquadMetadata = Partial<Record<SquadEntityInSquadLocation, iSquadEntity[]>>;
 
@@ -15,6 +15,8 @@ export type EntityConfig = {
     team: string;
     weapon?: WeaponConfig;
     armour?: ArmourConfig;
+    startingLocation?: SquadEntityInSquadLocation;
+    logicType: LogicType;
 };
 
 export interface iSquadEntity {

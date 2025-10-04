@@ -40,7 +40,7 @@ export class SquadEntity implements iSquadEntity {
             ORG: atom(this.getCeiling_changeableStat('ORG')),
             POS: atom(this.getCeiling_changeableStat('POS')),
             MAG: atom(this.getCeiling_changeableStat('MAG')),
-            LOC: atom(this.getCeiling_changeableStat('LOC')),
+            LOC: atom(options.startingLocation ?? this.getCeiling_changeableStat('LOC')),
         }
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.logger = Logger.createContextLogger(`Entity:${this.name}[${this.playerID}]`)
@@ -327,6 +327,25 @@ export class SquadEntity implements iSquadEntity {
                     affected: this.playerID,
                     change: c
                 }))
+                break;
+
+            case 'retreat':
+                this.logger.warn("retreating!");
+                this.action_retreat().forEach(eu => updates.push(eu))
+                updates.push({
+                    source: this.playerID,
+                    affected: this.playerID,
+                    change: {
+                        property: 'RETREAT' as EntityChangeable,
+                        from: -1,
+                        to: -1
+                    }
+                })
+                break;
+
+            case 'capitulate':
+                this.logger.warn("capitulating!");
+                this.action_capitulate().forEach(eu => updates.push(eu))
                 break;
         }
 
