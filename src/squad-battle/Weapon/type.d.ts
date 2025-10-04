@@ -1,5 +1,8 @@
+
+import { iSquadEntity } from "squad-battle/Entity/type";
+
 export interface iWeapon {
-    getTotalPenetrationValue(attacker: any): number;  // TODO: Define proper attacker type
-    getTotalHitValue(attacker: any): number;
-    getPotencyArrayDamage(attacker: any): Record<string, number>; // TODO: Define Potency enum
+    getTotalPenetrationValue(attacker: iSquadEntity): number;  // TODO: Define proper attacker type
+    getTotalHitValue(attacker: iSquadEntity): number;
+    getPotencyArrayDamage(attacker: iSquadEntity): Record<string, number>; // TODO: Define Potency enum
 }
