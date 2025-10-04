@@ -1,9 +1,9 @@
 
 import { Potency } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
-import { WeaponConfig } from "shared/class/battle/Systems/CombatSystem/Weapon/types";
 import Logger from "shared/utils/Logger";
 import { iSquadEntity } from "squad-battle/Entity/type";
+import { SquadEntityInSquadLocation, WeaponConfig } from "squad-battle/type";
 import { iWeapon } from "./type";
 export default class Weapon implements iWeapon {
     private logger = Logger.createContextLogger("Weapon");
@@ -11,11 +11,18 @@ export default class Weapon implements iWeapon {
     private hitBonus: number;
     private penetrationBonus: number;
     private damageTranslation: [Reality, [Potency, number][]][] = [];
+    private weaponLocationMap: [SquadEntityInSquadLocation, SquadEntityInSquadLocation[]][] = [];
+
 
     static Unarmed(): Weapon {
         return new Weapon({
             hitBonus: 0, penetrationBonus: 0, damageTranslation: {
                 [Reality.Force]: [[Potency.Strike, 1]],
+            },
+            weaponRange: {
+                [SquadEntityInSquadLocation.front]: [SquadEntityInSquadLocation.front],
+                [SquadEntityInSquadLocation.middle]: [],
+                [SquadEntityInSquadLocation.back]: []
             }
         });
     }
@@ -26,6 +33,13 @@ export default class Weapon implements iWeapon {
         for (const [key, value] of pairs(config.damageTranslation)) {
             this.damageTranslation.push([key, value] as [Reality, [Potency, number][]]);
         }
+        for (const [key, value] of pairs(config.weaponRange)) {
+            this.weaponLocationMap.push([key, value] as [SquadEntityInSquadLocation, SquadEntityInSquadLocation[]]);
+        }
+    }
+
+    public getRangeAtLocation(loc: SquadEntityInSquadLocation): SquadEntityInSquadLocation[] {
+        return this.weaponLocationMap.find(([key, _]) => key === loc)?.[1] || [];
     }
 
     public getTotalPenetrationValue(attacker: iSquadEntity): number {
@@ -91,40 +105,11 @@ export default class Weapon implements iWeapon {
             damageTranslation: this.damageTranslation.reduce((acc, [reality, damagePotencies]) => {
                 acc[reality] = damagePotencies;
                 return acc;
-            }, {} as Record<Reality, [Potency, number][]>)
-        }
+            }, {} as Record<Reality, [Potency, number][]>),
+            weaponRange: this.weaponLocationMap.reduce((acc, [key, value]) => {
+                acc[key] = value;
+                return acc;
+            }, {} as Record<SquadEntityInSquadLocation, SquadEntityInSquadLocation[]>)
+        };
     }
-
-    // private baseDamage = 10;
-    // private baseAccuracy = 100;
-    // private strengthBase = 5;
-    // private skillBase = 2;
-
-    // calculateStats(entityStats: EntityStats,) {
-    //     // strength: number, skill: number, footwork: number, ability: { damagePotential: { strength: number; skill: number; }, type: { [key: string]: number; } }
-    //     const { str, dex } = entityStats;
-    //     const ability = {
-    //         damagePotential: {
-    //             strength: 50,
-    //             skill: 50,
-    //         },
-    //         type: {
-    //             slash: 50,
-    //             pierce: 50,
-    //         },
-    //     }
-
-    //     const extraDamageFromStrength = math.max(0, str - this.strengthBase);
-    //     const extraDamageFromSkill = math.max(0, dex - this.skillBase);
-    //     const totalDamageStrength = (this.baseDamage + extraDamageFromStrength) * (ability.damagePotential.strength / 100);
-    //     const totalDamageSkill = (this.baseDamage + extraDamageFromSkill) * (ability.damagePotential.skill / 100);
-    //     const totalDamage = totalDamageStrength + totalDamageSkill;
-    //     // const damageBreakdown = countObjectKeys(ability.type).reduce((acc, [typeName, percent]) => {
-    //     //     acc[typeName] = totalDamage * (percent / 100);
-    //     //     return acc;
-    //     // }, {} as Record<string, number>);
-    //     const damageBreakdown = {};
-    //     const finalAccuracy = this.baseAccuracy + extraDamageFromSkill * 10;
-    //     return { totalDamage, damageBreakdown, finalAccuracy };
-    // }
 }

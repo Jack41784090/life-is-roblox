@@ -1,9 +1,7 @@
 import { Atom } from "@rbxts/charm";
-import { DamageType } from "shared/class/battle/Systems/CombatSystem/Ability/types";
-import { ArmourConfig } from "shared/class/battle/Systems/CombatSystem/Armour/types";
-import FightingStyle from "shared/class/battle/Systems/CombatSystem/FightingStyle";
-import { WeaponConfig } from "shared/class/battle/Systems/CombatSystem/Weapon/types";
-import { ReadinessIcon } from "shared/class/battle/types";
+import { DamageType, Potency } from "shared/class/battle/Systems/CombatSystem/Ability/types";
+import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
+import { EntityConfig } from "./Entity/type";
 
 export type DamageRecord = Partial<Record<DamageType, number>>;
 
@@ -80,18 +78,6 @@ export type EntityBaseAttributes = {
  * };
  * ```
  */
-export type EntityConfig =
-    Omit<EntityBaseAttributes, 'changeableStats'> // base attributes that include base, changeable stats, qr pos, player id
-    & {
-        weapon?: WeaponConfig,
-        armour?: ArmourConfig,
-        name?: string;
-        team: string;
-        iconURL?: ReadinessIcon;
-        model?: Model;
-        fightingStyles?: FightingStyle[];
-        logicType?: 'Frontline' | 'Backline' | 'Absurd'; // Logic type hint for factory
-    };
 
 export type EntityState =
     Omit<EntityBaseAttributes, 'changeableStats'> & { changeableStats: Partial<EntityChangeableStatsState> }
@@ -142,3 +128,12 @@ export type EntityUpdate = {
     change: EntityChange,
     done?: boolean
 }
+
+export interface WeaponConfig {
+    hitBonus: number;
+    penetrationBonus: number;
+    damageTranslation: Partial<Record<Reality, [Potency, number][]>>;
+    weaponRange: Partial<Record<SquadEntityInSquadLocation, SquadEntityInSquadLocation[]>>;
+}
+
+export type WeaponState = WeaponConfig;
