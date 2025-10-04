@@ -1,3 +1,4 @@
+import { iWeapon } from "squad-battle/Weapon/type";
 import { SquadEntityInSquadLocation } from "../../type";
 import { iSquadEntity } from "../type.d";
 
@@ -33,6 +34,7 @@ export type LogicContext = {
 }
 
 export interface iLogic {
+    choose_weapon(): iWeapon;
     updateSituation(context: LogicContext): iLogic;
     get_sameLineAllies(): iSquadEntity[] | undefined;
     choose_reaction(): SquadEntityAction;

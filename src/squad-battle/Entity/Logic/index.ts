@@ -1,4 +1,5 @@
 import Logger, { ContextLogger } from "shared/utils/Logger";
+import { iWeapon } from "squad-battle/Weapon/type";
 import { SquadEntityInSquadLocation } from "../../type";
 import { iSquadEntity } from "../type.d";
 import { iLogic, LogicContext, SquadBattleSituation, SquadEntityAction } from "./type.d";
@@ -19,7 +20,11 @@ export class Logic implements iLogic {
     public updateSituation(context: LogicContext) {
         this.context = context;
         this.situation = this.accessSituation(context);
-        return this;
+        return this as iLogic;
+    }
+
+    public choose_weapon(): iWeapon {
+        return this.entity.weapon;
     }
 
     public get_sameLineAllies() {
