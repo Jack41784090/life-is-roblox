@@ -3,7 +3,7 @@ import SquadDisplay from "../squad/SquadDisplay";
 import { TeamContainerProps } from "../type";
 
 export default function TeamContainer(props: TeamContainerProps) {
-    warn(` | TeamContainer ${math.random() * 100 / 100}`);
+    if (props.enableDebugWarns) warn(` | TeamContainer ${math.random() * 100 / 100}`);
     return (
         <frame
             Size={props.Size || UDim2.fromScale(.9, .5)}
@@ -30,6 +30,7 @@ export default function TeamContainer(props: TeamContainerProps) {
                     entityUpdates={props.entityUpdates}
                     syncAfterSecond={props.syncAfterSecond}
                     getTimer={props.getTimer}
+                    enableDebugWarns={props.enableDebugWarns}
                 />
             ))}
         </frame>

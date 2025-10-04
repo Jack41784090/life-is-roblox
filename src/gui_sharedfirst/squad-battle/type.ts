@@ -25,6 +25,10 @@ export interface UpsideDownProps {
     upsideDown?: boolean;
 }
 
+export interface DebugProps {
+    enableDebugWarns?: boolean;
+}
+
 export interface EntityUpdatesProps {
     entityUpdates?: EntityUpdateIndicator[];
 }
@@ -73,11 +77,11 @@ export interface EntityPortraitStateProps {
 }
 
 // Composed prop types using intersection
-export type SquadDisplayProps = GetTimerProp & TeamIdentityProps & MultipleEntitiesProps & UpsideDownProps & EntityUpdatesProps & SyncProps & {
+export type SquadDisplayProps = GetTimerProp & TeamIdentityProps & MultipleEntitiesProps & UpsideDownProps & EntityUpdatesProps & SyncProps & DebugProps & {
     teamSize: number;
 };
 
-export type BattleFieldProps = SquadCollectionProps & RoundProps & RawEntityUpdatesProps & {
+export type BattleFieldProps = SquadCollectionProps & RoundProps & RawEntityUpdatesProps & DebugProps & {
     playerTeamName: string;
     delayBetweenIndicatorsInSeconds: number;
 };
@@ -86,13 +90,13 @@ export type GetTimerProp = {
     getTimer: () => number;
 }
 
-export type TeamContainerProps = GetTimerProp & TeamNameProps & MultipleSquadsProps & BaseUIProps & UpsideDownProps & EntityUpdatesProps & SyncProps;
+export type TeamContainerProps = GetTimerProp & TeamNameProps & MultipleSquadsProps & BaseUIProps & UpsideDownProps & EntityUpdatesProps & SyncProps & DebugProps;
 
-export type EntityDisplayProps = GetTimerProp & SingleEntityProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps;
+export type EntityDisplayProps = GetTimerProp & SingleEntityProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps & DebugProps;
 
 export type SquadHeaderProps = TeamIdentityProps;
 
-export type LocationLineProps = GetTimerProp & MultipleEntitiesProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps & {
+export type LocationLineProps = GetTimerProp & MultipleEntitiesProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps & DebugProps & {
     title: string;
     location: SquadEntityInSquadLocation;
 };

@@ -9,7 +9,7 @@ import EntityVisuals from "./EntityVisuals";
  * The HP bar is a circular arc that surrounds 25% of the portrait in the top-right quadrant when full.
  */
 function EntityDisplay(props: EntityDisplayProps) {
-    warn(`| | | | EntityDisplay:${props.entity.playerID}`)
+    if (props.enableDebugWarns) warn(`| | | | EntityDisplay:${props.entity.playerID}`)
 
     const portraitImage = findEntityPortrait(props.entity.stats.id, 'neutral');
 
@@ -46,6 +46,7 @@ function EntityDisplay(props: EntityDisplayProps) {
                 updates={props.entityUpdates ?? []}
                 myID={props.entity.playerID}
                 entity={props.entity}
+                enableDebugWarns={props.enableDebugWarns}
             />
         </frame>
     );

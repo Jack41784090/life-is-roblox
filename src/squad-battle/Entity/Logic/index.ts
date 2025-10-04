@@ -31,7 +31,6 @@ export class Logic implements iLogic {
     protected accessSituation(context: LogicContext): SquadBattleSituation {
         // 1. Where am I right now?
         const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
-        this.logger.debug(`My location: ${myLocation}`);
 
         // 2. Where are my enemies right now? and how are they doing?
         const frontLineEnemies = context.enemy_squad[SquadEntityInSquadLocation.front]?.filter(e => e.get_changeableStat_num('HP') > 0);

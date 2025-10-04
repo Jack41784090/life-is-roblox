@@ -6,10 +6,10 @@ import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { CONDOR_BLOOD_RED } from "shared/const";
 import { springs } from "shared/utils";
 import { SquadEntity } from "squad-battle/Entity";
-import { EntityPortraitProps } from "../type";
+import { DebugProps, EntityPortraitProps } from "../type";
 import { EntityUpdateIndicator, IndicatorType, ProtoIndicator } from "./types";
 
-interface EntityVisualsProps extends Omit<EntityPortraitProps, 'isAttacking' | 'isRetreating' | 'isDying'> {
+interface EntityVisualsProps extends Omit<EntityPortraitProps, 'isAttacking' | 'isRetreating' | 'isDying'>, DebugProps {
     updates: EntityUpdateIndicator[];
     myID: number;
     entity: SquadEntity;
@@ -22,9 +22,10 @@ function EntityVisuals({
     updates,
     myID,
     entity,
-    getTimer
+    getTimer,
+    enableDebugWarns
 }: EntityVisualsProps) {
-    warn(`| | | | | Entity Visual:${entity.playerID}: rendered`)
+    if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: rendered`)
 
     // Animation states - centralized here
     const [isAttacking, setIsAttacking] = useState(false);
@@ -56,7 +57,7 @@ function EntityVisuals({
     const maxORG = entity.calculateRealityValue(Reality.Guts);
 
     const categoriseUpdate = (update: EntityUpdateIndicator): ProtoIndicator | undefined => {
-        warn(`[EntityVisuals:${myID}] Processing update: ${update.change.property} from ${update.source} to ${update.affected} at ${update.atSecond}s`);
+        if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Processing update: ${update.change.property} from ${update.source} to ${update.affected} at ${update.atSecond}s`);
 
         const result: ProtoIndicator = {
             ref: update,
@@ -79,7 +80,7 @@ function EntityVisuals({
             case "HP": {
                 if (update.affected === myID) {
                     const dHP = update.change.to - update.change.from;
-                    warn(`[EntityVisuals:${myID}] HP change: ${update.change.from} -> ${update.change.to} (dHP: ${dHP}) [Source: ${update.source}]`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] HP change: ${update.change.from} -> ${update.change.to} (dHP: ${dHP}) [Source: ${update.source}]`);
                     const randomX = 0.3 + math.random() * 0.4;
                     const randomY = 0.2 + math.random() * 0.6;
                     result.T = dHP > 0 ? IndicatorType.Heal : IndicatorType.Damage;
@@ -92,7 +93,7 @@ function EntityVisuals({
                     };
                 }
                 else if (update.source === myID) {
-                    warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
                     result.T = IndicatorType.Null;
                     result.value = -1;
                     result.position = UDim2.fromScale(0, 0);
@@ -103,7 +104,7 @@ function EntityVisuals({
             case 'ORG': {
                 if (update.affected === myID) {
                     const dORG = update.change.to - update.change.from;
-                    warn(`[EntityVisuals:${myID}] ORG change: ${update.change.from} -> ${update.change.to} (dORG: ${dORG}) [Source: ${update.source}]`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] ORG change: ${update.change.from} -> ${update.change.to} (dORG: ${dORG}) [Source: ${update.source}]`);
                     result.T = IndicatorType.Null; // ORG changes don't show indicators but sync bars
                     result.value = dORG;
                     result.position = UDim2.fromScale(0, 0);
@@ -117,17 +118,17 @@ function EntityVisuals({
             }
             case 'LOC': {
                 const dloc = update.change.to - update.change.from;
-                warn(`[EntityVisuals:${myID}] LOC change: ${update.change.from} -> ${update.change.to} (dloc: ${dloc}) [Source: ${update.source}, Affected: ${update.affected}]`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] LOC change: ${update.change.from} -> ${update.change.to} (dloc: ${dloc}) [Source: ${update.source}, Affected: ${update.affected}]`);
 
                 if (dloc > 0) {
-                    warn(`[EntityVisuals:${myID}] Creating RETREAT indicator (dloc > 0) - Entity moving backward`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Creating RETREAT indicator (dloc > 0) - Entity moving backward`);
                     result.T = IndicatorType.Retreat;
                     result.value = dloc;
                     result.position = UDim2.fromScale(.5, .5);
                     result.animationTrigger = 'retreat';
                 }
                 else {
-                    warn(`[EntityVisuals:${myID}] Creating ADVANCE indicator (dloc < 0) - Entity moving forward`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Creating ADVANCE indicator (dloc < 0) - Entity moving forward`);
                     result.T = IndicatorType.Advance;
                     result.value = dloc;
                     result.position = UDim2.fromScale(.5, .5);
@@ -145,22 +146,22 @@ function EntityVisuals({
 
     // Trigger animations and bar syncs based on indicator type
     const triggerPortraitAnimation = (animationType: string) => {
-        warn(`[EntityVisuals:${myID}] Triggering animation: ${animationType}`);
+        if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Triggering animation: ${animationType}`);
         switch (animationType) {
             case 'attack':
-                warn(`[EntityVisuals:${myID}] Setting isAttacking = true`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Setting isAttacking = true`);
                 setIsAttacking(true);
                 break;
             case 'retreat':
-                warn(`[EntityVisuals:${myID}] Setting isRetreating = true`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Setting isRetreating = true`);
                 setIsRetreating(true);
                 break;
             case 'advance':
-                warn(`[EntityVisuals:${myID}] Setting isRetreating = false (advance)`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Setting isRetreating = false (advance)`);
                 setIsRetreating(false);
                 break;
             case 'die':
-                warn(`[EntityVisuals:${myID}] Setting isDying = true`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Setting isDying = true`);
                 setIsDying(true);
                 break;
         }
@@ -206,7 +207,7 @@ function EntityVisuals({
 
     const syncBars = (barSyncData: { type: string, newValue: number, maxValue: number }) => {
         const ratio = barSyncData.newValue / barSyncData.maxValue;
-        warn(`[EntityVisuals:${myID}] Syncing ${string.upper(barSyncData.type)} bar: ${barSyncData.newValue}/${barSyncData.maxValue} = ${ratio}`);
+        if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Syncing ${string.upper(barSyncData.type)} bar: ${barSyncData.newValue}/${barSyncData.maxValue} = ${ratio}`);
         switch (barSyncData.type) {
             case 'hp':
                 hpMotion.spring(ratio, springs.slow);
@@ -219,11 +220,11 @@ function EntityVisuals({
 
     // Initialize bars to current values
     useEffect(() => {
-        warn(`| | | | | Entity Visual:${entity.playerID}: mounting`)
+        if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: mounting`)
         hpMotion.set(currentHP / maxHP);
         orgMotion.set(currentORG / maxORG);
         return () => {
-            warn(`| | | | | Entity Visual:${entity.playerID}: unmounting`)
+            if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: unmounting`)
         }
     }, []);
 
@@ -245,7 +246,7 @@ function EntityVisuals({
         if (!updates || updates.size() === 0 || !updatesKey) return;
 
         if (processedUpdatesRef.current.has(updatesKey)) {
-            warn(`[EntityVisuals:${myID}] Updates already processed: ${updatesKey}... Skipping.`);
+            if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Updates already processed: ${updatesKey}... Skipping.`);
             return;
         }
         processedUpdatesRef.current.add(updatesKey); print(processedUpdatesRef.current)
@@ -254,7 +255,7 @@ function EntityVisuals({
         }
 
         const newIndicators: Array<ProtoIndicator> = [];
-        warn(`Processing updates: ${updatesKey}...`);
+        if (enableDebugWarns) warn(`Processing updates: ${updatesKey}...`);
 
         updates.forEach((update, index) => {
             const r = categoriseUpdate(update);
@@ -279,18 +280,18 @@ function EntityVisuals({
             });
 
             if (immediateIndicators.size() > 0) {
-                warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
                 // adtRef.current = 0;
                 immediateIndicators.forEach(ind => {
-                    warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]} (trigger: ${ind.animationTrigger || 'none'})`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]} (trigger: ${ind.animationTrigger || 'none'})`);
                 });
                 setIndicators(prev => [...prev, ...immediateIndicators]);
             }
 
             if (timedIndicators.size() > 0) {
-                warn(`[EntityVisuals:${myID}] Queuing ${timedIndicators.size()} timed indicators:`);
+                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Queuing ${timedIndicators.size()} timed indicators:`);
                 timedIndicators.forEach(ind => {
-                    warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]}@${ind.atSecond}s (trigger: ${ind.animationTrigger || 'none'})`);
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]}@${ind.atSecond}s (trigger: ${ind.animationTrigger || 'none'})`);
                 });
                 setPendingIndicators(timedIndicators);
             }

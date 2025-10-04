@@ -5,7 +5,7 @@ import { SquadDisplayProps } from "../type";
 import LocationLine from "./LocationLine";
 
 function SquadDisplay(props: SquadDisplayProps) {
-    warn(` | | SquadDisplay ${math.random() * 100 / 100}`);
+    if (props.enableDebugWarns) warn(` | | SquadDisplay ${math.random() * 100 / 100}`);
 
     const [frontlineLocal, setFrontlineLocal] = useState(props.entities.filter(entity => entity.changeableStats.LOC() === SquadEntityInSquadLocation.front));
     const [middleLocal, setMiddleLocal] = useState(props.entities.filter(entity => entity.changeableStats.LOC() === SquadEntityInSquadLocation.middle));
@@ -14,7 +14,7 @@ function SquadDisplay(props: SquadDisplayProps) {
     // const [immigration_heartbeatscript, setImmigrationHeartbeatScript] = useState<RBXScriptConnection | undefined>();
 
     const entityUpdateModification = useMemo(() => {
-        warn(` | | SquadDisplay: new entities update`);
+        if (props.enableDebugWarns) warn(` | | SquadDisplay: new entities update`);
         props.entityUpdates?.forEach(u => {
             // u.atSecond -= props.getTimer();
 
@@ -22,7 +22,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                 u.onComplete = () => {
                     const foundEntity = props.entities.find(e => e.playerID === u.affected);
                     if (!foundEntity) {
-                        warn(` | | Entity not found: ${u.affected}`);
+                        if (props.enableDebugWarns) warn(` | | Entity not found: ${u.affected}`);
                     }
                     if (foundEntity) {
                         transferEntityToLocation(foundEntity, u.change.to);
@@ -33,24 +33,24 @@ function SquadDisplay(props: SquadDisplayProps) {
     }, [props.entityUpdates])
 
     const transferEntityToLocation = useCallback((entity: SquadEntity, newLocation: SquadEntityInSquadLocation) => {
-        warn(` | transfer: ${entity.playerID} to ${SquadEntityInSquadLocation[newLocation]}`);
+        if (props.enableDebugWarns) warn(` | transfer: ${entity.playerID} to ${SquadEntityInSquadLocation[newLocation]}`);
 
         // Use functional updates to work with current state, not stale captured state
         const removeFromAll = (prev: SquadEntity[]) => {
             const filtered = prev.filter(e => e.playerID !== entity.playerID);
-            warn(` || ${prev.map(e => e.playerID).join(',')} || ${filtered.size() !== prev.size() ? `\n || ${filtered.map(e => e.playerID).join(',')} ||` : ''}`);
+            if (props.enableDebugWarns) warn(` || ${prev.map(e => e.playerID).join(',')} || ${filtered.size() !== prev.size() ? `\n || ${filtered.map(e => e.playerID).join(',')} ||` : ''}`);
             return filtered;
         };
         const addToLocation = (prev: SquadEntity[]) => {
             // Check if entity is already in this location
             if (prev.some(e => e.playerID === entity.playerID)) {
                 // warn(` |  | addToLocation: already here ${prev.size()} -> ${prev.size()}`);
-                warn(` || ${prev.map(e => e.playerID).join(',')} ||`);
+                if (props.enableDebugWarns) warn(` || ${prev.map(e => e.playerID).join(',')} ||`);
                 return prev;
             }
             const filtered = prev.filter(e => e.playerID !== entity.playerID);
             const result = [...filtered, entity];
-            warn(` || ${prev.map(e => e.playerID).join(',')} + ${entity.playerID} || \n || ${result.map(e => e.playerID).join(',')} ||`);
+            if (props.enableDebugWarns) warn(` || ${prev.map(e => e.playerID).join(',')} + ${entity.playerID} || \n || ${result.map(e => e.playerID).join(',')} ||`);
             return result;
         };
 
@@ -72,7 +72,7 @@ function SquadDisplay(props: SquadDisplayProps) {
                 break;
         }
 
-        warn(` | transfer complete: ${entity.playerID} to ${SquadEntityInSquadLocation[newLocation]}`);
+        if (props.enableDebugWarns) warn(` | transfer complete: ${entity.playerID} to ${SquadEntityInSquadLocation[newLocation]}`);
     }, []);
     const handleImmigration = useCallback(() => {
         setImmigrationLineup((currentLineup) => {
@@ -89,7 +89,7 @@ function SquadDisplay(props: SquadDisplayProps) {
         });
     }, [props.entities, transferEntityToLocation])
     const queueImmigration = useCallback((entity: SquadEntity, location: SquadEntityInSquadLocation) => {
-        warn(`queue: ${entity.playerID} to ${SquadEntityInSquadLocation[location]}`);
+        if (props.enableDebugWarns) warn(`queue: ${entity.playerID} to ${SquadEntityInSquadLocation[location]}`);
         setImmigrationLineup(prev => [...prev, { id: entity.playerID, location }]);
     }, []);
 
@@ -97,7 +97,7 @@ function SquadDisplay(props: SquadDisplayProps) {
         if (immigrationlineup.size() === 0) {
             print(` || done ||`);
         } else {
-            warn(` || immigration detected: ${immigrationlineup.size()} ||`);
+            if (props.enableDebugWarns) warn(` || immigration detected: ${immigrationlineup.size()} ||`);
             handleImmigration();
         }
     }, [immigrationlineup, handleImmigration])
@@ -125,6 +125,7 @@ function SquadDisplay(props: SquadDisplayProps) {
             entityUpdates={props.entityUpdates}
             upsideDown={props.upsideDown}
             transferFunction={queueImmigration}
+            enableDebugWarns={props.enableDebugWarns}
         />;
 
     const middlesection =
@@ -137,6 +138,7 @@ function SquadDisplay(props: SquadDisplayProps) {
             entityUpdates={props.entityUpdates}
             upsideDown={props.upsideDown}
             transferFunction={queueImmigration}
+            enableDebugWarns={props.enableDebugWarns}
         />;
 
     const bottomSection =
@@ -149,6 +151,7 @@ function SquadDisplay(props: SquadDisplayProps) {
             entityUpdates={props.entityUpdates}
             upsideDown={props.upsideDown}
             transferFunction={queueImmigration}
+            enableDebugWarns={props.enableDebugWarns}
         />;
 
     return (

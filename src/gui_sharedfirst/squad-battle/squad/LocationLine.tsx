@@ -4,7 +4,7 @@ import { getLocationColor } from "../shared/utils";
 import { LocationLineProps } from "../type";
 
 const LocationLine = React.memo((props: LocationLineProps) => {
-    warn(` | | | LocationLine ${math.random() * 100 / 100}`);
+    if (props.enableDebugWarns) warn(` | | | LocationLine ${math.random() * 100 / 100}`);
     const lineColor = getLocationColor(props.location);
 
     const entityIDs = useMemo(() => {
@@ -86,6 +86,7 @@ const LocationLine = React.memo((props: LocationLineProps) => {
                             entityUpdates={relevantUpdates}
                             upsideDown={props.upsideDown}
                             transferFunction={props.transferFunction}
+                            enableDebugWarns={props.enableDebugWarns}
                         />
                     );
                 })}
@@ -103,7 +104,7 @@ const LocationLine = React.memo((props: LocationLineProps) => {
     const prevEntityIDs = prevProps.entities.map(e => e.playerID).join(',');
     const nextEntityIDs = nextProps.entities.map(e => e.playerID).join(',');
     if (prevEntityIDs !== nextEntityIDs) {
-        warn(`[LocationLine:${nextProps.location}] Entity IDs changed: "${prevEntityIDs}" -> "${nextEntityIDs}"`);
+        if (nextProps.enableDebugWarns) warn(`[LocationLine:${nextProps.location}] Entity IDs changed: "${prevEntityIDs}" -> "${nextEntityIDs}"`);
         return false;
     }
 
@@ -125,11 +126,11 @@ const LocationLine = React.memo((props: LocationLineProps) => {
     }).join("|") || "";
 
     if (prevUpdatesKey !== nextUpdatesKey) {
-        warn(`[LocationLine:${nextProps.location}] Updates changed: ${prevUpdatesKey.sub(1, 50)}... -> ${nextUpdatesKey.sub(1, 50)}...`);
+        if (nextProps.enableDebugWarns) warn(`[LocationLine:${nextProps.location}] Updates changed: ${prevUpdatesKey.sub(1, 50)}... -> ${nextUpdatesKey.sub(1, 50)}...`);
         return false;
     }
 
     // All props are effectively equal, skip re-render
-    warn(`[LocationLine:${nextProps.location}] Props unchanged, skipping re-render`);
+    if (nextProps.enableDebugWarns) warn(`[LocationLine:${nextProps.location}] Props unchanged, skipping re-render`);
     return true;
 }); export = LocationLine;

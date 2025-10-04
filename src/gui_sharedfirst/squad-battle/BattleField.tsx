@@ -10,7 +10,7 @@ import { TeamContainer } from "./team";
 import { BattleFieldProps } from "./type";
 
 function BattleField(props: BattleFieldProps) {
-    warn(`Battlefield: ${math.random() * 100 / 100}`)
+    if (props.enableDebugWarns) warn(`Battlefield: ${math.random() * 100 / 100}`)
 
     const teamNames: string[] = [];
     const allSquads: Squad[] = [];
@@ -44,7 +44,7 @@ function BattleField(props: BattleFieldProps) {
         const newSecond = math.floor(time);
         if (newSecond !== second) {
             second = newSecond;
-            warn(`BattleField timer: ${second}s`);
+            if (props.enableDebugWarns) warn(`BattleField timer: ${second}s`);
         }
     });
     const getTimer = () => time;
@@ -100,6 +100,7 @@ function BattleField(props: BattleFieldProps) {
                     upsideDown={true}
                     entityUpdates={themUpdates}
                     syncAfterSecond={(themUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1}
+                    enableDebugWarns={props.enableDebugWarns}
                 />
 
                 <TeamContainer
@@ -110,6 +111,7 @@ function BattleField(props: BattleFieldProps) {
                     squads={usSquads}
                     entityUpdates={usUpdates}
                     syncAfterSecond={(usUpdates.size() - 1) * props.delayBetweenIndicatorsInSeconds + 1}
+                    enableDebugWarns={props.enableDebugWarns}
                 />
             </frame>
 
