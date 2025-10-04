@@ -1,5 +1,6 @@
 import Object from "@rbxts/object-utils";
-import React from "@rbxts/react";
+import React, { useEffect } from "@rbxts/react";
+import { RunService } from "@rbxts/services";
 import { iSquadEntity } from "squad-battle/Entity/type";
 import { Squad } from "squad-battle/Squad";
 import BattleHeader from "./BattleHeader";
@@ -35,6 +36,23 @@ function BattleField(props: BattleFieldProps) {
             themSquads.push(s);
         }
     });
+
+    let time = 0;
+    let second = 0;
+    const timer = RunService.Heartbeat.Connect(dt => {
+        time += dt;
+        const newSecond = math.floor(time);
+        if (newSecond !== second) {
+            second = newSecond;
+            warn(`BattleField timer: ${second}s`);
+        }
+    });
+    const getTimer = () => time;
+    useEffect(() => {
+        return () => {
+            timer.Disconnect();
+        }
+    })
 
     const updateIndicators: EntityUpdateIndicator[] =
         props.entityUpdates?.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds })) || [];
@@ -74,6 +92,7 @@ function BattleField(props: BattleFieldProps) {
                     Padding={new UDim(0, 5)}
                 />
                 <TeamContainer
+                    getTimer={getTimer}
                     key="THEM"
                     teamName="THEM"
                     Size={UDim2.fromScale(1, .5)}
@@ -84,6 +103,7 @@ function BattleField(props: BattleFieldProps) {
                 />
 
                 <TeamContainer
+                    getTimer={getTimer}
                     key="US"
                     teamName={props.playerTeamName}
                     Size={UDim2.fromScale(1, .5)}
