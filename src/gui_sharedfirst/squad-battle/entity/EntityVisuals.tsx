@@ -58,19 +58,22 @@ function EntityVisuals({
     const categoriseUpdate = (update: EntityUpdateIndicator): ProtoIndicator | undefined => {
         warn(`[EntityVisuals:${myID}] Processing update: ${update.change.property} from ${update.source} to ${update.affected} at ${update.atSecond}s`);
 
+        const result: ProtoIndicator = {
+            ref: update,
+            T: IndicatorType.Null,
+            id: tick() * 1000,
+            value: 0,
+            position: UDim2.fromScale(.5, .5),
+            atSecond: update.atSecond,
+            onComplete: update.onComplete,
+            animationTrigger: 'none'
+        };
         switch (update.change.property) {
             case 'DIE':
             case 'RETREAT':
             case 'LEAVE': {
-                return {
-                    T: update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat,
-                    id: tick() * 1000,
-                    value: 0,
-                    position: UDim2.fromScale(.5, .5),
-                    atSecond: update.atSecond,
-                    onComplete: update.onComplete,
-                    animationTrigger: update.change.property === 'DIE' ? 'die' : 'retreat'
-                }
+                result.T = update.change.property === 'DIE' ? IndicatorType.Death : IndicatorType.Retreat;
+                result.animationTrigger = update.change.property === 'DIE' ? 'die' : 'retreat';
                 break;
             }
             case "HP": {
@@ -79,32 +82,21 @@ function EntityVisuals({
                     warn(`[EntityVisuals:${myID}] HP change: ${update.change.from} -> ${update.change.to} (dHP: ${dHP}) [Source: ${update.source}]`);
                     const randomX = 0.3 + math.random() * 0.4;
                     const randomY = 0.2 + math.random() * 0.6;
-                    return {
-                        T: dHP > 0 ? IndicatorType.Heal : IndicatorType.Damage,
-                        id: tick() * 1000,
-                        value: dHP,
-                        position: UDim2.fromScale(randomX, randomY),
-                        atSecond: update.atSecond,
-                        onComplete: update.onComplete,
-                        // Add HP bar sync trigger
-                        barSyncData: {
-                            type: 'hp',
-                            newValue: update.change.to,
-                            maxValue: maxHP
-                        }
-                    }
+                    result.T = dHP > 0 ? IndicatorType.Heal : IndicatorType.Damage;
+                    result.value = dHP;
+                    result.position = UDim2.fromScale(randomX, randomY);
+                    result.barSyncData = {
+                        type: 'hp',
+                        newValue: update.change.to,
+                        maxValue: maxHP
+                    };
                 }
                 else if (update.source === myID) {
                     warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
-                    return {
-                        T: IndicatorType.Null,
-                        id: tick() * 1000,
-                        value: -1,
-                        position: UDim2.fromScale(0, 0),
-                        atSecond: update.atSecond,
-                        onComplete: update.onComplete,
-                        animationTrigger: 'attack'
-                    }
+                    result.T = IndicatorType.Null;
+                    result.value = -1;
+                    result.position = UDim2.fromScale(0, 0);
+                    result.animationTrigger = 'attack';
                 }
                 break;
             }
@@ -112,19 +104,14 @@ function EntityVisuals({
                 if (update.affected === myID) {
                     const dORG = update.change.to - update.change.from;
                     warn(`[EntityVisuals:${myID}] ORG change: ${update.change.from} -> ${update.change.to} (dORG: ${dORG}) [Source: ${update.source}]`);
-                    return {
-                        T: IndicatorType.Null, // ORG changes don't show indicators but sync bars
-                        id: tick() * 1000,
-                        value: dORG,
-                        position: UDim2.fromScale(0, 0),
-                        atSecond: update.atSecond,
-                        onComplete: update.onComplete,
-                        barSyncData: {
-                            type: 'org',
-                            newValue: update.change.to,
-                            maxValue: maxORG
-                        }
-                    }
+                    result.T = IndicatorType.Null; // ORG changes don't show indicators but sync bars
+                    result.value = dORG;
+                    result.position = UDim2.fromScale(0, 0);
+                    result.barSyncData = {
+                        type: 'org',
+                        newValue: update.change.to,
+                        maxValue: maxORG
+                    };
                 }
                 break;
             }
@@ -134,30 +121,22 @@ function EntityVisuals({
 
                 if (dloc > 0) {
                     warn(`[EntityVisuals:${myID}] Creating RETREAT indicator (dloc > 0) - Entity moving backward`);
-                    return {
-                        T: IndicatorType.Retreat,
-                        id: tick() * 1000,
-                        value: dloc,
-                        position: UDim2.fromScale(.5, .5),
-                        atSecond: update.atSecond,
-                        onComplete: update.onComplete,
-                        animationTrigger: 'retreat'
-                    };
+                    result.T = IndicatorType.Retreat;
+                    result.value = dloc;
+                    result.position = UDim2.fromScale(.5, .5);
+                    result.animationTrigger = 'retreat';
                 }
                 else {
                     warn(`[EntityVisuals:${myID}] Creating ADVANCE indicator (dloc < 0) - Entity moving forward`);
-                    return {
-                        T: IndicatorType.Advance,
-                        id: tick() * 1000,
-                        value: dloc,
-                        position: UDim2.fromScale(.5, .5),
-                        atSecond: update.atSecond,
-                        onComplete: update.onComplete,
-                        animationTrigger: 'advance'
-                    };
+                    result.T = IndicatorType.Advance;
+                    result.value = dloc;
+                    result.position = UDim2.fromScale(.5, .5);
+                    result.animationTrigger = 'advance';
                 }
+                break;
             }
         }
+        return result;
     }
 
     const removeIndicator = (id: number) => {
@@ -281,7 +260,6 @@ function EntityVisuals({
             const r = categoriseUpdate(update);
             if (r) {
                 newIndicators.push(r);
-                update.done = true;
             }
         });
 
@@ -291,6 +269,7 @@ function EntityVisuals({
 
             // Trigger immediate animations and bar syncs
             immediateIndicators.forEach(ind => {
+                ind.ref.done = true;
                 if (ind.animationTrigger) {
                     triggerPortraitAnimation(ind.animationTrigger);
                 }
@@ -336,6 +315,7 @@ function EntityVisuals({
             const indicatorsToShow: ProtoIndicator[] = [];
             while (currentQueue.size() > 0 && adtRef.current >= currentQueue[0].atSecond) {
                 const indicatorToShow = currentQueue.shift()!;
+                indicatorToShow.ref.done = true;
                 warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${adtRef.current}s (scheduled: ${indicatorToShow.atSecond}s)`);
                 indicatorsToShow.push(indicatorToShow);
 
