@@ -2,7 +2,11 @@ import { atom, Atom } from "@rbxts/charm";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
+import Armour from "squad-battle/Armour";
+import { iArmour } from "squad-battle/Armour/type";
 import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
+import Weapon from "squad-battle/Weapon";
+import { iWeapon } from "squad-battle/Weapon/type";
 import { EntityChange } from '../type';
 import { iLogic } from './Logic/type.d';
 import { EntityConfig, iSquadEntity, SquadMetadata } from './type.d';
@@ -18,8 +22,8 @@ export class SquadEntity implements iSquadEntity {
     private logic!: iLogic;
 
     // equipments
-    // public armour: Armour;
-    // public weapon: Weapon;
+    public armour: iArmour;
+    public weapon: iWeapon;
     public team: string;
 
 
@@ -40,9 +44,8 @@ export class SquadEntity implements iSquadEntity {
         }
         this.name = options.name ?? `unknown-${options.playerID}-${options.stats.id}`;
         this.logger = Logger.createContextLogger(`Entity:${this.name}[${this.playerID}]`)
-        // this.logic = options.logic;
-        // this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
-        // this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
+        this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
+        this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
     }
 
     public setLogic(logic: iLogic) {
@@ -55,6 +58,10 @@ export class SquadEntity implements iSquadEntity {
 
     public isDead(): boolean {
         return this.get_changeableStat_num('HP') <= 0;
+    }
+
+    public get_armour() {
+        return this.armour;
     }
 
     public getCeiling_changeableStat(property: EntityChangeable) {
@@ -226,7 +233,9 @@ export class SquadEntity implements iSquadEntity {
     private action_attack(logic: iLogic) {
         const target = logic.choose_target();
         if (target) {
-            const dm = 5;
+            const weapon = logic.choose_weapon();
+            const armour = target.get_armour();
+            const dm = armour.getRawDamageTaken(weapon.getPotencyArrayDamage(this))
             const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
             return damageUpdate
             // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);

@@ -1,4 +1,7 @@
 import { Atom } from "@rbxts/charm";
+import { ArmourConfig } from "shared/class/battle/Systems/CombatSystem/Armour/types";
+import { iArmour } from "squad-battle/Armour/type";
+import { iWeapon, WeaponConfig } from "squad-battle/Weapon/type";
 import { Reality } from "../../shared/class/battle/Systems/CombatSystem/types";
 import { EntityBaseStats, EntityChange, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation } from "../type";
 import { iLogic } from "./Logic/type.d";
@@ -10,14 +13,19 @@ export type EntityConfig = {
     stats: EntityBaseStats;
     name?: string;
     team: string;
+    weapon?: WeaponConfig;
+    armour?: ArmourConfig;
 };
 
 export interface iSquadEntity {
+    get_armour(): iArmour;
     readonly playerID: number;
     name: string;
     readonly stats: EntityBaseStats;
     readonly changeableStats: EntityChangeableStats;
     team: string;
+    weapon: iWeapon;
+    armour: iArmour;
 
     setLogic(logic: iLogic): void;
     newRoundReset(): void;
