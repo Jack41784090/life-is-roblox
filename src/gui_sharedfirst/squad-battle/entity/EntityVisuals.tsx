@@ -1,6 +1,5 @@
 import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useMemo, useRef, useState } from "@rbxts/react";
-import { RunService } from "@rbxts/services";
 import { DamageIndicator } from "gui_sharedfirst/new_components/effects";
 import ClashFateEffect from "gui_sharedfirst/new_components/effects/ClashFateEffect";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
@@ -14,6 +13,7 @@ interface EntityVisualsProps extends Omit<EntityPortraitProps, 'isAttacking' | '
     updates: EntityUpdateIndicator[];
     myID: number;
     entity: SquadEntity;
+    getTimer: () => number;
 }
 
 function EntityVisuals({
@@ -22,6 +22,7 @@ function EntityVisuals({
     updates,
     myID,
     entity,
+    getTimer
 }: EntityVisualsProps) {
     warn(`| | | | | Entity Visual:${entity.playerID}: rendered`)
 
@@ -45,9 +46,8 @@ function EntityVisuals({
     // Indicator state
     const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
     const [pendingIndicators, setPendingIndicators] = useState<Array<ProtoIndicator>>([]);
-    const runnerRef = useRef<RBXScriptConnection | undefined>();
+    // const runnerRef = useRef<RBXScriptConnection | undefined>();
     const processedUpdatesRef = useRef<Set<string>>(new Set());
-    const adtRef = useRef(0);
 
     // Entity stats for bar calculations
     const currentHP = entity.changeableStats.HP();
@@ -264,8 +264,8 @@ function EntityVisuals({
         });
 
         if (newIndicators.size() > 0) {
-            const immediateIndicators = newIndicators.filter(ind => ind.atSecond <= 0);
-            const timedIndicators = newIndicators.filter(ind => ind.atSecond > 0);
+            const immediateIndicators = newIndicators.filter(ind => ind.atSecond <= getTimer());
+            const timedIndicators = newIndicators.filter(ind => ind.atSecond > getTimer());
 
             // Trigger immediate animations and bar syncs
             immediateIndicators.forEach(ind => {
@@ -289,7 +289,6 @@ function EntityVisuals({
 
             if (timedIndicators.size() > 0) {
                 warn(`[EntityVisuals:${myID}] Queuing ${timedIndicators.size()} timed indicators:`);
-                adtRef.current = 0;
                 timedIndicators.forEach(ind => {
                     warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]}@${ind.atSecond}s (trigger: ${ind.animationTrigger || 'none'})`);
                 });
@@ -301,45 +300,38 @@ function EntityVisuals({
     // Handle timed indicators with animation and bar sync
     useEffect(() => {
         if (pendingIndicators.size() === 0) return;
-        if (runnerRef.current) {
-            runnerRef.current.Disconnect();
-            runnerRef.current = undefined;
+        if (pendingIndicators[0].atSecond > getTimer()) {
+            task.spawn(() => {
+                task.wait(pendingIndicators[0].atSecond - getTimer());
+                setPendingIndicators(prev => [...prev]); // Trigger re-evaluation
+            })
+            return;
         }
 
         let currentQueue = [...pendingIndicators];
         currentQueue.sort((a, b) => a.atSecond < b.atSecond);
 
-        const connection = RunService.Heartbeat.Connect((dt) => {
-            adtRef.current += dt;
+        const indicatorsToShow: Array<ProtoIndicator> = [];
+        while (currentQueue.size() > 0 && getTimer() >= currentQueue[0].atSecond) {
+            const indicatorToShow = currentQueue.shift()!;
+            indicatorToShow.ref.done = true;
+            warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${getTimer()}s (scheduled: ${indicatorToShow.atSecond}s)`);
+            indicatorsToShow.push(indicatorToShow);
 
-            const indicatorsToShow: ProtoIndicator[] = [];
-            while (currentQueue.size() > 0 && adtRef.current >= currentQueue[0].atSecond) {
-                const indicatorToShow = currentQueue.shift()!;
-                indicatorToShow.ref.done = true;
-                warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${adtRef.current}s (scheduled: ${indicatorToShow.atSecond}s)`);
-                indicatorsToShow.push(indicatorToShow);
-
-                if (indicatorToShow.animationTrigger) {
-                    triggerPortraitAnimation(indicatorToShow.animationTrigger);
-                }
-                if (indicatorToShow.barSyncData) {
-                    syncBars(indicatorToShow.barSyncData);
-                }
+            if (indicatorToShow.animationTrigger) {
+                triggerPortraitAnimation(indicatorToShow.animationTrigger);
             }
-
-            if (indicatorsToShow.size() > 0) {
-                setIndicators(prev => [...prev, ...indicatorsToShow]);
+            if (indicatorToShow.barSyncData) {
+                syncBars(indicatorToShow.barSyncData);
             }
+        }
 
-            if (currentQueue.size() === 0) {
-                connection.Disconnect();
-                runnerRef.current = undefined;
-                setPendingIndicators([]);
-            }
-        });
-
-        runnerRef.current = connection;
-        return () => connection.Disconnect();
+        if (indicatorsToShow.size() > 0) {
+            setIndicators(prev => [...prev, ...indicatorsToShow]);
+        }
+        if (currentQueue.size() > 0) {
+            setPendingIndicators(currentQueue);
+        }
     }, [pendingIndicators]);
 
     // Attack animation
@@ -407,9 +399,6 @@ function EntityVisuals({
         return () => {
             if (animationCleanupRef.current) {
                 task.cancel(animationCleanupRef.current);
-            }
-            if (runnerRef.current) {
-                runnerRef.current.Disconnect();
             }
         };
     }, []);
