@@ -37,7 +37,7 @@ function test_simpleautobattle() {
     }
 
     const sb = new SquadBattleInstance(config);
-    sb.autoBattle(1);
+    sb.autoBattle(.5);
 }
 
 function test_fixedsequence() {
