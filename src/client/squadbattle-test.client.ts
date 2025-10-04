@@ -2,7 +2,7 @@ import { getDummyStats } from "shared/utils";
 import { SquadBattleInstance } from "squad-battle";
 import { SquadBattle } from "squad-battle/Battle";
 import { SquadBattleGraphics } from "squad-battle/Graphics";
-import { EntityUpdate, SquadBattleConfig, SquadConfig } from "squad-battle/type";
+import { EntityUpdate, SquadBattleConfig, SquadConfig, SquadEntityInSquadLocation } from "squad-battle/type";
 
 function test_simpleautobattle() {
     const team_count = 2;
@@ -79,5 +79,39 @@ function test_fixedsequence() {
     sbg.render(randomUpdates)
 }
 
+function test_readjustweapon() {
+    const sb = new SquadBattle({
+        teams: {
+            'team1': [{
+                entities: [{
+                    playerID: 1, stats: getDummyStats(), team: 'team1', name: 'tc1_1_1', logicType: 'Adjust_Weapon_Test',
+                    startingLocation: SquadEntityInSquadLocation.front,
+                    weapon: {
+                        hitBonus: 0,
+                        penetrationBonus: 0,
+                        damageTranslation: {},
+                        weaponRange: {
+                            [SquadEntityInSquadLocation.front]: [SquadEntityInSquadLocation.front],
+                            [SquadEntityInSquadLocation.middle]: [SquadEntityInSquadLocation.front, SquadEntityInSquadLocation.middle],
+                            [SquadEntityInSquadLocation.back]: [],
+                        }
+                    }
+                }],
+                name: 'squad1-A',
+            }],
+            'team2': [{
+                entities: [{
+                    playerID: 2, stats: getDummyStats(), team: 'team2', name: 'tc2_1_1', logicType: 'Adjust_Weapon_Test',
+                    startingLocation: SquadEntityInSquadLocation.middle,
+                }],
+                name: 'squad2-A'
+            }]
+        }
+    })
+    const sbg = new SquadBattleGraphics(sb)
+    sbg.render(sb.squadActions());
+}
+
 // test_fixedsequence()
-test_simpleautobattle();
+// test_simpleautobattle();
+test_readjustweapon();
