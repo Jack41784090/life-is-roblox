@@ -13,9 +13,11 @@ function SquadDisplay(props: SquadDisplayProps) {
     const [immigrationlineup, setImmigrationLineup] = useState<{ id: number, location: SquadEntityInSquadLocation }[]>([]);
     // const [immigration_heartbeatscript, setImmigrationHeartbeatScript] = useState<RBXScriptConnection | undefined>();
 
-    const x = useMemo(() => {
+    const entityUpdateModification = useMemo(() => {
         warn(` | | SquadDisplay: new entities update`);
         props.entityUpdates?.forEach(u => {
+            // u.atSecond -= props.getTimer();
+
             if (u.change.property === 'LOC') {
                 u.onComplete = () => {
                     const foundEntity = props.entities.find(e => e.playerID === u.affected);
@@ -115,6 +117,7 @@ function SquadDisplay(props: SquadDisplayProps) {
 
     const topsection =
         <LocationLine
+            getTimer={props.getTimer}
             key={`LocationLine-TopSection`}
             title="FRONT LINE"
             entities={props.upsideDown ? backlineLocal : frontlineLocal}
@@ -126,6 +129,7 @@ function SquadDisplay(props: SquadDisplayProps) {
 
     const middlesection =
         <LocationLine
+            getTimer={props.getTimer}
             key={`LocationLine-MiddleSection`}
             title="MIDDLE LINE"
             entities={middleLocal}
@@ -137,6 +141,7 @@ function SquadDisplay(props: SquadDisplayProps) {
 
     const bottomSection =
         <LocationLine
+            getTimer={props.getTimer}
             key={`LocationLine-BottomSection`}
             title="BACK LINE"
             entities={props.upsideDown ? frontlineLocal : backlineLocal}
