@@ -73,7 +73,7 @@ export interface EntityPortraitStateProps {
 }
 
 // Composed prop types using intersection
-export type SquadDisplayProps = TeamIdentityProps & MultipleEntitiesProps & UpsideDownProps & EntityUpdatesProps & SyncProps & {
+export type SquadDisplayProps = GetTimerProp & TeamIdentityProps & MultipleEntitiesProps & UpsideDownProps & EntityUpdatesProps & SyncProps & {
     teamSize: number;
 };
 
@@ -82,13 +82,17 @@ export type BattleFieldProps = SquadCollectionProps & RoundProps & RawEntityUpda
     delayBetweenIndicatorsInSeconds: number;
 };
 
-export type SquadContainerProps = TeamNameProps & MultipleSquadsProps & BaseUIProps & UpsideDownProps & EntityUpdatesProps & SyncProps;
+export type GetTimerProp = {
+    getTimer: () => number;
+}
 
-export type EntityDisplayProps = SingleEntityProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps;
+export type TeamContainerProps = GetTimerProp & TeamNameProps & MultipleSquadsProps & BaseUIProps & UpsideDownProps & EntityUpdatesProps & SyncProps;
+
+export type EntityDisplayProps = GetTimerProp & SingleEntityProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps;
 
 export type SquadHeaderProps = TeamIdentityProps;
 
-export type LocationLineProps = MultipleEntitiesProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps & {
+export type LocationLineProps = GetTimerProp & MultipleEntitiesProps & EntityUpdatesProps & UpsideDownProps & TransferFunctionProps & {
     title: string;
     location: SquadEntityInSquadLocation;
 };
