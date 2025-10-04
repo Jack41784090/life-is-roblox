@@ -27,8 +27,7 @@ const LocationLine = React.memo((props: LocationLineProps) => {
 
         props.entities.forEach(entity => {
             const relevantUpdates = props.entityUpdates?.filter(update =>
-                update.affected === entity.playerID ||
-                update.source === entity.playerID
+                (update.affected === entity.playerID || update.source === entity.playerID) && !update.done
             )
             // .map(u => {
             //     if (u.done) {
