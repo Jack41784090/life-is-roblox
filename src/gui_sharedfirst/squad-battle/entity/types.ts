@@ -10,6 +10,7 @@ export enum IndicatorType {
 
 export interface ProtoIndicator {
     T: IndicatorType;
+    ref: EntityUpdate,
     id: number;
     value: number;
     position: UDim2;
