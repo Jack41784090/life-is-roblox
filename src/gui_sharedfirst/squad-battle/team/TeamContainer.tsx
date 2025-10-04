@@ -1,8 +1,8 @@
 import React from "@rbxts/react";
 import SquadDisplay from "../squad/SquadDisplay";
-import { SquadContainerProps } from "../type";
+import { TeamContainerProps } from "../type";
 
-export default function TeamContainer(props: SquadContainerProps) {
+export default function TeamContainer(props: TeamContainerProps) {
     warn(` | TeamContainer ${math.random() * 100 / 100}`);
     return (
         <frame
@@ -29,6 +29,7 @@ export default function TeamContainer(props: SquadContainerProps) {
                     upsideDown={props.upsideDown}
                     entityUpdates={props.entityUpdates}
                     syncAfterSecond={props.syncAfterSecond}
+                    getTimer={props.getTimer}
                 />
             ))}
         </frame>
