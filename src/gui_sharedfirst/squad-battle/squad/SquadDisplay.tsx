@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "@rbxts/react";
+import React, { useCallback, useEffect, useMemo, useState } from "@rbxts/react";
 import { SquadEntity } from "squad-battle/Entity";
 import { SquadEntityInSquadLocation } from "squad-battle/type";
 import { SquadDisplayProps } from "../type";
@@ -7,28 +7,29 @@ import LocationLine from "./LocationLine";
 function SquadDisplay(props: SquadDisplayProps) {
     warn(` | | SquadDisplay ${math.random() * 100 / 100}`);
 
-    const getEntitiesByRealLocation = () => {
-        const locations: Record<SquadEntityInSquadLocation, SquadEntity[]> = {
-            [SquadEntityInSquadLocation.front]: [],
-            [SquadEntityInSquadLocation.middle]: [],
-            [SquadEntityInSquadLocation.back]: []
-        };
-
-        props.entities.forEach(entity => {
-            const loc = entity.changeableStats.LOC() as SquadEntityInSquadLocation;
-            if (locations[loc]) {
-                locations[loc].push(entity);
-            }
-        });
-
-        return locations;
-    };
-    const entitiesRealLocation = getEntitiesByRealLocation();
-    const [frontlineLocal, setFrontlineLocal] = useState(entitiesRealLocation[SquadEntityInSquadLocation.front] as SquadEntity[]);
-    const [middleLocal, setMiddleLocal] = useState(entitiesRealLocation[SquadEntityInSquadLocation.middle] as SquadEntity[]);
-    const [backlineLocal, setBacklineLocal] = useState(entitiesRealLocation[SquadEntityInSquadLocation.back] as SquadEntity[]);
+    const [frontlineLocal, setFrontlineLocal] = useState(props.entities.filter(entity => entity.changeableStats.LOC() === SquadEntityInSquadLocation.front));
+    const [middleLocal, setMiddleLocal] = useState(props.entities.filter(entity => entity.changeableStats.LOC() === SquadEntityInSquadLocation.middle));
+    const [backlineLocal, setBacklineLocal] = useState(props.entities.filter(entity => entity.changeableStats.LOC() === SquadEntityInSquadLocation.back));
     const [immigrationlineup, setImmigrationLineup] = useState<{ id: number, location: SquadEntityInSquadLocation }[]>([]);
     // const [immigration_heartbeatscript, setImmigrationHeartbeatScript] = useState<RBXScriptConnection | undefined>();
+
+    const x = useMemo(() => {
+        warn(` | | SquadDisplay: new entities update`);
+        props.entityUpdates?.forEach(u => {
+            if (u.change.property === 'LOC') {
+                u.onComplete = () => {
+                    const foundEntity = props.entities.find(e => e.playerID === u.affected);
+                    if (!foundEntity) {
+                        warn(` | | Entity not found: ${u.affected}`);
+                    }
+                    if (foundEntity) {
+                        transferEntityToLocation(foundEntity, u.change.to);
+                    }
+                }
+            }
+        })
+    }, [props.entityUpdates])
+
     const transferEntityToLocation = useCallback((entity: SquadEntity, newLocation: SquadEntityInSquadLocation) => {
         warn(` | transfer: ${entity.playerID} to ${SquadEntityInSquadLocation[newLocation]}`);
 
@@ -112,31 +113,18 @@ function SquadDisplay(props: SquadDisplayProps) {
     //     warn(`(no-op) queue: ${entity.playerID} to ${SquadEntityInSquadLocation[location]}`);
     // };
 
-    const topsection = (<>
-        {props.upsideDown &&
-            <LocationLine
-                key={`LocationLine-TopSection`}
-                title="BACK LINE"
-                entities={backlineLocal}
-                location={SquadEntityInSquadLocation.back}
-                entityUpdates={props.entityUpdates}
-                upsideDown={props.upsideDown}
-                transferFunction={queueImmigration}
-            />}
-        {!props.upsideDown &&
-            <LocationLine
-                key={`LocationLine-TopSection`}
-                title="FRONT LINE"
-                entities={frontlineLocal}
-                location={SquadEntityInSquadLocation.front}
-                entityUpdates={props.entityUpdates}
-                upsideDown={props.upsideDown}
-                transferFunction={queueImmigration}
-            />
-        }
-    </>)
+    const topsection =
+        <LocationLine
+            key={`LocationLine-TopSection`}
+            title="FRONT LINE"
+            entities={props.upsideDown ? backlineLocal : frontlineLocal}
+            location={props.upsideDown ? SquadEntityInSquadLocation.back : SquadEntityInSquadLocation.front}
+            entityUpdates={props.entityUpdates}
+            upsideDown={props.upsideDown}
+            transferFunction={queueImmigration}
+        />;
 
-    const middlesection = (<>
+    const middlesection =
         <LocationLine
             key={`LocationLine-MiddleSection`}
             title="MIDDLE LINE"
@@ -145,32 +133,18 @@ function SquadDisplay(props: SquadDisplayProps) {
             entityUpdates={props.entityUpdates}
             upsideDown={props.upsideDown}
             transferFunction={queueImmigration}
-        />
-    </>)
+        />;
 
-    const bottomSection = (<>
-        {!props.upsideDown &&
-            <LocationLine
-                key={`LocationLine-BottomSection`}
-                title="BACK LINE"
-                entities={backlineLocal}
-                location={SquadEntityInSquadLocation.back}
-                entityUpdates={props.entityUpdates}
-                upsideDown={props.upsideDown}
-                transferFunction={queueImmigration}
-            />}
-        {props.upsideDown &&
-            <LocationLine
-                key={`LocationLine-BottomSection`}
-                title="FRONT LINE"
-                entities={frontlineLocal}
-                location={SquadEntityInSquadLocation.front}
-                entityUpdates={props.entityUpdates}
-                upsideDown={props.upsideDown}
-                transferFunction={queueImmigration}
-            />
-        }
-    </>);
+    const bottomSection =
+        <LocationLine
+            key={`LocationLine-BottomSection`}
+            title="BACK LINE"
+            entities={props.upsideDown ? frontlineLocal : backlineLocal}
+            location={props.upsideDown ? SquadEntityInSquadLocation.front : SquadEntityInSquadLocation.back}
+            entityUpdates={props.entityUpdates}
+            upsideDown={props.upsideDown}
+            transferFunction={queueImmigration}
+        />;
 
     return (
         <frame
