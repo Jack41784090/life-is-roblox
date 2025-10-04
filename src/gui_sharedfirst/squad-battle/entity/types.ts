@@ -16,6 +16,11 @@ export interface ProtoIndicator {
     atSecond: number;
     onComplete?: () => void;
     animationTrigger?: string;
+    barSyncData?: {
+        type: string;
+        newValue: number;
+        maxValue: number;
+    };
 }
 
 export type EntityUpdateIndicator =
