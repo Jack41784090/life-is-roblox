@@ -9,8 +9,21 @@ import EntityVisuals from "./EntityVisuals";
  * The HP bar is a circular arc that surrounds 25% of the portrait in the top-right quadrant when full.
  */
 function EntityDisplay(props: EntityDisplayProps) {
-    // Find portrait using utility function
+    warn(`| | | | EntityDisplay:${props.entity.playerID}`)
+
     const portraitImage = findEntityPortrait(props.entity.stats.id, 'neutral');
+
+    // const updatesKey = useMemo(() => {
+    //     if (!props.entityUpdates || props.entityUpdates.size() === 0) return "";
+    //     return props.entityUpdates.map(u => {
+    //         const baseKey = `${u.source}->${u.affected}`;
+    //         const changeStr = `${u.change.property}`;
+    //         const valueStr = typeOf(u.change) === "table" && "from" in u.change ? `${u.change.from}to${u.change.to}` : "";
+    //         const timeStr = `@${math.floor(u.atSecond * 100) / 100}`;
+    //         return `${baseKey}:${changeStr}${valueStr}${timeStr}`;
+    //     }).join("|");
+    // }, [props.entityUpdates]);
+
     return (
         <frame
             key={"PlayerPortrait-" + props.entity.stats.id}
@@ -26,6 +39,7 @@ function EntityDisplay(props: EntityDisplayProps) {
                 TextScaled={true}
             />
             <EntityVisuals
+                key={`${props.entity.playerID}-visuals`}
                 portraitImage={portraitImage}
                 upsideDown={props.upsideDown}
                 updates={props.entityUpdates ?? []}

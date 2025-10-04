@@ -21,9 +21,9 @@ function EntityVisuals({
     upsideDown = false,
     updates,
     myID,
-    entity
+    entity,
 }: EntityVisualsProps) {
-    warn(`| | | | | | Entity Visual`)
+    warn(`| | | | | Entity Visual:${entity.playerID}: rendered`)
 
     // Animation states - centralized here
     const [isAttacking, setIsAttacking] = useState(false);
@@ -165,7 +165,7 @@ function EntityVisuals({
     };
 
     // Trigger animations and bar syncs based on indicator type
-    const triggerAnimation = (animationType: string) => {
+    const triggerPortraitAnimation = (animationType: string) => {
         warn(`[EntityVisuals:${myID}] Triggering animation: ${animationType}`);
         switch (animationType) {
             case 'attack':
@@ -240,8 +240,12 @@ function EntityVisuals({
 
     // Initialize bars to current values
     useEffect(() => {
+        warn(`| | | | | Entity Visual:${entity.playerID}: mounting`)
         hpMotion.set(currentHP / maxHP);
         orgMotion.set(currentORG / maxORG);
+        return () => {
+            warn(`| | | | | Entity Visual:${entity.playerID}: unmounting`)
+        }
     }, []);
 
     // Create stable reference for updates
@@ -261,21 +265,23 @@ function EntityVisuals({
     useEffect(() => {
         if (!updates || updates.size() === 0 || !updatesKey) return;
 
-        if (processedUpdatesRef.current.has(updatesKey)) return;
-        processedUpdatesRef.current.add(updatesKey);
-
+        if (processedUpdatesRef.current.has(updatesKey)) {
+            warn(`[EntityVisuals:${myID}] Updates already processed: ${updatesKey}... Skipping.`);
+            return;
+        }
+        processedUpdatesRef.current.add(updatesKey); print(processedUpdatesRef.current)
         if (processedUpdatesRef.current.size() > 100) {
             processedUpdatesRef.current.clear();
         }
 
         const newIndicators: Array<ProtoIndicator> = [];
-        warn(`Processing updates: ${updatesKey.sub(1, 100)}...`);
-
+        warn(`Processing updates: ${updatesKey}...`);
 
         updates.forEach((update, index) => {
             const r = categoriseUpdate(update);
             if (r) {
                 newIndicators.push(r);
+                update.done = true;
             }
         });
 
@@ -286,7 +292,7 @@ function EntityVisuals({
             // Trigger immediate animations and bar syncs
             immediateIndicators.forEach(ind => {
                 if (ind.animationTrigger) {
-                    triggerAnimation(ind.animationTrigger);
+                    triggerPortraitAnimation(ind.animationTrigger);
                 }
                 if (ind.barSyncData) {
                     syncBars(ind.barSyncData);
@@ -295,6 +301,7 @@ function EntityVisuals({
 
             if (immediateIndicators.size() > 0) {
                 warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
+                // adtRef.current = 0;
                 immediateIndicators.forEach(ind => {
                     warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]} (trigger: ${ind.animationTrigger || 'none'})`);
                 });
@@ -332,12 +339,9 @@ function EntityVisuals({
                 warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${adtRef.current}s (scheduled: ${indicatorToShow.atSecond}s)`);
                 indicatorsToShow.push(indicatorToShow);
 
-                // Trigger animation when indicator shows (perfect sync)
                 if (indicatorToShow.animationTrigger) {
-                    triggerAnimation(indicatorToShow.animationTrigger);
+                    triggerPortraitAnimation(indicatorToShow.animationTrigger);
                 }
-
-                // Sync bars when indicator shows (perfect sync)
                 if (indicatorToShow.barSyncData) {
                     syncBars(indicatorToShow.barSyncData);
                 }
