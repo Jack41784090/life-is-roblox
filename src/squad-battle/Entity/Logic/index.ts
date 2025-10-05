@@ -2,12 +2,12 @@ import Logger, { ContextLogger } from "shared/utils/Logger";
 import { iWeapon } from "squad-battle/Weapon/type";
 import { SquadEntityInSquadLocation } from "../../type";
 import { iSquadEntity } from "../type.d";
-import { iLogic, LogicContext, SquadBattleSituation, SquadEntityAction } from "./type.d";
+import { iLogic, LogicContext, SquadEntityAction } from "./type.d";
 
 export class Logic implements iLogic {
     protected logger: ContextLogger;
     protected entity: iSquadEntity;
-    protected situation: SquadBattleSituation;
+    protected situation: Situation;
     protected context: LogicContext;
 
     public constructor(context: LogicContext) {
@@ -28,80 +28,25 @@ export class Logic implements iLogic {
         return this.context.our_squad[myLocation];
     }
 
-    protected accessSituation(context: LogicContext): SquadBattleSituation {
-        // 1. Where am I right now?
-        const myLocation = this.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
-
-        // 2. Where are my enemies right now? and how are they doing?
-        const frontLineEnemies = context.enemy_squad[SquadEntityInSquadLocation.front]?.filter(e => e.get_changeableStat_num('HP') > 0);
-        const frontlineNumbers = frontLineEnemies?.size() || 0;
-        const midlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.middle]?.filter(e => e.get_changeableStat_num('HP') > 0);
-        const midlineNumbers = midlineEnemies?.size();
-        const backlineEnemies = context.enemy_squad[SquadEntityInSquadLocation.back]?.filter(e => e.get_changeableStat_num('HP') > 0);
-        const backlineNumbers = backlineEnemies?.size();
-
-        // 3. Where are my allies right now? and how are they doing?
-        const frontlineAllies = context.our_squad[SquadEntityInSquadLocation.front]?.filter(e => e.get_changeableStat_num('HP') > 0);
-        const frontlineAlliesNumbers = frontlineAllies?.size();
-        const midlineAllies = context.our_squad[SquadEntityInSquadLocation.middle]?.filter(e => e.get_changeableStat_num('HP') > 0);
-        const midlineAlliesNumbers = midlineAllies?.size();
-        const backlineAllies = context.our_squad[SquadEntityInSquadLocation.back]?.filter(e => e.get_changeableStat_num('HP') > 0);
-        const backlineAlliesNumbers = backlineAllies?.size();
-
-        this.situation = {
-            myLocation,
-            frontlineAllies,
-            frontlineAlliesNumbers,
-            midlineAllies,
-            midlineAlliesNumbers,
-            backlineAllies,
-            backlineAlliesNumbers,
-            frontLineEnemies,
-            frontlineNumbers,
-            midlineEnemies,
-            midlineNumbers,
-            backlineEnemies,
-            backlineNumbers,
-            [SquadEntityInSquadLocation.front]: {
-                allies: frontlineAllies,
-                alliesNumbers: frontlineAlliesNumbers,
-                enemies: frontLineEnemies,
-                enemiesNumbers: frontlineNumbers,
-            },
-            [SquadEntityInSquadLocation.middle]: {
-                allies: midlineAllies,
-                alliesNumbers: midlineAlliesNumbers,
-                enemies: midlineEnemies,
-                enemiesNumbers: midlineNumbers,
-            },
-            [SquadEntityInSquadLocation.back]: {
-                allies: backlineAllies,
-                alliesNumbers: backlineAlliesNumbers,
-                enemies: backlineEnemies,
-                enemiesNumbers: backlineNumbers,
-            },
-        };
-        // this.logger.debug(
-        //     `Situation:\n`
-        // );
-        // print(this.situation);
+    protected accessSituation(context: LogicContext): Situation {
+        this.situation = new Situation(context);
         return this.situation;
     }
 
     protected healOthersIfAround(): SquadEntityAction | undefined {
-        const mylocation = this.situation.myLocation;
+        const mylocation = this.situation.myLocation();
         let allies: iSquadEntity[] | undefined;
         this.context.our_squad[mylocation] && (allies = this.context.our_squad[mylocation]);
-        if (allies?.size()) {
+        if ((allies)?.size()) {
             return 'heal';
         }
         return undefined;
     }
 
     protected retreatIfOutnumbered(): SquadEntityAction | undefined {
-        const { myLocation, frontlineAlliesNumbers, frontlineNumbers, midlineAlliesNumbers, midlineNumbers, backlineAlliesNumbers, backlineNumbers } = this.situation;
-        let myAllies = (frontlineAlliesNumbers || 0) + (midlineAlliesNumbers || 0) + (backlineAlliesNumbers || 0);
-        let myEnemies = (frontlineNumbers || 0) + (midlineNumbers || 0) + (backlineNumbers || 0);
+        const { myLocation, frontline_allyCount, frontline_enemyCount, midline_allyCount, midline_enemyCount, backline_allyCount, backline_enemyCount } = this.situation.unwrap();
+        let myAllies = (frontline_allyCount || 0) + (midline_allyCount || 0) + (backline_allyCount || 0);
+        let myEnemies = (frontline_enemyCount || 0) + (midline_enemyCount || 0) + (backline_enemyCount || 0);
         if (myEnemies > myAllies * 2) {
             if (myLocation === SquadEntityInSquadLocation.back) {
                 return 'capitulate';
@@ -112,18 +57,36 @@ export class Logic implements iLogic {
     }
 
     protected readjustWeapon() {
-        const { myLocation } = this.situation;
+        const { myLocation, frontline_enemyCount, midline_enemyCount, backline_enemyCount } = this.situation.unwrap();
         const weapon = this.choose_weapon();
         const frontOptions = weapon.getRangeAtLocation(SquadEntityInSquadLocation.front);
         const midOptions = weapon.getRangeAtLocation(SquadEntityInSquadLocation.middle);
         const backOptions = weapon.getRangeAtLocation(SquadEntityInSquadLocation.back);
-        const frontOptionsTotalCount = frontOptions.reduce((a, b) => a + (this.situation[SquadEntityInSquadLocation.front]?.enemiesNumbers ?? 0), 0);
-        const midOptionsTotalCount = midOptions.reduce((a, b) => a + (this.situation[SquadEntityInSquadLocation.middle]?.enemiesNumbers ?? 0), 0);
-        const backOptionsTotalCount = backOptions.reduce((a, b) => a + (this.situation[SquadEntityInSquadLocation.back]?.enemiesNumbers ?? 0), 0);
+        const frontOptionsTotalCount = frontOptions.reduce((a, b) => {
+            switch (b) {
+                case SquadEntityInSquadLocation.front: return a + (frontline_enemyCount ?? 0);
+                case SquadEntityInSquadLocation.middle: return a + (midline_enemyCount ?? 0);
+                case SquadEntityInSquadLocation.back: return a + (backline_enemyCount ?? 0);
+            }
+        }, 0);
+        const midOptionsTotalCount = midOptions.reduce((a, b) => {
+            switch (b) {
+                case SquadEntityInSquadLocation.front: return a + (frontline_enemyCount ?? 0);
+                case SquadEntityInSquadLocation.middle: return a + (midline_enemyCount ?? 0);
+                case SquadEntityInSquadLocation.back: return a + (backline_enemyCount ?? 0);
+            }
+        }, 0);
+        const backOptionsTotalCount = backOptions.reduce((a, b) => {
+            switch (b) {
+                case SquadEntityInSquadLocation.front: return a + (frontline_enemyCount ?? 0);
+                case SquadEntityInSquadLocation.middle: return a + (midline_enemyCount ?? 0);
+                case SquadEntityInSquadLocation.back: return a + (backline_enemyCount ?? 0);
+            }
+        }, 0);
         this.logger.debug(
             `My location: ${myLocation}\n` +
             `Weapon options total count: front ${frontOptionsTotalCount}, mid ${midOptionsTotalCount}, back ${backOptionsTotalCount}`
-        )
+        );
 
         if (math.max(frontOptionsTotalCount, midOptionsTotalCount, backOptionsTotalCount) === weapon.getRangeAtLocation(myLocation).size()) {
             this.logger.debug("No need to change weapon range");
@@ -162,7 +125,7 @@ export class Logic implements iLogic {
     }
 
     public choose_reaction(): SquadEntityAction {
-        const { myLocation, backlineAllies, backlineAlliesNumbers } = this.situation;
+        const { myLocation, backline_ally, backline_allyCount } = this.situation.unwrap();
         switch (myLocation) {
             case SquadEntityInSquadLocation.back:
                 if (this.entity.get_changeableStat_num('ORG') === 0) {
@@ -174,7 +137,7 @@ export class Logic implements iLogic {
     }
 
     public choose_action(): SquadEntityAction {
-        const { myLocation, backlineAllies, backlineAlliesNumbers } = this.situation;
+        const { myLocation, backline_ally, backline_allyCount } = this.situation.unwrap();
         switch (myLocation) {
             case SquadEntityInSquadLocation.back:
                 if (this.entity.get_changeableStat_num('ORG') === 0) {
@@ -215,5 +178,110 @@ export class AdjustWeaponTest extends Logic {
     }
     public override choose_reaction() {
         return (this.readjustWeapon() || 'idle') as SquadEntityAction;
+    }
+}
+
+// ====================================
+
+class Situation {
+    private context: LogicContext;
+
+    constructor(context: LogicContext) {
+        this.context = context;
+    }
+
+    public myLocation() {
+        return this.context.entity.get_changeableStat_num('LOC') as SquadEntityInSquadLocation;
+    }
+
+    private getEffectiveLines(isAlly: boolean): iSquadEntity[][] {
+        const lines = [SquadEntityInSquadLocation.front, SquadEntityInSquadLocation.middle, SquadEntityInSquadLocation.back];
+        const result: iSquadEntity[][] = [];
+        for (const loc of lines) {
+            const entities = isAlly ? this.context.our_squad[loc] : this.context.enemy_squad[loc];
+            if (entities && (entities).size() > 0) {
+                result.push(entities);
+            }
+        }
+        return result;
+    }
+
+    private getEffectiveLine(isAlly: boolean, effectiveIndex: number): iSquadEntity[] | undefined {
+        const effective = this.getEffectiveLines(isAlly);
+        return effective[effectiveIndex];
+    }
+
+    public frontline_ally(): iSquadEntity[] | undefined {
+        const dynamic = this.getEffectiveLine(true, 0);
+        const positional = this.context.our_squad[SquadEntityInSquadLocation.front];
+        if (!dynamic && !positional) return undefined;
+        if (dynamic === positional) return dynamic;
+        return [...(dynamic || []), ...(positional || [])];
+    }
+
+    public midline_ally(): iSquadEntity[] | undefined {
+        const dynamic = this.getEffectiveLine(true, 1);
+        const positional = this.context.our_squad[SquadEntityInSquadLocation.middle];
+        if (!dynamic && !positional) return undefined;
+        if (dynamic === positional) return dynamic;
+        return [...(dynamic || []), ...(positional || [])];
+    }
+
+    public backline_ally(): iSquadEntity[] | undefined {
+        const dynamic = this.getEffectiveLine(true, 2);
+        const positional = this.context.our_squad[SquadEntityInSquadLocation.back];
+        if (!dynamic && !positional) return undefined;
+        if (dynamic === positional) return dynamic;
+        return [...(dynamic || []), ...(positional || [])];
+    }
+
+    public frontline_enemy(): iSquadEntity[] | undefined {
+        const dynamic = this.getEffectiveLine(false, 0);
+        const positional = this.context.enemy_squad[SquadEntityInSquadLocation.front];
+        if (!dynamic && !positional) return undefined;
+        if (dynamic === positional) return dynamic;
+        return [...(dynamic || []), ...(positional || [])];
+    }
+
+    public midline_enemy(): iSquadEntity[] | undefined {
+        const dynamic = this.getEffectiveLine(false, 1);
+        const positional = this.context.enemy_squad[SquadEntityInSquadLocation.middle];
+        if (!dynamic && !positional) return undefined;
+        if (dynamic === positional) return dynamic;
+        return [...(dynamic || []), ...(positional || [])];
+    }
+
+    public backline_enemy(): iSquadEntity[] | undefined {
+        const dynamic = this.getEffectiveLine(false, 2);
+        const positional = this.context.enemy_squad[SquadEntityInSquadLocation.back];
+        if (!dynamic && !positional) return undefined;
+        if (dynamic === positional) return dynamic;
+        return [...(dynamic || []), ...(positional || [])];
+    }
+
+
+    public unwrap() {
+        const frontline_ally = this.frontline_ally();
+        const midline_ally = this.midline_ally();
+        const backline_ally = this.backline_ally();
+        const frontline_enemy = this.frontline_enemy();
+        const midline_enemy = this.midline_enemy();
+        const backline_enemy = this.backline_enemy();
+        return {
+            // const { myLocation, frontlineAlliesNumbers, frontlineNumbers, midlineAlliesNumbers, midlineNumbers, backlineAlliesNumbers, backlineNumbers } = this.situation;
+            myLocation: this.myLocation(),
+            frontline_allyCount: frontline_ally?.size() || 0,
+            frontline_enemyCount: frontline_enemy?.size() || 0,
+            midline_allyCount: midline_ally?.size() || 0,
+            midline_enemyCount: midline_enemy?.size() || 0,
+            backline_allyCount: backline_ally?.size() || 0,
+            backline_enemyCount: backline_enemy?.size() || 0,
+            frontline_ally,
+            midline_ally,
+            backline_ally,
+            frontline_enemy,
+            midline_enemy,
+            backline_enemy,
+        }
     }
 }
