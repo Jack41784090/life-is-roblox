@@ -103,13 +103,15 @@ function test_readjustweapon() {
                 entities: [{
                     playerID: 2, stats: getDummyStats(), team: 'team2', name: 'tc2_1_1', logicType: 'Adjust_Weapon_Test',
                     startingLocation: SquadEntityInSquadLocation.middle,
+                }, {
+                    playerID: 3, stats: getDummyStats(), team: 'team2', name: 'tc2_1_2', logicType: 'Adjust_Weapon_Test',
+                    startingLocation: SquadEntityInSquadLocation.back,
                 }],
                 name: 'squad2-A'
             }]
         }
     })
-    const sbg = new SquadBattleGraphics(sb)
-    sbg.render(sb.squadActions());
+    sb.squadActions()
 }
 
 // test_fixedsequence()
