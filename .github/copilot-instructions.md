@@ -45,6 +45,8 @@ rojo serve       # Start Rojo server for Roblox Studio sync
 - **AAA game standards**: Clean architecture, performance-conscious
 - **React patterns**: Functional components preferred, hooks for state
 - **Type safety**: Leverage TypeScript strictly, use proper interfaces
+- **Do not use `any`**: Always type explicitly, avoid `as any`
+- **Do notuse .length or .size**: use .size() method instead
 
 ## Testing & Stories
 
