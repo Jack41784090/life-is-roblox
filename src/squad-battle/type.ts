@@ -95,6 +95,7 @@ export type EntityStatsUpdate = Partial<EntityStatsNoID>;
 export type ReadonlyEntityState = Readonly<EntityState>;
 // export type EntityUpdate = Partial<Omit<EntityState, 'playerID'>> & { playerID: Readonly<number> };
 export type EntityChangeable = keyof EntityChangeableStats;
+export type EntityBaseStatsKeys = Exclude<keyof EntityBaseStats, 'id'>;
 
 export enum SquadLocation {
     front = 1,

@@ -1,5 +1,6 @@
+import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { iSquadEntity } from "squad-battle/Entity/type";
-import { EntityUpdate } from "squad-battle/type";
+import { EntityBaseStatsKeys, EntityUpdate } from "squad-battle/type";
 
 // --- 1. Define Specific String Literals (Enums or Types) ---
 // This is the biggest improvement. Instead of `string`, we define the exact
@@ -12,7 +13,8 @@ export type TriggerType =
     | 'OnDamageTaken'
     | 'OnAbilityCasted'
     | 'OnKill'
-    | 'OnDeath';
+    | 'OnDeath'
+    | 'OnTurnStart'
 
 export type ConditionType =
     | 'TargetHasStatusEffect'
@@ -31,12 +33,6 @@ export type CalculationType =
     | 'StatScaling'              // Scales with a stat (e.g., Attack Power)
     | 'TargetCurrentHealthPercent'
     | 'TargetMaxHealthPercent';
-
-export type StatType =
-    | 'Health'
-    | 'Attack'
-    | 'Defense'
-    | 'Speed';
 
 export type DamageType =
     | 'Physical'
@@ -73,13 +69,13 @@ export interface ApplyStatusEffectData extends BaseEffectData {
 
 export interface ModifyStatEffectData extends BaseEffectData {
     type: 'ModifyStat';
-    stat: StatType;
+    stat: EntityBaseStatsKeys;
     amount: number; // Can be negative for a debuff
     isPercent: boolean; // Is it a flat +10 or a +10% modifier?
 }
 
 // This union is the "master" type for any possible effect.
-export type SkillEffectData =
+export type iSkillEffectData =
     | DamageEffectData
     | HealEffectData
     | ApplyStatusEffectData
@@ -91,7 +87,7 @@ export type SkillEffectData =
 
 export type iSkillCalculation = {
     type: CalculationType;
-    stat?: StatType;   // Only relevant for 'StatScaling'
+    stat?: Reality;   // Only relevant for 'StatScaling'
     percent?: number; // Relevant for scaling and percent-based calculations
 }
 
@@ -102,17 +98,17 @@ export type iSkillCondition = {
 }
 
 export type iSkillEffect = {
+    affected: 'self' | 'target',
     trigger: TriggerType;
     conditions?: iSkillCondition[];
-    effect: SkillEffectData;
+    effect: iSkillEffectData;
     destroyOnTrigger?: boolean;
+    duration: number; // -1: permanent; 0: immediate
 }
 
-// Renamed from 'iSkill' to be more descriptive of its role as a temporary buff/debuff
 export type iSkill = {
     id: string;
     name: string;
-    duration: number; // in seconds. 0 or -1 could mean permanent until cleansed.
     maxStacks?: number;
     effects: iSkillEffect[]; // The triggered effects this status provides
 }
@@ -125,8 +121,7 @@ export type iOneClash = {
 };
 
 export type iOneClashConfig = {
-
-    source?: iSkill; // The skill/item/etc. that caused the event
+    skill: iSkill; // The skill/item/etc. that caused the event
     attacker: iSquadEntity;
     defender?: iSquadEntity; // Defender is optional for self-casts or AoE
     targets?: iSquadEntity[]; // For AoE
