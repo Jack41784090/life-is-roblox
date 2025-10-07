@@ -57,7 +57,21 @@ export default class Frontline extends Logic {
         const target = targets[uniformRandom(0, targets.size() - 1)];
         return new OneClash({
             attacker: this.entity,
-            defender: target
+            defender: target,
+            skill: {
+                id: "weapon-attack",
+                name: "Weapon Attack",
+                effects: [{
+                    affected: 'target',
+                    trigger: 'OnBasicAttackHit',
+                    duration: 0,
+                    effect: {
+                        type: 'Damage',
+                        damageType: 'Physical',
+                        amount: 1,
+                    },
+                }],
+            }
         });
     }
 }
