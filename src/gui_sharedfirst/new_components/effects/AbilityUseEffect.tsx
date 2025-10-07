@@ -92,7 +92,7 @@ export default function AbilityUseEffect({ position, abilityName, color, onCompl
                 TextStrokeColor3={color}
             />
 
-            <frame
+            {/* <frame
                 Size={new UDim2(1, 0, 0, 2)}
                 Position={new UDim2(0, 0, 1, -2)}
                 BackgroundColor3={color}
@@ -105,7 +105,7 @@ export default function AbilityUseEffect({ position, abilityName, color, onCompl
                 BackgroundColor3={color}
                 BackgroundTransparency={transparency.map(t => math.min(t + 0.2, 1))}
                 BorderSizePixel={0}
-            />
+            /> */}
         </frame>
     );
 }
