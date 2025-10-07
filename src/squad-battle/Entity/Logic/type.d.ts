@@ -1,3 +1,4 @@
+import { iOneClash } from "squad-battle/Battle/System/type";
 import { iWeapon } from "squad-battle/Weapon/type";
 import { SquadEntityInSquadLocation } from "../../type";
 import { iSquadEntity } from "../type.d";
@@ -53,5 +54,5 @@ export interface iLogic {
     choose_weapon(): iWeapon;
     choose_reaction(): SquadEntityAction;
     choose_action(): SquadEntityAction;
-    choose_target(): iSquadEntity | undefined;
+    choose_clash(): iOneClash | undefined;
 }

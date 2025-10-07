@@ -1,4 +1,5 @@
 import { uniformRandom } from "shared/utils";
+import { OneClash } from "squad-battle/Battle/System";
 import { SquadEntityInSquadLocation } from "../../../type";
 import { iSquadEntity } from "../../type.d";
 import { Logic } from "../index";
@@ -32,7 +33,7 @@ export default class Frontline extends Logic {
         return this.choose_action();
     }
 
-    public override choose_target() {
+    public override choose_clash() {
         const { myLocation, frontline_enemy, midline_enemy, backline_enemy } = this.situation.unwrap();
         const weapon = this.choose_weapon();
         const availableLocs = weapon.getRangeAtLocation(myLocation);
@@ -51,6 +52,12 @@ export default class Frontline extends Logic {
             return acc;
         }, [] as iSquadEntity[]);
         this.logger.debug("targets:", targets)
-        return targets.size() > 0 ? targets[uniformRandom(0, targets.size() - 1)] : undefined;
+        // return targets.size() > 0 ? targets[uniformRandom(0, targets.size() - 1)] : undefined;
+
+        const target = targets[uniformRandom(0, targets.size() - 1)];
+        return new OneClash({
+            attacker: this.entity,
+            defender: target
+        });
     }
 }

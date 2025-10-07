@@ -1,4 +1,5 @@
 import Logger, { ContextLogger } from "shared/utils/Logger";
+import { iOneClash } from "squad-battle/Battle/System/type";
 import { iWeapon } from "squad-battle/Weapon/type";
 import { SquadEntityInSquadLocation } from "../../type";
 import { iSquadEntity } from "../type.d";
@@ -148,7 +149,7 @@ export class Logic implements iLogic {
         }
     }
 
-    public choose_target(): iSquadEntity | undefined {
+    public choose_clash(): iOneClash | undefined {
         // return this.context.enemy_squad[uniformRandom(0, 2, true) as SquadEntityInSquadLocation].;
         this.logger.debug("default choose target called")
         return undefined;

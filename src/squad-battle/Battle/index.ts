@@ -6,6 +6,17 @@ import { EntityUpdate, SquadBattleConfig } from "../type";
 import { iSquadBattle } from "./type.d";
 
 export class SquadBattle implements iSquadBattle {
+    logger = Logger.createContextLogger("SquadBattle");
+    teamsAndSquads: Record<string, Squad[]> = {};
+    private teamNames: string[] = [];
+
+    constructor(config: SquadBattleConfig) {
+        for (const [tn, sc] of pairs(config.teams)) {
+            this.teamsAndSquads[tn] = sc.map(sc => new Squad(sc));
+            this.teamNames.push(tn);
+        }
+    }
+
     getEntityByID(affected: number): SquadEntity {
         for (const [teamName, squads] of pairs(this.teamsAndSquads)) {
             const squadsCount = squads.size();
@@ -37,17 +48,6 @@ export class SquadBattle implements iSquadBattle {
             }
         })
     }
-    logger = Logger.createContextLogger("SquadBattle");
-    teamsAndSquads: Record<string, Squad[]> = {};
-    private teamNames: string[] = [];
-
-    constructor(config: SquadBattleConfig) {
-        for (const [tn, sc] of pairs(config.teams)) {
-            this.teamsAndSquads[tn] = sc.map(sc => new Squad(sc));
-            this.teamNames.push(tn);
-        }
-    }
-
 
     /**
      * Get all squads from enemy teams (excluding current team)
