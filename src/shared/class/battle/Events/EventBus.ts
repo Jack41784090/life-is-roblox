@@ -1,4 +1,5 @@
 import Logger from "shared/utils/Logger";
+import { TriggerType } from "squad-battle/Battle/System/type";
 
 type EventCallback = (...args: unknown[]) => void;
 
@@ -22,6 +23,7 @@ export enum GameEvent {
     // Grid Events
     GRID_UPDATED = "grid:updated",
     GRID_CELL_UPDATED = "grid:cell:updated",
+    ROLL_HIT = "ROLL_HIT",
 }
 
 export class EventBus {
@@ -30,7 +32,7 @@ export class EventBus {
 
     constructor() { }
 
-    public subscribe(eventName: GameEvent, callback: EventCallback): () => void {
+    public subscribe(eventName: GameEvent | TriggerType, callback: EventCallback): () => void {
         if (!this.events.has(eventName)) {
             this.events.set(eventName, new Set());
         }
@@ -46,7 +48,7 @@ export class EventBus {
         };
     }
 
-    public emit(eventName: string, ...args: (undefined | defined)[]): void {
+    public emit(eventName: GameEvent | TriggerType, ...args: (undefined | defined)[]): void {
         this.logger.info(`${eventName}`, ...args);
         const callbacks = this.events.get(eventName);
         if (callbacks) {
