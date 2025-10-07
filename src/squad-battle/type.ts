@@ -112,6 +112,8 @@ export type SquadBattleConfig = {
 }
 
 export type EntityChange_Special = |
+    'DODGE' |
+    'CLINK' |
     'LEAVE' |
     'DIE' |
     'RETREAT';

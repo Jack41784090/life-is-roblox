@@ -6,6 +6,8 @@ export enum IndicatorType {
     Death,
     Advance,
     Null,
+    Clink,
+    Dodge,
 }
 
 export interface ProtoIndicator {

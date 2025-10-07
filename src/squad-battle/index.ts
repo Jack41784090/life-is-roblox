@@ -38,7 +38,7 @@ export class SquadBattleInstance {
                 }
             })
 
-            wait(1.6 * delayBetweenIndicator * (updates.size()));
+            wait(2.6 * delayBetweenIndicator * (updates.size()));
             print('')
         }
     }

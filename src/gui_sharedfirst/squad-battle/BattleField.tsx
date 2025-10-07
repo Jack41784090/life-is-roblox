@@ -1,5 +1,5 @@
 import Object from "@rbxts/object-utils";
-import React, { useEffect } from "@rbxts/react";
+import React, { useCallback, useEffect } from "@rbxts/react";
 import { RunService } from "@rbxts/services";
 import { iSquadEntity } from "squad-battle/Entity/type";
 import { Squad } from "squad-battle/Squad";
@@ -37,22 +37,44 @@ function BattleField(props: BattleFieldProps) {
         }
     });
 
-    let time = 0;
-    let second = 0;
-    const timer = RunService.Heartbeat.Connect(dt => {
-        time += dt;
-        const newSecond = math.floor(time);
-        if (newSecond !== second) {
-            second = newSecond;
-            if (props.enableDebugWarns) warn(`BattleField timer: ${second}s`);
+    const timerRef = React.useRef<RBXScriptConnection | undefined>();
+    const timeRef = React.useRef(0);
+    const secondRef = React.useRef(0);
+
+    if (timerRef.current) {
+        timerRef.current.Disconnect();
+        timerRef.current = undefined;
+    }
+    timeRef.current = -props.delayBetweenIndicatorsInSeconds * (props.entityUpdates?.size() ?? 0); // Start negative so first indicator shows at 0s
+    secondRef.current = 0;
+    if (props.enableDebugWarns) warn(`BattleField rerendered. Timer reset to 0s.`);
+
+    const getTimer = useCallback(() => {
+        if (timerRef.current) {
+            return timeRef.current;
         }
-    });
-    const getTimer = () => time;
+        else {
+            timerRef.current = RunService.Heartbeat.Connect(dt => {
+                timeRef.current += dt;
+                const newSecond = math.floor(timeRef.current);
+                if (newSecond !== secondRef.current) {
+                    secondRef.current = newSecond;
+                    if (props.enableDebugWarns) warn(`BattleField timer: ${secondRef.current}s`);
+                }
+            });
+            return timeRef.current;
+        }
+    }, []);
+
     useEffect(() => {
         return () => {
-            timer.Disconnect();
+            if (timerRef.current) {
+                timerRef.current.Disconnect();
+                timerRef.current = undefined;
+            }
+            if (props.enableDebugWarns) warn(`BattleField unmounted. Timer stopped at ${timeRef.current}s.`);
         }
-    })
+    }, [])
 
     const updateIndicators: EntityUpdateIndicator[] =
         props.entityUpdates?.map((u, i) => Object.assign(u, { atSecond: i * props.delayBetweenIndicatorsInSeconds })) || [];

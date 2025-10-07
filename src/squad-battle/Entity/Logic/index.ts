@@ -150,6 +150,7 @@ export class Logic implements iLogic {
 
     public choose_target(): iSquadEntity | undefined {
         // return this.context.enemy_squad[uniformRandom(0, 2, true) as SquadEntityInSquadLocation].;
+        this.logger.debug("default choose target called")
         return undefined;
     }
 }

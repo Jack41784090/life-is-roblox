@@ -1,6 +1,6 @@
 import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useMemo, useRef, useState } from "@rbxts/react";
-import { DamageIndicator } from "gui_sharedfirst/new_components/effects";
+import { AbilityUseEffect, DamageIndicator } from "gui_sharedfirst/new_components/effects";
 import ClashFateEffect from "gui_sharedfirst/new_components/effects/ClashFateEffect";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { CONDOR_BLOOD_RED } from "shared/const";
@@ -70,6 +70,32 @@ function EntityVisuals({
             animationTrigger: 'none'
         };
         switch (update.change.property) {
+            case 'CLINK': {
+                if (update.affected === myID) {
+                    result.T = IndicatorType.Clink;
+                }
+                else if (update.source === myID) {
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
+                    result.T = IndicatorType.Null;
+                    result.value = -1;
+                    result.position = UDim2.fromScale(0, 0);
+                    result.animationTrigger = 'attack';
+                }
+                break;
+            }
+            case 'DODGE': {
+                if (update.affected === myID) {
+                    result.T = IndicatorType.Dodge;
+                }
+                else if (update.source === myID) {
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
+                    result.T = IndicatorType.Null;
+                    result.value = -1;
+                    result.position = UDim2.fromScale(0, 0);
+                    result.animationTrigger = 'attack';
+                }
+                break;
+            }
             case 'DIE':
             case 'RETREAT':
             case 'LEAVE': {
@@ -249,7 +275,7 @@ function EntityVisuals({
             if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Updates already processed: ${updatesKey}... Skipping.`);
             return;
         }
-        processedUpdatesRef.current.add(updatesKey); print(processedUpdatesRef.current)
+        processedUpdatesRef.current.add(updatesKey);
         if (processedUpdatesRef.current.size() > 100) {
             processedUpdatesRef.current.clear();
         }
@@ -316,7 +342,7 @@ function EntityVisuals({
         while (currentQueue.size() > 0 && getTimer() >= currentQueue[0].atSecond) {
             const indicatorToShow = currentQueue.shift()!;
             indicatorToShow.ref.done = true;
-            warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${getTimer()}s (scheduled: ${indicatorToShow.atSecond}s)`);
+            if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${getTimer()}s (scheduled: ${indicatorToShow.atSecond}s)`);
             indicatorsToShow.push(indicatorToShow);
 
             if (indicatorToShow.animationTrigger) {
@@ -458,6 +484,24 @@ function EntityVisuals({
             <frame BackgroundTransparency={1} Size={UDim2.fromScale(1, 1)}>
                 {indicators.map((indicator) => {
                     switch (indicator.T) {
+                        case IndicatorType.Clink:
+                        case IndicatorType.Dodge:
+                            return (
+                                <AbilityUseEffect
+                                    key={indicator.id}
+                                    color={indicator.T === IndicatorType.Clink ? new Color3(0.8, 0.8, 0.2) : new Color3(0.2, 0.6, 1)}
+                                    abilityName={indicator.T === IndicatorType.Clink ? "CLINK" : "DODGE"}
+                                    position={indicator.position}
+                                    onComplete={() => {
+                                        removeIndicator(indicator.id);
+                                        if (indicator.onComplete) {
+                                            indicator.onComplete();
+                                        }
+                                    }}
+                                />
+                            );
+
+
                         case IndicatorType.Damage:
                         case IndicatorType.Heal:
                             return (

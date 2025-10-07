@@ -181,6 +181,14 @@ export class SquadBattle implements iSquadBattle {
                 case 'LOC':
                     changeStr = `LOC ${u.change.from} -> ${u.change.to}`;
                     break;
+
+                case 'CLINK':
+                    changeStr = `CLINK! ${u.source} failed to pierce ${u.affected}`;
+                    break;
+
+                case 'DODGE':
+                    changeStr = `DODGE! ${u.source} misses ${u.affected}`;
+                    break;
             }
             print(`  - ${u.source} -> ${u.affected}: ${changeStr}`);
         });

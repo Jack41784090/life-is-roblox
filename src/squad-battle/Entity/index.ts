@@ -11,8 +11,6 @@ import { EntityChange } from '../type';
 import { iLogic } from './Logic/type.d';
 import { EntityConfig, iSquadEntity, SquadMetadata } from './type.d';
 
-// ENTITY //
-
 export class SquadEntity implements iSquadEntity {
     private logger: ContextLogger;
     public readonly playerID: number;
@@ -171,6 +169,46 @@ export class SquadEntity implements iSquadEntity {
         return recoverUpdates;
     }
 
+    public attacked(by: iSquadEntity, chosenWeapon: iWeapon): EntityUpdate[] {
+        // this.logger.debug(`Attacked ${by.name} for ${dm} damage`);
+        const armour = this.armour;
+
+        const tryHit = chosenWeapon.getTotalHitValue(by);
+        const hitDef = armour.getDV();
+        const rollOffence_hit = uniformRandom(0, tryHit);
+        const rollDefence_hit = uniformRandom(0, hitDef);
+        if (rollDefence_hit >= rollOffence_hit) {
+            return [{
+                source: by.playerID,
+                affected: this.playerID,
+                change: {
+                    property: 'DODGE',
+                    from: -1,
+                    to: -1,
+                }
+            }];
+        }
+
+        const tryPierce = chosenWeapon.getTotalPenetrationValue(by);
+        const armDef = armour.getPV();
+        const rollOffence_pierce = uniformRandom(0, tryPierce);
+        const rollDefence_pierce = uniformRandom(0, armDef);
+        if (rollOffence_pierce >= rollDefence_pierce) {
+            return [{
+                source: by.playerID,
+                affected: this.playerID,
+                change: {
+                    property: 'CLINK',
+                    from: -1,
+                    to: -1,
+                }
+            }];
+        }
+
+        const dm = armour.getRawDamageTaken(chosenWeapon.getPotencyArrayDamage(by))
+        return this.damage(dm, by.playerID);
+    }
+
     public damage(num: number, source: number): EntityUpdate[] {
         if (this.isDead()) return [];
         const oldHP = this.get_changeableStat_num('HP');
@@ -233,12 +271,12 @@ export class SquadEntity implements iSquadEntity {
     private action_attack(logic: iLogic) {
         const target = logic.choose_target();
         if (target) {
-            const weapon = logic.choose_weapon();
-            const armour = target.get_armour();
-            const dm = armour.getRawDamageTaken(weapon.getPotencyArrayDamage(this))
-            const damageUpdate: EntityUpdate[] = target.damage(dm, this.playerID);
+            const damageUpdate: EntityUpdate[] = target.attacked(this, logic.choose_weapon());
+            this.logger.debug('DamageUpdate', damageUpdate);
             return damageUpdate
-            // this.logger.debug(`Attacked ${target.name} for ${dm} damage`);
+        }
+        else {
+            this.logger.debug('Cannot find target')
         }
     }
 

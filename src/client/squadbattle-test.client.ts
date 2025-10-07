@@ -115,5 +115,5 @@ function test_readjustweapon() {
 }
 
 // test_fixedsequence()
-// test_simpleautobattle();
-test_readjustweapon();
+test_simpleautobattle();
+// test_readjustweapon();

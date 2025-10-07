@@ -20,6 +20,8 @@ export type EntityConfig = {
 };
 
 export interface iSquadEntity {
+    attacked(by: iSquadEntity, chosenWeapon?: iWeapon): EntityUpdate[]
+
     get_armour(): iArmour;
     readonly playerID: number;
     name: string;

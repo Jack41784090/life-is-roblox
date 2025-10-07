@@ -37,6 +37,9 @@ class GuiMothership {
             instance.children.set(key, element);
             instance.root.render(instance.element());
         }
+        else if (instance.children.has(key)) {
+            warn(`GuiMothership: Key ${key} already exists. Use overwrite=true to replace.`);
+        }
         // print("Mounting", key, instance.children);
     }
 

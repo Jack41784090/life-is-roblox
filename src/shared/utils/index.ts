@@ -355,7 +355,7 @@ export function get2DEuclidDistance(a: Vector2 | Vector3, b: Vector2 | Vector3):
     }
 }
 
-export function uniformRandom(min: number, max: number, round = false): number {
+export function uniformRandom(min: number, max: number, round = true): number {
     const r = math.random() * (max - min) + min
     return round ? math.round(r) : r;
 }

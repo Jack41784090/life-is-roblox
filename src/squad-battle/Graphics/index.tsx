@@ -19,7 +19,7 @@ export class SquadBattleGraphics {
                 squads={this.squadBattle.teamsAndSquads}
                 entityUpdates={entityUpdates}
                 delayBetweenIndicatorsInSeconds={delayBetweenIndicatorsInSeconds}
-                enableDebugWarns={false}
+                enableDebugWarns={true}
             />
         );
     }
