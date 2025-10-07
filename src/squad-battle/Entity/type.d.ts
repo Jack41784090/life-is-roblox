@@ -1,6 +1,7 @@
 import { Atom } from "@rbxts/charm";
 import { ArmourConfig } from "shared/class/battle/Systems/CombatSystem/Armour/types";
 import { iArmour } from "squad-battle/Armour/type";
+import { iSkillEffect } from "squad-battle/Battle/System/type";
 import { iWeapon } from "squad-battle/Weapon/type";
 import { Reality } from "../../shared/class/battle/Systems/CombatSystem/types";
 import { EntityBaseStats, EntityChange, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation, WeaponConfig } from "../type";
@@ -29,6 +30,7 @@ export interface iSquadEntity {
     team: string;
     weapon: iWeapon;
     armour: iArmour;
+    statusEffects: iSkillEffect[];
 
     setLogic(logic: iLogic): void;
     newRoundReset(): void;

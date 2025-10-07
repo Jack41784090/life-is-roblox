@@ -1,9 +1,11 @@
 import { atom, Atom } from "@rbxts/charm";
+import { EventBus, GameEvent } from "shared/class/battle/Events/EventBus";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import Armour from "squad-battle/Armour";
 import { iArmour } from "squad-battle/Armour/type";
+import { iSkillEffect } from "squad-battle/Battle/System/type";
 import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
 import Weapon from "squad-battle/Weapon";
 import { iWeapon } from "squad-battle/Weapon/type";
@@ -19,6 +21,8 @@ export class SquadEntity implements iSquadEntity {
     public readonly changeableStats: EntityChangeableStats;
     private logic!: iLogic;
 
+    public statusEffects: iSkillEffect[] = [];
+
     // equipments
     public armour: iArmour;
     public weapon: iWeapon;
@@ -27,6 +31,8 @@ export class SquadEntity implements iSquadEntity {
 
     // misc.
     private _isRetreating: boolean = false;
+
+    private eventBus: EventBus;
 
     constructor(options: EntityConfig) {
         this.playerID = options.playerID;
@@ -44,6 +50,15 @@ export class SquadEntity implements iSquadEntity {
         this.logger = Logger.createContextLogger(`Entity:${this.name}[${this.playerID}]`)
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
+
+        this.eventBus = new EventBus();
+        this.eventBus.subscribe(GameEvent.TURN_STARTED, () => {
+            this.statusEffects.forEach(se => {
+                if (se.trigger === 'OnTurnStart') {
+                    se.effect
+                }
+            })
+        })
     }
 
     public setLogic(logic: iLogic) {
