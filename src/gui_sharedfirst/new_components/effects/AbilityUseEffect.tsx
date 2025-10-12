@@ -1,5 +1,6 @@
-import React, { useBinding } from "@rbxts/react";
-import { TWEEN_TIME } from "shared/const";
+import { useMotion } from "@rbxts/pretty-react-hooks";
+import React from "@rbxts/react";
+import { springs } from "shared/utils";
 
 interface AbilityUseEffectProps {
     position: UDim2;
@@ -9,42 +10,23 @@ interface AbilityUseEffectProps {
 }
 
 export default function AbilityUseEffect({ position, abilityName, color, onComplete }: AbilityUseEffectProps) {
-    const [transparency, setTransparency] = useBinding(0);
-    const [scale, setScale] = useBinding(0.6);
-    const [rotation, setRotation] = useBinding(0);
+    const [transparency, transparencyMotion] = useMotion(1);
+    const [scale, scaleMotion] = useMotion(0.6);
+    const [rotation, rotationMotion] = useMotion(math.random(-15, 15));
 
     React.useEffect(() => {
-        // Animate the ability use effect
-        const startTime = tick();
-        const initialRotation = math.random(-15, 15);
+        transparencyMotion.spring(0, springs.responsive);
+        scaleMotion.spring(1.1, springs.bubbly);
+        rotationMotion.spring(0, springs.responsive);
 
-        const connection = game.GetService("RunService").RenderStepped.Connect((dt) => {
-            const elapsed = tick() - startTime;
-            const progress = math.clamp(elapsed / TWEEN_TIME, 0, 1);
-
-            // Flash in quickly then fade out
-            const transparencyValue = progress < 0.3
-                ? 1 - progress * 3
-                : (progress - 0.3) / 0.7;
-            setTransparency(transparencyValue);
-
-            // Scale up quickly then settle
-            const scaleValue = progress < 0.4
-                ? 0.6 + (progress * 1.0)
-                : 1.0 + ((1 - progress) * 0.1);
-            setScale(scaleValue);
-
-            // Rotate slightly for dynamic effect
-            setRotation(initialRotation * (1 - progress));
-
-            // Cleanup when animation completes
-            if (progress >= 1) {
-                connection.Disconnect();
-                if (onComplete) onComplete();
-            }
+        task.delay(0.3, () => {
+            transparencyMotion.spring(1, springs.slow);
+            scaleMotion.spring(1.0, springs.slow);
         });
 
-        return () => connection.Disconnect();
+        task.delay(1.0, () => {
+            if (onComplete) onComplete();
+        });
     }, []);
 
     return (
@@ -53,16 +35,11 @@ export default function AbilityUseEffect({ position, abilityName, color, onCompl
             AnchorPoint={new Vector2(0.5, 0.5)}
             Size={scale.map(s => new UDim2(0, 200 * s, 0, 60 * s))}
             BackgroundColor3={new Color3(0.1, 0.1, 0.12)}
-            BackgroundTransparency={transparency.map(t => math.min(t + 0.1, 1))}
+            BackgroundTransparency={1}
             Rotation={rotation}
             ZIndex={10}
         >
             <uicorner CornerRadius={new UDim(0, 10)} />
-            <uistroke
-                Color={color}
-                Thickness={3}
-                Transparency={transparency}
-            />
             <uigradient
                 Color={new ColorSequence([
                     new ColorSequenceKeypoint(0, color),
@@ -91,21 +68,6 @@ export default function AbilityUseEffect({ position, abilityName, color, onCompl
                 TextStrokeTransparency={transparency.map(t => math.max(t - 0.5, 0))}
                 TextStrokeColor3={color}
             />
-
-            {/* <frame
-                Size={new UDim2(1, 0, 0, 2)}
-                Position={new UDim2(0, 0, 1, -2)}
-                BackgroundColor3={color}
-                BackgroundTransparency={transparency.map(t => math.min(t + 0.2, 1))}
-                BorderSizePixel={0}
-            />
-            <frame
-                Size={new UDim2(1, 0, 0, 2)}
-                Position={new UDim2(0, 0, 0, 0)}
-                BackgroundColor3={color}
-                BackgroundTransparency={transparency.map(t => math.min(t + 0.2, 1))}
-                BorderSizePixel={0}
-            /> */}
         </frame>
     );
 }
