@@ -13,17 +13,6 @@ function EntityDisplay(props: EntityDisplayProps) {
 
     const portraitImage = findEntityPortrait(props.entity.stats.id, 'neutral');
 
-    // const updatesKey = useMemo(() => {
-    //     if (!props.entityUpdates || props.entityUpdates.size() === 0) return "";
-    //     return props.entityUpdates.map(u => {
-    //         const baseKey = `${u.source}->${u.affected}`;
-    //         const changeStr = `${u.change.property}`;
-    //         const valueStr = typeOf(u.change) === "table" && "from" in u.change ? `${u.change.from}to${u.change.to}` : "";
-    //         const timeStr = `@${math.floor(u.atSecond * 100) / 100}`;
-    //         return `${baseKey}:${changeStr}${valueStr}${timeStr}`;
-    //     }).join("|");
-    // }, [props.entityUpdates]);
-
     return (
         <frame
             key={"PlayerPortrait-" + props.entity.stats.id}

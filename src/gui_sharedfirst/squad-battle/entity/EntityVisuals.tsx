@@ -7,6 +7,7 @@ import { CONDOR_BLOOD_RED } from "shared/const";
 import { springs } from "shared/utils";
 import { SquadEntity } from "squad-battle/Entity";
 import { DebugProps, EntityPortraitProps } from "../type";
+import EntityStatusEffect from "./EntityStatusEffect";
 import { EntityUpdateIndicator, IndicatorType, ProtoIndicator } from "./types";
 
 interface EntityVisualsProps extends Omit<EntityPortraitProps, 'isAttacking' | 'isRetreating' | 'isDying'>, DebugProps {
@@ -200,7 +201,7 @@ function EntityVisuals({
         const startAngle = 90;
         const endAngle = 450;
         const anglePerSegment = (endAngle - startAngle) / totalSegments;
-        const ringWidth = 0.4 / totalSegments;
+        // const ringWidth = 0.4 / totalSegments;
         const radius = 0.5;
 
         for (let i = 0; i < totalSegments; i++) {
@@ -214,7 +215,7 @@ function EntityVisuals({
                     key={`segment_${i}`}
                     AnchorPoint={new Vector2(0.5, 0.5)}
                     Position={UDim2.fromScale(0.5 + x, 0.5 - y)}
-                    Size={new UDim2(0, ringWidth * 150, 0, ringWidth * 150)}
+                    Size={UDim2.fromScale(.1, .1)}
                     BackgroundColor3={orgRatio.map(ratio => {
                         const filledSegments = math.round(ratio * totalSegments);
                         return i < filledSegments
@@ -478,6 +479,25 @@ function EntityVisuals({
                 >
                     <uicorner CornerRadius={new UDim(1, 0)} />
                 </imagelabel>
+
+
+                <frame
+                    Size={UDim2.fromScale(.75, .8)}
+                    Position={UDim2.fromScale(0.1, .5)}
+                    AnchorPoint={new Vector2(0, .5)}
+                    BackgroundTransparency={1}
+                >
+                    <uigridlayout
+                        FillDirection={'Vertical'}
+                        CellSize={UDim2.fromScale(.333, .2)}
+                        CellPadding={UDim2.fromOffset(0, 0)}
+                        HorizontalAlignment={'Left'}
+                        VerticalAlignment={'Top'}
+                    />
+                    {entity.statusEffects.map((ise) => <EntityStatusEffect
+                        key={`${myID}-status-${ise.effect.type}-${ise.duration}`}
+                        ise={ise} myID={myID} />)}
+                </frame>
             </frame>
 
             {/* Indicators Frame */}
