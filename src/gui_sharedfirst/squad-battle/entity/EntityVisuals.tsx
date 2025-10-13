@@ -364,153 +364,26 @@ function EntityVisuals({
 
     return (
         <>
-            {/* Circular ORG Bar */}
-            {createCircularBar()}
+            <CircularOrgBar orgRatio={orgRatio} />
 
-            {/* Linear HP Bar */}
-            <frame
-                Size={UDim2.fromScale(0.75, 0.025)}
-                AnchorPoint={new Vector2(0.5, 0.5)}
-                Position={UDim2.fromScale(0.5, 0.85)}
-                BackgroundTransparency={.8}
-                BackgroundColor3={BrickColor.DarkGray().Color}
-            >
-                <uistroke Thickness={.75} Color={Color3.fromRGB(255, 255, 255)} />
-                <uicorner CornerRadius={new UDim(0.5, 0)} />
-                <frame
-                    Size={hpRatio.map(v => UDim2.fromScale(v, 1))}
-                    BackgroundColor3={CONDOR_BLOOD_RED}
-                >
-                    <uistroke Thickness={1} Color={CONDOR_BLOOD_RED} />
-                    <uicorner CornerRadius={new UDim(0.5, 0)} />
-                </frame>
-            </frame>
+            <LinearHpBar hpRatio={hpRatio} />
 
-            {/* Portrait Frame */}
-            <frame
-                AnchorPoint={new Vector2(0.5, 0.5)}
-                Position={scale.map(s => UDim2.fromScale(0.5, upsideDown ?
-                    .5 - .5 * (1 - s) :
-                    .5 + .5 * (1 - s)))}
-                Size={scale.map(s => UDim2.fromScale(0.8 * s, 0.8 * s))}
-                BackgroundColor3={new Color3(0.15, 0.15, 0.15)}
-                ZIndex={0}
-                Rotation={rotation}
-                Transparency={isDying ? 1 : 0}
-            >
-                <uicorner CornerRadius={new UDim(1, 0)} />
-                <imagelabel
-                    Image={portraitImage}
-                    AnchorPoint={new Vector2(0.5, 0.5)}
-                    Position={UDim2.fromScale(0.5, 0.5)}
-                    Size={UDim2.fromScale(0.85, 0.85)}
-                    BackgroundTransparency={1}
-                    ZIndex={0}
-                    ScaleType={Enum.ScaleType.Crop}
-                >
-                    <uicorner CornerRadius={new UDim(1, 0)} />
-                </imagelabel>
+            <EntityPortrait
+                scale={scale}
+                rotation={rotation}
+                isDying={isDying}
+                upsideDown={upsideDown}
+                portraitImage={portraitImage}
+                statusEffects={entity.statusEffects}
+                myID={myID}
+            />
 
-
-                <frame
-                    Size={UDim2.fromScale(.75, .8)}
-                    Position={UDim2.fromScale(0.1, .5)}
-                    AnchorPoint={new Vector2(0, .5)}
-                    BackgroundTransparency={1}
-                >
-                    <uigridlayout
-                        FillDirection={'Vertical'}
-                        CellSize={UDim2.fromScale(.333, .2)}
-                        CellPadding={UDim2.fromOffset(0, 0)}
-                        HorizontalAlignment={'Left'}
-                        VerticalAlignment={'Top'}
-                    />
-                    {entity.statusEffects.map((ise) => <EntityStatusEffect
-                        key={`${myID}-status-${ise.effect.type}-${ise.duration}`}
-                        ise={ise} myID={myID} />)}
-                </frame>
-            </frame>
-
-            {/* Indicators Frame */}
-            <frame BackgroundTransparency={1} Size={UDim2.fromScale(1, 1)}>
-                {indicators.map((indicator) => {
-                    switch (indicator.T) {
-                        case IndicatorType.Clink:
-                        case IndicatorType.Dodge:
-                            return (
-                                <AbilityUseEffect
-                                    key={indicator.id}
-                                    color={indicator.T === IndicatorType.Clink ? new Color3(0.8, 0.8, 0.2) : new Color3(0.2, 0.6, 1)}
-                                    abilityName={indicator.T === IndicatorType.Clink ? "CLINK" : "DODGE"}
-                                    position={indicator.position}
-                                    onComplete={() => {
-                                        removeIndicator(indicator.id);
-                                        if (indicator.onComplete) {
-                                            indicator.onComplete();
-                                        }
-                                    }}
-                                />
-                            );
-
-
-                        case IndicatorType.Damage:
-                        case IndicatorType.Heal:
-                            return (
-                                <DamageIndicator
-                                    key={indicator.id}
-                                    value={indicator.value}
-                                    position={indicator.position}
-                                    onComplete={() => {
-                                        removeIndicator(indicator.id);
-                                        if (indicator.onComplete) {
-                                            indicator.onComplete();
-                                        }
-                                    }}
-                                />
-                            );
-
-                        case IndicatorType.Advance:
-                            warn(`[EntityVisuals:${myID}] Rendering ADVANCE indicator ➡️ at ${indicator.atSecond}s`);
-                            return (
-                                <ClashFateEffect
-                                    key={indicator.id}
-                                    fate={"➡️"}
-                                    position={indicator.position}
-                                    onComplete={() => {
-                                        warn(`[EntityVisuals:${myID}] ADVANCE indicator completed`);
-                                        removeIndicator(indicator.id);
-                                        if (indicator.onComplete) {
-                                            indicator.onComplete();
-                                        }
-                                    }}
-                                />
-                            );
-
-                        case IndicatorType.Retreat:
-                        case IndicatorType.Death:
-                            return (
-                                <ClashFateEffect
-                                    key={indicator.id}
-                                    fate={indicator.T === IndicatorType.Death ? "💀" : "🏳️"}
-                                    position={indicator.position}
-                                    onComplete={() => {
-                                        removeIndicator(indicator.id);
-                                        if (indicator.onComplete) {
-                                            indicator.onComplete();
-                                        }
-                                    }}
-                                />
-                            );
-
-                        case IndicatorType.Null:
-                            if (indicator.onComplete) {
-                                indicator.onComplete();
-                            }
-                            removeIndicator(indicator.id);
-                            return undefined;
-                    }
-                })}
-            </frame>
+            <EntityIndicators
+                indicators={indicators}
+                removeIndicator={removeIndicator}
+                myID={myID}
+                enableDebugWarns={enableDebugWarns}
+            />
         </>
     );
 }
