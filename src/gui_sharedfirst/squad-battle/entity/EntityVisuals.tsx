@@ -27,31 +27,18 @@ function EntityVisuals({
     enableDebugWarns
 }: EntityVisualsProps) {
     if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: rendered`)
-
-    // Animation states - centralized here
     const [isAttacking, setIsAttacking] = useState(false);
     const [isRetreating, setIsRetreating] = useState(false);
     const [isDying, setIsDying] = useState(false);
-
-    // Motion controls for portrait
     const [rotation, rotationMotion] = useMotion(0);
     const [scale, scaleMotion] = useMotion(1);
-
-    // Bar motion controls - synced with damage indicators
     const [hpRatio, hpMotion] = useMotion(1);
     const [orgRatio, orgMotion] = useMotion(1);
-
-    // Animation cleanup refs
     const animationCleanupRef = useRef<thread | undefined>();
     const isAnimatingRef = useRef(false);
-
-    // Indicator state
     const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
     const [pendingIndicators, setPendingIndicators] = useState<Array<ProtoIndicator>>([]);
-    // const runnerRef = useRef<RBXScriptConnection | undefined>();
     const processedUpdatesRef = useRef<Set<string>>(new Set());
-
-    // Entity stats for bar calculations
     const currentHP = entity.changeableStats.HP();
     const currentORG = entity.changeableStats.ORG();
     const maxHP = entity.calculateRealityValue(Reality.HP);
@@ -171,7 +158,6 @@ function EntityVisuals({
         setIndicators(prev => prev.filter(indicator => indicator.id !== id));
     };
 
-    // Trigger animations and bar syncs based on indicator type
     const triggerPortraitAnimation = (animationType: string) => {
         if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Triggering animation: ${animationType}`);
         switch (animationType) {
@@ -194,44 +180,6 @@ function EntityVisuals({
         }
     };
 
-    // Create circular HP bar segments
-    const createCircularBar = () => {
-        const segments = [];
-        const totalSegments = 8;
-        const startAngle = 90;
-        const endAngle = 450;
-        const anglePerSegment = (endAngle - startAngle) / totalSegments;
-        // const ringWidth = 0.4 / totalSegments;
-        const radius = 0.5;
-
-        for (let i = 0; i < totalSegments; i++) {
-            const angle = startAngle + i * anglePerSegment;
-            const radians = math.rad(angle);
-            const x = math.cos(radians) * radius;
-            const y = math.sin(radians) * radius;
-
-            segments.push(
-                <frame
-                    key={`segment_${i}`}
-                    AnchorPoint={new Vector2(0.5, 0.5)}
-                    Position={UDim2.fromScale(0.5 + x, 0.5 - y)}
-                    Size={UDim2.fromScale(.1, .1)}
-                    BackgroundColor3={orgRatio.map(ratio => {
-                        const filledSegments = math.round(ratio * totalSegments);
-                        return i < filledSegments
-                            ? new Color3(0, 0.8, 0)
-                            : new Color3(0.3, 0.3, 0.3);
-                    })}
-                    BorderSizePixel={0}
-                    ZIndex={1}
-                >
-                    <uicorner CornerRadius={new UDim(1, 0)} />
-                </frame>
-            );
-        }
-        return segments;
-    };
-
     const syncBars = (barSyncData: { type: string, newValue: number, maxValue: number }) => {
         const ratio = barSyncData.newValue / barSyncData.maxValue;
         if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Syncing ${string.upper(barSyncData.type)} bar: ${barSyncData.newValue}/${barSyncData.maxValue} = ${ratio}`);
@@ -244,8 +192,6 @@ function EntityVisuals({
                 break;
         }
     };
-
-    // Initialize bars to current values
     useEffect(() => {
         if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: mounting`)
         hpMotion.set(currentHP / maxHP);
@@ -254,8 +200,6 @@ function EntityVisuals({
             if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: unmounting`)
         }
     }, []);
-
-    // Create stable reference for updates
     const updatesKey = useMemo(() => {
         if (!updates || updates.size() === 0) return "";
         const sortedUpdates = [...updates].sort((a, b) => a.atSecond < b.atSecond);
@@ -267,8 +211,6 @@ function EntityVisuals({
             return `${baseKey}:${changeStr}${valueStr}${timeStr}`;
         }).join("|");
     }, [updates]);
-
-    // Process updates and create indicators
     useEffect(() => {
         if (!updates || updates.size() === 0 || !updatesKey) return;
 
@@ -308,7 +250,6 @@ function EntityVisuals({
 
             if (immediateIndicators.size() > 0) {
                 if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
-                // adtRef.current = 0;
                 immediateIndicators.forEach(ind => {
                     if (enableDebugWarns) warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]} (trigger: ${ind.animationTrigger || 'none'})`);
                 });
@@ -324,8 +265,6 @@ function EntityVisuals({
             }
         }
     }, [updatesKey]);
-
-    // Handle timed indicators with animation and bar sync
     useEffect(() => {
         if (pendingIndicators.size() === 0) return;
         if (pendingIndicators[0].atSecond > getTimer()) {
@@ -361,8 +300,6 @@ function EntityVisuals({
             setPendingIndicators(currentQueue);
         }
     }, [pendingIndicators]);
-
-    // Attack animation
     useEffect(() => {
         if (isAttacking && !isAnimatingRef.current) {
             isAnimatingRef.current = true;
@@ -396,8 +333,6 @@ function EntityVisuals({
             });
         }
     }, [isAttacking]);
-
-    // Death animation
     useEffect(() => {
         if (isDying) {
             rotationMotion.spring(360 + 1080 * math.random(), springs.responsive);
@@ -408,8 +343,6 @@ function EntityVisuals({
             });
         }
     }, [isDying]);
-
-    // Retreat animation
     useEffect(() => {
         warn(`[EntityVisuals:${myID}] Retreat animation triggered: isRetreating = ${isRetreating}`);
         const targetScale = isRetreating ? 0 : 1;
@@ -421,8 +354,6 @@ function EntityVisuals({
             direction: Enum.EasingDirection.In,
         });
     }, [isRetreating]);
-
-    // Cleanup
     useEffect(() => {
         return () => {
             if (animationCleanupRef.current) {
