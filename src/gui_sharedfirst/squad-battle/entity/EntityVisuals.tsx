@@ -1,13 +1,13 @@
 import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useMemo, useRef, useState } from "@rbxts/react";
-import { AbilityUseEffect, DamageIndicator } from "gui_sharedfirst/new_components/effects";
-import ClashFateEffect from "gui_sharedfirst/new_components/effects/ClashFateEffect";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
-import { CONDOR_BLOOD_RED } from "shared/const";
 import { springs } from "shared/utils";
 import { SquadEntity } from "squad-battle/Entity";
 import { DebugProps, EntityPortraitProps } from "../type";
-import EntityStatusEffect from "./EntityStatusEffect";
+import CircularOrgBar from "./CircularOrgBar";
+import EntityIndicators from "./EntityIndicators";
+import EntityPortrait from "./EntityPortrait";
+import LinearHpBar from "./LinearHpBar";
 import { EntityUpdateIndicator, IndicatorType, ProtoIndicator } from "./types";
 
 interface EntityVisualsProps extends Omit<EntityPortraitProps, 'isAttacking' | 'isRetreating' | 'isDying'>, DebugProps {
