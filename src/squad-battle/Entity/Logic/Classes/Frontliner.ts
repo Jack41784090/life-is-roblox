@@ -58,20 +58,7 @@ export default class Frontline extends Logic {
         return new OneClash({
             attacker: this.entity,
             defender: target,
-            skill: {
-                id: "weapon-attack",
-                name: "Weapon Attack",
-                effects: [{
-                    affected: 'target',
-                    trigger: 'OnBasicAttackHit',
-                    duration: 0,
-                    effect: {
-                        type: 'Damage',
-                        damageType: 'Physical',
-                        amount: 1,
-                    },
-                }],
-            }
+            skill: this.choose_clashSkill()
         });
     }
 }
