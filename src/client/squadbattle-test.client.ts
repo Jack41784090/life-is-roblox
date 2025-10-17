@@ -28,7 +28,8 @@ function test_simpleautobattle() {
                     stats: getDummyStats(),
                     team: teamTag,
                     name: `tc${tc + 1}_${sc + 1}_${sn + 1}`,
-                    logicType: 'Frontline'
+                    logicType: 'Frontline',
+                    // inna
                 })
             }
 
@@ -114,6 +115,59 @@ function test_readjustweapon() {
     sb.squadActions()
 }
 
+function test_statuseffectautobattle() {
+    const team_count = 2;
+    const squad_count = 1
+    const squad_numbers = 1;
+    const config: SquadBattleConfig = {
+        teams: {}
+    }
+
+    for (let tc = 0; tc < team_count; tc++) {
+        const teamTag = `team${tc + 1}`;
+        config.teams[teamTag] = []
+        const squads = config.teams[teamTag];
+        for (let sc = 0; sc < squad_count; sc++) {
+            const squad_config: SquadConfig = {
+                team: teamTag,
+                name: `squad${tc + 1}-${string.char(65 + sc)}`,
+                entities: []
+            };
+            for (let sn = 0; sn < squad_numbers; sn++) {
+                squad_config.entities.push({
+                    playerID: (tc + 1) * 100 + (sc) * 10 + sn + 1,
+                    stats: getDummyStats(),
+                    team: teamTag,
+                    name: `tc${tc + 1}_${sc + 1}_${sn + 1}`,
+                    logicType: 'Frontline',
+                    innateSkills: [
+                        {
+                            id: '1', name: 'Bleed', effects: [
+                                {
+                                    affected: 'target', trigger: 'OnTurnStart', duration: 3,
+                                    effect: {
+                                        type: 'ApplyStatusEffect',
+                                        skillId: 'SE_BLEED',
+                                        duration: 2
+                                    },
+                                    icon: '🩸'
+                                }
+                            ]
+                        }
+                    ]
+                })
+            }
+
+            squads.push(squad_config);
+        }
+    }
+
+    const sb = new SquadBattleInstance(config);
+    sb.autoBattle(.5);
+}
+
 // test_fixedsequence()
-test_simpleautobattle();
+// test_simpleautobattle();
 // test_readjustweapon();
+test_statuseffectautobattle();
+
