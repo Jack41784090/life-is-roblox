@@ -98,6 +98,7 @@ export type iSkillCondition = {
 }
 
 export type iSkillEffect = {
+    icon?: string; // Optional icon for UI representation
     affected: 'self' | 'target',
     trigger: TriggerType;
     conditions?: iSkillCondition[];

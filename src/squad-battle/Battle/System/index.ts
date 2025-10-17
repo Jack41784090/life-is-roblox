@@ -36,6 +36,18 @@ export class OneClash implements iOneClash {
             }
         }
 
+        const returnThis: EntityUpdate[] = [{
+            source: this.attacker.playerID,
+            affected: target.playerID,
+            change: {
+                property: 'PROC',
+                from: -1,
+                to: -1,
+                metadata: {
+                    effect: statusEffectdata.icon
+                }
+            },
+        }];
         switch (statusEffectdata.effect.type) {
             case 'ApplyStatusEffect': {
                 this.logger.debug(`Applying status effect`, statusEffectdata.effect);
@@ -50,18 +62,23 @@ export class OneClash implements iOneClash {
             case 'Damage': {
                 this.logger.debug(`Applying damage effect`, statusEffectdata.effect);
                 const de = statusEffectdata.effect as DamageEffectData;
-                return target.damage(de.amount ?? 0, this.attacker.playerID);
+                // return target.damage(de.amount ?? 0, this.attacker.playerID);
+                target.damage(de.amount ?? 0, this.attacker.playerID)
+                    .forEach(u => returnThis.push(u));
+                break;
             }
 
             case 'Heal': {
                 this.logger.debug(`Applying heal effect`, statusEffectdata.effect);
                 const h = target.heal(statusEffectdata.effect.amount ?? 0)
-                if (!h) return;
-                return [{
-                    source: this.attacker.playerID,
-                    affected: target.playerID,
-                    change: h,
-                }];
+                if (h) {
+                    returnThis.push({
+                        source: this.attacker.playerID,
+                        affected: target.playerID,
+                        change: h,
+                    });
+                }
+                break;
             }
 
             case 'ModifyStat': {
@@ -69,6 +86,7 @@ export class OneClash implements iOneClash {
                 break;
             }
         }
+        return returnThis;
     }
 
     private _seEffectDisconnects: (() => void)[] = [];
@@ -91,22 +109,18 @@ export class OneClash implements iOneClash {
 
     private registerSkillSE() {
         this.skill.effects.forEach(e => {
-            if (e.affected === 'self') {
+            const targets = e.affected === 'self' ? [this.attacker] : this.targets;
+            targets.forEach(target => {
                 this.logger.debug(`Registering skill effect`, e);
+                if (e.duration > 0) {
+                    target.statusEffects.push(e);
+                }
+
                 const c = this.eventBus.subscribe(e.trigger, () => {
                     this.applyEffect(e)?.forEach(u => this.updates.push(u));
                 });
                 this._seEffectDisconnects.push(c);
-            }
-            else if (e.affected === 'target') {
-                this.targets.forEach(t => {
-                    this.logger.debug(`Registering skill effect`, e);
-                    const c = this.eventBus.subscribe(e.trigger, () => {
-                        this.applyEffect(e)?.forEach(u => this.updates.push(u));
-                    });
-                    this._seEffectDisconnects.push(c);
-                });
-            }
+            });
         })
     }
 

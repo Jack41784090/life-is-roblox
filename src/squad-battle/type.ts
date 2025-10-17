@@ -113,6 +113,7 @@ export type SquadBattleConfig = {
 }
 
 export type EntityChange_Special = |
+    'PROC' |
     'DODGE' |
     'CLINK' |
     'LEAVE' |
@@ -123,6 +124,7 @@ export type EntityChange = {
     property: EntityChangeable | EntityChange_Special;
     from: number;
     to: number;
+    metadata?: { [key: string]: unknown };
 };
 
 export type EntityUpdate = {
