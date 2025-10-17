@@ -189,6 +189,10 @@ export class SquadBattle implements iSquadBattle {
                 case 'DODGE':
                     changeStr = `DODGE! ${u.source} misses ${u.affected}`;
                     break;
+
+                case 'PROC':
+                    changeStr = `PROC! ${u.source} triggers effect on ${u.affected}; icon: ${u.change.metadata?.icon ?? 'N/A'}`;
+                    break;
             }
             print(`  - ${u.source} -> ${u.affected}: ${changeStr}`);
         });

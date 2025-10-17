@@ -5,7 +5,7 @@ function EntityStatusEffect({ ise, myID }: { ise: iSkillEffect, myID: number }) 
     return <>
         <textlabel
             key={`${myID}-status-${ise.effect.type}-${ise.duration}`}
-            Text={"😀"}
+            Text={ise.icon ?? "😀"}
             TextScaled={true}
             BorderSizePixel={0}
             BackgroundTransparency={1}
