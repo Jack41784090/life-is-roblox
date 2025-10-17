@@ -1,7 +1,7 @@
 import { Atom } from "@rbxts/charm";
 import { ArmourConfig } from "shared/class/battle/Systems/CombatSystem/Armour/types";
 import { iArmour } from "squad-battle/Armour/type";
-import { iSkillEffect } from "squad-battle/Battle/System/type";
+import { iSkill, iSkillEffect } from "squad-battle/Battle/System/type";
 import { iWeapon } from "squad-battle/Weapon/type";
 import { Reality } from "../../shared/class/battle/Systems/CombatSystem/types";
 import { EntityBaseStats, EntityChange, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation, WeaponConfig } from "../type";
@@ -18,6 +18,7 @@ export type EntityConfig = {
     armour?: ArmourConfig;
     startingLocation?: SquadEntityInSquadLocation;
     logicType: LogicType;
+    innateSkills?: iSkill[];
 };
 
 export interface iSquadEntity {
@@ -53,4 +54,10 @@ export interface iSquadEntity {
 
     action(ourSquad: SquadMetadata, enemySquad: SquadMetadata): EntityUpdate[];
     reaction(our_squad: SquadMetadata, enemy_squad: SquadMetadata): EntityUpdate[];
+
+    getAvailableSkills(): iSkill[];
+    getSkillsForPurpose(purpose: 'clash' | 'support' | 'utility'): iSkill[];
+    addInnateSkill(skill: iSkill): void;
+    addTemporarySkill(skill: iSkill): void;
+    removeTemporarySkill(skillId: string): void;
 }

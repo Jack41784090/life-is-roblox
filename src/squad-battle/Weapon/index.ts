@@ -2,6 +2,7 @@
 import { Potency } from "shared/class/battle/Systems/CombatSystem/Ability/types";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import Logger from "shared/utils/Logger";
+import { iSkill } from "squad-battle/Battle/System/type";
 import { iSquadEntity } from "squad-battle/Entity/type";
 import { SquadEntityInSquadLocation, WeaponConfig } from "squad-battle/type";
 import { iWeapon } from "./type";
@@ -12,6 +13,7 @@ export default class Weapon implements iWeapon {
     private penetrationBonus: number;
     private damageTranslation: [Reality, [Potency, number][]][] = [];
     private weaponLocationMap: [SquadEntityInSquadLocation, SquadEntityInSquadLocation[]][] = [];
+    public name: string = "Unarmed";
 
 
     static Unarmed(): Weapon {
@@ -96,6 +98,25 @@ export default class Weapon implements iWeapon {
             return dmgAcc + realityDmg;
         }, 0);
         return damage;
+    }
+
+    public getWeaponSkills(): iSkill[] {
+        return [
+            {
+                id: `${this.name}-basic-attack`,
+                name: `${this.name} Attack`,
+                effects: [{
+                    affected: 'target',
+                    trigger: 'OnBasicAttackHit',
+                    duration: 0,
+                    effect: {
+                        type: 'Damage',
+                        damageType: 'Physical',
+                        amount: 1,
+                    },
+                }],
+            }
+        ];
     }
 
     public getState(): WeaponConfig {

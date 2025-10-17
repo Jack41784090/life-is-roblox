@@ -5,7 +5,7 @@ import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
 import Armour from "squad-battle/Armour";
 import { iArmour } from "squad-battle/Armour/type";
-import { iSkillEffect } from "squad-battle/Battle/System/type";
+import { iSkill, iSkillEffect } from "squad-battle/Battle/System/type";
 import { EntityBaseStats, EntityChangeable, EntityChangeableStats, EntityUpdate, SquadEntityInSquadLocation } from "squad-battle/type";
 import Weapon from "squad-battle/Weapon";
 import { iWeapon } from "squad-battle/Weapon/type";
@@ -22,6 +22,10 @@ export class SquadEntity implements iSquadEntity {
     private logic!: iLogic;
 
     public statusEffects: iSkillEffect[] = [];
+
+    // skills
+    private innateSkills: iSkill[] = [];  // Character's base skills
+    private temporarySkills: iSkill[] = [];  // From buffs/status effects
 
     // equipments
     public armour: iArmour;
@@ -50,6 +54,7 @@ export class SquadEntity implements iSquadEntity {
         this.logger = Logger.createContextLogger(`Entity:${this.name}[${this.playerID}]`)
         this.weapon = options.weapon ? new Weapon(options.weapon) : Weapon.Unarmed();
         this.armour = options.armour ? new Armour(options.armour) : Armour.Unprotected();
+        this.innateSkills = options.innateSkills ?? [];
 
         this.eventBus = new EventBus();
         this.eventBus.subscribe(GameEvent.TURN_STARTED, () => {
@@ -59,6 +64,8 @@ export class SquadEntity implements iSquadEntity {
                 }
             })
         })
+
+        this.innateSkills = options.innateSkills ?? [];
     }
 
     public setLogic(logic: iLogic) {
@@ -417,5 +424,30 @@ export class SquadEntity implements iSquadEntity {
         }
 
         return updates;
+    }
+
+
+    public getAvailableSkills(): iSkill[] {
+        return [
+            ...this.innateSkills,
+            ...this.weapon.getWeaponSkills(),
+            ...this.temporarySkills,
+        ];
+    }
+
+    public getSkillsForPurpose(purpose: 'clash' | 'support' | 'utility'): iSkill[] {
+        return this.getAvailableSkills(); // todo: filter by purpose
+    }
+
+    public addInnateSkill(skill: iSkill): void {
+        this.innateSkills.push(skill);
+    }
+
+    public addTemporarySkill(skill: iSkill): void {
+        this.temporarySkills.push(skill);
+    }
+
+    public removeTemporarySkill(skillId: string): void {
+        this.temporarySkills = this.temporarySkills.filter(s => s.id !== skillId);
     }
 }

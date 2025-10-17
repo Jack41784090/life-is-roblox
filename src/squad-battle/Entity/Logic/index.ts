@@ -1,5 +1,6 @@
+import { uniformRandom } from "shared/utils";
 import Logger, { ContextLogger } from "shared/utils/Logger";
-import { iOneClash } from "squad-battle/Battle/System/type";
+import { iOneClash, iSkill } from "squad-battle/Battle/System/type";
 import { iWeapon } from "squad-battle/Weapon/type";
 import { SquadEntityInSquadLocation } from "../../type";
 import { iSquadEntity } from "../type.d";
@@ -119,6 +120,41 @@ export class Logic implements iLogic {
         }
 
         return undefined
+    }
+
+    protected choose_clashSkill(): iSkill {
+        const clashSkills = this.entity.getSkillsForPurpose('clash');
+
+        if (clashSkills.size() === 0) {
+            return this.getDefaultAttack();
+        }
+
+        // const { frontline_enemyCount } = this.situation.unwrap();
+        // if (frontline_enemyCount > 2) {
+        //     const aoeSkill = clashSkills.find(s => s.id.find('aoe') !== undefined);
+        //     if (aoeSkill) return aoeSkill;
+        // }
+
+        const chosen = clashSkills[uniformRandom(0, clashSkills.size() - 1)];
+        this.logger.debug(`Chosen clash skill: ${chosen.name} (${chosen.id})`);
+        return chosen;
+    }
+
+    private getDefaultAttack(): iSkill {
+        return {
+            id: "basic-attack",
+            name: "Basic Attack",
+            effects: [{
+                affected: 'target',
+                trigger: 'OnBasicAttackHit',
+                duration: 0,
+                effect: {
+                    type: 'Damage',
+                    damageType: 'Physical',
+                    amount: 1,
+                },
+            }],
+        };
     }
 
     public choose_weapon(): iWeapon {
