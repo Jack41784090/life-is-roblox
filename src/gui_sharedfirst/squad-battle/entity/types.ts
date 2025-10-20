@@ -8,6 +8,7 @@ export enum IndicatorType {
     Null,
     Clink,
     Dodge,
+    Proc,
 }
 
 export interface ProtoIndicator {
@@ -24,6 +25,7 @@ export interface ProtoIndicator {
         newValue: number;
         maxValue: number;
     };
+    abilityName?: string;
 }
 
 export type EntityUpdateIndicator =

@@ -15,6 +15,23 @@ function EntityIndicators({ indicators, removeIndicator, myID, enableDebugWarns 
         <frame BackgroundTransparency={1} Size={UDim2.fromScale(1, 1)}>
             {indicators.map((indicator) => {
                 switch (indicator.T) {
+                    case IndicatorType.Proc:
+                        return (
+                            <AbilityUseEffect
+                                key={indicator.id}
+                                color={new Color3(0.2, 0.6, 1)}
+                                abilityName={indicator.abilityName ? indicator.abilityName : "PROC"}
+                                position={indicator.position}
+                                onComplete={() => {
+                                    removeIndicator(indicator.id);
+                                    if (indicator.onComplete) {
+                                        indicator.onComplete();
+                                    }
+                                }}
+                            />
+                        )
+
+
                     case IndicatorType.Clink:
                     case IndicatorType.Dodge:
                         return (

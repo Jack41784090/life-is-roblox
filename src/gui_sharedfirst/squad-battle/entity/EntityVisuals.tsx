@@ -2,6 +2,7 @@ import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useMemo, useRef, useState } from "@rbxts/react";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { springs } from "shared/utils";
+import { iSkillEffect } from "squad-battle/Battle/System/type";
 import { SquadEntity } from "squad-battle/Entity";
 import { DebugProps, EntityPortraitProps } from "../type";
 import CircularOrgBar from "./CircularOrgBar";
@@ -38,6 +39,7 @@ function EntityVisuals({
     const isAnimatingRef = useRef(false);
     const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
     const [pendingIndicators, setPendingIndicators] = useState<Array<ProtoIndicator>>([]);
+    const [statusEffects, setStatusEffects] = useState<Array<iSkillEffect>>(entity.statusEffects);
     const processedUpdatesRef = useRef<Set<string>>(new Set());
     const currentHP = entity.changeableStats.HP();
     const currentORG = entity.changeableStats.ORG();
@@ -51,7 +53,7 @@ function EntityVisuals({
             ref: update,
             T: IndicatorType.Null,
             id: tick() * 1000,
-            value: 0,
+            value: -1,
             position: UDim2.fromScale(.5, .5),
             atSecond: update.atSecond,
             onComplete: update.onComplete,
@@ -150,6 +152,24 @@ function EntityVisuals({
                 }
                 break;
             }
+            case 'PROC': {
+                if (update.affected === myID) {
+                    const e = (update.change.metadata?.['effect'] as iSkillEffect);
+                    result.T = IndicatorType.Proc;
+                    result.abilityName = e?.icon || "!!";
+                    result.value = e?.duration === undefined ? -1 : e.duration;
+                }
+                else if (update.source === myID) {
+                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
+                    // result.T = IndicatorType.Null;
+                    result.T = IndicatorType.Proc;
+                    // result.value = -1;
+                    // result.position = UDim2.fromScale(0, 0);
+                    result.abilityName = (update.change.metadata?.['skillName'] as string) || "!!";
+                    result.animationTrigger = 'attack';
+                }
+                break;
+            }
         }
         return result;
     }
@@ -196,10 +216,16 @@ function EntityVisuals({
         if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: mounting`)
         hpMotion.set(currentHP / maxHP);
         orgMotion.set(currentORG / maxORG);
+        setStatusEffects([...entity.statusEffects]);
         return () => {
             if (enableDebugWarns) warn(`| | | | | Entity Visual:${entity.playerID}: unmounting`)
         }
     }, []);
+
+    // Sync status effects whenever they change on the entity
+    useEffect(() => {
+        setStatusEffects([...entity.statusEffects]);
+    }, [entity.statusEffects.size()]);
     const updatesKey = useMemo(() => {
         if (!updates || updates.size() === 0) return "";
         const sortedUpdates = [...updates].sort((a, b) => a.atSecond < b.atSecond);
@@ -247,6 +273,9 @@ function EntityVisuals({
                     syncBars(ind.barSyncData);
                 }
             });
+
+            // Sync status effects from the entity's actual state
+            setStatusEffects([...entity.statusEffects]);
 
             if (immediateIndicators.size() > 0) {
                 if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
@@ -374,7 +403,7 @@ function EntityVisuals({
                 isDying={isDying}
                 upsideDown={upsideDown}
                 portraitImage={portraitImage}
-                statusEffects={entity.statusEffects}
+                statusEffects={statusEffects}
                 myID={myID}
             />
 
