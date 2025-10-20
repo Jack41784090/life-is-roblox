@@ -144,7 +144,7 @@ function test_statuseffectautobattle() {
                         {
                             id: '1', name: 'Bleed', effects: [
                                 {
-                                    affected: 'target', trigger: 'OnTurnStart', duration: 3,
+                                    affected: 'target', trigger: 'OnDamageTaken', duration: 3,
                                     effect: {
                                         type: 'ApplyStatusEffect',
                                         skillId: 'SE_BLEED',
