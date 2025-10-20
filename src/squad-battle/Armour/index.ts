@@ -11,7 +11,7 @@ export default class Armour implements iArmour {
 
     public static Unprotected(): Armour {
         return new Armour({
-            DV: 12, PV: 5, resistance: new Map([
+            DV: 12, PV: 0, resistance: new Map([
                 [DamageType.Cut, -0.2],
                 [DamageType.Impale, -0.2],
             ])
