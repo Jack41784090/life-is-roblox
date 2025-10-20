@@ -25,9 +25,29 @@ export class OneClash implements iOneClash {
         this.eventBus = new EventBus();
     }
 
-    private applyEffect(statusEffectdata: iSkillEffect): EntityUpdate[] | undefined {
+    private applyEffect(statusEffectdata: iSkillEffect, metadata: unknown, isFromCurrentSkill: boolean = false): EntityUpdate[] | undefined {
+        // metadata format
+        //  attacker: this.attacker,
+        //  defender: target,
+        //  damage: dm,
+        //  weapon: chosenWeapon,
         this.logger.debug(`Applying effect`, statusEffectdata);
-        const target = this.targetManifestation();
+        const attacker = (metadata as { attacker: iSquadEntity }).attacker;
+        const target = (metadata as { defender: iSquadEntity }).defender;
+
+        if (statusEffectdata.duration > 0) {
+            const index = target.statusEffects.indexOf(statusEffectdata);
+            if (index > -1) {
+                const updatedEffect = { ...statusEffectdata, duration: statusEffectdata.duration - 1 };
+                target.statusEffects[index] = updatedEffect;
+                this.logger.debug(`Decremented duration: ${statusEffectdata.effect.type} from ${statusEffectdata.duration} to ${updatedEffect.duration}`);
+
+                if (updatedEffect.duration === 0) {
+                    this.logger.debug(`Duration expired, will be removed in cleanup`);
+                }
+            }
+        }
+
         if (statusEffectdata.destroyOnTrigger) {
             this.logger.debug(`Removing one-time effect`, statusEffectdata);
             const index = target.statusEffects.indexOf(statusEffectdata);
@@ -36,18 +56,24 @@ export class OneClash implements iOneClash {
             }
         }
 
-        const returnThis: EntityUpdate[] = [{
-            source: this.attacker.playerID,
-            affected: target.playerID,
-            change: {
-                property: 'PROC',
-                from: -1,
-                to: -1,
-                metadata: {
-                    effect: statusEffectdata.icon
-                }
-            },
-        }];
+        const returnThis: EntityUpdate[] = [];
+
+        // Only create PROC indicator for the skill being used in this clash, not for pre-existing status effects
+        if (isFromCurrentSkill) {
+            returnThis.push({
+                source: this.attacker.playerID,
+                affected: target.playerID,
+                change: {
+                    property: 'PROC',
+                    from: -1,
+                    to: -1,
+                    metadata: {
+                        effect: statusEffectdata,
+                        skillName: this.skill.name,
+                    }
+                },
+            });
+        }
         switch (statusEffectdata.effect.type) {
             case 'ApplyStatusEffect': {
                 this.logger.debug(`Applying status effect`, statusEffectdata.effect);
@@ -59,12 +85,16 @@ export class OneClash implements iOneClash {
                 // }];
                 break;
             }
+
             case 'Damage': {
                 this.logger.debug(`Applying damage effect`, statusEffectdata.effect);
                 const de = statusEffectdata.effect as DamageEffectData;
                 // return target.damage(de.amount ?? 0, this.attacker.playerID);
-                target.damage(de.amount ?? 0, this.attacker.playerID)
-                    .forEach(u => returnThis.push(u));
+                statusEffectdata.affected === 'self' ?
+                    attacker.damage(de.amount ?? 0, this.attacker.playerID)
+                        .forEach(u => returnThis.push(u)) :
+                    target.damage(de.amount ?? 0, this.attacker.playerID)
+                        .forEach(u => returnThis.push(u));
                 break;
             }
 
@@ -93,21 +123,23 @@ export class OneClash implements iOneClash {
     private registerExistingSE() {
         this.attacker.statusEffects.forEach(se => {
             this.logger.debug(`Registering existing status effect`, se);
-            const c = this.eventBus.subscribe(se.trigger, () => {
-                this.applyEffect(se)?.forEach(u => this.updates.push(u));
+            const c = this.eventBus.subscribe(se.trigger, (metadata: unknown) => {
+                this.applyEffect(se, metadata, false)?.forEach(u => this.updates.push(u));
             });
             this._seEffectDisconnects.push(c);
         })
         this.defender?.statusEffects.forEach(se => {
             this.logger.debug(`Registering existing status effect`, se);
-            const c = this.eventBus.subscribe(se.trigger, () => {
-                this.applyEffect(se)?.forEach(u => this.updates.push(u));
+            const c = this.eventBus.subscribe(se.trigger, (metadata: unknown) => {
+                this.applyEffect(se, metadata, false)?.forEach(u => this.updates.push(u));
             });
             this._seEffectDisconnects.push(c);
         })
     }
 
     private registerSkillSE() {
+        let hasCreatedSkillProc = false;
+
         this.skill.effects.forEach(e => {
             const targets = e.affected === 'self' ? [this.attacker] : this.targets;
             targets.forEach(target => {
@@ -116,8 +148,12 @@ export class OneClash implements iOneClash {
                     target.statusEffects.push(e);
                 }
 
-                const c = this.eventBus.subscribe(e.trigger, () => {
-                    this.applyEffect(e)?.forEach(u => this.updates.push(u));
+                const c = this.eventBus.subscribe(e.trigger, (metadata: unknown) => {
+                    const shouldShowProc = !hasCreatedSkillProc;
+                    if (shouldShowProc) {
+                        hasCreatedSkillProc = true;
+                    }
+                    this.applyEffect(e, metadata, shouldShowProc)?.forEach(u => this.updates.push(u));
                 });
                 this._seEffectDisconnects.push(c);
             });
@@ -194,17 +230,45 @@ export class OneClash implements iOneClash {
             damage: dm,
             weapon: chosenWeapon,
         });
+
+        if (d.some(u => u.change.property === 'HP' && (u.change.to - u.change.from < 0))) {
+            this.eventBus.emit('OnDamageTaken', {
+                attacker: this.attacker,
+                defender: target,
+                damage: dm,
+                weapon: chosenWeapon,
+            });
+        }
     }
 
     private removeDestroyedSE() {
+        const attackerBefore = this.attacker.statusEffects.size();
         this.attacker.statusEffects = this.attacker.statusEffects.filter(se => {
-            this.logger.debug(`Removing status effect`, se);
-            return se.duration !== 0
+            const keep = se.duration !== 0;
+            if (!keep) {
+                this.logger.debug(`Removing expired status effect: ${se.effect.type} (duration reached 0)`);
+            }
+            return keep;
         });
-        if (this.defender) this.defender.statusEffects = this.defender.statusEffects.filter(se => {
-            this.logger.debug(`Removing status effect`, se);
-            return se.duration !== 0
-        });
+
+        if (attackerBefore > this.attacker.statusEffects.size()) {
+            this.logger.debug(`Attacker: ${attackerBefore - this.attacker.statusEffects.size()} status effect(s) removed`);
+        }
+
+        if (this.defender) {
+            const defenderBefore = this.defender.statusEffects.size();
+            this.defender.statusEffects = this.defender.statusEffects.filter(se => {
+                const keep = se.duration !== 0;
+                if (!keep) {
+                    this.logger.debug(`Removing expired status effect: ${se.effect.type} (duration reached 0)`);
+                }
+                return keep;
+            });
+
+            if (defenderBefore > this.defender.statusEffects.size()) {
+                this.logger.debug(`Defender: ${defenderBefore - this.defender.statusEffects.size()} status effect(s) removed`);
+            }
+        }
     }
 
     private disconnectAll() {
@@ -212,7 +276,7 @@ export class OneClash implements iOneClash {
         this._seEffectDisconnects.forEach(disconnect => disconnect());
     }
 
-    commit(): EntityUpdate[] {
+    public commit(): EntityUpdate[] {
         this.registerExistingSE();
         this.registerSkillSE();
 
