@@ -430,7 +430,7 @@ export class SquadEntity implements iSquadEntity {
     public getAvailableSkills(): iSkill[] {
         return [
             ...this.innateSkills,
-            ...this.weapon.getWeaponSkills(),
+            ...this.weapon.getWeaponSkills(this),
             ...this.temporarySkills,
         ];
     }

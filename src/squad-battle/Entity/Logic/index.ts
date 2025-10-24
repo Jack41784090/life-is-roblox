@@ -145,8 +145,11 @@ export class Logic implements iLogic {
             id: "basic-attack",
             name: "Basic Attack",
             effects: [{
+                name: "basic-attack",
                 affected: 'target',
                 trigger: 'OnBasicAttackHit',
+                original_source: this.entity.playerID,
+                affected_id: -1,
                 duration: 0,
                 effect: {
                     type: 'Damage',

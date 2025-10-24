@@ -100,15 +100,18 @@ export default class Weapon implements iWeapon {
         return damage;
     }
 
-    public getWeaponSkills(): iSkill[] {
+    public getWeaponSkills(source: iSquadEntity): iSkill[] {
         return [
             {
                 id: `${this.name}-basic-attack`,
                 name: `${this.name} Attack`,
                 effects: [{
+                    name: `${this.name}-basic-attack`,
                     affected: 'target',
                     trigger: 'OnBasicAttackHit',
                     duration: 0,
+                    original_source: source.playerID,
+                    affected_id: -1,
                     effect: {
                         type: 'Damage',
                         damageType: 'Physical',
