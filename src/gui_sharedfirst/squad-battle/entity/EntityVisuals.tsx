@@ -1,8 +1,7 @@
 import { useMotion } from "@rbxts/pretty-react-hooks";
 import React, { useEffect, useMemo, useRef, useState } from "@rbxts/react";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
-import { springs } from "shared/utils";
-import { iSkillEffect } from "squad-battle/Battle/System/type";
+import { logGradualProperties, springs } from "shared/utils";
 import { SquadEntity } from "squad-battle/Entity";
 import { DebugProps, EntityPortraitProps } from "../type";
 import CircularOrgBar from "./CircularOrgBar";
@@ -39,7 +38,12 @@ function EntityVisuals({
     const isAnimatingRef = useRef(false);
     const [indicators, setIndicators] = useState<Array<ProtoIndicator>>([]);
     const [pendingIndicators, setPendingIndicators] = useState<Array<ProtoIndicator>>([]);
-    const [statusEffects, setStatusEffects] = useState<Array<iSkillEffect>>(entity.statusEffects);
+    const [statusEffects, setStatusEffects] = useState<Array<{
+        effect: { type: string },
+        duration: number;
+        icon?: string;
+        instanceId?: string
+    }>>(entity.statusEffects);
     const processedUpdatesRef = useRef<Set<string>>(new Set());
     const currentHP = entity.changeableStats.HP();
     const currentORG = entity.changeableStats.ORG();
@@ -111,7 +115,7 @@ function EntityVisuals({
                 else if (update.source === myID) {
                     if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
                     result.T = IndicatorType.Null;
-                    result.value = -1;
+                    // result.value = -1;
                     result.position = UDim2.fromScale(0, 0);
                     result.animationTrigger = 'attack';
                 }
@@ -153,19 +157,15 @@ function EntityVisuals({
                 break;
             }
             case 'PROC': {
+                result.T = IndicatorType.Proc;
+                result.value = update.change.from * 100 + update.change.to * 1;
+                print(`PROC attack trigger value: from ${update.change.from} to ${update.change.to} encoded as ${result.value}`);
                 if (update.affected === myID) {
-                    const e = (update.change.metadata?.['effect'] as iSkillEffect);
-                    result.T = IndicatorType.Proc;
-                    result.abilityName = e?.icon || "!!";
-                    result.value = e?.duration === undefined ? -1 : e.duration;
+                    result.abilityName = (update.change.metadata?.['targetDisplay'] as string) || "!!";
                 }
                 else if (update.source === myID) {
                     if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Attack trigger: Damaging entity ${update.affected} (HP: ${update.change.from} -> ${update.change.to}) at ${update.atSecond}s`);
-                    // result.T = IndicatorType.Null;
-                    result.T = IndicatorType.Proc;
-                    // result.value = -1;
-                    // result.position = UDim2.fromScale(0, 0);
-                    result.abilityName = (update.change.metadata?.['skillName'] as string) || "!!";
+                    result.abilityName = (update.change.metadata?.['display'] as string) || "!!";
                     result.animationTrigger = 'attack';
                 }
                 break;
@@ -222,10 +222,6 @@ function EntityVisuals({
         }
     }, []);
 
-    // Sync status effects whenever they change on the entity
-    useEffect(() => {
-        setStatusEffects([...entity.statusEffects]);
-    }, [entity.statusEffects.size()]);
     const updatesKey = useMemo(() => {
         if (!updates || updates.size() === 0) return "";
         const sortedUpdates = [...updates].sort((a, b) => a.atSecond < b.atSecond);
@@ -252,7 +248,7 @@ function EntityVisuals({
         const newIndicators: Array<ProtoIndicator> = [];
         if (enableDebugWarns) warn(`Processing updates: ${updatesKey}...`);
 
-        updates.forEach((update, index) => {
+        updates.forEach(update => {
             const r = categoriseUpdate(update);
             if (r) {
                 newIndicators.push(r);
@@ -263,37 +259,82 @@ function EntityVisuals({
             const immediateIndicators = newIndicators.filter(ind => ind.atSecond <= getTimer());
             const timedIndicators = newIndicators.filter(ind => ind.atSecond > getTimer());
 
-            // Trigger immediate animations and bar syncs
-            immediateIndicators.forEach(ind => {
-                ind.ref.done = true;
-                if (ind.animationTrigger) {
-                    triggerPortraitAnimation(ind.animationTrigger);
-                }
-                if (ind.barSyncData) {
-                    syncBars(ind.barSyncData);
-                }
-            });
-
-            // Sync status effects from the entity's actual state
-            setStatusEffects([...entity.statusEffects]);
-
             if (immediateIndicators.size() > 0) {
-                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
-                immediateIndicators.forEach(ind => {
-                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]} (trigger: ${ind.animationTrigger || 'none'})`);
-                });
+                if (enableDebugWarns) {
+                    warn(`[EntityVisuals:${myID}] Adding ${immediateIndicators.size()} immediate indicators:`);
+                    immediateIndicators.forEach(ind => {
+                        warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]} (trigger: ${ind.animationTrigger || 'none'})`);
+                    });
+                }
+                immediateIndicators.forEach(ind => indicatorBeforeShow(ind));
                 setIndicators(prev => [...prev, ...immediateIndicators]);
             }
 
             if (timedIndicators.size() > 0) {
-                if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Queuing ${timedIndicators.size()} timed indicators:`);
-                timedIndicators.forEach(ind => {
-                    if (enableDebugWarns) warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]}@${ind.atSecond}s (trigger: ${ind.animationTrigger || 'none'})`);
-                });
+                if (enableDebugWarns) {
+                    warn(`[EntityVisuals:${myID}] Queuing ${timedIndicators.size()} timed indicators:`);
+                    timedIndicators.forEach(ind => {
+                        warn(`[EntityVisuals:${myID}] - ${IndicatorType[ind.T]}@${ind.atSecond}s (trigger: ${ind.animationTrigger || 'none'})`);
+                    });
+                }
                 setPendingIndicators(timedIndicators);
             }
         }
     }, [updatesKey]);
+
+    const indicatorBeforeShow = (ind: ProtoIndicator) => {
+        ind.ref.done = true;
+        if (ind.animationTrigger) {
+            triggerPortraitAnimation(ind.animationTrigger);
+        }
+        if (ind.barSyncData) {
+            syncBars(ind.barSyncData);
+        }
+
+        // Add new status effects from PROC indicators (animate them in)
+        logGradualProperties(ind as unknown as { [key: string]: unknown },
+            [['T', IndicatorType.Proc], ['abilityName', ind.abilityName]])
+        logGradualProperties(ind.ref as unknown as { [key: string]: unknown },
+            [['affected', myID]]);
+        if (ind.T === IndicatorType.Proc && ind.abilityName && ind.ref.affected === myID) {
+            const effectInstanceId = ind.ref.change.metadata?.['effectInstanceId'] as string | undefined;
+            const from = math.floor(ind.value / 100)
+            const to = ind.value % 100;
+            print(`PROC effect detected: ${ind.abilityName} [${effectInstanceId}] from ${from} to ${to} (encoded value: ${ind.value})`);
+
+            if (enableDebugWarns) {
+                warn(`[EntityVisuals:${myID}] PROC effect detected: ${ind.abilityName} [${effectInstanceId}] from ${from} to ${to}`);
+            }
+
+            // warn(effectInstanceId)
+            if (effectInstanceId) {
+                setStatusEffects(prev => {
+                    // Check if this effect instance already exists by instanceId
+                    const exists = prev.find(se => se.instanceId === effectInstanceId);
+
+                    if (exists) {
+                        exists.duration = to;
+                        if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Updating existing status effect ${exists.icon} [${effectInstanceId}] to duration ${to}`);
+                        return to > 0 ?
+                            [...prev.filter(se => se.instanceId !== effectInstanceId), exists] :
+                            [...prev.filter(se => se.instanceId !== effectInstanceId)];
+
+                    }
+                    else if (to > 0) {
+                        const newStatus = {
+                            effect: { type: ind.abilityName! },
+                            duration: to,
+                            icon: ind.ref.change.metadata?.['targetDisplay'] as string | undefined,
+                        }
+                        if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Adding new status effect ${newStatus.icon} [${effectInstanceId}]`);
+                        return [...prev, { ...newStatus, duration: to, instanceId: effectInstanceId }];
+                    }
+                    return prev;
+                });
+            }
+        }
+    }
+
     useEffect(() => {
         if (pendingIndicators.size() === 0) return;
         if (pendingIndicators[0].atSecond > getTimer()) {
@@ -313,16 +354,10 @@ function EntityVisuals({
             indicatorToShow.ref.done = true;
             if (enableDebugWarns) warn(`[EntityVisuals:${myID}] Showing timed indicator: ${IndicatorType[indicatorToShow.T]} at ${getTimer()}s (scheduled: ${indicatorToShow.atSecond}s)`);
             indicatorsToShow.push(indicatorToShow);
-
-            if (indicatorToShow.animationTrigger) {
-                triggerPortraitAnimation(indicatorToShow.animationTrigger);
-            }
-            if (indicatorToShow.barSyncData) {
-                syncBars(indicatorToShow.barSyncData);
-            }
         }
 
         if (indicatorsToShow.size() > 0) {
+            indicatorsToShow.forEach(ind => indicatorBeforeShow(ind));
             setIndicators(prev => [...prev, ...indicatorsToShow]);
         }
         if (currentQueue.size() > 0) {
