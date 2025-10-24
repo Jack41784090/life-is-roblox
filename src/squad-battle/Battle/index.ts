@@ -191,7 +191,8 @@ export class SquadBattle implements iSquadBattle {
                     break;
 
                 case 'PROC':
-                    changeStr = `PROC! ${u.source} triggers effect on ${u.affected}; icon: ${u.change.metadata?.icon ?? 'N/A'}`;
+                    const e = (u.change.metadata?.['display']);
+                    changeStr = `PROC! ${u.source} -${e ?? '-'}-> on ${u.affected}; V: ${u.change.from} -> ${u.change.to}`;
                     break;
             }
             print(`  - ${u.source} -> ${u.affected}: ${changeStr}`);
