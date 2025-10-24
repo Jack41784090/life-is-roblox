@@ -1,5 +1,4 @@
 import React, { Binding } from "@rbxts/react";
-import { iSkillEffect } from "squad-battle/Battle/System/type";
 import EntityStatusEffect from "./EntityStatusEffect";
 
 interface EntityPortraitProps {
@@ -8,7 +7,11 @@ interface EntityPortraitProps {
     isDying: boolean;
     upsideDown: boolean;
     portraitImage: string;
-    statusEffects: iSkillEffect[];
+    statusEffects: {
+        effect: { type: string },
+        duration: number;
+        icon?: string;
+    }[];
     myID: number;
 }
 

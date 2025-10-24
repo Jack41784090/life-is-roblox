@@ -1,7 +1,12 @@
 import React from "@rbxts/react";
-import { iSkillEffect } from "squad-battle/Battle/System/type";
 
-function EntityStatusEffect({ ise, myID }: { ise: iSkillEffect, myID: number }) {
+function EntityStatusEffect({ ise, myID }: {
+    ise: {
+        effect: { type: string },
+        duration: number;
+        icon?: string;
+    }, myID: number
+}) {
     return <>
         <textlabel
             key={`${myID}-status-${ise.effect.type}-${ise.duration}`}

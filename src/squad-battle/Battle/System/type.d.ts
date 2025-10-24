@@ -1,3 +1,4 @@
+import { EventBus } from "shared/class/battle/Events/EventBus";
 import { Reality } from "shared/class/battle/Systems/CombatSystem/types";
 import { iSquadEntity } from "squad-battle/Entity/type";
 import { EntityBaseStatsKeys, EntityUpdate } from "squad-battle/type";
@@ -98,13 +99,19 @@ export type iSkillCondition = {
 }
 
 export type iSkillEffect = {
+    instanceId?: string; // Unique ID for this status effect instance
+    name: string,
     icon?: string; // Optional icon for UI representation
     affected: 'self' | 'target',
+    original_source: number,
+    affected_id: number,
     trigger: TriggerType;
     conditions?: iSkillCondition[];
     effect: iSkillEffectData;
     destroyOnTrigger?: boolean;
     duration: number; // -1: permanent; 0: immediate
+
+    subscribe?: (eventBus: EventBus, output_array: EntityUpdate[]) => (() => void)
 }
 
 export type iSkill = {
