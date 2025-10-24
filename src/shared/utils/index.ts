@@ -424,6 +424,19 @@ export function visualizePosition(position: Vector3, color: Color3 = new Color3(
     return marker;
 }
 
+export function logGradualProperties(obj: { [key: string]: unknown }, clauses: [string, unknown][]) {
+    for (const [key, value] of pairs(obj)) {
+        const clause = clauses.find(([clauseKey]) => clauseKey === key);
+        if (clause) {
+            const [_, compare] = clause;
+            logger.info(`Property [${key}]: Current Value = ${tostring(value)}, Compared To = ${tostring(compare)}`, "GradualProperties");
+            if (compare !== value) {
+                break
+            }
+        }
+    }
+}
+
 //===========================================================================
 // PRIORITY QUEUE CLASS
 //===========================================================================
