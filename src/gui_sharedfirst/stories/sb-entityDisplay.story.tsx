@@ -34,8 +34,11 @@ const story = CreateReactStory({
     for (let i = 0; i < controls.statusCount; i++) {
         entity.statusEffects.push(
             {
+                name: `StatusEffectSkill_${i + 1}`,
                 affected: 'target',
                 trigger: 'OnAbilityCasted',
+                original_source: -1,
+                affected_id: -1,
                 effect: {
                     type: 'Damage',
                     damageType: 'Physical',

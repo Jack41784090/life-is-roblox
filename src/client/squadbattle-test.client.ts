@@ -134,8 +134,9 @@ function test_statuseffectautobattle() {
                 entities: []
             };
             for (let sn = 0; sn < squad_numbers; sn++) {
+                const id = (tc + 1) * 100 + (sc) * 10 + sn + 1
                 squad_config.entities.push({
-                    playerID: (tc + 1) * 100 + (sc) * 10 + sn + 1,
+                    playerID: id,
                     stats: getDummyStats(),
                     team: teamTag,
                     name: `tc${tc + 1}_${sc + 1}_${sn + 1}`,
@@ -144,7 +145,10 @@ function test_statuseffectautobattle() {
                         {
                             id: '1', name: 'Bleed', effects: [
                                 {
-                                    affected: 'target', trigger: 'OnDamageTaken', duration: 3,
+                                    name: 'Bleed',
+                                    affected: 'target', trigger: 'OnDamageTaken', duration: 0,
+                                    original_source: id,
+                                    affected_id: -1,
                                     effect: {
                                         type: 'ApplyStatusEffect',
                                         skillId: 'SE_BLEED',
